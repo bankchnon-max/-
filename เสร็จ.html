@@ -1,0 +1,2190 @@
+<style>
+  #fr, #fr * { box-sizing: border-box; }
+  #fr {
+    --bg:#10151c; --panel:#1a222c; --panel2:#212b37; --border:#2b3645;
+    --accent:#ff8a3d; --accent2:#ffb27a; --text:#f2ede3; --dim:#93a1b0;
+    --green:#3fb27f; --red:#e5595f; --yellow:#f0b429;
+    font-family:'Sarabun',sans-serif; background:var(--bg); color:var(--text);
+    min-height:100vh; padding-bottom:78px; position:relative; -webkit-tap-highlight-color:transparent;
+  }
+  #fr h1,#fr h2,#fr h3,#fr .kn { font-family:'Kanit',sans-serif; }
+  #fr .topbar { padding:14px 16px 12px; border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg,#141b23,#10151c); position:sticky; top:0; z-index:20; }
+  #fr .topbar h1 { font-size:17px; font-weight:600; margin:0 0 2px; display:flex; align-items:center; gap:8px; }
+  #fr .dotled { width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent); }
+  #fr .sub { font-size:12px; color:var(--dim); }
+  #fr .chip { margin-top:9px; padding:8px 11px; background:var(--panel2); border:1px solid var(--border);
+    border-radius:10px; font-size:12.5px; display:flex; justify-content:space-between; gap:8px; align-items:center; }
+  #fr .chip b { color:var(--accent2); font-family:'Kanit',sans-serif; }
+  #fr .banner { margin-top:8px; padding:9px 12px; border-radius:10px; font-size:12.5px; display:none;
+    font-family:'Kanit',sans-serif; }
+  #fr .banner.warn { display:block; background:#3a2a0f; color:var(--yellow); border:1px solid #5c4a1c; }
+  #fr .banner.late { display:block; background:#3a1c1e; color:var(--red); border:1px solid #5c2a2c; }
+  #fr .savechip { margin-top:7px; font-size:11.5px; padding:5px 10px; border-radius:8px;
+    font-family:'Kanit',sans-serif; display:inline-block; cursor:default; }
+  #fr .savechip.ok { background:#163022; color:var(--green); }
+  #fr .savechip.saving { background:#232e3b; color:var(--dim); }
+  #fr .savechip.bad { background:#3a1c1e; color:var(--red); border:1px solid #5c2a2c; cursor:pointer; }
+  #fr .bigactions { display:flex; gap:12px; padding:14px; }
+  #fr .bigbtn { flex:1; border-radius:14px; padding:20px 10px; cursor:pointer;
+    font-family:'Kanit',sans-serif; font-weight:600; font-size:19px; letter-spacing:.5px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+    border:2px solid transparent; transition:transform .07s; min-height:104px; }
+  #fr .bigbtn:active { transform:scale(.96); }
+  #fr .bigbtn .ic { font-size:30px; line-height:1; }
+  #fr .bigbtn.pause { background:#f0b429; color:#241a02; border-color:#c8951a;
+    box-shadow:0 5px 0 #b8860f, 0 8px 16px rgba(0,0,0,.35); }
+  #fr .bigbtn.pause.resuming { background:#3fb27f; color:#04220f; border-color:#2c8a60;
+    box-shadow:0 5px 0 #256b4a, 0 8px 16px rgba(0,0,0,.35); }
+  #fr .bigbtn.stop { background:#e5595f; color:#2a0709; border-color:#b8434a;
+    box-shadow:0 5px 0 #97363c, 0 8px 16px rgba(0,0,0,.35); }
+  #fr .bigbtn .sub { font-size:12px; font-weight:400; opacity:.85; font-family:'Sarabun',sans-serif; }
+  #fr .content { padding:14px; max-width:920px; margin:0 auto; }
+  #fr .panel { display:none; }
+  #fr .panel.show { display:block; }
+  #fr .card { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:11px; }
+  #fr .card h3 { font-size:13px; color:var(--dim); font-weight:500; margin:0 0 9px; text-transform:uppercase; letter-spacing:.5px; }
+  #fr .ordgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  @media(max-width:520px){ #fr .ordgrid { grid-template-columns:1fr; } }
+  #fr .ocard { background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:12px; position:relative; }
+  #fr .ocard.sel { border-color:var(--accent); background:#2a2013; box-shadow:0 0 0 1px var(--accent) inset; }
+  #fr .ocard.fin { opacity:.55; }
+  #fr .ocard .cust { font-family:'Kanit',sans-serif; font-size:15px; cursor:pointer; padding-right:62px; }
+  #fr .ocard .code { font-size:12.5px; color:var(--accent2); margin-top:2px; font-family:'Kanit',sans-serif; cursor:pointer; }
+  #fr .ocard .meta { font-size:11.5px; color:var(--dim); margin-top:6px; line-height:1.55; }
+  #fr .st { position:absolute; top:10px; right:10px; font-size:10.5px; padding:2px 7px; border-radius:10px; font-family:'Kanit',sans-serif; }
+  #fr .st.active { background:#163022; color:var(--green); }
+  #fr .st.pending { background:#232e3b; color:var(--dim); }
+  #fr .st.done { background:#232e3b; color:var(--dim); }
+  #fr .acts { display:flex; gap:6px; margin-top:9px; flex-wrap:wrap; }
+  #fr .ctrwrap { display:flex; flex-direction:column; align-items:center; padding:16px 8px 6px; }
+  #fr .ring { width:168px; height:168px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#2a3644,#171e26 70%); border:6px solid #2c3947;
+    display:flex; align-items:center; justify-content:center; flex-direction:column; cursor:pointer;
+    user-select:none; box-shadow:0 8px 24px rgba(0,0,0,.4), inset 0 0 0 2px #0d1218; transition:transform .07s; }
+  #fr .ring:active { transform:scale(.95); }
+  #fr .ring .n { font-size:50px; font-weight:600; color:var(--accent); line-height:1; font-family:'Kanit',sans-serif; }
+  #fr .ring .l { font-size:11.5px; color:var(--dim); margin-top:5px; text-align:center; padding:0 12px; }
+  #fr .hint { font-size:11.5px; color:var(--dim); margin-top:12px; text-align:center; }
+  #fr input,#fr select,#fr textarea { width:100%; background:var(--panel2); border:1px solid var(--border);
+    border-radius:8px; padding:9px 10px; color:var(--text); font-family:'Sarabun',sans-serif; font-size:14px; margin-top:4px; }
+  #fr label { font-size:12px; color:var(--dim); display:block; margin-top:9px; }
+  #fr button.btn { background:var(--accent); color:#201305; border:none; border-radius:9px; padding:10px 15px;
+    font-family:'Kanit',sans-serif; font-weight:500; font-size:14px; cursor:pointer; margin-top:11px; }
+  #fr button.btn.sec { background:var(--panel2); color:var(--text); border:1px solid var(--border); }
+  #fr button.btn.dg { background:#3a1c1e; color:var(--red); border:1px solid #5c2a2c; }
+  #fr button.btn.sm { padding:6px 10px; font-size:12.5px; margin-top:0; }
+  #fr button.btn.w { width:100%; }
+  #fr .frow { display:flex; gap:6px; margin-top:6px; align-items:center; }
+  #fr .frow input { margin-top:0; }
+  #fr table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  #fr th { text-align:left; color:var(--dim); font-weight:500; padding:7px 8px; border-bottom:1px solid var(--border);
+    white-space:nowrap; font-family:'Kanit',sans-serif; }
+  #fr td { padding:7px 8px; border-bottom:1px solid #1f2833; white-space:nowrap; }
+  #fr .scr { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  #fr .bdg { display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-family:'Kanit',sans-serif; }
+  #fr .bdg.ok { background:#163022; color:var(--green); }
+  #fr .bdg.warn { background:#3a2a0f; color:var(--yellow); }
+  #fr .bdg.bad { background:#3a1c1e; color:var(--red); }
+  #fr .sg { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  #fr .stat { background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:11px; }
+  #fr .stat .v { font-size:21px; font-family:'Kanit',sans-serif; color:var(--accent2); }
+  #fr .stat .l { font-size:11px; color:var(--dim); margin-top:2px; }
+  #fr .nav { position:fixed; bottom:0; left:0; right:0; background:#141b23; border-top:1px solid var(--border); display:flex; z-index:30; }
+  #fr .nb { flex:1; background:none; border:none; color:var(--dim); padding:8px 2px 7px; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:3px; font-size:10.5px; font-family:'Sarabun',sans-serif; }
+  #fr .nb .ic { font-size:18px; }
+  #fr .nb.on { color:var(--accent); }
+  #fr .empty { color:var(--dim); font-size:12.5px; text-align:center; padding:16px 0; }
+  #fr .rf { display:flex; gap:9px; }
+  #fr .rf > div { flex:1; }
+  #fr .x { background:none; border:none; color:var(--red); cursor:pointer; font-size:15px; padding:2px 6px; }
+  #fr .stb { display:flex; gap:7px; margin:9px 0; flex-wrap:wrap; }
+  #fr .stab { background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:6px 11px;
+    font-size:12.5px; cursor:pointer; color:var(--dim); font-family:'Kanit',sans-serif; }
+  #fr .stab.on { color:var(--accent); border-color:var(--accent); }
+  #fr .bigstd { background:linear-gradient(135deg,#2a2013,#1d2530); border:1px solid #4a3a20; border-radius:12px;
+    padding:13px; text-align:center; margin-top:4px; }
+  #fr .bigstd .v { font-size:30px; font-family:'Kanit',sans-serif; color:var(--accent); line-height:1.1; }
+  #fr .bigstd .l { font-size:11.5px; color:var(--dim); margin-top:3px; }
+  #fr .bigstd .brk { font-size:11px; color:var(--dim); margin-top:7px; line-height:1.6; }
+  #fr .card.need { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  #fr .flash { animation:fl 1.3s ease; }
+  @keyframes fl { 0%,100%{ box-shadow:0 0 0 0 rgba(255,138,61,0);} 25%{ box-shadow:0 0 0 3px rgba(255,138,61,.55);} 60%{ box-shadow:0 0 0 3px rgba(255,138,61,.3);} }
+  #fr button.btn[disabled] { background:#2a323d; color:#5f6d7c; cursor:not-allowed; }
+  #fr .ov { position:fixed; inset:0; background:rgba(8,11,15,.78); z-index:100; display:none;
+    align-items:center; justify-content:center; padding:18px; }
+  #fr .ov.show { display:flex; }
+  #fr .box { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:17px; max-width:360px; width:100%; }
+  #fr .box h3 { font-size:15px; margin:0 0 5px; color:var(--text); text-transform:none; letter-spacing:0; }
+  #fr .box p { font-size:12.5px; color:var(--dim); margin:0 0 9px; line-height:1.6; }
+  #fr .ba { display:flex; gap:8px; flex-wrap:wrap; }
+  #fr .ba .btn { flex:1; min-width:110px; }
+  #fr .toast { position:fixed; bottom:88px; left:50%; transform:translateX(-50%) translateY(12px);
+    background:#243040; border:1px solid var(--accent); color:var(--text); padding:10px 16px; border-radius:10px;
+    font-size:13px; font-family:'Kanit',sans-serif; z-index:200; opacity:0; transition:.22s; pointer-events:none;
+    max-width:90vw; text-align:center; }
+  #fr .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  #fr .sumline { font-size:12.5px; color:var(--dim); margin-top:8px; }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
+
+<div id="fr">
+  <div class="topbar">
+    <h1><span class="dotled"></span> ระบบรายงานการผลิต</h1>
+    <div class="sub" id="clock">—</div>
+    <div class="chip">
+      <span>กำลังทำงาน: <b id="chipOrder">ยังไม่ได้เลือก</b></span>
+      <span id="chipTime" style="color:var(--dim); font-size:11px;"></span>
+    </div>
+    <div class="banner" id="banner"></div>
+    <div class="savechip ok" id="saveState">บันทึกแล้ว ✓</div>
+    <div class="savechip" id="wakeChip" style="margin-left:6px; background:#232e3b; color:var(--dim); cursor:pointer;">☀ กันจอดับ: ปิด</div>
+    <div class="savechip" id="roleChip" style="margin-left:6px; background:#232e3b; color:var(--dim); cursor:pointer;">👤 พนักงาน</div>
+  </div>
+
+  <div class="content">
+
+    <!-- 1. ORDERS -->
+    <div class="panel" id="p-order">
+      <div class="card">
+        <label style="margin-top:0;">ค้นหา — พิมพ์ชื่อลูกค้า รหัสงาน หรือชื่อใย</label>
+        <input id="qOrder" placeholder="เช่น ทรัพย์  หรือ  300*34  หรือ  15DHC">
+        <div class="sumline" id="qHint"></div>
+      </div>
+      <div class="card">
+        <h3>ออเดอร์ทั้งหมด</h3>
+        <div class="ordgrid" id="ordGrid"></div>
+        <div class="empty" id="ordEmpty" style="display:none;">ยังไม่มีออเดอร์ — เพิ่มด้านล่าง</div>
+      </div>
+      <div class="card">
+        <h3>คลังสเปคลูกค้า — เคยทำแล้ว กดเปิดงานใหม่ได้เลย</h3>
+        <div id="specLib"></div>
+      </div>
+      <div class="card">
+        <h3>เพิ่มออเดอร์ใหม่</h3>
+        <div class="rf">
+          <div><label>ชื่อลูกค้า</label><input id="nCust" list="dlCust" placeholder="ทรัพย์รุ่งเรือง"><datalist id="dlCust"></datalist></div>
+          <div><label>รหัส/สเปคงาน</label><input id="nCode" list="dlCode" placeholder="ใย 300*34*46"><datalist id="dlCode"></datalist></div>
+        </div>
+        <div class="sumline" id="nMatch"></div>
+        <div class="rf">
+          <div><label>ประเภทสินค้า</label><select id="nType">
+            <option value="ใย">ใย (แผ่น/ม้วน)</option>
+            <option value="หมอน">หมอน</option>
+            <option value="อื่นๆ">อื่นๆ</option>
+          </select></div>
+          <div><label>จำนวนที่ลูกค้าสั่ง (แพ็ค)</label><input id="nPacks" type="number" inputmode="numeric" placeholder="500"></div>
+        </div>
+        <label>ทำถึงเวลา (เตือนก่อน 5 นาที)</label><input id="nDue" type="datetime-local">
+        <button class="btn w" id="btnAddOrder">เพิ่มออเดอร์</button>
+      </div>
+    </div>
+
+    <!-- 2. FEED FIBER -->
+    <div class="panel" id="p-feed">
+      <div class="card">
+        <h3>สูตรของออเดอร์ที่กำลังทำงาน</h3>
+        <div id="feedInfo"></div>
+      </div>
+      <div class="card">
+        <div class="ctrwrap">
+          <div class="ring" id="ring">
+            <div class="n" id="ringN">0</div>
+            <div class="l">รอบป้อนใยวันนี้ — แตะเพื่อ +1</div>
+          </div>
+          <div class="hint" id="feedHint">แตะทุกครั้งที่ป้อนใยครบ 1 สูตร ระบบบันทึกเวลาให้อัตโนมัติ</div>
+          <button class="btn sec" id="btnUndoFeed" style="margin-top:11px;">↩ ลบรายการล่าสุด (กดผิด)</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>รายการป้อนใยวันนี้</h3>
+        <div class="scr"><table id="tFeed"></table></div>
+      </div>
+      <div class="card">
+        <h3>เบิกใย (เปลี่ยนก้อนใย)</h3>
+        <div class="rf">
+          <div><label>หมายเลขก้อน</label><input id="wdSeq" inputmode="text" placeholder="เลขที่ก้อนใย"></div>
+          <div><label>ชื่อใย</label><select id="wdSel"></select>
+            <input id="wdName" list="dlFiber" placeholder="พิมพ์ชื่อใย" style="display:none;"><datalist id="dlFiber"></datalist></div>
+        </div>
+        <div id="wdWarn" class="sumline"></div>
+        <div class="rf">
+          <div><label>ลอตที่ / Lot</label><input id="wdLot" placeholder="เช่น L-2409"></div>
+          <div><label>น้ำหนักที่เบิก (กก.)</label><input id="wdKg" type="number" inputmode="decimal" step="0.01"></div>
+        </div>
+        <label>หมายเหตุ</label>
+        <input id="wdNote" placeholder="เปลี่ยนก้อนใหม่">
+        <button class="btn w" id="btnWd">บันทึกการเบิกใย</button>
+        <div class="scr" style="margin-top:11px;"><table id="tWd"></table></div>
+      </div>
+      <div class="card">
+        <h3>สรุปใยที่ใช้วันนี้ (ฝั่งป้อนใย)</h3>
+        <div class="scr"><table id="tFeedSum"></table></div>
+      </div>
+      <div class="card">
+        <h3>ตั้งค่า / ปรับสูตร</h3>
+        <label>เลือกออเดอร์</label>
+        <select id="recSel"></select>
+        <label>น้ำหนักรวมที่ครบสูตร (กก.)</label>
+        <input id="recTarget" type="number" inputmode="decimal" step="0.01" placeholder="5">
+        <label>รายการใย + น้ำหนักต่อสูตร</label>
+        <div id="recRows"></div>
+        <div id="recSumLine" class="sumline"></div>
+        <button class="btn sec sm" style="margin-top:9px;" id="btnAddRecRow">+ เพิ่มรายการใย</button><br>
+        <button class="btn" id="btnSaveRec">บันทึกสูตร</button>
+      </div>
+    </div>
+
+    <!-- 3. OFFICE -->
+    <div class="panel" id="p-office">
+      <div class="card">
+        <h3>ภาพรวมวันนี้</h3>
+        <div class="sg" id="ofcStats"></div>
+      </div>
+      <div class="card">
+        <h3>รายงานสด</h3>
+        <div class="stb">
+          <div class="stab" data-ov="feed">ป้อนใย</div>
+          <div class="stab" data-ov="line">ท้ายไลน์</div>
+          <div class="stab" data-ov="wd">เบิกใย</div>
+          <div class="stab" data-ov="scrap">เศษ/ของเสีย</div>
+        </div>
+        <div class="scr"><table id="tOfc"></table></div>
+      </div>
+    </div>
+
+    <!-- 4. END OF LINE -->
+    <div class="panel" id="p-line">
+      <div class="card" id="cardSpec">
+        <div id="specForm"></div>
+      </div>
+      <div class="card" id="cardRun">
+        <h3>ท้ายไลน์ — ออเดอร์ที่กำลังทำงาน</h3>
+        <div id="lineInfo"></div>
+        <div class="bigstd" id="stdBox"></div>
+        <div id="idleWarn"></div>
+        <div class="rf">
+          <div><label>ลอตถุง / Bag Lot</label><input id="bagLot" placeholder="เช่น B-2409"></div>
+          <div><label>หมายเลขถุงที่</label><input id="bagNo" type="number" inputmode="numeric" placeholder="อัตโนมัติ"></div>
+        </div>
+        <div class="rf">
+          <div><label>ชั่งจริง — ต่อชิ้น (กก.)</label><input id="actPc" type="number" inputmode="decimal" step="0.001" placeholder="สุ่มชั่ง 1 ชิ้น"></div>
+          <div><label>ชั่งจริง — ต่อแพ็ค (กก.)</label><input id="actW" type="number" inputmode="decimal" step="0.001" placeholder="ทั้งแพ็ครวมถุง"></div>
+        </div>
+        <div class="sumline" id="actHint"></div>
+        <label>หมายเหตุ</label>
+        <input id="lineNote" placeholder="เช่น ใยแน่นเกิน">
+        <button class="btn w" id="btnPack">บันทึก 1 แพ็ค (น้ำหนักจริง)</button>
+        <button class="btn sec w" id="btnPackStd">ตรงตาม Standard พอดี — ไม่ต้องชั่ง</button>
+        <div style="text-align:right; margin-top:9px;">
+          <button class="btn sec sm" id="btnGapSet">⏱ ตั้งเวลาเตือนช่วงห่าง</button>
+        </div>
+      </div>
+      <div class="card bigactions">
+        <button class="bigbtn pause" id="btnBreak"><span class="ic">⏸</span><span class="tx">พักงาน</span></button>
+        <button class="bigbtn stop" id="btnFinish"><span class="ic">🏁</span><span class="tx">จบงาน</span></button>
+      </div>
+      <div class="card">
+        <h3>รายงานการผลิต</h3>
+        <div class="scr"><table id="tLine"></table></div>
+      </div>
+      <div class="card">
+        <h3>ชั่งเศษ / ของเสีย (ชั่งรวมเป็นครั้งๆ)</h3>
+        <div class="rf">
+          <div><label>น้ำหนักเศษ (กก.)</label><input id="scKg" type="number" inputmode="decimal" step="0.01"></div>
+          <div><label>หมายเหตุ</label><input id="scNote" placeholder="เศษตัดขอบ"></div>
+        </div>
+        <button class="btn sec w" id="btnScrap">บันทึกน้ำหนักเศษ</button>
+        <div class="scr" style="margin-top:11px;"><table id="tScrap"></table></div>
+      </div>
+    </div>
+
+    <!-- 5. SUMMARY -->
+    <div class="panel" id="p-sum">
+      <div class="card">
+        <div class="rf" style="align-items:center;">
+          <h3 style="margin:0;">สรุป</h3>
+          <select id="sumRange" style="max-width:150px;">
+            <option value="day">รายวัน</option>
+            <option value="week">ย้อนหลัง 7 วัน</option>
+            <option value="month">ย้อนหลัง 30 วัน</option>
+            <option value="all">ทั้งหมดที่มี</option>
+          </select>
+        </div>
+        <div class="rf" style="margin-top:8px;">
+          <div><label>วันที่ / ถึงวันที่</label><input id="sumDate" type="date"></div>
+          <div id="sumFromWrap" style="display:none;"><label>ตั้งแต่วันที่</label><input id="sumFrom" type="date"></div>
+        </div>
+        <div class="sumline" id="sumRangeLine"></div>
+        <div class="acts" style="margin-top:10px;">
+          <button class="btn sm" id="btnExport">⤓ ออกไฟล์ Excel (CSV)</button>
+          <button class="btn sec sm" id="btnExportAll">⤓ ออกทั้งหมด (สำรองข้อมูล)</button>
+        </div>
+        <div class="sg" id="sumStats" style="margin-top:11px;"></div>
+      </div>
+      <div class="card">
+        <h3>สมดุลใย เข้า – ออก</h3>
+        <div class="sg" id="balStats"></div>
+        <div class="sumline" id="balNote"></div>
+      </div>
+      <div class="card">
+        <h3>สรุปตามออเดอร์</h3>
+        <div class="scr"><table id="tSumOrder"></table></div>
+      </div>
+      <div class="card">
+        <h3>วัตถุดิบที่ใช้ตามสูตร — แยกตามออเดอร์</h3>
+        <div class="scr"><table id="tSumFiber"></table></div>
+      </div>
+      <div class="card">
+        <h3>ประวัติการเบิกใย — แยกตามลอต</h3>
+        <div class="scr"><table id="tSumWd"></table></div>
+      </div>
+      <div class="card">
+        <h3>เวลาพัก</h3>
+        <div class="scr"><table id="tSumBreak"></table></div>
+      </div>
+      <div class="card">
+        <h3>ช่วงเวลาที่เสีย</h3>
+        <div class="scr"><table id="tSumGap"></table></div>
+      </div>
+      <div class="card">
+        <h3>ติดตั้งเป็นแอพบนหน้าจอโทรศัพท์</h3>
+        <div class="sumline" id="installInfo"></div>
+      </div>
+      <div class="card">
+        <h3>สิทธิ์การเข้าใช้</h3>
+        <div class="sumline" id="lockInfo"></div>
+        <button class="btn sec sm" id="btnPinSet" style="margin-top:9px;">ตั้ง / เปลี่ยนรหัสหัวหน้า</button>
+      </div>
+      <div class="card">
+        <h3>พื้นที่เก็บข้อมูล</h3>
+        <div class="sumline" id="storeInfo"></div>
+        <div class="acts" style="margin-top:9px;">
+          <button class="btn sec sm" id="btnPrune">ลบข้อมูลเก่ากว่า 60 วัน</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="ov" id="ovDiag">
+    <div class="box">
+      <h3>ตรวจสอบการบันทึก</h3>
+      <p>กดทดสอบเพื่อดูว่าติดปัญหาตรงไหน แล้วส่งข้อความข้างล่างให้ผู้ดูแลได้เลย</p>
+      <div class="sumline" id="diagOut">กำลังตรวจ…</div>
+      <div class="ba" style="margin-top:12px;">
+        <button class="btn" id="diagRun">ทดสอบอีกครั้ง</button>
+        <button class="btn sec" id="diagSave">ลองบันทึกใหม่</button>
+        <button class="btn sec" id="diagClose">ปิด</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ov" id="ovPin">
+    <div class="box">
+      <h3 id="pinTitle">ใส่รหัสหัวหน้า</h3>
+      <p id="pinMsg">ส่วนออฟฟิศและสรุปเปิดได้เฉพาะหัวหน้า</p>
+      <input id="pinInput" type="password" inputmode="numeric" placeholder="รหัส 4-8 หลัก">
+      <div class="sumline" id="pinWarn"></div>
+      <div class="ba" style="margin-top:12px;">
+        <button class="btn" id="pinOk">ยืนยัน</button>
+        <button class="btn sec" id="pinCancel">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ov" id="ovPinSet">
+    <div class="box">
+      <h3>ตั้ง / เปลี่ยนรหัสหัวหน้า</h3>
+      <p>ใช้เปิดแท็บออฟฟิศและสรุป พนักงานที่ไม่มีรหัสจะเข้าไม่ได้</p>
+      <label>รหัสใหม่ (4-8 หลัก)</label>
+      <input id="pinNew" type="password" inputmode="numeric">
+      <label>ยืนยันรหัสใหม่</label>
+      <input id="pinNew2" type="password" inputmode="numeric">
+      <div class="sumline" id="pinSetWarn"></div>
+      <div class="ba" style="margin-top:12px;">
+        <button class="btn" id="pinSetOk">บันทึกรหัส</button>
+        <button class="btn dg" id="pinOff">ปิดการล็อก</button>
+        <button class="btn sec" id="pinSetCancel">ปิด</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ov" id="ovBreak">
+    <div class="box">
+      <h3>พักงาน</h3>
+      <p>ระบบจะหยุดนับเวลาผลิตและหยุดเตือน "ไม่มีการบันทึก" จนกว่าจะกดเริ่มงานต่อ</p>
+      <div class="ba">
+        <button class="btn" id="brLunch">พักเที่ยง</button>
+        <button class="btn sec" id="brRest">พักเบรก</button>
+      </div>
+      <label>หรือระบุเอง</label>
+      <input id="brOther" placeholder="เช่น ประชุม, รอวัตถุดิบ">
+      <div class="ba" style="margin-top:9px;">
+        <button class="btn sec" id="brOtherOk">เริ่มพักตามที่ระบุ</button>
+        <button class="btn dg" id="brCancel">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ov" id="ovWdEdit">
+    <div class="box">
+      <h3>แก้ไขรายการเบิกใย</h3>
+      <div class="rf">
+        <div><label>หมายเลขก้อน</label><input id="ewSeq" inputmode="text"></div>
+        <div><label>ชื่อใย</label><select id="ewSel"></select>
+          <input id="ewName" list="dlFiber" placeholder="พิมพ์ชื่อใย" style="display:none;"></div>
+      </div>
+      <div id="ewWarn" class="sumline"></div>
+      <div class="rf">
+        <div><label>ลอตที่</label><input id="ewLot"></div>
+        <div><label>น้ำหนัก (กก.)</label><input id="ewKg" type="number" inputmode="decimal" step="0.01"></div>
+      </div>
+      <label>หมายเหตุ</label><input id="ewNote">
+      <div class="ba" style="margin-top:12px;">
+        <button class="btn" id="ewSave">บันทึก</button>
+        <button class="btn sec" id="ewCancel">ปิด</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav">
+    <button class="nb on" data-p="order"><span class="ic">🧾</span>ออเดอร์</button>
+    <button class="nb" data-p="feed"><span class="ic">🧵</span>ป้อนใย</button>
+    <button class="nb" data-p="line"><span class="ic">🏁</span>ท้ายไลน์</button>
+    <button class="nb" data-p="office"><span class="ic">🖥️</span>ออฟฟิศ</button>
+    <button class="nb" data-p="sum"><span class="ic">📊</span>สรุป</button>
+  </div>
+
+  <!-- generic confirm -->
+  <div class="ov" id="ovConfirm">
+    <div class="box">
+      <h3 id="cfTitle">ยืนยัน</h3>
+      <p id="cfMsg"></p>
+      <div class="ba">
+        <button class="btn" id="cfYes">ยืนยัน</button>
+        <button class="btn sec" id="cfNo">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- gap reason -->
+  <div class="ov" id="ovGap">
+    <div class="box">
+      <h3>ห่างจากรายการก่อนหน้า <span id="gapMin">0</span> นาที</h3>
+      <p>เกิดจากสาเหตุใด? ระบบจะบันทึกไว้เป็นเวลาที่เสีย</p>
+      <div class="ba">
+        <button class="btn" id="gpMachine">เครื่องเสีย</button>
+        <button class="btn sec" id="gpLine">เปลี่ยนไลน์ผลิต</button>
+      </div>
+      <label>หรือระบุเอง</label>
+      <input id="gpOther" placeholder="ระบุสาเหตุ">
+      <div class="ba" style="margin-top:9px;">
+        <button class="btn sec" id="gpOtherOk">บันทึกสาเหตุนี้</button>
+        <button class="btn dg" id="gpSkip">ไม่ระบุ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- order edit -->
+  <div class="ov" id="ovEdit">
+    <div class="box">
+      <h3>แก้ไขออเดอร์</h3>
+      <label>ชื่อลูกค้า</label><input id="edCust">
+      <label>รหัส/สเปคงาน</label><input id="edCode">
+      <label>จำนวนที่สั่ง (แพ็ค)</label><input id="edPacks" type="number" inputmode="numeric">
+      <label>ทำถึงเวลา</label><input id="edDue" type="datetime-local">
+      <div class="ba" style="margin-top:12px;">
+        <button class="btn" id="edSave">บันทึก</button>
+        <button class="btn sec" id="edCancel">ปิด</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- gap threshold -->
+  <div class="ov" id="ovGapSet">
+    <div class="box">
+      <h3>เตือนเมื่อห่างเกิน (นาที)</h3>
+      <p>ถ้าเวลาบันทึกแพ็คห่างจากรายการก่อนหน้าเกินค่านี้ ระบบจะถามสาเหตุ</p>
+      <input id="gsVal" type="number" inputmode="numeric">
+      <div class="ba" style="margin-top:12px;">
+        <button class="btn" id="gsSave">บันทึก</button>
+        <button class="btn sec" id="gsCancel">ปิด</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+/* ==========================================================================
+   SUPABASE STORAGE SHIM
+   ต้องกรอก URL กับ Anon Key ของโปรเจกต์ Supabase ตัวเองตรงนี้ก่อน (2 บรรทัดล่างนี้)
+   ดูวิธีหาค่าทั้งสองตัวได้ในคู่มือติดตั้ง ขั้นตอนที่ 3
+   ========================================================================== */
+const SUPABASE_URL = 'https://eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2YnhzaHl5enBqbmZkbHNtcG53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5ODg1MDEsImV4cCI6MjEwMTU2NDUwMX0.n-drMyYHU2qMijDC5jbxzrae1pxrCSEdT21XHqj8Hsk';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2YnhzaHl5enBqbmZkbHNtcG53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5ODg1MDEsImV4cCI6MjEwMTU2NDUwMX0.n-drMyYHU2qMijDC5jbxzrae1pxrCSEdT21XHqj8Hsk';
+
+(function setupSupabaseStorage(){
+  const needsSetup = SUPABASE_URL.includes('YOUR-PROJECT-REF') || SUPABASE_ANON_KEY.includes('YOUR-ANON-PUBLIC-KEY');
+  const base = SUPABASE_URL.replace(/\/$/,'') + '/rest/v1/kv_store';
+  const headers = () => ({
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+    'Content-Type': 'application/json'
+  });
+
+  async function get(key){
+    const r = await fetch(base + '?id=eq.' + encodeURIComponent(key) + '&select=value', { headers: headers() });
+    if (!r.ok) throw new Error('Supabase get failed: HTTP ' + r.status + ' ' + (await r.text()).slice(0,150));
+    const rows = await r.json();
+    if (!rows.length) return null;
+    return { key: key, value: rows[0].value, shared: true };
+  }
+
+  async function set(key, value){
+    const r = await fetch(base, {
+      method: 'POST',
+      headers: Object.assign(headers(), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+      body: JSON.stringify([{ id: key, value: value, shared: true, updated_at: new Date().toISOString() }])
+    });
+    if (!r.ok) throw new Error('Supabase set failed: HTTP ' + r.status + ' ' + (await r.text()).slice(0,150));
+    return { key: key, value: value, shared: true };
+  }
+
+  if (needsSetup){
+    // ยังไม่ได้กรอกค่า Supabase — แสดงคำเตือนแทนที่จะให้แอปพังเงียบๆ
+    window.storage = null;
+    document.addEventListener('DOMContentLoaded', () => {
+      const b = document.createElement('div');
+      b.style.cssText = 'position:fixed;inset:0;background:#10151c;color:#f2ede3;z-index:9999;'+
+        'display:flex;align-items:center;justify-content:center;padding:24px;font-family:sans-serif;text-align:center;';
+      b.innerHTML = '<div style="max-width:420px;"><div style="font-size:40px;">⚠️</div>'+
+        '<h2 style="margin:12px 0 6px;">ยังไม่ได้ตั้งค่า Supabase</h2>'+
+        '<p style="color:#93a1b0;line-height:1.6;">เปิดไฟล์นี้ด้วยโปรแกรมแก้ไขข้อความ แล้วใส่ SUPABASE_URL กับ '+
+        'SUPABASE_ANON_KEY ที่ด้านบนสุดของโค้ด (ดูคู่มือติดตั้ง ขั้นตอนที่ 3-4)</p></div>';
+      document.body.appendChild(b);
+    });
+    return;
+  }
+  window.storage = { get, set };
+})();
+</script>
+
+<script>
+(function(){
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const esc = s => (s==null?'':String(s)).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  const r3 = n => Math.round(n*1000)/1000;
+  const r2 = n => Math.round(n*100)/100;
+  const dayOf = iso => iso.slice(0,10);
+  function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function localISO(d){ d=d||new Date(); const p=n=>String(n).padStart(2,'0');
+    return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds()); }
+  function hhmm(iso){ return iso.slice(11,19); }
+  function shortDT(iso){ return iso.slice(8,10)+'/'+iso.slice(5,7)+' '+iso.slice(11,16); }
+  const minsBetween = (a,b) => Math.round((new Date(a)-new Date(b))/60000);
+
+  /* ---------- PURE CALC (unit-tested) ---------- */
+  const CALC = {
+    stdPerPack(spec){
+      if (!spec) return 0;
+      const w = +spec.weightPerPiece||0, n = +spec.piecesPerPack||0, b = +spec.bagWeight||0;
+      return r3(w*n + b);
+    },
+    stdPerPiece(spec){
+      const total = CALC.stdPerPack(spec);
+      const n = +((spec||{}).piecesPerPack)||0;
+      return n>0 ? r3(total/n) : 0;
+    },
+    recipeTotal(fibers){
+      return r3((fibers||[]).reduce((s,f)=>s+(+f.kg||0),0));
+    },
+    recipeComplete(fibers, targetKg){
+      const t = +targetKg||0;
+      if (!t) return null;
+      return Math.abs(CALC.recipeTotal(fibers) - t) < 0.005;
+    },
+    fiberUsage(order, cycles){
+      return (order.fibers||[]).map(f=>({ name:f.name, kg: r3((+f.kg||0)*cycles) }));
+    },
+    // ใช้สูตรที่บันทึกไว้กับแต่ละรอบ ถ้าไม่มี (ข้อมูลเก่า) ค่อยใช้สูตรปัจจุบัน
+    usageFromCycles(cycleList, fallbackOrder){
+      const m={};
+      (cycleList||[]).forEach(c=>{
+        const rec = (c.recipe&&c.recipe.length) ? c.recipe : ((fallbackOrder||{}).fibers||[]);
+        rec.forEach(f=>{ m[f.name]=(m[f.name]||0)+(+f.kg||0); });
+      });
+      return Object.entries(m).map(([name,kg])=>({name,kg:r3(kg)}));
+    },
+    usageTotal(cycleList, fallbackOrder){
+      return r3(CALC.usageFromCycles(cycleList,fallbackOrder).reduce((s,u)=>s+u.kg,0));
+    },
+    packDiff(actual, std){ return r3((+actual||0)-(+std||0)); },
+    tolStatus(actual, std, pct){
+      if (actual==null||actual==='') return 'none';
+      const d = CALC.packDiff(actual,std);
+      const lim = (+std||0)*((+pct||3)/100);
+      if (Math.abs(d) <= lim) return 'ok';
+      return d>0 ? 'over' : 'under';
+    },
+    // ใยเข้า = ใยที่ป้อนเข้าไลน์ทั้งหมด (ตามสูตรที่ป้อนจริงแต่ละรอบ)
+    // ใยออก  = ใยที่ออกมาเป็นสินค้า (น้ำหนักแพ็คจริง หักน้ำหนักถุงออก)
+    fiberBalance(packs, fedKg, scrapKg, withdrawnKg){
+      const out = (packs||[]).reduce((s,p)=>{
+        const w = (p.actualWeight!=null? +p.actualWeight : +p.stdPerPack)||0;
+        return s + Math.max(0, w - (+p.bagWeight||0));
+      },0);
+      const inn = r3(+fedKg||0);
+      const scrap = r3(+scrapKg||0);
+      const unaccounted = r3(inn - r3(out) - scrap);
+      return { inKg:inn, outKg:r3(out), scrapKg:scrap, wdKg:r3(+withdrawnKg||0),
+               unaccountedKg:unaccounted, diffKg:unaccounted,
+               yieldPct: inn>0 ? Math.round(out/inn*1000)/10 : 0,
+               stockDiffKg: r3((+withdrawnKg||0) - inn) };
+    }
+  };
+
+  /* ---------- STATE ---------- */
+  let S = { orders:[], activeId:null, fiberMaster:[], feed:[], wd:[], line:[], scrap:[], breaks:[], settings:{gapMin:20} };
+  let officeView='feed', current='order', lastHash='', modalOpen=0, ordersSig='';
+
+  /* ---------- STORAGE (4 keys, parallel) ---------- */
+  const hasStore = !!(window.storage && window.storage.get && window.storage.set);
+  const deviceId = Math.random().toString(36).slice(2,7);
+  let lastPulse=null, myPulse=null, pollMs=3000, pollFails=0;
+  let storeDown = !hasStore;     // true = บันทึกลงเครื่องกลางไม่ได้ ใช้ในเครื่องไปก่อน
+  let lastErr = hasStore ? '' : 'อุปกรณ์นี้ไม่รองรับการบันทึกข้อมูลกลาง';
+
+  async function rawGet(k){
+    if(!hasStore) return null;
+    try{ const r=await window.storage.get(k,true); return r?r.value:null; }
+    catch(e){ return null; }   // ยังไม่มีคีย์นี้ ถือว่าว่าง
+  }
+
+  // คิวบันทึก: รวมการเขียนซ้ำ ๆ ให้เหลือครั้งเดียว และลองใหม่เองถ้าพลาด
+  const pending={}, inflight={};
+  function snapshot(k){
+    if(k==='v3_orders') return {orders:S.orders,activeId:S.activeId,fiberMaster:S.fiberMaster||[]};
+    if(k==='v3_feed')   return {feed:S.feed,wd:S.wd};
+    if(k==='v3_line')   return {line:S.line,scrap:S.scrap,breaks:S.breaks};
+    return S.settings;
+  }
+  function setSaveState(state,msg){
+    const el=$('saveState'); if(!el) return;
+    if(state==='saving'){ el.className='savechip saving'; el.textContent='กำลังบันทึก…'; }
+    else if(state==='ok'){ el.className='savechip ok'; el.textContent='บันทึกแล้ว ✓';
+      clearTimeout(setSaveState._t); setSaveState._t=setTimeout(()=>{ if(el.className.indexOf('ok')>=0) el.textContent='บันทึกแล้ว ✓'; },1); }
+    else { el.className='savechip bad'; el.textContent='⚠ ยังบันทึกไม่สำเร็จ — แตะเพื่อลองใหม่'+(msg?' ('+msg+')':''); }
+  }
+  async function flush(k,attempt){
+    attempt=attempt||0;
+    if(inflight[k]) return;
+    if(!(k in pending)) return;
+    const data=pending[k]; delete pending[k];
+    inflight[k]=true;
+    setSaveState('saving');
+    try{
+      if(!hasStore) throw new Error('no storage');
+      await window.storage.set(k,JSON.stringify(data),true);
+      inflight[k]=false; storeDown=false; lastErr='';
+      myPulse=Date.now()+'-'+deviceId;
+      lastPulse=myPulse;
+      try{ await window.storage.set('v3_pulse',myPulse,true); }catch(e){}
+      if(Object.keys(pending).length) { flush(Object.keys(pending)[0]); }
+      else setSaveState('ok');
+    }catch(e){
+      inflight[k]=false;
+      lastErr=(e&&e.message)?String(e.message).slice(0,60):'ไม่ทราบสาเหตุ';
+      pending[k]=data;                       // เอากลับเข้าคิว ไม่ทิ้งข้อมูล
+      if(attempt<6){
+        const wait=Math.min(15000,600*Math.pow(2,attempt));
+        setTimeout(()=>flush(k,attempt+1),wait);
+        setSaveState('saving');
+      } else {
+        storeDown=true; setSaveState('bad',lastErr);
+      }
+    }
+  }
+  function put(k){ pending[k]=snapshot(k); return flush(k); }
+  function retryAll(){
+    ['v3_orders','v3_feed','v3_line','v3_set'].forEach(k=>{ pending[k]=snapshot(k); });
+    Object.keys(pending).forEach(k=>flush(k));
+    toast('กำลังลองบันทึกใหม่…');
+  }
+  const saveOrders = () => put('v3_orders');
+  const saveFeed   = () => put('v3_feed');
+  const saveLine   = () => put('v3_line');
+  const saveSet    = () => put('v3_set');
+
+  async function readAll(){
+    const [a,b,c,d] = await Promise.all([rawGet('v3_orders'),rawGet('v3_feed'),rawGet('v3_line'),rawGet('v3_set')]);
+    const hash = (a||'')+'|'+(b||'')+'|'+(c||'')+'|'+(d||'');
+    const parse = (s,f)=>{ try{ return s?JSON.parse(s):f; }catch(e){ return f; } };
+    const A=parse(a,null), B=parse(b,{}), C=parse(c,{}), D=parse(d,null);
+    if (A){ S.orders=A.orders||[]; S.activeId=A.activeId||null; S.fiberMaster=A.fiberMaster||[]; }
+    else if (!S.orders.length){
+      S.orders=[{ id:uid(), customer:'ทรัพย์รุ่งเรือง', code:'ใย 300*34*46', orderedPacks:0,
+        fibers:[{name:'15DHC64',kg:2},{name:'15DHC-T64',kg:1},{name:'15DHW64',kg:1},{name:'LM',kg:1}],
+        recipeTargetKg:5,
+        spec:{weightPerPiece:0.25,piecesPerPack:4,bagName:'ถุง PE ใหญ่',bagWeight:0.05},
+        due:null,status:'pending',startedAt:null,finishedAt:null,createdAt:localISO() }];
+      await saveOrders();
+    }
+    S.feed=B.feed||[]; S.wd=B.wd||[]; S.line=C.line||[]; S.scrap=C.scrap||[]; S.breaks=C.breaks||[];
+    if (D) S.settings=D;
+    return hash;
+  }
+
+  /* ---------- UI HELPERS ---------- */
+  let toastT;
+  function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show');
+    clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
+  function openOv(id){ modalOpen++; $(id).classList.add('show'); }
+  function closeOv(id){ modalOpen=Math.max(0,modalOpen-1); $(id).classList.remove('show'); }
+  function ask(title,msg){
+    return new Promise(res=>{
+      $('cfTitle').textContent=title; $('cfMsg').textContent=msg||'';
+      openOv('ovConfirm');
+      const done=v=>{ closeOv('ovConfirm'); $('cfYes').onclick=null; $('cfNo').onclick=null; res(v); };
+      $('cfYes').onclick=()=>done(true); $('cfNo').onclick=()=>done(false);
+    });
+  }
+  function typing(){ const a=document.activeElement;
+    return !!(a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)); }
+
+  const active = () => S.orders.find(o=>o.id===S.activeId) || null;
+  const orderById = id => S.orders.find(o=>o.id===id) || null;
+  const ordLabel = id => { const o=orderById(id); return o? o.customer+' / '+o.code : '-'; };
+
+  /* ---------- NAV ---------- */
+  const PANELS=['order','feed','office','line','sum'];
+
+  /* ---------- สิทธิ์การเข้าใช้ ----------
+     ล็อกแบบใช้งานหน้างาน: กันพนักงานเข้าไปในส่วนที่ไม่เกี่ยวข้อง
+     ไม่ใช่ระบบความปลอดภัยระดับสูง เพราะรหัสถูกเก็บไว้กับตัวแอป */
+  const LOCKED=['office','sum'];
+  let isBoss=false, bossUntil=0;
+  const AUTO_LOGOUT_MIN=15;
+  function lockOn(){ return !!(S.settings && S.settings.pin); }
+  function bossActive(){
+    if(!lockOn()) return true;
+    if(isBoss && Date.now()<bossUntil) return true;
+    isBoss=false; return false;
+  }
+  function touchBoss(){ if(isBoss && bossActive()) bossUntil=Date.now()+AUTO_LOGOUT_MIN*60000; }
+  function paintNav(){
+    const hide = lockOn() && !bossActive();
+    document.querySelectorAll('.nb').forEach(b=>{
+      if(LOCKED.indexOf(b.dataset.p)>=0) b.style.display = hide ? 'none' : 'flex';
+    });
+  }
+  function paintRole(){
+    paintNav();
+    const c=$('roleChip'); if(!c) return;
+    if(!lockOn()){ c.style.background='#232e3b'; c.style.color='var(--dim)'; c.textContent='👤 ยังไม่ได้ล็อก'; return; }
+    if(bossActive()){ c.style.background='#163022'; c.style.color='var(--green)'; c.textContent='🔓 หัวหน้า — แตะเพื่อล็อก'; }
+    else { c.style.background='#232e3b'; c.style.color='var(--dim)'; c.textContent='🔒 พนักงาน — แตะถ้าเป็นหัวหน้า'; }
+  }
+  function askPin(onOk){
+    $('pinInput').value=''; $('pinWarn').innerHTML='';
+    openOv('ovPin');
+    const close=()=>{ closeOv('ovPin'); $('pinOk').onclick=null; $('pinCancel').onclick=null; };
+    $('pinCancel').onclick=close;
+    $('pinOk').onclick=()=>{
+      if($('pinInput').value===String(S.settings.pin)){
+        isBoss=true; bossUntil=Date.now()+AUTO_LOGOUT_MIN*60000;
+        close(); paintRole(); paintNav();
+        toast('เปิดสิทธิ์หัวหน้าแล้ว — จะล็อกเองใน '+AUTO_LOGOUT_MIN+' นาที');
+        onOk&&onOk();
+      } else {
+        $('pinWarn').innerHTML='<span class="bdg bad">รหัสไม่ถูกต้อง</span>';
+        $('pinInput').value='';
+      }
+    };
+  }
+  function rInstallInfo(){
+    const el=$('installInfo'); if(!el) return;
+    const ua=(navigator&&navigator.userAgent)||'';
+    const ios=/iPhone|iPad|iPod/i.test(ua);
+    el.innerHTML = ios
+      ? '<b>iPhone / iPad:</b> เปิดลิงก์นี้ใน <b>Safari</b> → กดปุ่มแชร์ <b>⬆</b> ข้างล่าง → เลือก '+
+        '<b>"เพิ่มไปยังหน้าจอโฮม"</b> → ตั้งชื่อ เช่น "รายงานผลิต" → เสร็จแล้วจะมีไอคอนกดเข้าได้เลย'
+      : '<b>Android:</b> เปิดลิงก์นี้ใน <b>Chrome</b> → กดจุดสามจุด <b>⋮</b> มุมขวาบน → เลือก '+
+        '<b>"เพิ่มลงในหน้าจอหลัก"</b> → ตั้งชื่อ เช่น "รายงานผลิต" → เสร็จแล้วจะมีไอคอนกดเข้าได้เลย'
+        +'<br><span style="color:var(--dim)">(iPhone ให้ใช้ Safari แล้วกดปุ่มแชร์ → เพิ่มไปยังหน้าจอโฮม)</span>';
+    el.innerHTML += '<br><br><span style="color:var(--dim)">เปิดแอปแล้วถ้ามีออเดอร์ที่ยังทำค้างอยู่ '+
+      'ระบบจะพาไปหน้าท้ายไลน์ให้ทันที กดบันทึกต่อได้เลยไม่ต้องเลือกใหม่</span>';
+  }
+
+  function rLockInfo(){
+    const el=$('lockInfo'); if(!el) return;
+    el.innerHTML = lockOn()
+      ? '<span class="bdg ok">ล็อกอยู่</span> แท็บ <b>ออฟฟิศ</b> และ <b>สรุป</b> ต้องใส่รหัสก่อนเข้า · '+
+        'ปลดล็อกแล้วจะกลับไปล็อกเองใน '+AUTO_LOGOUT_MIN+' นาที<br>'+
+        '<span style="color:var(--dim)">พนักงานยังใช้แท็บ ออเดอร์ / ป้อนใย / ท้ายไลน์ ได้ตามปกติ</span>'
+      : '<span class="bdg warn">ยังไม่ได้ล็อก</span> ตอนนี้ทุกคนที่มีลิงก์เข้าได้ทุกแท็บ — ตั้งรหัสเพื่อกันพนักงานเข้าส่วนออฟฟิศและสรุป';
+  }
+
+  function show(p){
+    if(LOCKED.indexOf(p)>=0 && !bossActive()){ askPin(()=>show(p)); return; }
+    touchBoss();
+    current=p;
+    PANELS.forEach(x=>$('p-'+x).classList.toggle('show',x===p));
+    document.querySelectorAll('.nb').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
+    renderPanel(true);
+  }
+  document.querySelectorAll('.nb').forEach(b=>b.addEventListener('click',()=>show(b.dataset.p)));
+
+  function renderPanel(force){
+    if (current==='order') rOrders();
+    else if (current==='feed') rFeed(force);
+    else if (current==='office') rOffice();
+    else if (current==='line') rLine(force);
+    else if (current==='sum') rSum();
+  }
+
+  function rTop(){
+    const o=active();
+    $('chipOrder').textContent = o ? o.customer+' — '+o.code : 'ยังไม่ได้เลือก';
+    $('chipTime').textContent = o&&o.startedAt ? 'เริ่ม '+hhmm(o.startedAt) : '';
+    const b=$('banner'); b.className='banner';
+    if (o&&o.due){
+      const diff=minsBetween(o.due,localISO());
+      if (diff<=0){ b.classList.add('late'); b.textContent='⏰ เลยเวลาของ "'+o.customer+'" แล้ว ('+o.due.slice(11,16)+') — เปลี่ยนออเดอร์'; }
+      else if (diff<=5){ b.classList.add('warn'); b.textContent='⏰ อีก '+diff+' นาทีถึงเวลาเปลี่ยนออเดอร์ "'+o.customer+'"'; }
+    }
+  }
+
+  /* ---------- 1. ORDERS ---------- */
+  let query='';
+  function matchOrder(o,q){
+    if(!q) return true;
+    const hay=(o.customer+' '+o.code+' '+(o.fibers||[]).map(f=>f.name).join(' ')).toLowerCase();
+    return q.toLowerCase().split(/\s+/).filter(Boolean).every(w=>hay.includes(w));
+  }
+  function rOrders(){
+    const g=$('ordGrid');
+    const list=S.orders.filter(o=>matchOrder(o,query));
+    $('ordEmpty').style.display=S.orders.length?'none':'block';
+    if(S.orders.length&&!list.length){
+      $('ordEmpty').style.display='block';
+      $('ordEmpty').textContent='ไม่พบออเดอร์ที่ตรงกับ "'+query+'"';
+    } else if(S.orders.length){
+      $('ordEmpty').textContent='';
+    }
+    $('qHint').textContent = query
+      ? 'พบ '+list.length+' ออเดอร์ จากทั้งหมด '+S.orders.length
+      : 'ทั้งหมด '+S.orders.length+' ออเดอร์ · ค้นเจอแล้วกดชื่อลูกค้าเพื่อเริ่มงานได้เลย';
+    g.innerHTML=list.map(o=>{
+      const on=S.activeId===o.id;
+      const done=o.status==='done';
+      const packs=S.line.filter(l=>l.orderId===o.id).length;
+      const stdP=CALC.stdPerPack(o.spec);
+      const rt=CALC.recipeTotal(o.fibers), ok=CALC.recipeComplete(o.fibers,o.recipeTargetKg);
+      return '<div class="ocard '+(on?'sel':'')+' '+(done?'fin':'')+'">'+
+        '<span class="st '+(done?'done':on?'active':'pending')+'">'+(done?'เสร็จแล้ว':on?'กำลังทำ':'รอคิว')+'</span>'+
+        '<div class="cust" data-sel="'+o.id+'">'+esc(o.customer)+'</div>'+
+        '<div class="code" data-sel="'+o.id+'">'+esc(o.code)+' <span class="bdg ok">'+esc(o.productType||'ใย')+'</span></div>'+
+        '<div class="meta">สั่ง '+(o.orderedPacks||0)+' แพ็ค · ผลิตแล้ว '+packs+' แพ็ค'+
+          (o.orderedPacks?' ('+Math.round(packs/o.orderedPacks*100)+'%)':'')+'<br>'+
+          'Standard '+(stdP?stdP+' กก./แพ็ค':'ยังไม่ตั้งค่า')+'<br>'+
+          'สูตร '+rt+' กก. '+(ok===null?'':ok?'<span class="bdg ok">ครบสูตร</span>':'<span class="bdg warn">ยังไม่ครบ '+o.recipeTargetKg+' กก.</span>')+
+          ((o.fibers||[]).length?'<br><span style="color:var(--accent2)">'+o.fibers.map(f=>esc(f.name)+' '+f.kg).join(' · ')+'</span>':'')+'<br>'+
+          (o.due?'ครบกำหนด '+shortDT(o.due):'ไม่ได้ตั้งเวลา')+
+          (o.finishedAt?'<br>จบงาน '+shortDT(o.finishedAt):'')+'</div>'+
+        '<div class="acts">'+
+          '<button class="btn sec sm" data-edit="'+o.id+'">แก้ไข</button>'+
+          (done?'<button class="btn sec sm" data-reopen="'+o.id+'">เปิดงานใหม่</button>':'')+
+          '<button class="btn dg sm" data-del="'+o.id+'">ลบ</button>'+
+        '</div></div>';
+    }).join('');
+
+    g.querySelectorAll('[data-sel]').forEach(el=>el.onclick=async()=>{
+      const o=orderById(el.dataset.sel); if(!o) return;
+      if (o.status==='done'){ toast('ออเดอร์นี้จบงานแล้ว — กด "เปิดงานใหม่" ก่อน'); return; }
+      if (!o.startedAt) o.startedAt=localISO();
+      o.status='active'; S.activeId=o.id;
+      await saveOrders(); rTop(); rOrders(); toast('เลือกออเดอร์: '+o.customer);
+    });
+    g.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));
+    g.querySelectorAll('[data-reopen]').forEach(b=>b.onclick=async()=>{
+      const o=orderById(b.dataset.reopen); o.status='pending'; o.finishedAt=null;
+      await saveOrders(); rOrders(); toast('เปิดงานใหม่แล้ว');
+    });
+    g.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+      const o=orderById(b.dataset.del);
+      if (!await ask('ลบออเดอร์','ลบ "'+o.customer+' — '+o.code+'" ? ข้อมูลที่บันทึกไว้จะยังอยู่แต่จะไม่แสดงชื่อ')) return;
+      S.orders=S.orders.filter(x=>x.id!==o.id);
+      if (S.activeId===o.id) S.activeId=null;
+      await saveOrders(); rTop(); rOrders(); toast('ลบแล้ว');
+    });
+    rSpecLib();
+    rDatalists();
+  }
+
+  // สเปคที่เคยตั้งไว้ — รวมเป็นรายการเดียวต่อ ลูกค้า+รหัสงาน (เอาอันล่าสุดที่มีข้อมูลครบ)
+  function specLibrary(){
+    const map={};
+    S.orders.slice().sort((a,b)=>(a.createdAt||'')<(b.createdAt||'')?-1:1).forEach(o=>{
+      const key=o.customer+'||'+o.code;
+      const hasData=(o.fibers||[]).length || CALC.stdPerPack(o.spec)>0;
+      if(!hasData) return;
+      map[key]={ customer:o.customer, code:o.code, fibers:o.fibers||[], productType:o.productType||'ใย',
+        recipeTargetKg:o.recipeTargetKg||0, spec:o.spec||{}, lastUsed:o.createdAt||'' };
+    });
+    return Object.values(map);
+  }
+
+  function rSpecLib(){
+    const lib=specLibrary().filter(s=>matchOrder(s,query));
+    const el=$('specLib');
+    if(!lib.length){
+      el.innerHTML='<div class="empty">'+(query?'ไม่พบสเปคที่ตรงกับ "'+esc(query)+'"'
+        :'ยังไม่มีสเปคที่บันทึกไว้ — ตั้งสูตรและน้ำหนัก Standard ครั้งแรกแล้วจะขึ้นที่นี่')+'</div>';
+      return;
+    }
+    el.innerHTML='<div class="ordgrid">'+lib.map((s,i)=>{
+      const std=CALC.stdPerPack(s.spec);
+      return '<div class="ocard">'+
+        '<div class="cust">'+esc(s.customer)+'</div>'+
+        '<div class="code">'+esc(s.code)+'</div>'+
+        '<div class="meta">'+
+          (s.fibers.length?'สูตร: <span style="color:var(--accent2)">'+
+            s.fibers.map(f=>esc(f.name)+' '+f.kg+'กก.').join(' · ')+'</span> (รวม '+CALC.recipeTotal(s.fibers)+' กก.)<br>':'ยังไม่มีสูตร<br>')+
+          (std?'Standard '+std+' กก./แพ็ค — '+s.spec.weightPerPiece+' กก./ชิ้น × '+s.spec.piecesPerPack+
+            ' ชิ้น + ถุง '+(s.spec.bagName?esc(s.spec.bagName)+' ':'')+s.spec.bagWeight+' กก.':'ยังไม่ตั้ง Standard')+
+        '</div>'+
+        '<div class="acts"><button class="btn sm" data-lib="'+i+'">เปิดออเดอร์ใหม่จากสเปคนี้</button></div></div>';
+    }).join('')+'</div>';
+    el.querySelectorAll('[data-lib]').forEach(b=>b.onclick=()=>{
+      const s=lib[+b.dataset.lib];
+      $('nCust').value=s.customer; $('nCode').value=s.code;
+      if(s.productType) $('nType').value=s.productType;
+      $('nPacks').value=''; $('nDue').value='';
+      checkMatch(); flash('nMatch');
+      toast('ดึงสเปค '+s.customer+' มาแล้ว — ใส่จำนวนแพ็คแล้วกดเพิ่มออเดอร์');
+    });
+  }
+
+  // แจ้งว่าจะดึงสเปคเดิมมาให้อัตโนมัติ
+  function findSpec(c,k){
+    return specLibrary().find(s=>s.customer===c.trim() && s.code===k.trim()) || null;
+  }
+  function checkMatch(){
+    const c=$('nCust').value.trim(), k=$('nCode').value.trim();
+    const el=$('nMatch');
+    if(!c||!k){ el.innerHTML=''; return; }
+    const s=findSpec(c,k);
+    el.innerHTML = s
+      ? '<span class="bdg ok">เจอสเปคเดิม</span> จะดึงสูตร '+
+        (s.fibers.length?s.fibers.map(f=>esc(f.name)+' '+f.kg+'กก.').join(' · '):'—')+
+        ' และ Standard '+(CALC.stdPerPack(s.spec)||'—')+' กก./แพ็ค มาให้อัตโนมัติ ไม่ต้องคีย์ใหม่'
+      : '<span style="color:var(--dim)">ลูกค้า/รหัสนี้ยังไม่เคยทำ — เพิ่มแล้วค่อยตั้งสูตรและ Standard ครั้งเดียว</span>';
+  }
+  ['nCust','nCode'].forEach(id=>$(id).oninput=checkMatch);
+
+  let qT;
+  $('qOrder').oninput=()=>{
+    query=$('qOrder').value.trim();
+    clearTimeout(qT); qT=setTimeout(()=>{ rOrders(); },120);
+  };
+
+  $('btnAddOrder').onclick=async()=>{
+    const c=$('nCust').value.trim(), k=$('nCode').value.trim();
+    if(!c||!k){ toast('กรอกชื่อลูกค้าและรหัสงาน'); return; }
+    const s=findSpec(c,k);
+    S.orders.push({ id:uid(), customer:c, code:k, orderedPacks:+$('nPacks').value||0,
+      productType:$('nType').value||'ใย', recipeVer:1, recipeLog:[],
+      fibers: s ? s.fibers.map(f=>({name:f.name,kg:f.kg})) : [],
+      recipeTargetKg: s ? (s.recipeTargetKg||0) : 0,
+      spec: s ? Object.assign({},s.spec) : {weightPerPiece:0,piecesPerPack:0,bagName:'',bagWeight:0,tolPct:3},
+      due:$('nDue').value?$('nDue').value+':00':null,
+      status:'pending', startedAt:null, finishedAt:null, createdAt:localISO() });
+    await saveOrders();
+    $('nCust').value=''; $('nCode').value=''; $('nPacks').value=''; $('nDue').value=''; $('nMatch').innerHTML='';
+    rOrders();
+    toast(s ? 'เพิ่มออเดอร์ พร้อมสูตรและ Standard เดิมแล้ว' : 'เพิ่มออเดอร์แล้ว — อย่าลืมตั้งสูตรและ Standard');
+  };
+
+  /* ---------- 1b. AUTOCOMPLETE ---------- */
+  function rDatalists(){
+    const cs=new Set(), ks=new Set();
+    S.orders.forEach(o=>{ cs.add(o.customer); ks.add(o.code); });
+    $('dlCust').innerHTML=Array.from(cs).map(x=>'<option value="'+esc(x)+'"></option>').join('');
+    $('dlCode').innerHTML=Array.from(ks).map(x=>'<option value="'+esc(x)+'"></option>').join('');
+  }
+  let editId=null;
+  function openEdit(id){ const o=orderById(id); if(!o) return; editId=id;
+    $('edCust').value=o.customer; $('edCode').value=o.code;
+    $('edPacks').value=o.orderedPacks||''; $('edDue').value=o.due?o.due.slice(0,16):'';
+    openOv('ovEdit');
+  }
+  $('edCancel').onclick=()=>closeOv('ovEdit');
+  $('edSave').onclick=async()=>{
+    const o=orderById(editId); if(!o) return;
+    o.customer=$('edCust').value.trim()||o.customer;
+    o.code=$('edCode').value.trim()||o.code;
+    o.orderedPacks=+$('edPacks').value||0;
+    o.due=$('edDue').value?$('edDue').value+':00':null;
+    await saveOrders(); closeOv('ovEdit'); rTop(); rOrders(); toast('บันทึกแล้ว');
+  };
+
+  /* ---------- 2. FEED ---------- */
+  function rFeed(force){
+    const o=active(), t=todayStr();
+    const info=$('feedInfo'), ring=$('ring');
+    if(!o){
+      info.innerHTML='<div class="empty">ยังไม่ได้เลือกออเดอร์ — ไปแท็บ "ออเดอร์" ก่อน</div>';
+      ring.style.opacity=.4; ring.style.pointerEvents='none';
+    } else {
+      ring.style.opacity=1; ring.style.pointerEvents='auto';
+      const rt=CALC.recipeTotal(o.fibers), ok=CALC.recipeComplete(o.fibers,o.recipeTargetKg);
+      info.innerHTML='<div class="kn" style="font-size:16px;">'+esc(o.customer)+' — <span style="color:var(--accent2)">'+esc(o.code)+'</span></div>'+
+        (o.fibers.length?
+          '<table style="margin-top:8px;"><tr><th>ใย</th><th>น้ำหนัก/สูตร (กก.)</th></tr>'+
+          o.fibers.map(f=>'<tr><td>'+esc(f.name)+'</td><td>'+f.kg+'</td></tr>').join('')+
+          '<tr><td class="kn" style="color:var(--accent2)">รวม</td><td class="kn" style="color:var(--accent2)">'+rt+'</td></tr></table>'+
+          '<div class="sumline">'+(ok===null?'ยังไม่ได้ตั้งน้ำหนักรวมที่ครบสูตร':
+            ok?'<span class="bdg ok">ครบสูตร '+o.recipeTargetKg+' กก.</span>':
+            '<span class="bdg warn">ยังไม่ครบ — ต้องได้ '+o.recipeTargetKg+' กก. (ต่างอยู่ '+r3(o.recipeTargetKg-rt)+' กก.)</span>')+'</div>'
+          : '<div class="sumline">ยังไม่ได้ตั้งสูตร — ตั้งค่าที่การ์ดล่างสุด</div>');
+    }
+    const logs=o?S.feed.filter(l=>l.orderId===o.id&&dayOf(l.time)===t):[];
+    $('ringN').textContent=logs.length;
+    $('feedHint').textContent=o&&o.fibers.length
+      ? 'แตะ 1 ครั้ง = ป้อนใยครบ 1 สูตร ('+CALC.recipeTotal(o.fibers)+' กก.)'
+      : 'แตะทุกครั้งที่ป้อนใยครบ 1 สูตร';
+
+    const tf=$('tFeed');
+    tf.innerHTML=logs.length
+      ? '<tr><th>ลำดับ</th><th>เวลา</th><th></th></tr>'+logs.slice().reverse().map(l=>
+          '<tr><td>'+l.seq+'</td><td>'+hhmm(l.time)+'</td><td><button class="x" data-fd="'+l.id+'">✕</button></td></tr>').join('')
+      : '<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>';
+    tf.querySelectorAll('[data-fd]').forEach(b=>b.onclick=async()=>{
+      if(!await ask('ลบรายการ','ลบรายการป้อนใยนี้?')) return;
+      S.feed=S.feed.filter(x=>x.id!==b.dataset.fd); await saveFeed(); rFeed(); toast('ลบแล้ว');
+    });
+
+    const wds=o?S.wd.filter(w=>w.orderId===o.id&&dayOf(w.time)===t):[];
+    $('tWd').innerHTML=wds.length
+      ? '<tr><th>ก้อนที่</th><th>เวลา</th><th>ใย</th><th>ลอตที่</th><th>กก.</th><th>หมายเหตุ</th><th></th></tr>'+
+        wds.slice().reverse().map(w=>
+          '<tr><td>'+esc(w.seq||'—')+'</td><td>'+hhmm(w.time)+'</td><td>'+esc(w.fiberName)+
+          (w.offRecipe?' <span class="bdg bad">นอกสูตร</span>':'')+'</td><td>'+esc(w.lot||'—')+'</td><td>'+w.kg+
+          '</td><td>'+esc(w.note)+(w.editedAt?' <span style="color:var(--dim)">(แก้ไข)</span>':'')+
+          '</td><td><button class="btn sec sm" data-wde="'+w.id+'">แก้</button> '+
+          '<button class="x" data-wdd="'+w.id+'">✕</button></td></tr>').join('')
+      : '<tr><td class="empty">ยังไม่มีการเบิกใยวันนี้</td></tr>';
+    $('tWd').querySelectorAll('[data-wde]').forEach(b=>b.onclick=()=>openWdEdit(b.dataset.wde));
+    $('tWd').querySelectorAll('[data-wdd]').forEach(b=>b.onclick=async()=>{
+      if(!await ask('ลบรายการเบิก','ลบรายการเบิกใยนี้?')) return;
+      S.wd=S.wd.filter(x=>x.id!==b.dataset.wdd); await saveFeed(); rFeed(); toast('ลบแล้ว');
+    });
+
+    rFeedSummary(t);
+
+    if (force||!$('recRows').dataset.init){
+      $('dlFiber').innerHTML=fiberNames().map(n=>'<option value="'+esc(n)+'"></option>').join('');
+      const keepWd=$('wdName').value;
+      $('wdSel').innerHTML=wdSelOptions(o,keepWd);
+      if(keepWd && !fiberNames().includes(keepWd)){ $('wdSel').value='__new__'; $('wdName').style.display='block'; }
+      else $('wdName').style.display='none';
+      const sel=$('recSel'), keep=sel.value;
+      sel.innerHTML=S.orders.map(x=>'<option value="'+x.id+'">'+esc(x.customer)+' — '+esc(x.code)+'</option>').join('');
+      sel.value = orderById(keep)?keep : (o?o.id:(S.orders[0]||{}).id||'');
+      loadRecipe();
+    }
+  }
+
+  function rFeedSummary(t){
+    const out=[];
+    S.orders.forEach(o=>{
+      const cl=S.feed.filter(l=>l.orderId===o.id&&dayOf(l.time)===t);
+      const cyc=cl.length;
+      if(!cyc) return;
+      const use=CALC.usageFromCycles(cl,o);
+      use.forEach((u,i)=>out.push('<tr>'+
+        (i===0?'<td rowspan="'+(use.length+1)+'" class="kn" style="color:var(--accent2); vertical-align:top;">'+
+          esc(o.customer)+'<br><span style="font-size:11px; color:var(--dim)">'+esc(o.code)+'<br>'+cyc+' รอบ</span></td>':'')+
+        '<td>'+esc(u.name)+'</td><td>'+u.kg+'</td></tr>'));
+      out.push('<tr><td class="kn" style="color:var(--accent2)">รวมออเดอร์นี้</td><td class="kn" style="color:var(--accent2)">'+
+        CALC.usageTotal(cl,o)+'</td></tr>');
+    });
+    $('tFeedSum').innerHTML=out.length
+      ? '<tr><th>ออเดอร์</th><th>ชนิดใย</th><th>ใช้ตามสูตร (กก.)</th></tr>'+out.join('')
+      : '<tr><td class="empty">ยังไม่มีข้อมูลวันนี้</td></tr>';
+  }
+
+  $('ring').onclick=()=>{
+    const o=active(); if(!o) return;
+    const t=todayStr();
+    const n=S.feed.filter(l=>l.orderId===o.id&&dayOf(l.time)===t).length;
+    S.feed.push({ id:uid(), seq:n+1, time:localISO(), orderId:o.id,
+      recipe:(o.fibers||[]).map(f=>({name:f.name,kg:+f.kg||0})),
+      recipeKg:CALC.recipeTotal(o.fibers), recipeVer:o.recipeVer||1 });
+    $('ringN').textContent=n+1;
+    saveFeed().then(()=>{ if(current==='feed') rFeed(); });
+  };
+
+  $('btnUndoFeed').onclick=async()=>{
+    const o=active(); if(!o){ toast('เลือกออเดอร์ก่อน'); return; }
+    const t=todayStr();
+    const list=S.feed.filter(l=>l.orderId===o.id&&dayOf(l.time)===t);
+    if(!list.length){ toast('ไม่มีรายการให้ลบ'); return; }
+    const last=list[list.length-1];
+    if(!await ask('ลบรายการล่าสุด','รอบที่ '+last.seq+' เวลา '+hhmm(last.time))) return;
+    S.feed=S.feed.filter(x=>x.id!==last.id); await saveFeed(); rFeed(); toast('ลบแล้ว');
+  };
+
+  // ใยตัวนี้อยู่ในสูตรของออเดอร์นี้ไหม (รวมสูตรเวอร์ชันเก่าด้วย)
+  function inRecipe(o,name){
+    if(!o||!name) return true;
+    const n=name.trim().toLowerCase();
+    const cur=(o.fibers||[]).map(f=>f.name.trim().toLowerCase());
+    const old=(o.recipeLog||[]).flatMap(r=>(r.fibers||[]).map(f=>f.name.trim().toLowerCase()));
+    if(!cur.length&&!old.length) return true;   // ยังไม่ได้ตั้งสูตร ไม่ต้องเตือน
+    return cur.includes(n)||old.includes(n);
+  }
+  function wdWarnText(o,name,elId){
+    const el=$(elId); if(!el) return;
+    if(!name||!name.trim()){ el.innerHTML=''; return; }
+    el.innerHTML = inRecipe(o,name)
+      ? '<span class="bdg ok">ตรงกับสูตร</span>'
+      : '<span class="bdg bad">ไม่ตรงกับสูตร</span> "'+esc(name)+'" ไม่อยู่ในสูตรของ '+esc(o?o.customer:'ออเดอร์นี้')+
+        ' — สูตรคือ '+((o&&o.fibers.length)?o.fibers.map(f=>esc(f.name)).join(' · '):'ยังไม่ได้ตั้ง');
+  }
+  function wdSelOptions(o,sel){
+    const rec=(o&&o.fibers||[]).map(f=>f.name);
+    const others=fiberNames().filter(n=>!rec.includes(n));
+    let h='<option value="">— เลือกใย —</option>';
+    if(rec.length) h+='<optgroup label="ใยในสูตรของออเดอร์นี้">'+
+      rec.map(n=>'<option value="'+esc(n)+'"'+(n===sel?' selected':'')+'>'+esc(n)+'</option>').join('')+'</optgroup>';
+    if(others.length) h+='<optgroup label="ใยอื่น (นอกสูตร)">'+
+      others.map(n=>'<option value="'+esc(n)+'"'+(n===sel?' selected':'')+'>'+esc(n)+'</option>').join('')+'</optgroup>';
+    h+='<option value="__new__">+ พิมพ์ชื่อใยใหม่…</option>';
+    return h;
+  }
+  function bindFiberPicker(selId,txtId,warnId,getOrder){
+    const sel=$(selId), txt=$(txtId);
+    sel.onchange=()=>{
+      formDirty=true;
+      if(sel.value==='__new__'){ txt.style.display='block'; txt.value=''; txt.focus&&txt.focus(); }
+      else { txt.style.display='none'; txt.value=sel.value; }
+      wdWarnText(getOrder(),txt.value,warnId);
+    };
+    txt.oninput=()=>{ formDirty=true; wdWarnText(getOrder(),txt.value,warnId); };
+  }
+  bindFiberPicker('wdSel','wdName','wdWarn',()=>active());
+  bindFiberPicker('ewSel','ewName','ewWarn',()=>{ const w=S.wd.find(x=>x.id===ewId); return w?orderById(w.orderId):null; });
+
+  $('btnWd').onclick=async()=>{
+    const o=active(); if(!o){ toast('เลือกออเดอร์ก่อน'); return; }
+    const n=$('wdName').value.trim(), kg=+$('wdKg').value, bale=$('wdSeq').value.trim();
+    if(!n||!kg){ toast('กรอกชื่อใยและน้ำหนัก'); return; }
+    if(!bale){ toast('กรอกหมายเลขก้อนด้วย'); return; }
+    if(S.wd.some(w=>w.orderId===o.id&&String(w.seq)===bale&&w.fiberName===n)){
+      if(!await ask('หมายเลขก้อนซ้ำ','ก้อน "'+bale+'" ของ '+n+' เคยบันทึกไปแล้วในออเดอร์นี้\n\nยืนยันจะบันทึกซ้ำหรือไม่?')) return;
+    }
+    if(!inRecipe(o,n)){
+      if(!await ask('ใยไม่ตรงกับสูตร',
+        '"'+n+'" ไม่อยู่ในสูตรของ '+o.customer+'\nสูตรคือ '+(o.fibers.length?o.fibers.map(f=>f.name).join(', '):'ยังไม่ได้ตั้ง')+
+        '\n\nยืนยันจะบันทึกการเบิกนี้หรือไม่?')) return;
+    }
+    S.wd.push({ id:uid(), time:localISO(), orderId:o.id,
+      seq:$('wdSeq').value.trim(),
+      fiberName:n, lot:$('wdLot').value.trim(), kg:kg, note:$('wdNote').value.trim(),
+      offRecipe:!inRecipe(o,n) });
+    await saveFeed();
+    await rememberFiber(n);
+    $('wdName').value=''; $('wdKg').value=''; $('wdNote').value=''; $('wdLot').value='';
+    $('wdSeq').value=''; $('wdWarn').innerHTML=''; formDirty=false;
+    $('wdSel').innerHTML=wdSelOptions(o,''); $('wdName').style.display='none';
+    rFeed(); toast('บันทึกการเบิกใย');
+  };
+
+  let ewId=null;
+  function openWdEdit(id){
+    const w=S.wd.find(x=>x.id===id); if(!w) return; ewId=id;
+    $('ewSeq').value=w.seq||''; $('ewName').value=w.fiberName||'';
+    const known=fiberNames().includes(w.fiberName);
+    $('ewSel').innerHTML=wdSelOptions(orderById(w.orderId),known?w.fiberName:'__new__');
+    $('ewSel').value=known?w.fiberName:'__new__';
+    $('ewName').style.display=known?'none':'block';
+    $('ewLot').value=w.lot||''; $('ewKg').value=w.kg||''; $('ewNote').value=w.note||'';
+    wdWarnText(orderById(w.orderId),w.fiberName,'ewWarn');
+    openOv('ovWdEdit');
+  }
+  $('ewName').oninput=()=>{ const w=S.wd.find(x=>x.id===ewId); wdWarnText(w?orderById(w.orderId):null,$('ewName').value,'ewWarn'); };
+  $('ewCancel').onclick=()=>closeOv('ovWdEdit');
+  $('ewSave').onclick=async()=>{
+    const w=S.wd.find(x=>x.id===ewId); if(!w) return;
+    const n=$('ewName').value.trim(), kg=+$('ewKg').value;
+    if(!n||!kg){ toast('กรอกชื่อใยและน้ำหนัก'); return; }
+    if(!$('ewSeq').value.trim()){ toast('กรอกหมายเลขก้อนด้วย'); return; }
+    w.seq=$('ewSeq').value.trim(); w.fiberName=n; w.lot=$('ewLot').value.trim();
+    w.kg=kg; w.note=$('ewNote').value.trim();
+    w.offRecipe=!inRecipe(orderById(w.orderId),n); w.editedAt=localISO();
+    await saveFeed(); closeOv('ovWdEdit'); rFeed(); toast('แก้ไขรายการเบิกใยแล้ว');
+  };
+
+  // คลังชื่อใย: รวมจากทุกสูตร ทุกการเบิก และที่พิมพ์เพิ่มเอง
+  function fiberNames(){
+    const set=new Set();
+    (S.fiberMaster||[]).forEach(n=>set.add(n));
+    S.orders.forEach(o=>{
+      (o.fibers||[]).forEach(f=>set.add(f.name));
+      (o.recipeLog||[]).forEach(r=>(r.fibers||[]).forEach(f=>set.add(f.name)));
+    });
+    S.wd.forEach(w=>set.add(w.fiberName));
+    return Array.from(set).filter(Boolean).sort((a,b)=>a.localeCompare(b,'th'));
+  }
+  async function rememberFiber(name){
+    const n=(name||'').trim(); if(!n) return;
+    S.fiberMaster=S.fiberMaster||[];
+    if(!S.fiberMaster.includes(n) && !fiberNames().includes(n)){ S.fiberMaster.push(n); await saveOrders(); }
+    else if(!S.fiberMaster.includes(n)){ S.fiberMaster.push(n); await saveOrders(); }
+  }
+  function fiberOptions(sel){
+    const names=fiberNames();
+    return '<option value="">— เลือกใย —</option>'+
+      names.map(n=>'<option value="'+esc(n)+'"'+(n===sel?' selected':'')+'>'+esc(n)+'</option>').join('')+
+      '<option value="__new__">+ พิมพ์ชื่อใยใหม่…</option>';
+  }
+
+  function addRecRow(name,kg){
+    const d=document.createElement('div'); d.className='frow';
+    const known=fiberNames();
+    const isNew = name && !known.includes(name);
+    d.innerHTML='<select class="rsel" style="margin-top:0;">'+fiberOptions(isNew?'__new__':name)+'</select>'+
+      '<input class="rn" placeholder="พิมพ์ชื่อใยใหม่" value="'+esc(name||'')+'" style="margin-top:0; display:'+(isNew?'block':'none')+';">'+
+      '<input class="rk" type="number" inputmode="decimal" step="0.01" placeholder="กก." style="max-width:88px; margin-top:0;" value="'+(kg==null?'':kg)+'">'+
+      '<button class="x">✕</button>';
+    const sel=d.querySelector('.rsel'), txt=d.querySelector('.rn');
+    if(isNew) sel.value='__new__';
+    sel.onchange=()=>{
+      formDirty=true;
+      if(sel.value==='__new__'){ txt.style.display='block'; txt.value=''; }
+      else { txt.style.display='none'; txt.value=sel.value; }
+      recSumLine();
+    };
+    txt.oninput=()=>{ formDirty=true; recSumLine(); };
+    d.querySelector('.rk').oninput=()=>{ formDirty=true; recSumLine(); };
+    d.querySelector('.x').onclick=()=>{ d.remove(); formDirty=true; recSumLine(); };
+    $('recRows').appendChild(d); recSumLine();
+  }
+  $('btnAddRecRow').onclick=()=>addRecRow();
+
+  function rowFiberName(r){
+    const sel=r.querySelector('.rsel'), txt=r.querySelector('.rn');
+    if(sel && sel.value && sel.value!=='__new__') return sel.value;
+    return txt ? txt.value.trim() : '';
+  }
+  function readRecRows(){
+    return Array.from(document.querySelectorAll('#recRows .frow')).map(r=>({
+      name:rowFiberName(r), kg:+r.querySelector('.rk').value||0
+    })).filter(f=>f.name);
+  }
+  function recSumLine(){
+    const f=readRecRows(), tgt=+$('recTarget').value||0, tot=CALC.recipeTotal(f);
+    const ok=tgt?Math.abs(tot-tgt)<0.005:null;
+    $('recSumLine').innerHTML='รวม '+tot+' กก. '+(ok===null?'':ok?'<span class="bdg ok">ครบสูตร</span>':
+      '<span class="bdg warn">ต่างจากเป้า '+r3(tgt-tot)+' กก.</span>');
+  }
+  $('recTarget').oninput=recSumLine;
+
+  function loadRecipe(){
+    const o=orderById($('recSel').value);
+    const w=$('recRows'); w.innerHTML=''; w.dataset.init='1';
+    $('recTarget').value=o&&o.recipeTargetKg?o.recipeTargetKg:'';
+    if(o&&o.fibers.length) o.fibers.forEach(f=>addRecRow(f.name,f.kg)); else addRecRow();
+    recSumLine();
+  }
+  $('recSel').onchange=loadRecipe;
+
+  $('btnSaveRec').onclick=async()=>{
+    const o=orderById($('recSel').value); if(!o){ toast('เลือกออเดอร์'); return; }
+    const nf=readRecRows(), nt=+$('recTarget').value||0;
+    const before=JSON.stringify((o.fibers||[]).map(f=>[f.name,f.kg]));
+    const after=JSON.stringify(nf.map(f=>[f.name,f.kg]));
+    const used=S.feed.filter(l=>l.orderId===o.id).length;
+    const changed=before!==after;
+    if(changed && used>0){
+      if(!await ask('เปลี่ยนสูตรระหว่างงาน?',
+        'ออเดอร์นี้ป้อนใยไปแล้ว '+used+' รอบ\nรอบเก่าจะยังใช้สูตรเดิมในรายงาน (ข้อมูลไม่หาย)\nรอบใหม่หลังจากนี้จะใช้สูตรใหม่')) return;
+      o.recipeLog=o.recipeLog||[];
+      o.recipeLog.push({ at:localISO(), ver:o.recipeVer||1, cyclesAtChange:used,
+        fibers:(o.fibers||[]).map(f=>({name:f.name,kg:f.kg})), targetKg:o.recipeTargetKg||0 });
+      o.recipeVer=(o.recipeVer||1)+1;
+    }
+    o.fibers=nf; o.recipeTargetKg=nt;
+    S.fiberMaster=S.fiberMaster||[];
+    nf.forEach(f=>{ if(!S.fiberMaster.includes(f.name)) S.fiberMaster.push(f.name); });
+    formDirty=false;
+    await saveOrders(); rFeed(true);
+    toast(changed&&used>0 ? 'ใช้สูตรเวอร์ชัน '+o.recipeVer+' แล้ว — ข้อมูลเก่ายังอยู่' : 'บันทึกสูตรแล้ว');
+  };
+
+  /* ---------- 3. OFFICE ---------- */
+  document.querySelectorAll('[data-ov]').forEach(b=>b.onclick=()=>{ officeView=b.dataset.ov; rOffice(); });
+
+  function rOffice(){
+    const t=todayStr();
+    const f=S.feed.filter(x=>dayOf(x.time)===t);
+    const l=S.line.filter(x=>dayOf(x.time)===t);
+    const w=S.wd.filter(x=>dayOf(x.time)===t);
+    const sc=S.scrap.filter(x=>dayOf(x.time)===t);
+    $('ofcStats').innerHTML=
+      '<div class="stat"><div class="v">'+f.length+'</div><div class="l">รอบป้อนใย</div></div>'+
+      '<div class="stat"><div class="v">'+l.length+'</div><div class="l">แพ็คที่ผลิต</div></div>'+
+      '<div class="stat"><div class="v">'+r2(w.reduce((s,x)=>s+(+x.kg||0),0))+'</div><div class="l">ใยที่เบิก (กก.)</div></div>'+
+      '<div class="stat"><div class="v">'+r2(sc.reduce((s,x)=>s+(+x.kg||0),0))+'</div><div class="l">เศษ/ของเสีย (กก.)</div></div>';
+    document.querySelectorAll('[data-ov]').forEach(b=>b.classList.toggle('on',b.dataset.ov===officeView));
+    const T=$('tOfc');
+    const none='<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>';
+    if(officeView==='feed')
+      T.innerHTML=f.length?'<tr><th>ลำดับ</th><th>เวลา</th><th>ออเดอร์</th></tr>'+f.slice().reverse().map(x=>
+        '<tr><td>'+x.seq+'</td><td>'+hhmm(x.time)+'</td><td>'+esc(ordLabel(x.orderId))+'</td></tr>').join(''):none;
+    else if(officeView==='line')
+      T.innerHTML=l.length?'<tr><th>ลำดับ</th><th>เวลา</th><th>ออเดอร์</th><th>Std/แพ็ค</th><th>น้ำหนักจริง</th><th>ส่วนต่าง</th><th>รวมจริง</th><th>หมายเหตุ</th></tr>'+
+        l.slice().reverse().map(x=>'<tr><td>'+x.seq+'</td><td>'+hhmm(x.time)+'</td><td>'+esc(ordLabel(x.orderId))+
+        '</td><td>'+x.stdPerPack+'</td><td>'+(x.actualWeight==null?'—':x.actualWeight)+'</td><td>'+
+        (x.diff==null?'—':(x.diff>0?'+':'')+x.diff)+'</td><td>'+(x.cumActual==null?x.cumStd:x.cumActual)+
+        '</td><td>'+esc(x.note)+'</td></tr>').join(''):none;
+    else if(officeView==='wd')
+      T.innerHTML=w.length?'<tr><th>เวลา</th><th>ออเดอร์</th><th>ใย</th><th>กก.</th><th>หมายเหตุ</th></tr>'+
+        w.slice().reverse().map(x=>'<tr><td>'+hhmm(x.time)+'</td><td>'+esc(ordLabel(x.orderId))+'</td><td>'+esc(x.fiberName)+
+        '</td><td>'+x.kg+'</td><td>'+esc(x.note)+'</td></tr>').join(''):none;
+    else
+      T.innerHTML=sc.length?'<tr><th>เวลา</th><th>ออเดอร์</th><th>กก.</th><th>หมายเหตุ</th></tr>'+
+        sc.slice().reverse().map(x=>'<tr><td>'+hhmm(x.time)+'</td><td>'+esc(ordLabel(x.orderId))+'</td><td>'+x.kg+
+        '</td><td>'+esc(x.note)+'</td></tr>').join(''):none;
+  }
+
+  /* ---------- 4. LINE ---------- */
+  let lastLineOrder='__none__';
+  function rLine(force){
+    const o=active(), t=todayStr();
+    if((o?o.id:null)!==lastLineOrder){ lastLineOrder=o?o.id:null; specOpen=null; }
+    $('lineInfo').innerHTML=o
+      ? '<div class="sumline">ออเดอร์: <b style="color:var(--accent2)" class="kn">'+esc(o.customer)+' — '+esc(o.code)+
+        '</b> <span class="bdg ok">'+esc(o.productType||'ใย')+'</span></div>'
+      : '<div class="empty">ยังไม่ได้เลือกออเดอร์</div>';
+    paintBreak(); checkIdle();
+
+    const std=o?CALC.stdPerPack(o.spec):0;
+    const packs=o?S.line.filter(l=>l.orderId===o.id).length:0;
+    $('stdBox').innerHTML = o
+      ? (std? '<div class="v">'+std+' กก.</div><div class="l">น้ำหนัก Standard ต่อแพ็ค (ต้องคุมให้ได้)</div>'+
+          '<div class="brk">'+o.spec.weightPerPiece+' กก./ชิ้น × '+o.spec.piecesPerPack+' ชิ้น + ถุง '+
+          (o.spec.bagName?esc(o.spec.bagName)+' ':'')+o.spec.bagWeight+' กก.<br>'+
+          'Standard เฉลี่ยต่อชิ้นรวมถุง '+CALC.stdPerPiece(o.spec)+' กก. · ผลิตแล้ว '+packs+
+          (o.orderedPacks?' / '+o.orderedPacks:'')+' แพ็ค'+
+          (function(){
+            const rs=S.line.filter(l=>l.orderId===o.id);
+            if(!rs.length) return '';
+            const a=r3(rs.reduce((s,l)=>s+((l.actualWeight!=null?+l.actualWeight:+l.stdPerPack)||0),0));
+            const st=r3(rs.reduce((s,l)=>s+(+l.stdPerPack||0),0));
+            return '<br>น้ำหนักจริงรวม '+a+' กก. · ตาม Std '+st+' กก. · ต่าง '+((a-st)>0?'+':'')+r3(a-st)+' กก.';
+          })()+'</div>'
+        : '<div class="l">ยังไม่ได้ตั้งค่าน้ำหนัก Standard</div>'+
+          '<button class="btn sm" id="btnGoSpec" style="margin-top:8px;">ไปตั้งค่าน้ำหนัก Standard</button>')
+      : '<div class="l">—</div>';
+    if($('btnGoSpec')) $('btnGoSpec').onclick=()=>{ specOpen=true; buildSpecForm(); flash('cardSpec'); };
+    (function(){
+      const fb=$('btnFinish'); if(!fb) return;
+      fb.className='bigbtn stop';
+      fb.innerHTML='<span class="ic">🏁</span><span class="tx">จบงาน</span>'+
+        (o?'<span class="sub">'+esc(o.customer)+' · '+packs+' แพ็ค</span>':'');
+    })();
+    $('btnPack').disabled=!o||!std;
+    $('btnPack').style.opacity=(!o||!std)?.45:1;
+
+    if(force||!$('specForm').dataset.init) buildSpecForm();
+
+    const rows=o?S.line.filter(l=>l.orderId===o.id&&dayOf(l.time)===t):[];
+    const T=$('tLine');
+    const bd={ok:'<span class="bdg ok">ตรงสเปค</span>',over:'<span class="bdg warn">เกิน</span>',
+      under:'<span class="bdg bad">ขาด</span>',none:'<span style="color:var(--dim)">ตาม Std</span>'};
+    T.innerHTML=rows.length
+      ? '<tr><th>ลำดับ</th><th>เวลาที่ผลิต</th><th>ถุงที่</th><th>ลอตถุง</th><th>Std/ชิ้น</th><th>จริง/ชิ้น</th><th>Std/แพ็ค</th><th>จริง/แพ็ค</th><th>ส่วนต่าง</th><th>ผล</th><th>รวมจริงสะสม</th><th>รวม Std สะสม</th><th>หมายเหตุ</th><th></th></tr>'+
+        rows.slice().reverse().map(l=>{
+          const st=CALC.tolStatus(l.actualWeight,l.stdPerPack,l.tolPct);
+          const stp=CALC.tolStatus(l.actualPiece,l.stdPiece,l.tolPct);
+          const d=l.diff==null?null:l.diff;
+          const col=s=>s==='ok'?'var(--green)':s==='none'?'var(--dim)':s==='over'?'var(--yellow)':'var(--red)';
+          return '<tr><td>'+l.seq+'</td><td>'+hhmm(l.time)+'</td>'+
+          '<td>'+(l.bagNo||'—')+'</td><td>'+esc(l.bagLot||'—')+'</td>'+
+          '<td>'+(l.stdPiece==null?'—':l.stdPiece)+'</td>'+
+          '<td><b style="color:'+col(stp)+'">'+(l.actualPiece==null?'—':l.actualPiece)+'</b></td>'+
+          '<td>'+l.stdPerPack+'</td>'+
+          '<td><b style="color:'+col(st)+'">'+(l.actualWeight==null?'—':l.actualWeight)+'</b></td>'+
+          '<td>'+(d==null?'—':(d>0?'+':'')+d)+'</td><td>'+bd[st]+'</td>'+
+          '<td>'+(l.cumActual==null?l.cumStd:l.cumActual)+'</td><td>'+l.cumStd+'</td>'+
+          '<td style="white-space:normal">'+esc(l.note)+'</td>'+
+          '<td><button class="x" data-ln="'+l.id+'">✕</button></td></tr>';
+        }).join('')+
+        (function(){
+          const std=r3(rows.reduce((s,l)=>s+(+l.stdPerPack||0),0));
+          const act=r3(rows.reduce((s,l)=>s+((l.actualWeight!=null?+l.actualWeight:+l.stdPerPack)||0),0));
+          return '<tr><td class="kn" style="color:var(--accent2)">รวม '+rows.length+' แพ็ค</td><td></td><td></td><td></td><td></td><td></td>'+
+            '<td class="kn" style="color:var(--accent2)">'+std+'</td>'+
+            '<td class="kn" style="color:var(--accent2)">'+act+'</td><td class="kn" style="color:var(--accent2)">'+
+            ((act-std)>0?'+':'')+r3(act-std)+'</td><td></td><td></td><td></td><td></td><td></td></tr>';
+        })()
+      : '<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>';
+    T.querySelectorAll('[data-ln]').forEach(b=>b.onclick=async()=>{
+      if(!await ask('ลบรายการ','ลบรายการผลิตนี้?')) return;
+      S.line=S.line.filter(x=>x.id!==b.dataset.ln); await saveLine(); rLine(); toast('ลบแล้ว');
+    });
+
+    const scs=o?S.scrap.filter(x=>x.orderId===o.id&&dayOf(x.time)===t):[];
+    $('tScrap').innerHTML=scs.length
+      ? '<tr><th>เวลา</th><th>กก.</th><th>หมายเหตุ</th><th></th></tr>'+scs.slice().reverse().map(x=>
+        '<tr><td>'+hhmm(x.time)+'</td><td>'+x.kg+'</td><td>'+esc(x.note)+'</td><td><button class="x" data-sc="'+x.id+'">✕</button></td></tr>').join('')+
+        '<tr><td class="kn" style="color:var(--accent2)">รวม</td><td class="kn" style="color:var(--accent2)">'+
+        r2(scs.reduce((s,x)=>s+(+x.kg||0),0))+'</td><td></td><td></td></tr>'
+      : '<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>';
+    $('tScrap').querySelectorAll('[data-sc]').forEach(b=>b.onclick=async()=>{
+      if(!await ask('ลบรายการ','ลบรายการเศษนี้?')) return;
+      S.scrap=S.scrap.filter(x=>x.id!==b.dataset.sc); await saveLine(); rLine(); toast('ลบแล้ว');
+    });
+  }
+
+  let specOpen=null;   // null = decide from data
+  let formDirty=false; // true while the user has unsaved edits in a form
+  function flash(id){
+    const el=$(id); if(!el) return;
+    if(el.scrollIntoView) try{ el.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){}
+    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+    setTimeout(()=>el.classList.remove('flash'),1400);
+  }
+
+  function buildSpecForm(){
+    const o=active(), f=$('specForm'), card=$('cardSpec');
+    if(formDirty && f.dataset.init && $('spW')) return;   // keep what the user is typing
+    f.dataset.init='1';
+    if(!o){ card.classList.remove('need'); f.innerHTML='<div class="empty">เลือกออเดอร์ก่อน</div>'; return; }
+    const sp=o.spec||{};
+    const isSet=CALC.stdPerPack(sp)>0;
+    const open = specOpen===null ? !isSet : specOpen;
+    card.classList.toggle('need', !isSet);
+
+    if(!open){
+      f.innerHTML='<div class="rf" style="align-items:center;">'+
+        '<div><h3 style="margin:0;">น้ำหนัก Standard ที่ตั้งไว้</h3>'+
+        '<div class="sumline" style="margin-top:3px;"><b style="color:var(--accent2)">'+CALC.stdPerPack(sp)+' กก./แพ็ค</b>'+
+        ' — '+sp.weightPerPiece+' กก./ชิ้น × '+sp.piecesPerPack+' ชิ้น + ถุง '+(sp.bagName?esc(sp.bagName)+' ':'')+sp.bagWeight+' กก.</div></div>'+
+        '<button class="btn sec sm" id="spEdit" style="flex:0 0 auto;">แก้ไข</button></div>';
+      $('spEdit').onclick=()=>{ specOpen=true; buildSpecForm(); flash('cardSpec'); };
+      return;
+    }
+
+    f.innerHTML='<h3>'+(isSet?'แก้ไขน้ำหนัก Standard':'① ตั้งค่าน้ำหนัก Standard ก่อนเริ่มบันทึก')+'</h3>'+
+      '<div class="rf"><div><label>น้ำหนักที่ต้องการต่อชิ้น (กก.)</label>'+
+      '<input id="spW" type="number" inputmode="decimal" step="0.001" value="'+(sp.weightPerPiece||'')+'"></div>'+
+      '<div><label>จำนวนชิ้นต่อแพ็ค</label><input id="spN" type="number" inputmode="numeric" value="'+(sp.piecesPerPack||'')+'"></div></div>'+
+      '<div class="rf"><div><label>ใช้ถุงอะไร</label><input id="spBag" value="'+esc(sp.bagName||'')+'" placeholder="ถุง PE ใหญ่"></div>'+
+      '<div><label>น้ำหนักถุง (กก.)</label><input id="spBW" type="number" inputmode="decimal" step="0.001" value="'+(sp.bagWeight||'')+'"></div></div>'+
+      '<label>ยอมรับคลาดเคลื่อนได้ ± (%) — ใช้ตัดสินว่าน้ำหนักจริงตรงสเปคไหม</label>'+
+      '<input id="spTol" type="number" inputmode="decimal" step="0.1" value="'+(sp.tolPct||3)+'">'+
+      '<div class="bigstd" id="spPreview" style="margin-top:10px;"></div>'+
+      '<div class="acts" style="margin-top:11px;"><button class="btn" id="spSave" style="flex:1;">บันทึกค่า Standard</button>'+
+      (isSet?'<button class="btn sec sm" id="spCancel">ยกเลิก</button>':'')+'</div>';
+
+    const prev=()=>{
+      const s={weightPerPiece:+$('spW').value||0,piecesPerPack:+$('spN').value||0,bagWeight:+$('spBW').value||0};
+      const t=CALC.stdPerPack(s);
+      $('spPreview').innerHTML=t
+        ? '<div class="v">'+t+' กก.</div><div class="l">น้ำหนัก Standard ต่อแพ็ค (เฉลี่ยต่อชิ้น '+CALC.stdPerPiece(s)+' กก.)</div>'
+        : '<div class="l">กรอกน้ำหนักต่อชิ้นและจำนวนชิ้นต่อแพ็ค แล้วระบบจะคำนวณให้</div>';
+    };
+    ['spW','spN','spBW'].forEach(id=>$(id).oninput=()=>{ formDirty=true; prev(); });
+    ['spBag','spTol'].forEach(id=>{ if($(id)) $(id).oninput=()=>{ formDirty=true; }; });
+    prev();
+
+    if($('spCancel')) $('spCancel').onclick=()=>{ formDirty=false; specOpen=false; buildSpecForm(); };
+    $('spSave').onclick=async()=>{
+      const w=+$('spW').value||0, n=+$('spN').value||0;
+      if(!w||!n){ toast('กรอกน้ำหนักต่อชิ้นและจำนวนชิ้นต่อแพ็คก่อน'); return; }
+      o.spec={ weightPerPiece:w, piecesPerPack:n, bagName:$('spBag').value.trim(), bagWeight:+$('spBW').value||0,
+        tolPct:+$('spTol').value||3 };
+      formDirty=false;
+      await saveOrders();
+      specOpen=false;
+      rLine(true);
+      toast('Standard = '+CALC.stdPerPack(o.spec)+' กก./แพ็ค — เริ่มบันทึกได้เลย');
+      flash('cardRun');
+    };
+  }
+
+  function nextBagNo(orderId){
+    const t=todayStr();
+    return S.line.filter(l=>l.orderId===orderId&&dayOf(l.time)===t)
+      .reduce((m,l)=>Math.max(m,+l.bagNo||0),0)+1;
+  }
+
+  /* --- นาฬิกาเฝ้าเวลาที่หาย: เตือนทันทีเมื่อครบเวลา ไม่ต้องรอกดบันทึก --- */
+  let lastPackAt=null, idleNotified=false, idleBeeped=false;
+  function lastPackTime(){
+    const o=active(); if(!o) return null;
+    const rows=S.line.filter(l=>l.orderId===o.id);
+    if(!rows.length) return o.startedAt||null;
+    return rows.reduce((m,l)=>l.time>m?l.time:m,rows[0].time);
+  }
+  function beep(){
+    try{
+      const A=window.AudioContext||window.webkitAudioContext; if(!A) return;
+      const c=new A(); const g=c.createGain(); g.gain.value=0.08; g.connect(c.destination);
+      [0,220,440].forEach(d=>{ const os=c.createOscillator(); os.frequency.value=880; os.connect(g);
+        os.start(c.currentTime+d/1000); os.stop(c.currentTime+(d+140)/1000); });
+      setTimeout(()=>{ try{c.close();}catch(e){} },1200);
+    }catch(e){}
+  }
+  function checkIdle(){
+    const o=active();
+    const el=$('idleWarn'); if(!el) return;
+    const b=(typeof openBreak==='function')?openBreak():null;
+    if(b){
+      el.innerHTML='<div class="banner warn" style="display:block; margin:10px 0 0;">⏸ กำลังพัก: '+esc(b.reason)+
+        ' ตั้งแต่ '+hhmm(b.start)+' ('+minsBetween(localISO(),b.start)+' นาที) — กด "เริ่มงานต่อ" เมื่อกลับมา</div>';
+      idleNotified=false; idleBeeped=false; return;
+    }
+    const lim=+S.settings.gapMin||20;
+    const last=lastPackAt||lastPackTime();
+    if(!o||!last){ el.innerHTML=''; return; }
+    const mins=Math.max(0,minsBetween(localISO(),last)-breakOverlapMinutes(last,localISO()));
+    if(mins>=lim){
+      el.innerHTML='<div class="banner late" style="display:block; margin:10px 0 0;">⏱ ไม่มีการบันทึกมา '+mins+
+        ' นาที (เกิน '+lim+') — เครื่องเสีย หรือเปลี่ยนไลน์ผลิต?</div>';
+      if(!idleNotified){ idleNotified=true; toast('⏱ หยุดไปแล้ว '+mins+' นาที — ตรวจสอบด้วย'); }
+      if(!idleBeeped){ idleBeeped=true; beep(); }
+    } else if(mins>=Math.max(1,Math.round(lim*0.75))){
+      el.innerHTML='<div class="banner warn" style="display:block; margin:10px 0 0;">⏱ ห่างจากรายการล่าสุด '+
+        mins+' นาที (จะเตือนเมื่อครบ '+lim+')</div>';
+      idleNotified=false; idleBeeped=false;
+    } else { el.innerHTML=''; idleNotified=false; idleBeeped=false; }
+  }
+  setInterval(()=>{ if(typeof paintBreak==='function') paintBreak(); checkIdle(); },15000);
+
+  function addPack(gapReason,gapMin,flagged,actual,actualPc){
+    const o=active(); const std=CALC.stdPerPack(o.spec);
+    const t=todayStr();
+    const seq=S.line.filter(l=>l.orderId===o.id&&dayOf(l.time)===t).length+1;
+    const prevRows=S.line.filter(l=>l.orderId===o.id);
+    const cumPrev=prevRows.reduce((s,l)=>s+(+l.stdPerPack||0),0);
+    const cumActPrev=prevRows.reduce((s,l)=>s+((l.actualWeight!=null?+l.actualWeight:+l.stdPerPack)||0),0);
+    const act = (actual==null||actual==='') ? null : r3(+actual);
+    const pc  = (actualPc==null||actualPc==='') ? null : r3(+actualPc);
+    let note=$('lineNote').value.trim();
+    if(gapReason) note=(note?note+' | ':'')+'ห่าง '+gapMin+' นาที: '+gapReason;
+    S.line.push({ id:uid(), seq:seq, time:localISO(), orderId:o.id,
+      productType:o.productType||'ใย',
+      bagLot:$('bagLot').value.trim(), bagNo:+$('bagNo').value||nextBagNo(o.id),
+      stdPerPiece:CALC.stdPerPiece(o.spec), stdPiece:+o.spec.weightPerPiece||0,
+      piecesPerPack:+o.spec.piecesPerPack||0,
+      bagWeight:+o.spec.bagWeight||0, tolPct:+o.spec.tolPct||3,
+      stdPerPack:std, actualWeight:act, diff:act==null?null:CALC.packDiff(act,std),
+      actualPiece:pc, diffPiece:pc==null?null:CALC.packDiff(pc,+o.spec.weightPerPiece||0),
+      cumStd:r3(cumPrev+std), cumActual:r3(cumActPrev+(act==null?std:act)),
+      note:note, gapMinutes:gapMin||null,
+      gapReason:gapReason||null, isDowntime:!!flagged });
+    $('lineNote').value=''; $('actW').value=''; $('actPc').value=''; $('actHint').innerHTML='';
+    $('bagNo').value=''; lastPackAt=localISO(); idleNotified=false;
+    saveLine().then(()=>{ if(current==='line') rLine(); });
+    const st=CALC.tolStatus(act,std,o.spec.tolPct);
+    toast('แพ็คที่ '+seq+' · '+(act==null?std+' กก. (ตาม Std)':act+' กก.'+
+      (st==='ok'?' ✓ ตรงสเปค':st==='over'?' ▲ เกิน '+r3(act-std):' ▼ ขาด '+r3(std-act))));
+  }
+
+  function startPack(actual,actualPc){
+    const o=active();
+    if(!o){ toast('เลือกออเดอร์ก่อน'); return; }
+    const std=CALC.stdPerPack(o.spec);
+    if(!std){ toast('ตั้งค่าน้ำหนัก Standard ก่อน'); return; }
+    const prev=S.line.filter(l=>l.orderId===o.id).sort((a,b)=>a.time<b.time?-1:1).pop();
+    const now=localISO();
+    const gap=prev?Math.max(0,minsBetween(now,prev.time)-breakOverlapMinutes(prev.time,now)):null;
+    if(gap!==null && gap>(+S.settings.gapMin||20)){
+      $('gapMin').textContent=gap; $('gpOther').value=''; openOv('ovGap');
+      const fin=r=>{ closeOv('ovGap'); addPack(r,gap,true,actual,actualPc); };
+      $('gpMachine').onclick=()=>fin('เครื่องเสีย');
+      $('gpLine').onclick=()=>fin('เปลี่ยนไลน์ผลิต');
+      $('gpOtherOk').onclick=()=>fin($('gpOther').value.trim()||'ไม่ระบุ');
+      $('gpSkip').onclick=()=>fin(null);
+    } else addPack(null,gap,false,actual,actualPc);
+  }
+
+  // typing a piece weight previews (and can fill in) the pack weight
+  function actHint(){
+    const o=active(); if(!o) return;
+    const pc=+$('actPc').value||0, sp=o.spec||{};
+    const H=$('actHint');
+    if(!pc){ H.innerHTML=''; return; }
+    const calcPack=r3(pc*(+sp.piecesPerPack||0)+(+sp.bagWeight||0));
+    const st=CALC.tolStatus(pc,+sp.weightPerPiece||0,sp.tolPct);
+    H.innerHTML='ต่อชิ้น '+(st==='ok'?'<span class="bdg ok">ตรงสเปค</span>':
+        st==='over'?'<span class="bdg warn">เกิน '+r3(pc-(+sp.weightPerPiece||0))+'</span>':
+        '<span class="bdg bad">ขาด '+r3((+sp.weightPerPiece||0)-pc)+'</span>')+
+      ' · ถ้าทั้งแพ็คใช้ชิ้นละเท่านี้จะได้ '+calcPack+' กก. '+
+      '<button class="btn sec sm" id="btnUsePc" style="margin-left:6px;">ใช้ค่านี้เป็นน้ำหนักแพ็ค</button>';
+    $('btnUsePc').onclick=()=>{ $('actW').value=calcPack; formDirty=true; };
+  }
+  $('actPc').oninput=()=>{ formDirty=true; actHint(); };
+  $('actW').oninput=()=>{ formDirty=true; };
+
+  $('btnPack').onclick=()=>{
+    if(openBreak()){ endBreak(); }
+    const v=$('actW').value.trim(), pc=$('actPc').value.trim();
+    if(!v&&!pc){ toast('กรอกน้ำหนักจริง (ต่อชิ้นหรือต่อแพ็ค) หรือกดปุ่ม "ตรงตาม Standard"'); return; }
+    let packW=v?+v:null;
+    if(packW==null && pc){       // only the piece was weighed -> derive the pack
+      const sp=active().spec||{};
+      packW=r3((+pc)*(+sp.piecesPerPack||0)+(+sp.bagWeight||0));
+    }
+    if(!(packW>0)){ toast('น้ำหนักไม่ถูกต้อง'); return; }
+    formDirty=false;
+    startPack(packW, pc||null);
+  };
+  $('btnPackStd').onclick=()=>{ formDirty=false; startPack(null,$('actPc').value.trim()||null); };
+
+  $('btnScrap').onclick=async()=>{
+    const o=active(); if(!o){ toast('เลือกออเดอร์ก่อน'); return; }
+    const kg=+$('scKg').value; if(!kg){ toast('กรอกน้ำหนักเศษ'); return; }
+    S.scrap.push({ id:uid(), time:localISO(), orderId:o.id, kg:kg, note:$('scNote').value.trim() });
+    await saveLine(); $('scKg').value=''; $('scNote').value=''; rLine(); toast('บันทึกน้ำหนักเศษแล้ว');
+  };
+
+  $('btnGapSet').onclick=()=>{ $('gsVal').value=S.settings.gapMin||20; openOv('ovGapSet'); };
+  $('gsCancel').onclick=()=>closeOv('ovGapSet');
+  $('gsSave').onclick=async()=>{ S.settings.gapMin=+$('gsVal').value||20; await saveSet(); closeOv('ovGapSet'); toast('บันทึกแล้ว'); };
+
+  $('btnFinish').onclick=async()=>{
+    const o=active();
+    if(!o){ toast('ยังไม่ได้เลือกออเดอร์'); return; }
+    const t=todayStr();
+    const rowsF=S.line.filter(l=>l.orderId===o.id);
+    const packs=rowsF.length;
+    const actF=r3(rowsF.reduce((s,l)=>s+((l.actualWeight!=null?+l.actualWeight:+l.stdPerPack)||0),0));
+    const cyc=S.feed.filter(l=>l.orderId===o.id&&dayOf(l.time)===t).length;
+    const scrap=r2(S.scrap.filter(x=>x.orderId===o.id).reduce((s,x)=>s+(+x.kg||0),0));
+    const fiber=r3(CALC.recipeTotal(o.fibers)*cyc);
+    if(!await ask('จบงานออเดอร์นี้?',
+      o.customer+' — '+o.code+'\nผลิตได้ '+packs+' แพ็ค'+(o.orderedPacks?' / สั่ง '+o.orderedPacks:'')+
+      ' · น้ำหนักจริงรวม '+actF+' กก.'+
+      ' · ใยเบิกเข้า '+r2(S.wd.filter(x=>x.orderId===o.id).reduce((s,x)=>s+(+x.kg||0),0))+' กก. · เศษ '+scrap+' กก.')) return;
+    o.status='done'; o.finishedAt=localISO(); S.activeId=null;
+    await saveOrders();
+    rTop(); toast('จบงานเรียบร้อย — เวลา '+hhmm(o.finishedAt));
+    show('sum');
+  };
+
+  /* ---------- 5. SUMMARY ---------- */
+    // ---- ช่วงวันที่สำหรับดูย้อนหลัง ----
+  function addDays(ds,n){ const d=new Date(ds+'T12:00:00'); d.setDate(d.getDate()+n);
+    const p=x=>String(x).padStart(2,'0');
+    return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
+  function sumRange(){
+    const to=$('sumDate').value||todayStr();
+    const mode=$('sumRange').value;
+    if(mode==='day') return {from:to,to:to,label:'วันที่ '+to};
+    if(mode==='week') return {from:addDays(to,-6),to:to,label:addDays(to,-6)+' ถึง '+to+' (7 วัน)'};
+    if(mode==='month') return {from:addDays(to,-29),to:to,label:addDays(to,-29)+' ถึง '+to+' (30 วัน)'};
+    const all=[...S.feed,...S.line,...S.wd,...S.scrap].map(x=>dayOf(x.time)).sort();
+    return {from:all[0]||to,to:all[all.length-1]||to,label:'ทั้งหมด '+(all[0]||to)+' ถึง '+(all[all.length-1]||to)};
+  }
+  const inRange=(x,R)=>{ const d=dayOf(x.time); return d>=R.from && d<=R.to; };
+
+  function rSum(){
+    const di=$('sumDate'); if(!di.value) di.value=todayStr();
+    di.onchange=rSum; $('sumRange').onchange=rSum;
+    const R=sumRange();
+    $('sumRangeLine').textContent='ช่วงข้อมูล: '+R.label;
+    const d=di.value;
+    const feed=S.feed.filter(x=>inRange(x,R));
+    const line=S.line.filter(x=>inRange(x,R));
+    const wd=S.wd.filter(x=>inRange(x,R));
+    const sc=S.scrap.filter(x=>inRange(x,R));
+    rStoreInfo(); rLockInfo(); rInstallInfo();
+    const gaps=line.filter(x=>x.isDowntime||(x.gapMinutes&&x.gapMinutes>(+S.settings.gapMin||20)));
+
+    const ids=new Set([...feed,...line,...wd,...sc].map(x=>x.orderId));
+    let totFiber=0;
+    const rows=Array.from(ids).map(id=>{
+      const o=orderById(id);
+      const fl=feed.filter(x=>x.orderId===id), ll=line.filter(x=>x.orderId===id);
+      const wl=wd.filter(x=>x.orderId===id), sl=sc.filter(x=>x.orderId===id);
+      const fiberKg=CALC.usageTotal(fl,o);
+      totFiber+=fiberKg;
+      const wdKg=r2(wl.reduce((s,x)=>s+(+x.kg||0),0));
+      const scKg=r2(sl.reduce((s,x)=>s+(+x.kg||0),0));
+      const stdKg=r3(ll.reduce((s,x)=>s+(+x.stdPerPack||0),0));
+      const actKg=r3(ll.reduce((s,x)=>s+((x.actualWeight!=null?+x.actualWeight:+x.stdPerPack)||0),0));
+      let dur='-', brk=0;
+      if(o&&o.startedAt){
+        const end=o.finishedAt||localISO();
+        const gross=minsBetween(end,o.startedAt);
+        brk=breakMinutesForOrder(o.id,R.from,R.to);
+        dur=Math.max(0,gross-brk)+' นาที'+(brk?' (พัก '+brk+')':'')+(o.finishedAt?'':' (ยังไม่จบ)');
+      }
+      return '<tr><td>'+(o?esc(o.customer):'(ลบแล้ว)')+'</td><td>'+(o?esc(o.code):'-')+'</td>'+
+        '<td>'+dur+'</td><td>'+(o&&o.startedAt?hhmm(o.startedAt):'-')+'</td><td>'+(o&&o.finishedAt?hhmm(o.finishedAt):'-')+'</td>'+
+        '<td>'+ll.length+(o&&o.orderedPacks?' / '+o.orderedPacks:'')+'</td>'+
+        '<td>'+stdKg+'</td><td>'+actKg+'</td><td>'+((actKg-stdKg)>0?'+':'')+r3(actKg-stdKg)+'</td>'+
+        '<td>'+fl.length+'</td><td>'+fiberKg+'</td><td>'+wdKg+'</td><td>'+scKg+'</td></tr>';
+    }).join('');
+
+    const totPacks=line.length;
+    const totActual=r3(line.reduce((s,x)=>s+((x.actualWeight!=null?+x.actualWeight:+x.stdPerPack)||0),0));
+    const totStd=r3(line.reduce((s,x)=>s+(+x.stdPerPack||0),0));
+    const totScrap=r2(sc.reduce((s,x)=>s+(+x.kg||0),0));
+    const totGap=gaps.reduce((s,x)=>s+(+x.gapMinutes||0),0);
+    const grossMin=Array.from(ids).reduce((s,id)=>{ const o=orderById(id);
+      if(!o||!o.startedAt) return s; const end=o.finishedAt||localISO(); return s+minsBetween(end,o.startedAt); },0);
+    const brkMin=breakMinutes(R.from,R.to);
+    const totMin=Math.max(0,grossMin-brkMin);
+
+    $('sumStats').innerHTML=
+      '<div class="stat"><div class="v">'+totPacks+'</div><div class="l">จำนวนแพ็คที่ผลิตจริง</div></div>'+
+      '<div class="stat"><div class="v">'+totActual+'</div><div class="l">น้ำหนักผลิตจริงรวม (กก.)</div></div>'+
+      '<div class="stat"><div class="v">'+((totActual-totStd)>0?'+':'')+r3(totActual-totStd)+'</div><div class="l">ต่างจาก Standard (กก.)</div></div>'+
+      '<div class="stat"><div class="v">'+totMin+'</div><div class="l">เวลาผลิตจริง หักพักแล้ว (นาที)</div></div>'+
+      '<div class="stat"><div class="v">'+brkMin+'</div><div class="l">เวลาพัก (นาที)</div></div>'+
+      '<div class="stat"><div class="v">'+r3(totFiber)+'</div><div class="l">ใยที่ใช้ตามสูตร (กก.)</div></div>'+
+      '<div class="stat"><div class="v">'+totScrap+'</div><div class="l">เศษ/ของเสีย (กก.)</div></div>'+
+      '<div class="stat"><div class="v">'+totGap+'</div><div class="l">เวลาที่เสีย (นาที)</div></div>'+
+      '<div class="stat"><div class="v">'+r2(wd.reduce((s,x)=>s+(+x.kg||0),0))+'</div><div class="l">ใยที่เบิกจริง (กก.)</div></div>';
+
+    const fedKg=r3(Array.from(ids).reduce((s,id)=>s+CALC.usageTotal(feed.filter(x=>x.orderId===id),orderById(id)),0));
+    const wdKg=r2(wd.reduce((s,x)=>s+(+x.kg||0),0));
+    const bal=CALC.fiberBalance(line, fedKg, totScrap, wdKg);
+    $('balStats').innerHTML=
+      '<div class="stat"><div class="v">'+bal.inKg+'</div><div class="l">⬇ ใยเข้า — ป้อนเข้าไลน์ทั้งหมด (กก.)</div></div>'+
+      '<div class="stat"><div class="v">'+bal.outKg+'</div><div class="l">⬆ ใยออก — เป็นสินค้า หักถุงแล้ว (กก.)</div></div>'+
+      '<div class="stat"><div class="v">'+bal.scrapKg+'</div><div class="l">เศษ/ของเสีย (กก.)</div></div>'+
+      '<div class="stat"><div class="v">'+bal.unaccountedKg+'</div><div class="l">คงเหลือ/หาย = เข้า−ออก−เศษ (กก.)</div></div>';
+    $('balNote').innerHTML= bal.inKg
+      ? '<b style="color:var(--accent2)">ใยเข้า '+bal.inKg+' กก. → ใยออกเป็นสินค้า '+bal.outKg+' กก. + เศษ '+
+        bal.scrapKg+' กก. + คงเหลือ/หาย '+bal.unaccountedKg+' กก.</b><br>'+
+        'อัตราเป็นสินค้า '+bal.yieldPct+'%'+
+        (Math.abs(bal.unaccountedKg)>bal.inKg*0.05
+          ? ' <span class="bdg warn">ต่างเกิน 5% — อาจมีใยค้างในไลน์ หรือยังชั่งเศษไม่ครบ</span>'
+          : ' <span class="bdg ok">สมดุลปกติ</span>')+
+        '<br><span style="color:var(--dim)">อ้างอิง: เบิกใยจากคลัง '+bal.wdKg+' กก. · เทียบกับที่ป้อนเข้าไลน์ '+
+        (bal.stockDiffKg>0?'เหลือค้างยังไม่ป้อน '+bal.stockDiffKg:bal.stockDiffKg<0?'ป้อนมากกว่าที่เบิก '+r3(-bal.stockDiffKg):'ตรงกันพอดี 0')+' กก.</span>'
+      : 'ยังไม่มีการป้อนใยในช่วงนี้ — กดปุ่มนับที่แท็บ "ป้อนใย" เพื่อเริ่มนับใยเข้า';
+
+    $('tSumOrder').innerHTML=rows
+      ? '<tr><th>ลูกค้า</th><th>รหัส</th><th>เวลาผลิตจริง</th><th>เริ่ม</th><th>จบ</th><th>แพ็คที่ผลิต</th>'+
+        '<th>Std รวม(กก.)</th><th>น้ำหนักจริงรวม(กก.)</th><th>ส่วนต่าง</th><th>รอบป้อนใย</th><th>ใยตามสูตร(กก.)</th><th>เบิกจริง(กก.)</th><th>เศษ(กก.)</th></tr>'+rows
+      : '<tr><td class="empty">ยังไม่มีข้อมูลวันนี้</td></tr>';
+
+    // วัตถุดิบที่ใช้ตามสูตร — แยกตามออเดอร์
+    const blocks=Array.from(ids).map(id=>{
+      const o=orderById(id); if(!o) return '';
+      const fl2=feed.filter(x=>x.orderId===id); const cyc=fl2.length; if(!cyc) return '';
+      const use=CALC.usageFromCycles(fl2,o);
+      const tot=r3(use.reduce((s,u)=>s+u.kg,0));
+      return '<tr><td colspan="4" class="kn" style="background:var(--panel2); color:var(--accent2); padding-top:10px;">'+
+        esc(o.customer)+' — '+esc(o.code)+' · ป้อนใย '+cyc+' รอบ</td></tr>'+
+        use.map(u=>'<tr><td style="padding-left:18px;">'+esc(u.name)+'</td><td>'+
+          r3(u.kg/cyc)+'</td><td>'+cyc+'</td><td>'+u.kg+'</td></tr>').join('')+
+        ((o.recipeLog||[]).length?'<tr><td colspan="4" style="padding-left:18px; color:var(--dim); white-space:normal;">มีการเปลี่ยนสูตร '+
+          o.recipeLog.length+' ครั้ง — ตัวเลขข้างบนคิดตามสูตรที่ใช้จริงในแต่ละรอบ</td></tr>':'')+
+        '<tr><td class="kn" style="padding-left:18px; color:var(--accent2);">รวมออเดอร์นี้</td><td></td><td></td>'+
+        '<td class="kn" style="color:var(--accent2)">'+tot+'</td></tr>';
+    }).filter(Boolean).join('');
+    $('tSumFiber').innerHTML=blocks
+      ? '<tr><th>ชนิดใย</th><th>กก./สูตร</th><th>จำนวนรอบ</th><th>รวมที่ใช้ (กก.)</th></tr>'+blocks
+      : '<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>';
+
+    // รายการเบิกใย — แยกออกมาต่างหาก ระบุล็อตและเวลา
+    $('tSumWd').innerHTML=wd.length
+      ? '<tr><th>เวลาเบิก</th><th>ก้อนที่</th><th>ออเดอร์</th><th>ชนิดใย</th><th>ล็อต</th><th>น้ำหนัก (กก.)</th><th>หมายเหตุ</th></tr>'+
+        wd.slice().reverse().map(w=>'<tr><td>'+hhmm(w.time)+'</td><td>'+esc(w.seq||'—')+'</td><td>'+esc(ordLabel(w.orderId))+'</td><td>'+
+          esc(w.fiberName)+'</td><td>'+(w.lot?esc(w.lot):'<span style="color:var(--dim)">—</span>')+'</td><td>'+
+          w.kg+'</td><td>'+esc(w.note)+'</td></tr>').join('')+
+        '<tr><td class="kn" style="color:var(--accent2)">รวมเบิกทั้งวัน</td><td></td><td></td><td></td><td></td>'+
+        '<td class="kn" style="color:var(--accent2)">'+r2(wd.reduce((s,x)=>s+(+x.kg||0),0))+'</td><td></td></tr>'
+      : '<tr><td class="empty">ยังไม่มีการเบิกใยวันนี้</td></tr>';
+
+    const brs=S.breaks.filter(b=>dayOf(b.start)>=R.from&&dayOf(b.start)<=R.to);
+    $('tSumBreak').innerHTML=brs.length
+      ? '<tr><th>วันที่</th><th>เริ่มพัก</th><th>เลิกพัก</th><th>นาที</th><th>เหตุผล</th><th>ออเดอร์</th></tr>'+
+        brs.slice().reverse().map(b=>'<tr><td>'+dayOf(b.start)+'</td><td>'+hhmm(b.start)+'</td><td>'+
+          (b.end?hhmm(b.end):'<span class="bdg warn">ยังพักอยู่</span>')+'</td><td>'+
+          minsBetween(b.end||localISO(),b.start)+'</td><td>'+esc(b.reason)+'</td><td>'+
+          (b.orderId?esc(ordLabel(b.orderId)):'—')+'</td></tr>').join('')+
+        '<tr><td class="kn" style="color:var(--accent2)">รวม</td><td></td><td></td>'+
+        '<td class="kn" style="color:var(--accent2)">'+breakMinutes(R.from,R.to)+'</td><td></td><td></td></tr>'
+      : '<tr><td class="empty">ไม่มีการพักในช่วงนี้</td></tr>';
+
+    $('tSumGap').innerHTML=gaps.length
+      ? '<tr><th>เวลา</th><th>ห่าง (นาที)</th><th>สาเหตุ</th><th>ออเดอร์</th></tr>'+
+        gaps.slice().reverse().map(x=>'<tr><td>'+hhmm(x.time)+'</td><td>'+x.gapMinutes+'</td><td>'+
+          esc(x.gapReason||'ไม่ระบุ')+'</td><td>'+esc(ordLabel(x.orderId))+'</td></tr>').join('')
+      : '<tr><td class="empty">ไม่มีช่วงเวลาที่เสีย</td></tr>';
+  }
+
+  /* ---------- EXPORT / STORAGE ---------- */
+  function csvCell(v){
+    const s=(v==null?'':String(v));
+    return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  }
+  function toCSV(rows){ return rows.map(r=>r.map(csvCell).join(',')).join('\r\n'); }
+  function download(name,text){
+    try{
+      const blob=new Blob(['\ufeff'+text],{type:'text/csv;charset=utf-8;'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url; a.download=name; document.body.appendChild(a); a.click();
+      setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },500);
+      return true;
+    }catch(e){ console.error(e); toast('ดาวน์โหลดไม่สำเร็จบนอุปกรณ์นี้'); return false; }
+  }
+  function buildCSV(R){
+    const nm=id=>{ const o=orderById(id); return o?o.customer:'(ลบแล้ว)'; };
+    const cd=id=>{ const o=orderById(id); return o?o.code:''; };
+    const tp=id=>{ const o=orderById(id); return o?(o.productType||'ใย'):''; };
+    const rows=[];
+    rows.push(['รายงานการผลิต','ช่วง',R.from,'ถึง',R.to,'ออกเมื่อ',localISO().replace('T',' ')]);
+    rows.push([]);
+    rows.push(['[ท้ายไลน์ — รายการผลิต]']);
+    rows.push(['วันที่','เวลา','ลูกค้า','รหัสงาน','ประเภท','ลำดับ','ถุงที่','ลอตถุง','Std/ชิ้น','จริง/ชิ้น',
+      'Std/แพ็ค','จริง/แพ็ค','ส่วนต่าง','รวมจริงสะสม','รวม Std สะสม','ห่าง(นาที)','สาเหตุ','หมายเหตุ']);
+    S.line.filter(x=>inRange(x,R)).forEach(l=>rows.push([dayOf(l.time),hhmm(l.time),nm(l.orderId),cd(l.orderId),
+      tp(l.orderId),l.seq,l.bagNo||'',l.bagLot||'',l.stdPiece,l.actualPiece==null?'':l.actualPiece,
+      l.stdPerPack,l.actualWeight==null?'':l.actualWeight,l.diff==null?'':l.diff,
+      l.cumActual==null?l.cumStd:l.cumActual,l.cumStd,l.gapMinutes||'',l.gapReason||'',l.note||'']));
+    rows.push([]);
+    rows.push(['[ป้อนใย — รอบการป้อน]']);
+    rows.push(['วันที่','เวลา','ลูกค้า','รหัสงาน','ลำดับ','สูตรที่ใช้','รวม กก./รอบ','เวอร์ชันสูตร']);
+    S.feed.filter(x=>inRange(x,R)).forEach(f=>rows.push([dayOf(f.time),hhmm(f.time),nm(f.orderId),cd(f.orderId),
+      f.seq,(f.recipe||[]).map(x=>x.name+' '+x.kg+'กก.').join(' + '),f.recipeKg==null?'':f.recipeKg,f.recipeVer||1]));
+    rows.push([]);
+    rows.push(['[เบิกใย]']);
+    rows.push(['วันที่','เวลา','ก้อนที่','ลูกค้า','รหัสงาน','ชนิดใย','ลอตใย','น้ำหนัก(กก.)','นอกสูตร','หมายเหตุ']);
+    S.wd.filter(x=>inRange(x,R)).forEach(w=>rows.push([dayOf(w.time),hhmm(w.time),w.seq||'',nm(w.orderId),cd(w.orderId),
+      w.fiberName,w.lot||'',w.kg,w.offRecipe?'ใช่':'',w.note||'']));
+    rows.push([]);
+    rows.push(['[เศษ / ของเสีย]']);
+    rows.push(['วันที่','เวลา','ลูกค้า','รหัสงาน','น้ำหนัก(กก.)','หมายเหตุ']);
+    S.scrap.filter(x=>inRange(x,R)).forEach(x=>rows.push([dayOf(x.time),hhmm(x.time),nm(x.orderId),cd(x.orderId),x.kg,x.note||'']));
+    rows.push([]);
+    rows.push(['[เวลาพัก]']);
+    rows.push(['วันที่','เริ่มพัก','เลิกพัก','นาที','เหตุผล','ลูกค้า','รหัสงาน']);
+    S.breaks.filter(b=>dayOf(b.start)>=R.from&&dayOf(b.start)<=R.to).forEach(b=>{
+      const o=b.orderId?orderById(b.orderId):null;
+      rows.push([dayOf(b.start),hhmm(b.start),b.end?hhmm(b.end):'ยังพักอยู่',
+        minsBetween(b.end||localISO(),b.start),b.reason,o?o.customer:'',o?o.code:'']);
+    });
+    rows.push([]);
+    rows.push(['[ออเดอร์และสเปค — ใช้กู้คืนข้อมูลได้]']);
+    rows.push(['ลูกค้า','รหัสงาน','ประเภท','สั่ง(แพ็ค)','สถานะ','สูตร (ชื่อ:กก.)','ครบสูตร(กก.)','เวอร์ชันสูตร',
+      'น้ำหนัก/ชิ้น','ชิ้น/แพ็ค','ชนิดถุง','น้ำหนักถุง','Std/แพ็ค','คลาดเคลื่อน(%)','กำหนดส่ง','เริ่ม','จบ']);
+    S.orders.forEach(o=>rows.push([o.customer,o.code,o.productType||'ใย',o.orderedPacks||'',o.status||'',
+      (o.fibers||[]).map(f=>f.name+':'+f.kg).join(' + '),o.recipeTargetKg||'',o.recipeVer||1,
+      (o.spec||{}).weightPerPiece||'',(o.spec||{}).piecesPerPack||'',(o.spec||{}).bagName||'',
+      (o.spec||{}).bagWeight||'',CALC.stdPerPack(o.spec)||'',(o.spec||{}).tolPct||'',
+      o.due||'',o.startedAt||'',o.finishedAt||'']));
+    (function(){
+      const hist=S.orders.filter(o=>(o.recipeLog||[]).length);
+      if(!hist.length) return;
+      rows.push([]);
+      rows.push(['[ประวัติการเปลี่ยนสูตร]']);
+      rows.push(['ลูกค้า','รหัสงาน','เวอร์ชันเดิม','เปลี่ยนเมื่อ','ป้อนไปแล้ว(รอบ)','สูตรเดิม']);
+      hist.forEach(o=>o.recipeLog.forEach(r=>rows.push([o.customer,o.code,r.ver,r.at,r.cyclesAtChange,
+        (r.fibers||[]).map(f=>f.name+':'+f.kg).join(' + ')])));
+    })();
+    rows.push([]);
+    rows.push(['[สรุปตามออเดอร์]']);
+    rows.push(['ลูกค้า','รหัสงาน','ประเภท','สั่ง(แพ็ค)','ผลิตจริง(แพ็ค)','Std รวม(กก.)','จริงรวม(กก.)','ส่วนต่าง',
+      'รอบป้อนใย','ใยตามสูตร(กก.)','เบิกจริง(กก.)','เศษ(กก.)','เริ่ม','จบ']);
+    const ids=new Set([...S.feed,...S.line,...S.wd,...S.scrap].filter(x=>inRange(x,R)).map(x=>x.orderId));
+    ids.forEach(id=>{
+      const o=orderById(id);
+      const fl=S.feed.filter(x=>x.orderId===id&&inRange(x,R));
+      const ll=S.line.filter(x=>x.orderId===id&&inRange(x,R));
+      const wl=S.wd.filter(x=>x.orderId===id&&inRange(x,R));
+      const sl=S.scrap.filter(x=>x.orderId===id&&inRange(x,R));
+      const std=r3(ll.reduce((s,x)=>s+(+x.stdPerPack||0),0));
+      const act=r3(ll.reduce((s,x)=>s+((x.actualWeight!=null?+x.actualWeight:+x.stdPerPack)||0),0));
+      rows.push([o?o.customer:'(ลบแล้ว)',o?o.code:'',o?(o.productType||'ใย'):'',o?o.orderedPacks||'':'',ll.length,
+        std,act,r3(act-std),fl.length,CALC.usageTotal(fl,o),
+        r2(wl.reduce((s,x)=>s+(+x.kg||0),0)),r2(sl.reduce((s,x)=>s+(+x.kg||0),0)),
+        o&&o.startedAt?o.startedAt.replace('T',' '):'',o&&o.finishedAt?o.finishedAt.replace('T',' '):'']);
+    });
+    return toCSV(rows);
+  }
+  $('btnExport').onclick=()=>{
+    const R=sumRange();
+    if(download('รายงานการผลิต_'+R.from+'_ถึง_'+R.to+'.csv',buildCSV(R)))
+      toast('ออกไฟล์แล้ว — เปิดด้วย Excel ได้เลย');
+  };
+  $('btnExportAll').onclick=()=>{
+    const all=[...S.feed,...S.line,...S.wd,...S.scrap].map(x=>dayOf(x.time)).sort();
+    const R={from:all[0]||todayStr(),to:all[all.length-1]||todayStr()};
+    if(download('สำรองข้อมูลทั้งหมด_'+todayStr()+'.csv',buildCSV(R)))
+      toast('สำรองข้อมูลทั้งหมดแล้ว');
+  };
+
+  function rStoreInfo(){
+    const bytes=[S.orders,S.feed,S.wd,S.line,S.scrap].reduce((s,x)=>s+JSON.stringify(x).length,0);
+    const days=new Set([...S.feed,...S.line,...S.wd,...S.scrap].map(x=>dayOf(x.time)));
+    const list=Array.from(days).sort();
+    const recs=S.feed.length+S.line.length+S.wd.length+S.scrap.length;
+    const kb=Math.round(bytes/1024);
+    const perDay=days.size?bytes/days.size:0;
+    const daysLeft=perDay?Math.floor((5*1024*1024-bytes)/perDay):9999;
+    $('storeInfo').innerHTML='เก็บอยู่ '+recs.toLocaleString()+' รายการ · '+days.size+' วัน'+
+      (list.length?' ('+list[0]+' ถึง '+list[list.length-1]+')':'')+' · ใช้พื้นที่ '+kb+' KB จากประมาณ 5,120 KB'+
+      '<br>'+(daysLeft>365?'<span class="bdg ok">เก็บได้เกิน 1 ปีในอัตราการใช้งานนี้</span>'
+        :daysLeft>60?'<span class="bdg ok">เก็บต่อได้อีกประมาณ '+daysLeft+' วัน</span>'
+        :'<span class="bdg warn">เหลือพื้นที่อีกประมาณ '+daysLeft+' วัน — ควรออกไฟล์เก็บแล้วลบข้อมูลเก่า</span>')+
+      '<br><span style="color:var(--dim)">แนะนำให้กด "ออกทั้งหมด" เก็บไฟล์ไว้ทุกสิ้นเดือน</span>';
+  }
+
+  $('btnPrune').onclick=async()=>{
+    const cut=addDays(todayStr(),-60);
+    const before=S.feed.length+S.line.length+S.wd.length+S.scrap.length;
+    const willGo=[...S.feed,...S.line,...S.wd,...S.scrap].filter(x=>dayOf(x.time)<cut).length;
+    if(!willGo){ toast('ยังไม่มีข้อมูลเก่ากว่า 60 วัน'); return; }
+    if(!await ask('ลบข้อมูลเก่า','จะลบ '+willGo+' รายการ ที่เก่ากว่า '+cut+
+      '\n\nแนะนำให้กด "ออกทั้งหมด" เก็บไฟล์ไว้ก่อน\nลบแล้วกู้คืนไม่ได้')) return;
+    S.feed=S.feed.filter(x=>dayOf(x.time)>=cut);
+    S.wd=S.wd.filter(x=>dayOf(x.time)>=cut);
+    S.line=S.line.filter(x=>dayOf(x.time)>=cut);
+    S.scrap=S.scrap.filter(x=>dayOf(x.time)>=cut);
+    await saveFeed(); await saveLine();
+    rSum(); toast('ลบแล้ว '+(before-(S.feed.length+S.line.length+S.wd.length+S.scrap.length))+' รายการ');
+  };
+
+  async function runDiag(){
+    const out=$('diagOut');
+    const L=[];
+    L.push('ระบบเก็บข้อมูล: '+(hasStore?'<span class="bdg ok">มี</span>':'<span class="bdg bad">ไม่มี</span>'));
+    if(!hasStore){
+      L.push('<span style="color:var(--red)">อุปกรณ์/หน้านี้ไม่มีระบบเก็บข้อมูลกลาง</span>');
+      L.push('มักเกิดจากเปิดจากไฟล์ที่บันทึกลงเครื่อง หรือเปิดจากลิงก์ที่ไม่รองรับการบันทึก');
+      L.push('<b>ทำได้ตอนนี้:</b> ใช้งานต่อได้ แต่ต้องกด "ออกทั้งหมด" เก็บไฟล์ก่อนปิดหน้าจอทุกครั้ง');
+    } else {
+      try{
+        const t='v3_diag';
+        await window.storage.set(t,JSON.stringify({t:Date.now()}),true);
+        L.push('เขียนข้อมูล: <span class="bdg ok">ผ่าน</span>');
+        try{
+          const r=await window.storage.get(t,true);
+          L.push('อ่านข้อมูล: '+(r?'<span class="bdg ok">ผ่าน</span>':'<span class="bdg warn">อ่านไม่เจอ</span>'));
+        }catch(e){ L.push('อ่านข้อมูล: <span class="bdg bad">ไม่ผ่าน</span> — '+esc(String(e&&e.message||e).slice(0,90))); }
+      }catch(e){
+        L.push('เขียนข้อมูล: <span class="bdg bad">ไม่ผ่าน</span>');
+        L.push('สาเหตุ: <b style="color:var(--red)">'+esc(String(e&&e.message||e).slice(0,140))+'</b>');
+      }
+    }
+    if(lastErr) L.push('ข้อความล่าสุดจากระบบ: <b>'+esc(String(lastErr).slice(0,140))+'</b>');
+    const q=Object.keys(pending).length;
+    L.push('รายการที่ยังรอบันทึก: '+q+(q?' <span class="bdg warn">ยังไม่ขึ้นเซิร์ฟเวอร์</span>':' <span class="bdg ok">ไม่มีค้าง</span>'));
+    const recs=S.feed.length+S.line.length+S.wd.length+S.scrap.length;
+    L.push('ข้อมูลที่มีในเครื่องตอนนี้: '+recs+' รายการ · '+S.orders.length+' ออเดอร์');
+    L.push('<span style="color:var(--dim)">ถ้าเขียนไม่ผ่าน ให้กด "ออกทั้งหมด" ที่แท็บสรุปเก็บไฟล์ไว้ก่อน ข้อมูลจะได้ไม่หาย</span>');
+    out.innerHTML=L.join('<br>');
+  }
+  $('diagRun').onclick=runDiag;
+  $('diagClose').onclick=()=>closeOv('ovDiag');
+  $('diagSave').onclick=()=>{ retryAll(); setTimeout(runDiag,900); };
+
+  $('saveState').onclick=()=>{
+    if(storeDown||Object.keys(pending).length){
+      retryAll();
+      openOv('ovDiag'); runDiag();
+      return;
+    }
+    toast('กำลังดึงข้อมูลล่าสุด…'); pollMs=3000; syncNow(true);
+  };
+
+  /* ---------- กันจอดับ ---------- */
+  let wakeOn=false, wakeLock=null;
+  async function acquireWake(){
+    try{
+      if(navigator.wakeLock && navigator.wakeLock.request){
+        wakeLock=await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener&&wakeLock.addEventListener('release',()=>{ wakeLock=null; });
+        return true;
+      }
+    }catch(e){}
+    return false;
+  }
+  function paintWake(ok){
+    const c=$('wakeChip'); if(!c) return;
+    if(wakeOn){ c.style.background='#163022'; c.style.color='var(--green)'; c.textContent='☀ กันจอดับ: เปิด'; }
+    else { c.style.background='#232e3b'; c.style.color='var(--dim)'; c.textContent='☀ กันจอดับ: ปิด'; }
+  }
+  $('wakeChip').onclick=async()=>{
+    if(wakeOn){
+      wakeOn=false;
+      try{ wakeLock&&wakeLock.release&&wakeLock.release(); }catch(e){}
+      wakeLock=null; paintWake(); toast('ปิดกันจอดับแล้ว');
+    } else {
+      wakeOn=true; paintWake();
+      const ok=await acquireWake();
+      toast(ok ? 'เปิดกันจอดับแล้ว — จอจะไม่ดับระหว่างเปิดหน้านี้'
+               : 'อุปกรณ์นี้ไม่รองรับ — ให้ตั้งเวลาปิดจอในตั้งค่าเครื่องเป็น "ไม่ดับ" แทน');
+    }
+  };
+  if(document.addEventListener){
+    document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&wakeOn&&!wakeLock) acquireWake(); });
+  }
+
+  /* ---------- พักงาน ---------- */
+  function openBreak(){ return S.breaks.find(b=>!b.end)||null; }
+  // นาทีที่พักอยู่ในช่วงเวลา a→b (ใช้หักออกจากการนับ "เวลาที่หาย")
+  function breakOverlapMinutes(a,b){
+    return S.breaks.reduce((sum,br)=>{
+      const st=br.start, en=br.end||localISO();
+      const lo=st>a?st:a, hi=en<b?en:b;
+      return sum + (hi>lo ? Math.max(0,minsBetween(hi,lo)) : 0);
+    },0);
+  }
+  function breakMinutes(from,to){
+    return S.breaks.reduce((sum,b)=>{
+      if(dayOf(b.start)<from||dayOf(b.start)>to) return sum;
+      const end=b.end||localISO();
+      return sum+Math.max(0,minsBetween(end,b.start));
+    },0);
+  }
+  function breakMinutesForOrder(oid,from,to){
+    return S.breaks.reduce((sum,b)=>{
+      if(b.orderId!==oid) return sum;
+      if(from&&(dayOf(b.start)<from||dayOf(b.start)>to)) return sum;
+      const end=b.end||localISO();
+      return sum+Math.max(0,minsBetween(end,b.start));
+    },0);
+  }
+  function paintBreak(){
+    const b=openBreak(), btn=$('btnBreak');
+    if(!btn) return;
+    if(b){
+      const m=minsBetween(localISO(),b.start);
+      btn.className='bigbtn pause resuming';
+      btn.innerHTML='<span class="ic">▶</span><span class="tx">เริ่มงานต่อ</span>'+
+        '<span class="sub">พัก'+esc(b.reason)+'มา '+m+' นาที</span>';
+    } else {
+      btn.className='bigbtn pause';
+      btn.innerHTML='<span class="ic">⏸</span><span class="tx">พักงาน</span>';
+    }
+  }
+  async function startBreak(reason){
+    const o=active();
+    S.breaks.push({ id:uid(), orderId:o?o.id:null, reason:reason||'พัก', start:localISO(), end:null });
+    await saveLine(); paintBreak(); checkIdle();
+    toast('เริ่มพัก '+(reason||'')+' — หยุดนับเวลาผลิตแล้ว');
+  }
+  async function endBreak(){
+    const b=openBreak(); if(!b) return;
+    b.end=localISO();
+    const m=minsBetween(b.end,b.start);
+    await saveLine();
+    lastPackAt=localISO(); idleNotified=false; idleBeeped=false;
+    paintBreak(); checkIdle();
+    toast('เริ่มงานต่อ — พักไป '+m+' นาที');
+  }
+  $('btnBreak').onclick=()=>{
+    if(openBreak()){ endBreak(); return; }
+    $('brOther').value=''; openOv('ovBreak');
+    const go=r=>{ closeOv('ovBreak'); startBreak(r); };
+    $('brLunch').onclick=()=>go('พักเที่ยง');
+    $('brRest').onclick=()=>go('พักเบรก');
+    $('brOtherOk').onclick=()=>go($('brOther').value.trim()||'พัก');
+    $('brCancel').onclick=()=>closeOv('ovBreak');
+  };
+
+  $('roleChip').onclick=()=>{
+    if(!lockOn()){ toast('ยังไม่ได้ตั้งรหัส — ตั้งที่แท็บสรุป > สิทธิ์การเข้าใช้'); return; }
+    if(bossActive()){
+      isBoss=false; bossUntil=0; paintRole(); toast('ล็อกกลับเป็นโหมดพนักงานแล้ว');
+      if(LOCKED.indexOf(current)>=0) show('line');
+    } else askPin();
+  };
+  $('btnPinSet').onclick=()=>{
+    $('pinNew').value=''; $('pinNew2').value=''; $('pinSetWarn').innerHTML='';
+    $('pinOff').style.display=lockOn()?'block':'none';
+    openOv('ovPinSet');
+  };
+  $('pinSetCancel').onclick=()=>closeOv('ovPinSet');
+  $('pinSetOk').onclick=async()=>{
+    const a=$('pinNew').value.trim(), b=$('pinNew2').value.trim();
+    if(!/^\d{4,8}$/.test(a)){ $('pinSetWarn').innerHTML='<span class="bdg bad">ต้องเป็นตัวเลข 4-8 หลัก</span>'; return; }
+    if(a!==b){ $('pinSetWarn').innerHTML='<span class="bdg bad">รหัสสองช่องไม่ตรงกัน</span>'; return; }
+    S.settings.pin=a; await saveSet();
+    isBoss=true; bossUntil=Date.now()+AUTO_LOGOUT_MIN*60000;
+    closeOv('ovPinSet'); paintRole(); rLockInfo();
+    toast('ตั้งรหัสแล้ว — แท็บออฟฟิศและสรุปจะถามรหัสก่อนเข้า');
+  };
+  $('pinOff').onclick=async()=>{
+    if(!await ask('ปิดการล็อก','ทุกคนที่มีลิงก์จะเข้าแท็บออฟฟิศและสรุปได้ทันที')) return;
+    S.settings.pin=''; await saveSet();
+    isBoss=false; closeOv('ovPinSet'); paintRole(); rLockInfo(); toast('ปิดการล็อกแล้ว');
+  };
+  setInterval(()=>{ paintRole(); if(!bossActive()&&LOCKED.indexOf(current)>=0) show('line'); },30000);
+
+  /* ---------- CLOCK (cheap) ---------- */
+  let dateCache='', dateStr='';
+  setInterval(()=>{
+    const now=new Date(), d=todayStr();
+    if(d!==dateCache){ dateCache=d; dateStr=now.toLocaleDateString('th-TH',{dateStyle:'full'}); }
+    $('clock').textContent=dateStr+' · '+now.toLocaleTimeString('th-TH');
+  },1000);
+
+  /* ---------- SYNC ----------
+     เช็คแค่คีย์เล็ก ๆ ตัวเดียว (v3_pulse) ทุก 3 วินาที ถ้าไม่มีใครแก้ก็ไม่ต้องโหลดของจริง
+     พอมีคนอื่นบันทึก ตัวเลขจะเปลี่ยน แล้วค่อยดึงข้อมูลเต็ม → เร็วขึ้นมากโดยไม่โดนจำกัดการเรียก */
+  let syncBusy=false;
+  async function syncNow(force){
+    if(syncBusy||!hasStore) return;
+    if(!force){
+      if(modalOpen||typing()||formDirty) return;
+      if(Object.keys(pending).length||Object.keys(inflight).some(k=>inflight[k])) return;
+      if(document.hidden) return;
+    }
+    syncBusy=true;
+    try{
+      const p=await rawGet('v3_pulse');
+      if(p!==null && p===lastPulse){ pollFails=0; pollMs=3000; syncBusy=false; return; }
+      const h=await readAll();
+      lastPulse=p;
+      pollFails=0; pollMs=3000;
+      if(h!==lastHash){ lastHash=h; paintRole(); rTop(); renderPanel(false);
+        if(lockOn()&&!bossActive()&&LOCKED.indexOf(current)>=0) show('line'); }
+    }catch(e){
+      pollFails++;
+      pollMs=Math.min(30000, 3000*Math.pow(2,pollFails));   // ถ้าเน็ตมีปัญหา ค่อย ๆ ถ่างออก
+    }
+    syncBusy=false;
+  }
+  (function loop(){ setTimeout(()=>{ syncNow().then(loop); }, pollMs); })();
+  if(document.addEventListener){
+    document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ pollMs=3000; syncNow(); } });
+  }
+  setInterval(rTop,30000);
+  setInterval(()=>{ if(storeDown&&!Object.keys(inflight).some(k=>inflight[k])) retryAll(); },60000);
+
+  (async function init(){
+    lastHash=await readAll();
+    lastPulse=await rawGet('v3_pulse');
+    if(!hasStore){
+      storeDown=true; setSaveState('bad','ไม่รองรับ');
+      toast('อุปกรณ์นี้บันทึกข้อมูลกลางไม่ได้ — ใช้งานได้แต่ต้องกดออกไฟล์เก็บเอง');
+    } else setSaveState('ok');
+    paintRole(); rTop();
+    // เปิดแอปมาแล้วทำงานต่อได้เลย: ถ้ามีออเดอร์ที่กำลังทำอยู่ ให้เข้าหน้าท้ายไลน์ทันที
+    const a0=active();
+    show(a0 && a0.status!=='done' ? 'line' : 'order');
+  })();
+})();
+</script>

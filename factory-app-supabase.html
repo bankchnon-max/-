@@ -2,7 +2,7 @@
   #fr, #fr * { box-sizing: border-box; }
   #fr {
     --bg:#10151c; --panel:#1a222c; --panel2:#212b37; --border:#2b3645;
-    --accent:#ff8a3d; --accent2:#ffb27a; --text:#f2ede3; --dim:#93a1b0;
+    --accent:#ff8a3d; --accent2:#ffb27a; --text:#f2ede3; --dim:#d8dee5;
     --green:#3fb27f; --red:#e5595f; --yellow:#f0b429;
     font-family:'Sarabun',sans-serif; background:var(--bg); color:var(--text);
     min-height:100vh; padding-bottom:78px; position:relative; -webkit-tap-highlight-color:transparent;
@@ -12,7 +12,7 @@
     background:linear-gradient(180deg,#141b23,#10151c); position:sticky; top:0; z-index:20; }
   #fr .topbar h1 { font-size:17px; font-weight:600; margin:0 0 2px; display:flex; align-items:center; gap:8px; }
   #fr .dotled { width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent); }
-  #fr .sub { font-size:12px; color:var(--dim); }
+  #fr .sub { font-size:13px; color:#ffffff; font-weight:500; }
   #fr .chip { margin-top:9px; padding:8px 11px; background:var(--panel2); border:1px solid var(--border);
     border-radius:10px; font-size:12.5px; display:flex; justify-content:space-between; gap:8px; align-items:center; }
   #fr .chip b { color:var(--accent2); font-family:'Kanit',sans-serif; }
@@ -134,7 +134,7 @@
 <div id="fr">
   <div class="topbar">
     <h1><span class="dotled"></span> ระบบรายงานการผลิต</h1>
-    <div class="sub" id="clock">—</div>
+    <div class="sub" id="clock" style="color:#ffffff !important;">—</div>
     <div class="chip">
       <span>กำลังทำงาน: <b id="chipOrder">ยังไม่ได้เลือก</b></span>
       <span id="chipTime" style="color:var(--dim); font-size:11px;"></span>
@@ -526,8 +526,8 @@
    ต้องกรอก URL กับ Anon Key ของโปรเจกต์ Supabase ตัวเองตรงนี้ก่อน (2 บรรทัดล่างนี้)
    ดูวิธีหาค่าทั้งสองตัวได้ในคู่มือติดตั้ง ขั้นตอนที่ 3
    ========================================================================== */
-const SUPABASE_URL = 'https://eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2YnhzaHl5enBqbmZkbHNtcG53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5ODg1MDEsImV4cCI6MjEwMTU2NDUwMX0.n-drMyYHU2qMijDC5jbxzrae1pxrCSEdT21XHqj8Hsk';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2YnhzaHl5enBqbmZkbHNtcG53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5ODg1MDEsImV4cCI6MjEwMTU2NDUwMX0.n-drMyYHU2qMijDC5jbxzrae1pxrCSEdT21XHqj8Hsk';
+const SUPABASE_URL = 'https://tekhjdnbfncfvpwejlni.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRla2hqZG5iZm5jZnZwd2VqbG5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5NjgzNDIsImV4cCI6MjEwMTU0NDM0Mn0.bOO7i_NyD-noFzyPjs22R0M2wGlUznViV-_YjOTqbak';
 
 (function setupSupabaseStorage(){
   const needsSetup = SUPABASE_URL.includes('YOUR-PROJECT-REF') || SUPABASE_ANON_KEY.includes('YOUR-ANON-PUBLIC-KEY');

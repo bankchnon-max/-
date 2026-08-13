@@ -199,6 +199,11 @@
     <!-- 2. FEED FIBER -->
     <div class="panel" id="p-feed">
       <div class="card">
+        <h3>กำลังป้อนใยให้ออเดอร์</h3>
+        <select id="feedOrderSel"></select>
+        <div class="sumline" id="feedOrderNote" style="margin-top:6px;"></div>
+      </div>
+      <div class="card">
         <h3>สูตรของออเดอร์ที่กำลังทำงาน</h3>
         <div id="feedInfo"></div>
       </div>
@@ -334,6 +339,18 @@
         <button class="btn w" id="btnFabWd">ยืนยันเบิกทั้งหมด</button>
         <div class="scr" style="margin-top:11px;"><table id="tFabWdHist"></table></div>
       </div>
+      <div class="card">
+        <h3>🛍️ เบิกกระสอบถุง</h3>
+        <p class="sumline">พิมพ์น้ำหนัก (กก.) ที่ต้องการ ระบบไล่หยิบจากกระสอบเก่าสุดในแอพสต๊อกให้อัตโนมัติจนครบ พร้อมลงเบอร์กระสอบให้เอง</p>
+        <div class="rf">
+          <div><label>ประเภท</label><select id="bwKindSel"><option value="zip">ถุงซิล</option><option value="pack">ถุงแพ็ค</option></select></div>
+          <div><label>ชื่อถุง</label><select id="bwNameSel"></select></div>
+        </div>
+        <label>ต้องการกี่กิโล</label><input id="bwQty" type="number" inputmode="decimal" step="0.1" placeholder="เช่น 12.5">
+        <div class="sumline" id="bwPreview" style="margin-top:8px;"></div>
+        <button class="btn w" id="btnBagWd">ยืนยันเบิกทั้งหมด</button>
+        <div class="scr" style="margin-top:11px;"><table id="tBagWdHist"></table></div>
+      </div>
     </div>
 
     <!-- 5. SUMMARY -->
@@ -392,6 +409,13 @@
         <h3>สิทธิ์การเข้าใช้</h3>
         <div class="sumline" id="lockInfo"></div>
         <button class="btn sec sm" id="btnPinSet" style="margin-top:9px;">ตั้ง / เปลี่ยนรหัสหัวหน้า</button>
+      </div>
+      <div class="card">
+        <h3>เกณฑ์ไล่สี % ส่วนต่างน้ำหนัก</h3>
+        <p class="sumline">ตั้งเกณฑ์เดียวใช้ทั้งระบบ สูงสุด 5 ระดับ เรียงจากเข้มงวดสุดไปหลวมสุด — ระดับสุดท้ายคือ "เกินทุกเกณฑ์"</p>
+        <div id="dbRows"></div>
+        <button class="btn sec sm" style="margin-top:8px;" id="btnAddDb">+ เพิ่มระดับ</button><br>
+        <button class="btn w" id="btnSaveDb" style="margin-top:9px;">บันทึกเกณฑ์สี</button>
       </div>
       <div class="card">
         <h3>พื้นที่เก็บข้อมูล</h3>
@@ -657,13 +681,54 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       }
       return { picks, short: Math.max(0,r2(remaining)), total: r2(qtyNeeded-Math.max(0,remaining)) };
     },
-    // bagPerPiece=false (ค่าเริ่มต้น เดิม): ถุงห่อทั้งแพ็ค บวกครั้งเดียว — ออเดอร์เก่าทุกตัวคำนวณเหมือนเดิมทุกประการ
+    // ---------- กระสอบถุง ----------
+    sackPieces(kg, weightPerBag){ if(!weightPerBag) return 0; return Math.round(kg/weightPerBag); },
+    sackStatus(sackReceipts, sackWithdraw){
+      const wdBySack={};
+      (sackWithdraw||[]).forEach(w=>(w.picks||[]).forEach(p=>{ wdBySack[p.sackId]=(wdBySack[p.sackId]||0)+(+p.kg||0); }));
+      return (sackReceipts||[]).map(s=>{
+        const used=wdBySack[s.id]||0;
+        return { sackId:s.id, sackNo:s.sackNo, kind:s.kind, name:s.name, size:s.size,
+          sackWeightKg:s.sackWeightKg, weightPerBag:s.weightPerBag, time:s.time,
+          used:r3(used), remainingKg:r3(s.sackWeightKg-used),
+          remainingPieces: CALC.sackPieces(Math.max(0,s.sackWeightKg-used), s.weightPerBag) };
+      });
+    },
+    pickSacksForWithdrawal(sackStatusList, kind, name, kgNeeded){
+      const eligible=(sackStatusList||[]).filter(s=>s.kind===kind && s.name===name && s.remainingKg>0)
+        .sort((a,b)=>a.sackNo-b.sackNo);
+      const picks=[]; let remaining=kgNeeded;
+      for(const s of eligible){
+        if(remaining<=0) break;
+        const take=Math.min(s.remainingKg, remaining);
+        picks.push({sackId:s.sackId, sackNo:s.sackNo, take:r3(take)});
+        remaining-=take;
+      }
+      return { picks, short: Math.max(0,r3(remaining)), total: r3(kgNeeded-Math.max(0,remaining)) };
+    },
+    // ---------- ไล่สีเกณฑ์ % ส่วนต่าง (สูงสุด 5 ระดับ ตั้งค่าเดียวทั้งระบบ) ----------
+    diffColorBand(diffPct, bands){
+      const list=(bands&&bands.length)?bands:CALC.defaultDiffBands();
+      const abs=Math.abs(diffPct);
+      for(const b of list){ if(b.maxPct==null || abs<=b.maxPct) return b; }
+      return list[list.length-1];
+    },
+    defaultDiffBands(){
+      return [
+        {maxPct:1, color:'#0a8f3c', label:'ดีมาก'},
+        {maxPct:3, color:'#3fb27f', label:'ผ่าน'},
+        {maxPct:5, color:'#f0b429', label:'เตือน'},
+        {maxPct:null, color:'#e5595f', label:'เกินเกณฑ์'},
+      ];
+    },
     // bagPerPiece=true (ใหม่): ถุงซิลห่อทีละชิ้น คูณตามจำนวนชิ้นต่อแพ็ค
     stdPerPack(spec){
       if (!spec) return 0;
       const w = +spec.weightPerPiece||0, n = +spec.piecesPerPack||0, b = +spec.bagWeight||0;
       const bagTotal = spec.bagPerPiece ? b*n : b;
-      return r3(w*n + bagTotal);
+      const b2 = spec.hasBag2 ? (+spec.bagWeight2||0) : 0;
+      const bag2Total = spec.bagPerPiece ? b2*n : b2;
+      return r3(w*n + bagTotal + bag2Total);
     },
     stdPerPiece(spec){
       const total = CALC.stdPerPack(spec);
@@ -720,7 +785,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   };
 
   /* ---------- STATE ---------- */
-  let S = { orders:[], activeId:null, fiberMaster:[], feed:[], wd:[], fabricWd:[], line:[], scrap:[], breaks:[], settings:{gapMin:20} };
+  let S = { orders:[], activeId:null, activeFeedId:null, fiberMaster:[], feed:[], wd:[], fabricWd:[], bagWd:[], line:[], scrap:[], breaks:[], settings:{gapMin:20} };
   let officeView='feed', current='order', lastHash='', modalOpen=0, ordersSig='';
 
   /* ---------- STORAGE (4 keys, parallel) ---------- */
@@ -739,8 +804,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   // คิวบันทึก: รวมการเขียนซ้ำ ๆ ให้เหลือครั้งเดียว และลองใหม่เองถ้าพลาด
   const pending={}, inflight={};
   function snapshot(k){
-    if(k==='v3_orders') return {orders:S.orders,activeId:S.activeId,fiberMaster:S.fiberMaster||[]};
-    if(k==='v3_feed')   return {feed:S.feed,wd:S.wd,fabricWd:S.fabricWd};
+    if(k==='v3_orders') return {orders:S.orders,activeId:S.activeId,activeFeedId:S.activeFeedId,fiberMaster:S.fiberMaster||[]};
+    if(k==='v3_feed')   return {feed:S.feed,wd:S.wd,fabricWd:S.fabricWd,bagWd:S.bagWd};
     if(k==='v3_line')   return {line:S.line,scrap:S.scrap,breaks:S.breaks};
     return S.settings;
   }
@@ -793,7 +858,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
   let STOCKFIBER = {};   // ชื่อใย -> [{lotNo, kg, time}] อ่านจากแอพสต๊อก (v3s_fiber) เพื่อให้เลือกลอตจริงตอนเบิกใย
   let STOCKFABRIC = { types:[], sizes:[], batches:[] };   // ชนิดผ้า/ไซซ์/สถานะถุงตัด อ่านจากแอพสต๊อก
-  let STOCKBAG = { zip:{}, pack:{} };         // ชื่อถุง -> [{lotNo,qty,time}] อ่านจากแอพสต๊อก (v3s_bag)
+  let STOCKBAG = { zip:{}, pack:{}, sacks:[] };   // ชื่อถุง -> รายละเอียดล่าสุด, sacks = สถานะกระสอบทั้งหมด อ่านจากแอพสต๊อก (v3s_bag)
   async function readAll(){
     const [a,b,c,d,sf,sa,sb] = await Promise.all([rawGet('v3_orders'),rawGet('v3_feed'),rawGet('v3_line'),rawGet('v3_set'),
       rawGet('v3s_fiber'),rawGet('v3s_fabric'),rawGet('v3s_bag')]);
@@ -801,7 +866,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     const parse = (s,f)=>{ try{ return s?JSON.parse(s):f; }catch(e){ return f; } };
     const A=parse(a,null), B=parse(b,{}), C=parse(c,{}), D=parse(d,null), SF=parse(sf,{receipts:[]}),
       SA=parse(sa,{receipts:[],cuts:[],cutBatches:[],sewSent:[],sewReturns:[]}), SB=parse(sb,{receipts:[]});
-    if (A){ S.orders=A.orders||[]; S.activeId=A.activeId||null; S.fiberMaster=A.fiberMaster||[]; }
+    if (A){ S.orders=A.orders||[]; S.activeId=A.activeId||null; S.activeFeedId=A.activeFeedId||null; S.fiberMaster=A.fiberMaster||[]; }
     else if (!S.orders.length){
       S.orders=[{ id:uid(), customer:'ทรัพย์รุ่งเรือง', code:'ใย 300*34*46', orderedPacks:0,
         fibers:[{name:'15DHC64',kg:2},{name:'15DHC-T64',kg:1},{name:'15DHW64',kg:1},{name:'LM',kg:1}],
@@ -810,15 +875,16 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         due:null,status:'pending',startedAt:null,finishedAt:null,createdAt:localISO() }];
       await saveOrders();
     }
-    S.feed=B.feed||[]; S.wd=B.wd||[]; S.fabricWd=B.fabricWd||[]; S.line=C.line||[]; S.scrap=C.scrap||[]; S.breaks=C.breaks||[];
+    S.feed=B.feed||[]; S.wd=B.wd||[]; S.fabricWd=B.fabricWd||[]; S.bagWd=B.bagWd||[]; S.line=C.line||[]; S.scrap=C.scrap||[]; S.breaks=C.breaks||[];
     if (D) S.settings=D;
     STOCKFIBER = {};
     (SF.receipts||[]).forEach(r=>{ (STOCKFIBER[r.fiberName]=STOCKFIBER[r.fiberName]||[]).push({lotNo:r.lotNo,kg:r.kg,time:r.time}); });
     STOCKFABRIC = { types:[...new Set((SA.receipts||[]).map(r=>r.fabricType))],
       sizes:[...new Set((SA.cutBatches||[]).map(b=>b.size))],
       batches: CALC.cutBatchStatus(SA.cutBatches||[], SA.sewSent||[], SA.sewReturns||[], S.fabricWd) };
-    STOCKBAG = { zip:{}, pack:{} };
-    (SB.receipts||[]).forEach(r=>{ const bucket=STOCKBAG[r.kind]; if(!bucket) return; (bucket[r.name]=bucket[r.name]||[]).push({lotNo:r.lotNo,qty:r.qty,time:r.time}); });
+    const sacks = CALC.sackStatus(SB.receipts||[], S.bagWd);
+    STOCKBAG = { zip:{}, pack:{}, sacks };
+    sacks.forEach(s=>{ const bucket=STOCKBAG[s.kind]; if(!bucket) return; bucket[s.name]=bucket[s.name]||{sizes:new Set(),lastWeightPerBag:0}; bucket[s.name].sizes.add(s.size); bucket[s.name].lastWeightPerBag=s.weightPerBag; });
     return hash;
   }
 
@@ -840,6 +906,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     return !!(a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)); }
 
   const active = () => S.orders.find(o=>o.id===S.activeId) || null;
+  const activeFeed = () => S.orders.find(o=>o.id===(S.activeFeedId||S.activeId)) || null;
   const orderById = id => S.orders.find(o=>o.id===id) || null;
   const ordLabel = id => { const o=orderById(id); return o? o.customer+' / '+o.code : '-'; };
 
@@ -1003,6 +1070,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       if (!await ask('ลบออเดอร์','ลบ "'+o.customer+' — '+o.code+'" ? ข้อมูลที่บันทึกไว้จะยังอยู่แต่จะไม่แสดงชื่อ')) return;
       S.orders=S.orders.filter(x=>x.id!==o.id);
       if (S.activeId===o.id) S.activeId=null;
+      if (S.activeFeedId===o.id) S.activeFeedId=null;
       await saveOrders(); rTop(); rOrders(); toast('ลบแล้ว');
     });
     rSpecLib();
@@ -1118,8 +1186,24 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
   /* ---------- 2. FEED ---------- */
   function rFeed(force){
-    const o=active(), t=todayStr();
+    const o=activeFeed(), t=todayStr();
     const info=$('feedInfo'), ring=$('ring');
+
+    const feedSel=$('feedOrderSel');
+    if(feedSel){
+      const openOrders=S.orders.filter(x=>x.status!=='done');
+      const keep=feedSel.value;
+      feedSel.innerHTML=openOrders.map(x=>'<option value="'+x.id+'">'+esc(x.customer)+' — '+esc(x.code)+(x.id===S.activeId?' (ท้ายไลน์กำลังทำอยู่)':'')+'</option>').join('');
+      const wantId = S.activeFeedId||S.activeId;
+      if(openOrders.some(x=>x.id===wantId)) feedSel.value=wantId;
+      else if(openOrders.some(x=>x.id===keep)) feedSel.value=keep;
+      const note=$('feedOrderNote');
+      if(note){
+        note.innerHTML = (S.activeFeedId && S.activeFeedId!==S.activeId)
+          ? '<span class="bdg warn">กำลังป้อนใยล่วงหน้าให้ออเดอร์ใหม่ — ท้ายไลน์ยังทำออเดอร์เดิมอยู่ พอกด "จบงาน" ท้ายไลน์จะสลับมาที่ออเดอร์นี้ให้เอง</span>'
+          : 'ค่าเริ่มต้น = ออเดอร์เดียวกับท้ายไลน์ เปลี่ยนได้ล่วงหน้าถ้าจะขึ้นงานใหม่ก่อนออเดอร์เดิมจบ';
+      }
+    }
     if(!o){
       info.innerHTML='<div class="empty">ยังไม่ได้เลือกออเดอร์ — ไปแท็บ "ออเดอร์" ก่อน</div>';
       ring.style.opacity=.4; ring.style.pointerEvents='none';
@@ -1203,8 +1287,15 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       : '<tr><td class="empty">ยังไม่มีข้อมูลวันนี้</td></tr>';
   }
 
+  if($('feedOrderSel')) $('feedOrderSel').onchange=async function(){
+    S.activeFeedId = this.value || null;
+    await saveOrders();
+    rFeed(true);
+    toast(S.activeFeedId && S.activeFeedId!==S.activeId ? 'ป้อนใยเปลี่ยนไปออเดอร์ใหม่แล้ว — ท้ายไลน์ยังทำออเดอร์เดิมอยู่' : 'ป้อนใยกลับมาที่ออเดอร์เดียวกับท้ายไลน์แล้ว');
+  };
+
   $('ring').onclick=()=>{
-    const o=active(); if(!o) return;
+    const o=activeFeed(); if(!o) return;
     const t=todayStr();
     const n=S.feed.filter(l=>l.orderId===o.id&&dayOf(l.time)===t).length;
     S.feed.push({ id:uid(), seq:n+1, time:localISO(), orderId:o.id,
@@ -1215,7 +1306,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   };
 
   $('btnUndoFeed').onclick=async()=>{
-    const o=active(); if(!o){ toast('เลือกออเดอร์ก่อน'); return; }
+    const o=activeFeed(); if(!o){ toast('เลือกออเดอร์ก่อน'); return; }
     const t=todayStr();
     const list=S.feed.filter(l=>l.orderId===o.id&&dayOf(l.time)===t);
     if(!list.length){ toast('ไม่มีรายการให้ลบ'); return; }
@@ -1298,13 +1389,13 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     };
     txt.oninput=()=>{ formDirty=true; wdWarnText(getOrder(),txt.value,warnId); if(onFiberChange) onFiberChange(txt.value); };
   }
-  bindFiberPicker('wdSel','wdName','wdWarn',()=>active(),(name)=>populateWdLotOptions(name));
+  bindFiberPicker('wdSel','wdName','wdWarn',()=>activeFeed(),(name)=>populateWdLotOptions(name));
   $('wdLot').onchange=updateWdLotRemainHint;
   $('wdKg').oninput=updateWdLotRemainHint;
   bindFiberPicker('ewSel','ewName','ewWarn',()=>{ const w=S.wd.find(x=>x.id===ewId); return w?orderById(w.orderId):null; });
 
   $('btnWd').onclick=async()=>{
-    const o=active(); if(!o){ toast('เลือกออเดอร์ก่อน'); return; }
+    const o=activeFeed(); if(!o){ toast('เลือกออเดอร์ก่อน'); return; }
     const n=$('wdName').value.trim(), kg=+$('wdKg').value, bale=$('wdSeq').value.trim();
     if(!n||!kg){ toast('กรอกชื่อใยและน้ำหนัก'); return; }
     if(!bale){ toast('กรอกหมายเลขก้อนด้วย'); return; }
@@ -1378,13 +1469,14 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       '<option value="__new__">+ พิมพ์ชื่อใยใหม่…</option>';
   }
 
-  function addRecRow(name,kg){
+  function addRecRow(name,kg,tagNo){
     const d=document.createElement('div'); d.className='frow'; d.style.flexWrap='wrap';
     const known=fiberNames();
     const isNew = name && !known.includes(name);
     d.innerHTML='<select class="rsel" style="margin-top:0;">'+fiberOptions(isNew?'__new__':name)+'</select>'+
       '<input class="rn" placeholder="พิมพ์ชื่อใยใหม่" value="'+esc(name||'')+'" style="margin-top:0; display:'+(isNew?'block':'none')+';">'+
       '<input class="rk" type="number" inputmode="decimal" step="0.01" placeholder="กก." style="max-width:88px; margin-top:0;" value="'+(kg==null?'':kg)+'">'+
+      '<input class="rtag" placeholder="เบอร์แท็กก้อนที่ใช้ (ถ้ามี)" style="max-width:150px; margin-top:0;" value="'+esc(tagNo||'')+'">'+
       '<button class="x">✕</button>'+
       '<div class="sumline rowLotHint" style="width:100%; margin-top:2px;"></div>';
     const sel=d.querySelector('.rsel'), txt=d.querySelector('.rn');
@@ -1398,7 +1490,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       const total=r3(withRemain.reduce((s,l)=>s+Math.max(0,l.remaining),0));
       const active=withRemain.filter(l=>l.remaining>0).sort((a,b)=>a.lotNo-b.lotNo)[0];
       hint.innerHTML='คงเหลือในสต๊อกรวม <b style="color:'+(total<=0?'var(--red)':'var(--accent2)')+'">'+total+' กก.</b>'+
-        (active?' — ล็อตที่จะเบิกต่อไปคือ ล็อต '+esc(active.lotNo)+' (เหลือ '+active.remaining+' กก.)':' <span class="bdg bad">ใยหมดสต๊อกแล้ว</span>');
+        (active?' — ล็อตที่จะเบิกต่อไปคือ ล็อต '+esc(active.lotNo)+' (เหลือ '+active.remaining+' กก.)':' <span class="bdg bad">ใยหมดสต๊อกแล้ว</span>')+
+        '<br><span style="color:var(--dim)">เบอร์แท็กก้อน: ระบุได้อิสระ ไม่บังคับเรียงลำดับ — ไว้ตามรอยว่ารอบนี้หยิบก้อนไหนมาใช้จริง</span>';
     };
     sel.onchange=()=>{
       formDirty=true;
@@ -1408,6 +1501,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     };
     txt.oninput=()=>{ formDirty=true; recSumLine(); updateHint(); };
     d.querySelector('.rk').oninput=()=>{ formDirty=true; recSumLine(); };
+    d.querySelector('.rtag').oninput=()=>{ formDirty=true; };
     d.querySelector('.x').onclick=()=>{ d.remove(); formDirty=true; recSumLine(); };
     $('recRows').appendChild(d); recSumLine(); updateHint();
   }
@@ -1420,7 +1514,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   }
   function readRecRows(){
     return Array.from(document.querySelectorAll('#recRows .frow')).map(r=>({
-      name:rowFiberName(r), kg:+r.querySelector('.rk').value||0
+      name:rowFiberName(r), kg:+r.querySelector('.rk').value||0, tagNo:r.querySelector('.rtag').value.trim()
     })).filter(f=>f.name);
   }
   function recSumLine(){
@@ -1435,7 +1529,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     const o=orderById($('recSel').value);
     const w=$('recRows'); w.innerHTML=''; w.dataset.init='1';
     $('recTarget').value=o&&o.recipeTargetKg?o.recipeTargetKg:'';
-    if(o&&o.fibers.length) o.fibers.forEach(f=>addRecRow(f.name,f.kg)); else addRecRow();
+    if(o&&o.fibers.length) o.fibers.forEach(f=>addRecRow(f.name,f.kg,f.tagNo)); else addRecRow();
     recSumLine();
   }
   $('recSel').onchange=loadRecipe;
@@ -1505,6 +1599,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     const o=active(), t=todayStr();
     if((o?o.id:null)!==lastLineOrder){ lastLineOrder=o?o.id:null; specOpen=null; }
     if($('fwFabSel')) refreshFwSelects();
+    if($('bwKindSel')) refreshBwSelects();
     $('lineInfo').innerHTML=o
       ? '<div class="sumline">ออเดอร์: <b style="color:var(--accent2)" class="kn">'+esc(o.customer)+' — '+esc(o.code)+
         '</b> <span class="bdg ok">'+esc(o.productType||'ใย')+'</span></div>'
@@ -1543,22 +1638,22 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
     const rows=o?S.line.filter(l=>l.orderId===o.id&&dayOf(l.time)===t):[];
     const T=$('tLine');
-    const bd={ok:'<span class="bdg ok">ตรงสเปค</span>',over:'<span class="bdg warn">เกิน</span>',
-      under:'<span class="bdg bad">ขาด</span>',none:'<span style="color:var(--dim)">ตาม Std</span>'};
+    const bands = (S.settings.diffBands && S.settings.diffBands.length) ? S.settings.diffBands : CALC.defaultDiffBands();
     T.innerHTML=rows.length
-      ? '<tr><th>ลำดับ</th><th>เวลาที่ผลิต</th><th>ถุงที่</th><th>ลอตถุง</th><th>Std/ชิ้น</th><th>จริง/ชิ้น</th><th>Std/แพ็ค</th><th>จริง/แพ็ค</th><th>ส่วนต่าง</th><th>ผล</th><th>รวมจริงสะสม</th><th>รวม Std สะสม</th><th>หมายเหตุ</th><th></th></tr>'+
+      ? '<tr><th>ลำดับ</th><th>เวลาที่ผลิต</th><th>ถุงที่</th><th>ลอตถุง</th><th>Std/ชิ้น</th><th>จริง/ชิ้น</th><th>Std/แพ็ค</th><th>จริง/แพ็ค</th><th>ส่วนต่าง %</th><th>ผล</th><th>รวมจริงสะสม</th><th>รวม Std สะสม</th><th>หมายเหตุ</th><th></th></tr>'+
         rows.slice().reverse().map(l=>{
-          const st=CALC.tolStatus(l.actualWeight,l.stdPerPack,l.tolPct);
-          const stp=CALC.tolStatus(l.actualPiece,l.stdPiece,l.tolPct);
-          const d=l.diff==null?null:l.diff;
-          const col=s=>s==='ok'?'var(--green)':s==='none'?'var(--dim)':s==='over'?'var(--yellow)':'var(--red)';
+          const diffPctPack = (l.actualWeight!=null && l.stdPerPack) ? r2((l.actualWeight-l.stdPerPack)/l.stdPerPack*100) : null;
+          const bandPack = diffPctPack!=null ? CALC.diffColorBand(diffPctPack, bands) : null;
+          const diffPctPiece = (l.actualPiece!=null && l.stdPiece) ? r2((l.actualPiece-l.stdPiece)/l.stdPiece*100) : null;
+          const bandPiece = diffPctPiece!=null ? CALC.diffColorBand(diffPctPiece, bands) : null;
           return '<tr><td>'+l.seq+'</td><td>'+hhmm(l.time)+'</td>'+
           '<td>'+(l.bagNo||'—')+'</td><td>'+esc(l.bagLot||'—')+'</td>'+
           '<td>'+(l.stdPiece==null?'—':l.stdPiece)+'</td>'+
-          '<td><b style="color:'+col(stp)+'">'+(l.actualPiece==null?'—':l.actualPiece)+'</b></td>'+
+          '<td><b style="color:'+(bandPiece?bandPiece.color:'var(--dim)')+'">'+(l.actualPiece==null?'—':l.actualPiece)+'</b></td>'+
           '<td>'+l.stdPerPack+'</td>'+
-          '<td><b style="color:'+col(st)+'">'+(l.actualWeight==null?'—':l.actualWeight)+'</b></td>'+
-          '<td>'+(d==null?'—':(d>0?'+':'')+d)+'</td><td>'+bd[st]+'</td>'+
+          '<td><b style="color:'+(bandPack?bandPack.color:'var(--dim)')+'">'+(l.actualWeight==null?'—':l.actualWeight)+'</b></td>'+
+          '<td>'+(diffPctPack==null?'—':(diffPctPack>0?'+':'')+diffPctPack+'%')+'</td>'+
+          '<td>'+(bandPack?'<span class="bdg" style="background:'+bandPack.color+'26;color:'+bandPack.color+';">'+esc(bandPack.label)+'</span>':'<span style="color:var(--dim)">ตาม Std</span>')+'</td>'+
           '<td>'+(l.cumActual==null?l.cumStd:l.cumActual)+'</td><td>'+l.cumStd+'</td>'+
           '<td style="white-space:normal">'+esc(l.note)+'</td>'+
           '<td><button class="x" data-ln="'+l.id+'">✕</button></td></tr>';
@@ -1619,7 +1714,10 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         '<div><h3 style="margin:0;">น้ำหนัก Standard ที่ตั้งไว้</h3>'+
         '<div class="sumline" style="margin-top:3px;"><b style="color:var(--accent2)">'+CALC.stdPerPack(sp)+' กก./แพ็ค</b>'+
         ' — '+sp.weightPerPiece+' กก./ชิ้น × '+sp.piecesPerPack+' ชิ้น + ถุง'+(sp.bagPerPiece?'ซิล (ต่อชิ้น)':'แพ็ค')+' '+
-        (sp.bagName?esc(sp.bagName)+' ':'')+sp.bagWeight+' กก.'+(sp.packBagName?'<br>ถุงแพ็คแยก: '+esc(sp.packBagName):'')+
+        (sp.bagName?esc(sp.bagName)+' ':'')+(sp.bagSize?'('+esc(sp.bagSize)+') ':'')+sp.bagWeight+' กก.'+
+        (sp.bagSackNo?' — เบอร์กระสอบ #'+esc(sp.bagSackNo):'')+
+        (sp.hasBag2&&sp.bagName2?'<br>ถุงใบที่ 2: '+esc(sp.bagName2)+' '+(sp.bagSize2?'('+esc(sp.bagSize2)+') ':'')+sp.bagWeight2+' กก.'+(sp.bagSackNo2?' — เบอร์กระสอบ #'+esc(sp.bagSackNo2):''):'')+
+        (sp.packBagName?'<br>ถุงแพ็คแยก: '+esc(sp.packBagName):'')+
         (isPillow&&sp.fabricType?'<br>ผ้า: '+esc(sp.fabricType)+' ไซซ์ '+esc(sp.fabricSize||'-'):'')+'</div></div>'+
         '<button class="btn sec sm" id="spEdit" style="flex:0 0 auto;">แก้ไข</button></div>';
       $('spEdit').onclick=()=>{ specOpen=true; buildSpecForm(); flash('cardSpec'); };
@@ -1630,22 +1728,21 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       '<div class="rf"><div><label>น้ำหนักที่ต้องการต่อชิ้น (กก.)</label>'+
       '<input id="spW" type="number" inputmode="decimal" step="0.001" value="'+(sp.weightPerPiece||'')+'"></div>'+
       '<div><label>จำนวนชิ้นต่อแพ็ค</label><input id="spN" type="number" inputmode="numeric" value="'+(sp.piecesPerPack||'')+'"></div></div>'+
-      '<div class="rf"><div><label>ใช้ถุงอะไร'+(isPillow?' (ถุงซิล)':'')+'</label><input id="spBag" list="dlBagZip" value="'+esc(sp.bagName||'')+'" placeholder="'+(isPillow?'เช่น ถุงซิล WD สีฟ้า':'เช่น ถุง PE ใหญ่')+'">'+
-      '<datalist id="dlBagZip">'+Object.keys(STOCKBAG.zip||{}).map(n=>'<option value="'+esc(n)+'">').join('')+'</datalist></div>'+
-      '<div><label>น้ำหนักถุง (กก.)</label><input id="spBW" type="number" inputmode="decimal" step="0.001" value="'+(sp.bagWeight||'')+'"></div></div>'+
+      bagBlockHTML('spBag','','zip',sp,isPillow,'ถุงซิลใบที่ 1')+
       (isPillow ? (
         '<label style="display:flex; align-items:center; gap:8px; margin-top:12px;">'+
         '<input type="checkbox" id="spBagPP" style="width:auto; margin:0;" '+(sp.bagPerPiece?'checked':'')+'>'+
         '<span style="font-size:13px; color:var(--text);">ถุงซิลนี้ห่อทีละชิ้น — คูณน้ำหนักถุงตามจำนวนชิ้นต่อแพ็คให้อัตโนมัติ</span></label>'+
         '<div class="sumline" style="margin-top:2px;">ไม่ติ๊ก = ถุงห่อทั้งแพ็ค บวกครั้งเดียว</div>'+
-        '<div id="bagLotRow" style="display:none;">'+
-        '<label>ลอตถุงซิลที่จะใช้ (อ้างอิงจากสต๊อกจริง — ไว้แท็กดูว่าใช้ลอตไหนอยู่)</label>'+
-        '<select id="spBagLot"><option value="">— เลือกถุงก่อน —</option></select></div>'+
+        '<div id="bag2Wrap">'+
+        (sp.hasBag2 ? bagBlockHTML('spBag2','2','zip',sp,isPillow,'ถุงซิลใบที่ 2 (แยกจากใบที่ 1)') :
+          '<button class="btn sec sm" id="btnAddBag2" style="margin-top:9px;">+ เพิ่มถุงซิลใบที่ 2 (ออเดอร์นี้ใช้ 2 ถุง)</button>') +
+        '</div>'+
         '<div id="packBagRow" style="display:none;">'+
         '<label>ถุงแพ็ค (ถุงใหญ่ห่อทั้งแพ็คอีกชั้น แยกจากถุงซิล — ไม่กระทบน้ำหนัก Standard แค่ไว้ตัดสต๊อก)</label>'+
         '<input id="spPackBag" list="dlBagPack" value="'+esc(sp.packBagName||'')+'">'+
         '<datalist id="dlBagPack">'+Object.keys(STOCKBAG.pack||{}).map(n=>'<option value="'+esc(n)+'">').join('')+'</datalist>'+
-        '<label>ลอตถุงแพ็คที่จะใช้ (อ้างอิงจากสต๊อกจริง)</label>'+
+        '<label>เบอร์กระสอบถุงแพ็คที่จะใช้ (อ้างอิงจากสต๊อกจริง)</label>'+
         '<select id="spPackBagLot"><option value="">— เลือกถุงก่อน —</option></select></div>'+
         '<div class="rf" style="margin-top:9px;"><div><label>ชนิดผ้าที่ใช้</label>'+
         '<input id="spFabType" list="dlFabType" value="'+esc(sp.fabricType||'')+'" placeholder="เช่น ผ้าขาว 65g">'+
@@ -1660,43 +1757,94 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       '<div class="acts" style="margin-top:11px;"><button class="btn" id="spSave" style="flex:1;">บันทึกค่า Standard</button>'+
       (isSet?'<button class="btn sec sm" id="spCancel">ยกเลิก</button>':'')+'</div>';
 
+    // สร้าง HTML ของ 1 บล็อกถุง (ชื่อ/ค้นหาจริงจากสต๊อก + ไซซ์ + น้ำหนักต่อใบ + เบอร์กระสอบ) ใช้ซ้ำได้ทั้งถุงใบที่ 1 และ 2
+    function bagBlockHTML(prefix,suffix,kind,sp,isPillow,label){
+      const nameVal = suffix==='2' ? (sp.bagName2||'') : (sp.bagName||'');
+      const sizeVal = suffix==='2' ? (sp.bagSize2||'') : (sp.bagSize||'');
+      const weightVal = suffix==='2' ? (sp.bagWeight2||'') : (sp.bagWeight||'');
+      const zipNames = Object.keys(STOCKBAG.zip||{});
+      return (isPillow&&label?'<div class="sumline" style="margin-top:10px; font-weight:600;">'+esc(label)+(suffix==='2'?' <button class="x" id="btnRemoveBag2" style="float:right;">✕ เอาออก</button>':'')+'</div>':'')+
+        '<div class="rf"><div><label>ใช้ถุงอะไร'+(isPillow?' (ถุงซิล)':'')+'</label><select id="'+prefix+'Sel">'+
+        '<option value="">— เลือกถุง —</option>'+zipNames.map(n=>'<option value="'+esc(n)+'"'+(n===nameVal?' selected':'')+'>'+esc(n)+'</option>').join('')+
+        '<option value="__new__"'+(nameVal&&!zipNames.includes(nameVal)?' selected':'')+'>+ พิมพ์ชื่อใหม่…</option></select>'+
+        '<input id="'+prefix+'" value="'+esc(nameVal)+'" placeholder="'+(isPillow?'เช่น ถุงซิล WD สีฟ้า':'เช่น ถุง PE ใหญ่')+'" style="'+(nameVal&&!zipNames.includes(nameVal)?'':'display:none;')+' margin-top:6px;"></div>'+
+        '<div><label>ไซซ์ถุง</label><input id="'+prefix+'Size" list="dl'+prefix+'Size" value="'+esc(sizeVal)+'" placeholder="เช่น 40x70"></div></div>'+
+        '<div class="rf"><div><label>น้ำหนักต่อใบ (กก.)</label><input id="'+prefix+'W" type="number" inputmode="decimal" step="0.001" value="'+weightVal+'"></div>'+
+        (isPillow?'<div><label>เบอร์กระสอบที่จะใช้ (อ้างอิงจากสต๊อกจริง)</label><select id="'+prefix+'Sack"><option value="">— เลือกถุงก่อน —</option></select></div>':'<div></div>')+'</div>';
+    }
+    Array.from(document.querySelectorAll('[id^="dlspBag"]')).forEach(x=>x.remove());
+    ['spBag','spBag2'].forEach(prefix=>{
+      if(!$(prefix+'Size')) return;
+      const dl=document.createElement('datalist'); dl.id='dl'+prefix+'Size';
+      const sizes=new Set(); STOCKBAG.sacks.forEach(s=>{ if(s.kind==='zip') sizes.add(s.size); });
+      dl.innerHTML=Array.from(sizes).filter(Boolean).map(s=>'<option value="'+esc(s)+'">').join('');
+      $(prefix+'Size').setAttribute('list','dl'+prefix+'Size'); f.appendChild(dl);
+    });
+
     function refreshBagLotOptionsFor(kind, nameInputId, selId, keepVal){
       const sel=$(selId); if(!sel) return;
       const bagName=$(nameInputId).value.trim();
-      const lots=(bagName && STOCKBAG[kind][bagName]) ? STOCKBAG[kind][bagName] : [];
+      const sacks=STOCKBAG.sacks.filter(s=>s.kind===kind && s.name===bagName && s.remainingKg>0);
       if(!bagName){ sel.innerHTML='<option value="">— เลือกถุงก่อน —</option>'; return; }
-      if(!lots.length){ sel.innerHTML='<option value="">— ยังไม่มีข้อมูลรับเข้าถุงนี้ในสต๊อก —</option>'; return; }
+      if(!sacks.length){ sel.innerHTML='<option value="">— ไม่มีกระสอบที่พร้อมใช้ในสต๊อก —</option>'; return; }
       sel.innerHTML='<option value="">— ไม่ระบุ —</option>'+
-        lots.slice().reverse().map(l=>'<option value="'+esc(l.lotNo)+'"'+(String(l.lotNo)===String(keepVal)?' selected':'')+'>ลอต '+esc(l.lotNo)+' — รับ '+l.qty+' ใบ ('+(l.time||'').slice(0,10)+')</option>').join('');
+        sacks.slice().sort((a,b)=>a.sackNo-b.sackNo).map(s=>'<option value="'+s.sackNo+'"'+(String(s.sackNo)===String(keepVal)?' selected':'')+'>เบอร์กระสอบ #'+s.sackNo+' — เหลือ '+s.remainingKg+' กก. ('+s.remainingPieces+' ใบ)</option>').join('');
     }
-    function refreshBagLotOptions(){ refreshBagLotOptionsFor('zip','spBag','spBagLot',sp.bagLotRef); }
+    function refreshBagLotOptions(){ refreshBagLotOptionsFor('zip','spBag','spBagSack',sp.bagSackNo); }
+    function refreshBag2LotOptions(){ if($('spBag2Sack')) refreshBagLotOptionsFor('zip','spBag2','spBag2Sack',sp.bagSackNo2); }
     function refreshPackBagLotOptions(){ refreshBagLotOptionsFor('pack','spPackBag','spPackBagLot',sp.packBagLotRef); }
+    function wireBagNameSel(prefix){
+      const sel=$(prefix+'Sel'), txt=$(prefix); if(!sel||!txt) return;
+      sel.onchange=()=>{
+        formDirty=true;
+        if(sel.value==='__new__'){ txt.style.display='block'; txt.value=''; txt.focus&&txt.focus(); }
+        else { txt.style.display='none'; txt.value=sel.value; }
+        if(prefix==='spBag') refreshBagLotOptions(); if(prefix==='spBag2') refreshBag2LotOptions();
+      };
+      txt.oninput=()=>{ formDirty=true; if(prefix==='spBag') refreshBagLotOptions(); if(prefix==='spBag2') refreshBag2LotOptions(); };
+    }
+    wireBagNameSel('spBag'); wireBagNameSel('spBag2');
     const prev=()=>{
       const bagPP = isPillow && $('spBagPP') ? $('spBagPP').checked : false;
       if($('packBagRow')) $('packBagRow').style.display = bagPP ? 'block' : 'none';
-      if($('bagLotRow')) $('bagLotRow').style.display = bagPP ? 'block' : 'none';
-      const s={weightPerPiece:+$('spW').value||0,piecesPerPack:+$('spN').value||0,bagWeight:+$('spBW').value||0,bagPerPiece:bagPP};
+      const hasBag2 = !!$('spBag2');
+      const s={weightPerPiece:+$('spW').value||0,piecesPerPack:+$('spN').value||0,
+        bagWeight:+$('spBagW').value||0,bagPerPiece:bagPP,
+        hasBag2, bagWeight2: hasBag2 ? (+$('spBag2W').value||0) : 0};
       const t=CALC.stdPerPack(s);
       $('spPreview').innerHTML=t
         ? '<div class="v">'+t+' กก.</div><div class="l">น้ำหนัก Standard ต่อแพ็ค (เฉลี่ยต่อชิ้น '+CALC.stdPerPiece(s)+' กก.)'+
-          (bagPP?'<br>ถุง '+s.bagWeight+' กก./ใบ × '+s.piecesPerPack+' ชิ้น = '+r3(s.bagWeight*s.piecesPerPack)+' กก.':'')+'</div>'
+          (bagPP?'<br>ถุงใบที่ 1: '+s.bagWeight+' กก./ใบ × '+s.piecesPerPack+' ชิ้น = '+r3(s.bagWeight*s.piecesPerPack)+' กก.':'')+
+          (bagPP&&hasBag2?'<br>ถุงใบที่ 2: '+s.bagWeight2+' กก./ใบ × '+s.piecesPerPack+' ชิ้น = '+r3(s.bagWeight2*s.piecesPerPack)+' กก.':'')+'</div>'
         : '<div class="l">กรอกน้ำหนักต่อชิ้นและจำนวนชิ้นต่อแพ็ค แล้วระบบจะคำนวณให้</div>';
     };
-    ['spW','spN','spBW'].forEach(id=>$(id).oninput=()=>{ formDirty=true; prev(); });
+    ['spW','spN','spBagW'].forEach(id=>{ if($(id)) $(id).oninput=()=>{ formDirty=true; prev(); }; });
+    if($('spBag2W')) $('spBag2W').oninput=()=>{ formDirty=true; prev(); };
     if($('spBagPP')) $('spBagPP').onchange=()=>{ formDirty=true; prev(); };
-    if($('spBag')) $('spBag').addEventListener('input',refreshBagLotOptions);
     if($('spPackBag')) $('spPackBag').addEventListener('input',refreshPackBagLotOptions);
-    ['spBag','spTol','spPackBag','spFabType','spFabSize'].forEach(id=>{ if($(id)) $(id).oninput=()=>{ formDirty=true; }; });
-    prev(); refreshBagLotOptions(); refreshPackBagLotOptions();
+    ['spBag','spBag2','spTol','spPackBag','spFabType','spFabSize','spBagSize','spBag2Size'].forEach(id=>{ if($(id)) $(id).oninput=()=>{ formDirty=true; }; });
+    if($('btnAddBag2')) $('btnAddBag2').onclick=()=>{ o.spec=o.spec||{}; o.spec.hasBag2=true; formDirty=true; buildSpecForm(); };
+    if($('btnRemoveBag2')) $('btnRemoveBag2').onclick=async()=>{
+      if(!await ask('เอาถุงใบที่ 2 ออก?','ข้อมูลถุงใบที่ 2 ที่กรอกไว้จะหายไป')) return;
+      o.spec=o.spec||{}; o.spec.hasBag2=false; o.spec.bagName2=''; o.spec.bagWeight2=0; o.spec.bagSize2=''; formDirty=true; buildSpecForm();
+    };
+    prev(); refreshBagLotOptions(); refreshBag2LotOptions(); refreshPackBagLotOptions();
 
     if($('spCancel')) $('spCancel').onclick=()=>{ formDirty=false; specOpen=false; buildSpecForm(); };
     $('spSave').onclick=async()=>{
       const w=+$('spW').value||0, n=+$('spN').value||0;
       if(!w||!n){ toast('กรอกน้ำหนักต่อชิ้นและจำนวนชิ้นต่อแพ็คก่อน'); return; }
-      o.spec={ weightPerPiece:w, piecesPerPack:n, bagName:$('spBag').value.trim(), bagWeight:+$('spBW').value||0,
+      const hasBag2 = !!$('spBag2');
+      o.spec={ weightPerPiece:w, piecesPerPack:n, bagName:$('spBag').value.trim(), bagWeight:+$('spBagW').value||0,
+        bagSize: isPillow && $('spBagSize') ? $('spBagSize').value.trim() : '',
+        bagSackNo: isPillow && $('spBagSack') ? $('spBagSack').value : '',
         bagPerPiece: isPillow && $('spBagPP') ? $('spBagPP').checked : false,
+        hasBag2: isPillow && hasBag2,
+        bagName2: isPillow && hasBag2 ? $('spBag2').value.trim() : '',
+        bagWeight2: isPillow && hasBag2 ? (+$('spBag2W').value||0) : 0,
+        bagSize2: isPillow && hasBag2 && $('spBag2Size') ? $('spBag2Size').value.trim() : '',
+        bagSackNo2: isPillow && hasBag2 && $('spBag2Sack') ? $('spBag2Sack').value : '',
         packBagName: isPillow && $('spPackBag') ? $('spPackBag').value.trim() : '',
-        bagLotRef: isPillow && $('spBagLot') ? $('spBagLot').value : '',
         packBagLotRef: isPillow && $('spPackBagLot') ? $('spPackBagLot').value : '',
         fabricType: isPillow && $('spFabType') ? $('spFabType').value.trim() : '',
         fabricSize: isPillow && $('spFabSize') ? $('spFabSize').value.trim() : '',
@@ -1816,7 +1964,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     const H=$('actHint');
     if(!pc){ H.innerHTML=''; return; }
     const bagTotal = sp.bagPerPiece ? (+sp.bagWeight||0)*(+sp.piecesPerPack||0) : (+sp.bagWeight||0);
-    const calcPack=r3(pc*(+sp.piecesPerPack||0)+bagTotal);
+    const bag2Total = sp.hasBag2 ? (sp.bagPerPiece ? (+sp.bagWeight2||0)*(+sp.piecesPerPack||0) : (+sp.bagWeight2||0)) : 0;
+    const calcPack=r3(pc*(+sp.piecesPerPack||0)+bagTotal+bag2Total);
     const st=CALC.tolStatus(pc,+sp.weightPerPiece||0,sp.tolPct);
     H.innerHTML='ต่อชิ้น '+(st==='ok'?'<span class="bdg ok">ตรงสเปค</span>':
         st==='over'?'<span class="bdg warn">เกิน '+r3(pc-(+sp.weightPerPiece||0))+'</span>':
@@ -1836,7 +1985,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     if(packW==null && pc){       // only the piece was weighed -> derive the pack
       const sp=active().spec||{};
       const bagTotal = sp.bagPerPiece ? (+sp.bagWeight||0)*(+sp.piecesPerPack||0) : (+sp.bagWeight||0);
-      packW=r3((+pc)*(+sp.piecesPerPack||0)+bagTotal);
+      const bag2Total = sp.hasBag2 ? (sp.bagPerPiece ? (+sp.bagWeight2||0)*(+sp.piecesPerPack||0) : (+sp.bagWeight2||0)) : 0;
+      packW=r3((+pc)*(+sp.piecesPerPack||0)+bagTotal+bag2Total);
     }
     if(!(packW>0)){ toast('น้ำหนักไม่ถูกต้อง'); return; }
     formDirty=false;
@@ -1867,10 +2017,14 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     if(sizesForFab.includes(keepSize)) sizeSel.value=keepSize;
     updateFwPreview();
     const hist=S.fabricWd.slice().reverse().slice(0,30);
-    $('tFabWdHist').innerHTML=hist.length?'<tr><th>เวลา</th><th>ชนิดผ้า</th><th>ไซซ์</th><th>จำนวน</th><th>หยิบจากถุง</th></tr>'+
+    $('tFabWdHist').innerHTML=hist.length?'<tr><th>เวลา</th><th>ชนิดผ้า</th><th>ไซซ์</th><th>จำนวน</th><th>หยิบจากถุง</th><th></th></tr>'+
       hist.map(w=>'<tr><td>'+(w.time||'').slice(0,16).replace('T',' ')+'</td><td>'+esc(w.fabricType)+'</td><td>'+esc(w.size)+'</td><td>'+w.qty+
-        '</td><td>'+(w.picks||[]).map(p=>'#'+p.batchNo+':'+p.qty).join(', ')+'</td></tr>').join('')
+        '</td><td>'+(w.picks||[]).map(p=>'#'+p.batchNo+':'+p.qty).join(', ')+'</td><td><button class="x" data-fwd="'+w.id+'">✕</button></td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีการเบิก</td></tr>';
+    $('tFabWdHist').querySelectorAll('[data-fwd]').forEach(b=>b.onclick=async()=>{
+      if(!await ask('ลบรายการเบิกนี้?','ยอดที่หยิบไปจะกลับเข้าถุงเดิม')) return;
+      S.fabricWd=S.fabricWd.filter(x=>x.id!==b.dataset.fwd); await saveFeed(); refreshFwSelects(); toast('ลบแล้ว');
+    });
   }
   let fwPick=null;
   function updateFwPreview(){
@@ -1899,6 +2053,51 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     };
   }
 
+  function refreshBwSelects(){
+    const nameSel=$('bwNameSel'); if(!nameSel) return;
+    const kind=$('bwKindSel').value;
+    const names=Object.keys(STOCKBAG[kind]||{});
+    const keep=nameSel.value;
+    nameSel.innerHTML='<option value="">— เลือกชื่อถุง —</option>'+names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');
+    if(names.includes(keep)) nameSel.value=keep;
+    updateBwPreview();
+    const hist=S.bagWd.slice().reverse().slice(0,30);
+    $('tBagWdHist').innerHTML=hist.length?'<tr><th>เวลา</th><th>ประเภท</th><th>ชื่อ</th><th>กก.</th><th>หยิบจากกระสอบ</th><th></th></tr>'+
+      hist.map(w=>'<tr><td>'+(w.time||'').slice(0,16).replace('T',' ')+'</td><td>'+(w.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+'</td><td>'+esc(w.name)+'</td><td>'+w.kg+
+        '</td><td>'+(w.picks||[]).map(p=>'#'+p.sackNo+':'+p.take+'กก.').join(', ')+'</td><td><button class="x" data-bwd="'+w.id+'">✕</button></td></tr>').join('')
+      :'<tr><td class="empty">ยังไม่มีการเบิก</td></tr>';
+    $('tBagWdHist').querySelectorAll('[data-bwd]').forEach(b=>b.onclick=async()=>{
+      if(!await ask('ลบรายการเบิกนี้?','ยอดที่หยิบไปจะกลับเข้ากระสอบเดิม')) return;
+      S.bagWd=S.bagWd.filter(x=>x.id!==b.dataset.bwd); await saveFeed(); refreshBwSelects(); toast('ลบแล้ว');
+    });
+  }
+  let bwPick=null;
+  function updateBwPreview(){
+    const kind=$('bwKindSel').value, name=$('bwNameSel').value, kg=+$('bwQty').value||0;
+    const box=$('bwPreview'); if(!box) return;
+    if(!kind||!name||!kg){ box.innerHTML=''; bwPick=null; return; }
+    const r=CALC.pickSacksForWithdrawal(STOCKBAG.sacks, kind, name, kg);
+    bwPick=r;
+    if(!r.picks.length){ box.innerHTML='<span class="bdg bad">ไม่มีกระสอบที่พร้อมของ '+esc(name)+' เลย — เช็คในแอพสต๊อก</span>'; return; }
+    box.innerHTML='จะหยิบจาก: '+r.picks.map(p=>'เบอร์กระสอบ #'+p.sackNo+' ('+p.take+' กก.)').join(', ')+
+      '<br>รวม <b>'+r.total+' กก.</b>'+(r.short>0?' <span class="bdg warn">ขาดอีก '+r.short+' กก.</span>':' <span class="bdg ok">ครบตามต้องการ</span>');
+  }
+  if($('bwKindSel')){
+    $('bwKindSel').onchange=refreshBwSelects;
+    $('bwNameSel').onchange=updateBwPreview;
+    $('bwQty').oninput=updateBwPreview;
+    $('btnBagWd').onclick=async()=>{
+      if(!bwPick || !bwPick.picks.length){ toast('ยังไม่มีกระสอบให้เบิก — เลือกประเภท/ชื่อถุง/น้ำหนักก่อน'); return; }
+      if(bwPick.short>0 && !await ask('ถุงไม่พอ','ขาดอยู่ '+bwPick.short+' กก.\n\nยืนยันจะเบิกเท่าที่มี ('+bwPick.total+' กก.) หรือไม่?')) return;
+      const total=bwPick.total;
+      S.bagWd.push({ id:uid(), time:localISO(), kind:$('bwKindSel').value, name:$('bwNameSel').value,
+        kg:total, picks:bwPick.picks.map(p=>({sackId:p.sackId,sackNo:p.sackNo,kg:p.take})) });
+      await saveFeed();
+      $('bwQty').value=''; $('bwPreview').innerHTML=''; bwPick=null;
+      refreshBwSelects(); toast('เบิกกระสอบถุงแล้ว '+total+' กก.');
+    };
+  }
+
   $('btnGapSet').onclick=()=>{ $('gsVal').value=S.settings.gapMin||20; openOv('ovGapSet'); };
   $('gsCancel').onclick=()=>closeOv('ovGapSet');
   $('gsSave').onclick=async()=>{ S.settings.gapMin=+$('gsVal').value||20; await saveSet(); closeOv('ovGapSet'); toast('บันทึกแล้ว'); };
@@ -1917,10 +2116,18 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       o.customer+' — '+o.code+'\nผลิตได้ '+packs+' แพ็ค'+(o.orderedPacks?' / สั่ง '+o.orderedPacks:'')+
       ' · น้ำหนักจริงรวม '+actF+' กก.'+
       ' · ใยเบิกเข้า '+r2(S.wd.filter(x=>x.orderId===o.id).reduce((s,x)=>s+(+x.kg||0),0))+' กก. · เศษ '+scrap+' กก.')) return;
-    o.status='done'; o.finishedAt=localISO(); S.activeId=null;
+    o.status='done'; o.finishedAt=localISO();
+    const nextId = (S.activeFeedId && S.activeFeedId!==o.id && orderById(S.activeFeedId) && orderById(S.activeFeedId).status!=='done') ? S.activeFeedId : null;
+    if(nextId){
+      const nx=orderById(nextId);
+      if(!nx.startedAt) nx.startedAt=localISO();
+      nx.status='active';
+    }
+    S.activeId = nextId;
+    S.activeFeedId = null;   // ป้อนใยกับท้ายไลน์กลับมาอยู่ที่ออเดอร์เดียวกันแล้ว
     await saveOrders();
-    rTop(); toast('จบงานเรียบร้อย — เวลา '+hhmm(o.finishedAt));
-    show('sum');
+    rTop(); toast(nextId ? 'จบงานเรียบร้อย — สลับไปออเดอร์ที่กำลังป้อนใยล่วงหน้าให้อัตโนมัติ' : 'จบงานเรียบร้อย — เวลา '+hhmm(o.finishedAt));
+    show(nextId ? 'line' : 'sum');
   };
 
   /* ---------- 5. SUMMARY ---------- */
@@ -1950,6 +2157,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     const wd=S.wd.filter(x=>inRange(x,R));
     const sc=S.scrap.filter(x=>inRange(x,R));
     rStoreInfo(); rLockInfo(); rInstallInfo();
+    if($('dbRows') && !$('dbRows').dataset.init) renderDbRows();
     const gaps=line.filter(x=>x.isDowntime||(x.gapMinutes&&x.gapMinutes>(+S.settings.gapMin||20)));
 
     const ids=new Set([...feed,...line,...wd,...sc].map(x=>x.orderId));
@@ -2124,10 +2332,10 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     });
     rows.push([]);
     rows.push(['[ออเดอร์และสเปค — ใช้กู้คืนข้อมูลได้]']);
-    rows.push(['ลูกค้า','รหัสงาน','ประเภท','สั่ง(แพ็ค)','สถานะ','สูตร (ชื่อ:กก.)','ครบสูตร(กก.)','เวอร์ชันสูตร',
+    rows.push(['ลูกค้า','รหัสงาน','ประเภท','สั่ง(แพ็ค)','สถานะ','สูตร (ชื่อ:กก.[เบอร์แท็ก])','ครบสูตร(กก.)','เวอร์ชันสูตร',
       'น้ำหนัก/ชิ้น','ชิ้น/แพ็ค','ชนิดถุง','น้ำหนักถุง','ถุงต่อชิ้น','ถุงแพ็คแยก','ชนิดผ้า','ไซซ์ผ้า','Std/แพ็ค','คลาดเคลื่อน(%)','กำหนดส่ง','เริ่ม','จบ']);
     S.orders.forEach(o=>rows.push([o.customer,o.code,o.productType||'ใย',o.orderedPacks||'',o.status||'',
-      (o.fibers||[]).map(f=>f.name+':'+f.kg).join(' + '),o.recipeTargetKg||'',o.recipeVer||1,
+      (o.fibers||[]).map(f=>f.name+':'+f.kg+(f.tagNo?'['+f.tagNo+']':'')).join(' + '),o.recipeTargetKg||'',o.recipeVer||1,
       (o.spec||{}).weightPerPiece||'',(o.spec||{}).piecesPerPack||'',(o.spec||{}).bagName||'',
       (o.spec||{}).bagWeight||'',(o.spec||{}).bagPerPiece?'ใช่':'',(o.spec||{}).packBagName||'',
       (o.spec||{}).fabricType||'',(o.spec||{}).fabricSize||'',
@@ -2209,7 +2417,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     if(!await ask('⚠ ล้างข้อมูลการผลิตทั้งหมด','จะลบออเดอร์/ป้อนใย/ท้ายไลน์/เบิกใย/พักงาน ทั้งหมด — ข้อมูลในแอพสต๊อกไม่กระทบ'+
       '\n\nแนะนำให้กด "ออกทั้งหมด" เก็บไฟล์ไว้ก่อน\n\nยืนยันครั้งที่ 1 — ต้องการลบจริงหรือไม่?')) return;
     if(!await ask('⚠ ยืนยันอีกครั้ง','การลบนี้กู้คืนไม่ได้ ยืนยันจะลบข้อมูลการผลิตทั้งหมดหรือไม่?')) return;
-    S.orders=[]; S.activeId=null; S.fiberMaster=[];
+    S.orders=[]; S.activeId=null; S.activeFeedId=null; S.fiberMaster=[];
     S.feed=[]; S.wd=[]; S.line=[]; S.scrap=[]; S.breaks=[];
     await saveOrders(); await saveFeed(); await saveLine();
     rTop(); renderPanel(true); toast('ล้างข้อมูลการผลิตทั้งหมดแล้ว');
@@ -2361,6 +2569,37 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       if(LOCKED.indexOf(current)>=0) show('line');
     } else askPin();
   };
+  function renderDbRows(){
+    const wrap=$('dbRows'); if(!wrap) return;
+    wrap.dataset.init='1'; wrap.innerHTML='';
+    const bands=(S.settings.diffBands&&S.settings.diffBands.length)?S.settings.diffBands:CALC.defaultDiffBands();
+    bands.forEach(b=>addDbRow(b.maxPct,b.color,b.label));
+  }
+  function addDbRow(maxPct,color,label){
+    if($('dbRows').children.length>=5){ toast('ตั้งได้สูงสุด 5 ระดับ'); return; }
+    const d=document.createElement('div'); d.className='rf'; d.style.marginTop='6px';
+    d.innerHTML='<div><label>สูงสุด ±% (แถวสุดท้ายจะกลายเป็น "เกินทุกเกณฑ์" เสมอ)</label>'+
+      '<input class="dbMax" type="number" inputmode="decimal" step="0.1" value="'+(maxPct==null?'':maxPct)+'"></div>'+
+      '<div><label>สี</label><input class="dbColor" type="color" value="'+(color||'#3fb27f')+'" style="height:38px; padding:2px;"></div>'+
+      '<div><label>ชื่อระดับ</label><input class="dbLabel" value="'+esc(label||'')+'" placeholder="เช่น ผ่าน"></div>'+
+      '<button class="x" style="margin-top:22px;">✕</button>';
+    d.querySelector('.x').onclick=()=>{ d.remove(); };
+    $('dbRows').appendChild(d);
+  }
+  $('btnAddDb').onclick=()=>addDbRow(5,'#f0b429','เตือน');
+  $('btnSaveDb').onclick=async()=>{
+    const rows=Array.from(document.querySelectorAll('#dbRows > div'));
+    if(!rows.length){ toast('ต้องมีอย่างน้อย 1 ระดับ'); return; }
+    const bands=rows.map((d,i)=>{
+      const isLast=i===rows.length-1;
+      return { maxPct: isLast?null:(+d.querySelector('.dbMax').value||0), color:d.querySelector('.dbColor').value, label:d.querySelector('.dbLabel').value.trim()||('ระดับ '+(i+1)) };
+    });
+    S.settings.diffBands=bands;
+    await saveSet();
+    rLine(true);
+    toast('บันทึกเกณฑ์สีแล้ว — แถวสุดท้าย ('+bands[bands.length-1].label+') คือเกินทุกเกณฑ์');
+  };
+
   $('btnPinSet').onclick=()=>{
     $('pinNew').value=''; $('pinNew2').value=''; $('pinSetWarn').innerHTML='';
     $('pinOff').style.display=lockOn()?'block':'none';

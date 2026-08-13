@@ -267,6 +267,7 @@
     <div class="panel" id="p-fin">
       <div class="card"><h3>สต๊อกสินค้าสำเร็จรูป</h3><div id="finCards"></div></div>
       <div class="card"><h3>ประวัติผลิตเข้าสต๊อก (จากระบบผลิต)</h3><div class="scr"><table id="tFinIn"></table></div></div>
+      <div class="card"><h3>ประวัติการปรับยอด</h3><div class="scr"><table id="tFinAdj"></table></div></div>
     </div>
 
     <!-- 5. DISPATCH -->
@@ -494,11 +495,12 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       });
       return Object.values(m).map(v=>({...v, remainingPieces: CALC.sackPieces(v.remainingKg, v.weightPerBag)}));
     },
-    finStock(producedByOrder, shipments){
+    finStock(producedByOrder, shipments, adjustments){
       const m={};
-      Object.entries(producedByOrder||{}).forEach(([id,qty])=>{ m[id]=m[id]||{produced:0,shipped:0}; m[id].produced=qty; });
-      (shipments||[]).forEach(s=>{ m[s.orderId]=m[s.orderId]||{produced:0,shipped:0}; m[s.orderId].shipped=r2(m[s.orderId].shipped+(+s.qty||0)); });
-      return Object.entries(m).map(([orderId,v])=>({ orderId, produced:v.produced, shipped:v.shipped, stock:r2(v.produced-v.shipped) }));
+      Object.entries(producedByOrder||{}).forEach(([id,qty])=>{ m[id]=m[id]||{produced:0,shipped:0,adjusted:0}; m[id].produced=qty; });
+      (shipments||[]).forEach(s=>{ m[s.orderId]=m[s.orderId]||{produced:0,shipped:0,adjusted:0}; m[s.orderId].shipped=r2(m[s.orderId].shipped+(+s.qty||0)); });
+      (adjustments||[]).forEach(a=>{ m[a.orderId]=m[a.orderId]||{produced:0,shipped:0,adjusted:0}; m[a.orderId].adjusted=r2(m[a.orderId].adjusted+(+a.delta||0)); });
+      return Object.entries(m).map(([orderId,v])=>({ orderId, produced:v.produced, shipped:v.shipped, adjusted:v.adjusted, stock:r2(v.produced-v.shipped+v.adjusted) }));
     },
     fifoLotRef(prodLines, alreadyShipped, qty){
       const sorted=(prodLines||[]).slice().sort((a,b)=>a.time<b.time?-1:1);
@@ -518,7 +520,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
   /* ---------- STATE ---------- */
   let S = { fiberReceipts:[], fiberTh:{}, fabricReceipts:[], cuts:[], cutBatches:[], sewSent:[], sewReturns:[], waste:[],
-            sackReceipts:[], shipments:[], deliveries:[] };
+            sackReceipts:[], shipments:[], deliveries:[], finAdjustments:[] };
   let PROD = { orders:[], wd:[], fabricWd:[], bagWd:[], line:[] };
   let current='fiber', lastHash='';
 
@@ -529,7 +531,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     v3s_fiber:  ()=>({receipts:S.fiberReceipts, th:S.fiberTh}),
     v3s_fabric: ()=>({receipts:S.fabricReceipts, cuts:S.cuts, cutBatches:S.cutBatches, sewSent:S.sewSent, sewReturns:S.sewReturns, waste:S.waste}),
     v3s_bag:    ()=>({receipts:S.sackReceipts}),
-    v3s_fin:    ()=>({shipments:S.shipments, deliveries:S.deliveries})
+    v3s_fin:    ()=>({shipments:S.shipments, deliveries:S.deliveries, finAdjustments:S.finAdjustments})
   };
   function setSaveState(state,msg){
     const el=$('saveState'); if(!el) return;
@@ -567,7 +569,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     S.fiberReceipts=Pf.receipts||[]; S.fiberTh=Pf.th||{};
     S.fabricReceipts=Pa.receipts||[]; S.cuts=Pa.cuts||[]; S.cutBatches=Pa.cutBatches||[]; S.sewSent=Pa.sewSent||[]; S.sewReturns=Pa.sewReturns||[]; S.waste=Pa.waste||[];
     S.sackReceipts=Pb.receipts||[];
-    S.shipments=Pn.shipments||[]; S.deliveries=Pn.deliveries||[];
+    S.shipments=Pn.shipments||[]; S.deliveries=Pn.deliveries||[]; S.finAdjustments=Pn.finAdjustments||[];
     const A=parse(ord,{orders:[]}), B=parse(fd,{wd:[]}), C=parse(ln,{line:[]});
     PROD.orders=A.orders||[]; PROD.wd=B.wd||[]; PROD.fabricWd=B.fabricWd||[]; PROD.bagWd=B.bagWd||[]; PROD.line=C.line||[];
     return hash;
@@ -738,7 +740,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       rollStatus.slice().reverse().map(r=>'<tr><td>'+esc(r.fabricType)+'</td><td>'+r.rollNo+'</td><td>'+ymd(r.dateReceived)+'</td><td>'+
         (r.retired?'<span class="bdg bad">ตัดหมดแล้ว</span>':r.used?'<span class="bdg warn">ตัดแล้ว</span>':'<span class="bdg ok">ยังไม่ตัด</span>')+
         '</td><td>'+(!r.used&&!r.retired?'<button class="btn sec sm" data-retire="'+r.fabricType+'|'+r.rollNo+'">ตัดหมดแล้ว</button> <button class="x" data-rollrm="'+r.fabricType+'|'+r.rollNo+'">✕</button>':
-          r.retired?'<button class="ed" data-unretire="'+r.fabricType+'|'+r.rollNo+'">ยกเลิก</button>':'')+'</td></tr>').join('')
+          r.retired?'<button class="ed" data-unretire="'+r.fabricType+'|'+r.rollNo+'">ยกเลิก</button>':
+          '<span style="color:var(--dim); font-size:11px;">ลบที่ "ประวัติการตัด" ด้านล่างก่อน แล้วม้วนนี้จะลบได้เอง</span>')+'</td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>';
     $('tRollStatus').querySelectorAll('[data-retire]').forEach(b=>b.onclick=async()=>{
       const [ft,rn]=b.dataset.retire.split('|');
@@ -966,15 +969,38 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   /* ---------- 4. FINISHED GOODS ---------- */
   function rFin(){
     const produced=producedByOrder();
-    const stock=CALC.finStock(produced, S.shipments);
+    const stock=CALC.finStock(produced, S.shipments, S.finAdjustments);
     stock.sort((a,b)=>orderLabel(a.orderId).localeCompare(orderLabel(b.orderId),'th'));
     $('finCards').innerHTML=stock.length?stock.map(s=>{ const o=orderById(s.orderId);
       return '<div class="scard"><div class="nm">'+esc(orderLabel(s.orderId))+(o?' <span class="bdg ok">'+esc(o.productType||'ใย')+'</span>':'')+'</div>'+
-      '<div class="n">'+s.stock+' <span style="font-size:13px;color:#ffffff;">แพ็ค</span></div><div class="l">ผลิตได้ '+s.produced+' · ส่งออกแล้ว '+s.shipped+' แพ็ค</div></div>'; }).join(''):'<div class="empty">ยังไม่มีข้อมูล</div>';
+      '<div class="n">'+s.stock+' <span style="font-size:13px;color:#ffffff;">แพ็ค</span></div><div class="l">ผลิตได้ '+s.produced+' · ส่งออกแล้ว '+s.shipped+' แพ็ค'+
+      (s.adjusted?' · ปรับยอด '+(s.adjusted>0?'+':'')+s.adjusted+' แพ็ค':'')+'</div>'+
+      '<button class="ed" style="margin-top:6px;" data-finadj="'+s.orderId+'">แก้ไขยอด</button></div>'; }).join(''):'<div class="empty">ยังไม่มีข้อมูล</div>';
+    $('finCards').querySelectorAll('[data-finadj]').forEach(btn=>btn.onclick=async()=>{
+      const s=stock.find(x=>x.orderId===btn.dataset.finadj); if(!s) return;
+      const input=prompt('ปรับยอดสต๊อกสินค้าสำเร็จรูปของ "'+orderLabel(s.orderId)+'" เป็นเท่าไหร่ (แพ็ค)\n\nตอนนี้เหลือ '+s.stock+' แพ็ค (ผลิตได้ '+s.produced+' - ส่งออกแล้ว '+s.shipped+')', s.stock);
+      if(input===null) return;
+      const target=+input; if(isNaN(target)){ toast('กรอกตัวเลขไม่ถูกต้อง'); return; }
+      const delta=r2(target-s.stock);
+      if(delta===0){ toast('ยอดเท่าเดิม ไม่ต้องปรับ'); return; }
+      S.finAdjustments.push({ id:uid(), time:localISO(), orderId:s.orderId, delta, note:'ปรับยอดให้ตรงกับที่นับจริง' });
+      await saveFin(); rFin(); toast('ปรับยอดเป็น '+target+' แพ็ค แล้ว');
+    });
+
     const inRows=PROD.line.slice().sort((a,b)=>a.time<b.time?1:-1).slice(0,80);
     $('tFinIn').innerHTML=inRows.length?'<tr><th>เวลา</th><th>ออเดอร์</th><th>ลำดับ</th><th>น้ำหนักจริง</th></tr>'+
       inRows.map(l=>'<tr><td>'+ymd(l.time)+' '+hhmm(l.time)+'</td><td>'+esc(orderLabel(l.orderId))+'</td><td>'+l.seq+'</td><td>'+(l.actualWeight==null?'—':l.actualWeight+' กก.')+'</td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>';
+
+    const adjRows=S.finAdjustments.slice().reverse().slice(0,50);
+    $('tFinAdj').innerHTML=adjRows.length?'<tr><th>เวลา</th><th>ออเดอร์</th><th>ปรับ</th><th>หมายเหตุ</th><th></th></tr>'+
+      adjRows.map(a=>'<tr><td>'+ymd(a.time)+' '+hhmm(a.time)+'</td><td>'+esc(orderLabel(a.orderId))+'</td><td>'+(a.delta>0?'+':'')+a.delta+' แพ็ค</td><td>'+esc(a.note||'')+
+        '</td><td><button class="x" data-finadjrm="'+a.id+'">✕</button></td></tr>').join('')
+      :'<tr><td class="empty">ยังไม่มีการปรับยอด</td></tr>';
+    $('tFinAdj').querySelectorAll('[data-finadjrm]').forEach(b=>b.onclick=async()=>{
+      if(!await ask('ลบรายการปรับยอดนี้?')) return;
+      S.finAdjustments=S.finAdjustments.filter(x=>x.id!==b.dataset.finadjrm); await saveFin(); rFin(); toast('ลบแล้ว');
+    });
   }
 
   /* ---------- 5. DISPATCH ---------- */
@@ -987,7 +1013,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   function rShip(){
     if(!$('dpDate').value) $('dpDate').value=todayStr();
     if(!$('dpOrdSel').dataset.init){
-      const stock=CALC.finStock(producedByOrder(),S.shipments);
+      const stock=CALC.finStock(producedByOrder(),S.shipments,S.finAdjustments);
       $('dpOrdSel').innerHTML=stock.filter(s=>s.stock>0).map(s=>'<option value="'+s.orderId+'">'+esc(orderLabel(s.orderId))+' (เหลือ '+s.stock+' แพ็ค)</option>').join('');
       $('dpOrdSel').dataset.init='1';
       $('dpOrdSel').onchange=refreshDpDateOptions;
@@ -1015,9 +1041,16 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       '<table style="margin-top:6px;"><tr><th>ลูกค้า/ออเดอร์</th><th>จำนวน</th><th>อ้างอิงลำดับผลิต</th></tr>'+
       d.items.map(it=>'<tr><td>'+esc(orderLabel(it.orderId))+'</td><td>'+it.qty+' แพ็ค</td><td>'+
         (it.refSeqFrom!=null? it.refSeqFrom+'-'+it.refSeqTo+' ('+it.refDateFrom+')' : '—')+'</td></tr>').join('')+
-      '</table><button class="btn sec sm" style="margin-top:8px;" data-print="'+d.id+'">🖨 พิมพ์บิลนี้อีกครั้ง</button></div>'
+      '</table><button class="btn sec sm" style="margin-top:8px;" data-print="'+d.id+'">🖨 พิมพ์บิลนี้อีกครั้ง</button> '+
+      '<button class="btn dg sm" style="margin-top:8px;" data-delrm="'+d.id+'">✕ ลบเที่ยวรถนี้</button></div>'
     ).join('') : '<div class="empty">ยังไม่มีเที่ยวรถ</div>';
     $('dpHistory').querySelectorAll('[data-print]').forEach(b=>b.onclick=()=>printDelivery(S.deliveries.find(d=>d.id===b.dataset.print)));
+    $('dpHistory').querySelectorAll('[data-delrm]').forEach(b=>b.onclick=async()=>{
+      if(!await ask('ลบเที่ยวรถนี้?','สินค้าที่ส่งไปในเที่ยวนี้จะกลับเข้าสต๊อกสำเร็จรูปให้เอง')) return;
+      S.deliveries=S.deliveries.filter(x=>x.id!==b.dataset.delrm);
+      S.shipments=S.shipments.filter(x=>x.deliveryId!==b.dataset.delrm);
+      await saveFin(); rShip(); toast('ลบแล้ว');
+    });
   }
   $('btnAddDpItem').onclick=()=>{
     const oid=$('dpOrdSel').value, qty=+$('dpQty').value, pickedDate=$('dpDateSel').value;
@@ -1093,7 +1126,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   /* ---------- 6. SUMMARY / EXPORT / CLEAR ---------- */
   function rSum(){
     const rawS=CALC.rawStock(S.fiberReceipts,PROD.wd);
-    const finS=CALC.finStock(producedByOrder(),S.shipments);
+    const finS=CALC.finStock(producedByOrder(),S.shipments,S.finAdjustments);
     const sackStatus=CALC.sackStatus(S.sackReceipts,PROD.bagWd);
     const zipS=CALC.bagAggregate(sackStatus,'zip');
     const packS=CALC.bagAggregate(sackStatus,'pack');
@@ -1168,6 +1201,12 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       const o=orderById(it.orderId);
       rows.push([d.date,d.truck||'',d.poNumber||'',o?o.customer:'',o?o.code:'',it.qty,it.refSeqFrom!=null?it.refSeqFrom+'-'+it.refSeqTo:'']);
     }));
+    rows.push([]);
+    rows.push(['[ปรับยอดสินค้าสำเร็จรูป]']); rows.push(['วันที่','เวลา','ลูกค้า','รหัสงาน','ปรับ(แพ็ค)','หมายเหตุ']);
+    S.finAdjustments.filter(x=>inRange(x,from,to)).forEach(a=>{
+      const o=orderById(a.orderId);
+      rows.push([ymd(a.time),hhmm(a.time),o?o.customer:'',o?o.code:'',a.delta,a.note||'']);
+    });
     return toCSV(rows);
   }
   $('btnExport').onclick=()=>{
@@ -1222,7 +1261,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     if(!window.confirm('⚠ จะลบข้อมูลสต๊อกทั้งหมด (ใย/ผ้า/ถุง/สินค้า/จัดส่ง) — ข้อมูลในแอพผลิตไม่กระทบ\n\nแนะนำให้กด "ออกทั้งหมด" เก็บไฟล์ไว้ก่อน\n\nยืนยันครั้งที่ 1 — ต้องการลบจริงหรือไม่?')) return;
     if(!window.confirm('⚠ ยืนยันอีกครั้ง — การลบนี้กู้คืนไม่ได้\n\nพิมพ์ "ตกลง" เพื่อยืนยันการลบข้อมูลสต๊อกทั้งหมด')) return;
     S.fiberReceipts=[]; S.fiberTh={}; S.fabricReceipts=[]; S.cuts=[]; S.cutBatches=[]; S.sewSent=[]; S.sewReturns=[]; S.waste=[];
-    S.sackReceipts=[]; S.shipments=[]; S.deliveries=[];
+    S.sackReceipts=[]; S.shipments=[]; S.deliveries=[]; S.finAdjustments=[];
     await Promise.all([saveFiber(),saveFabric(),saveBag(),saveFin()]);
     renderPanel(); toast('ล้างข้อมูลสต๊อกทั้งหมดแล้ว');
   };

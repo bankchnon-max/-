@@ -1,3 +1,16 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="แอพสต๊อก">
+<meta name="theme-color" content="#ff8a3d">
+<title>ระบบสต๊อกสินค้า — วินโพลีดีไซน์</title>
+</head>
+<body>
 <style>
   #sk, #sk * { box-sizing: border-box; }
   #sk {
@@ -79,7 +92,16 @@
     #sk .printbill, #sk .printbill * { visibility:visible; }
     #sk .printbill { display:block; position:absolute; top:0; left:0; width:100%; color:#000; background:#fff; padding:20px; }
     #sk .printbill table { border-collapse:collapse; width:100%; }
-    #sk .printbill th, #sk .printbill td { border:1px solid #333; padding:6px; font-size:13px; }
+    #sk .printbill th, #sk .printbill td { border:1px solid #333; padding:5px 8px; font-size:12.5px; }
+    #sk .billsheet { margin-bottom:20px; }
+    #sk .billhead { display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #000; padding-bottom:6px; margin-bottom:8px; }
+    #sk .billtitle { font-size:18px; font-weight:700; }
+    #sk .billco { font-size:14px; font-weight:600; }
+    #sk .billdate { font-size:13px; }
+    #sk .billmeta { display:flex; flex-wrap:wrap; gap:14px; font-size:13px; margin-bottom:10px; }
+    #sk .billgrid th { background:#eee; }
+    #sk .billsum td { background:#f5f5f5; font-weight:600; text-align:left; }
+    #sk .billtotal { margin-top:8px; font-size:14px; text-align:right; }
   }
 </style>
 
@@ -253,6 +275,7 @@
           <div><label>วันที่จัดส่ง</label><input id="dpDate" type="date"></div>
           <div><label>ทะเบียนรถ/คนขับ</label><input id="dpTruck" placeholder="เช่น กข-1234 หรือชื่อคนขับ"></div>
         </div>
+        <label>เลข PO ลูกค้า</label><input id="dpPO" placeholder="เลข PO ของลูกค้า (ถ้ามี)">
         <h3 style="margin-top:14px;">รายการสินค้าในเที่ยวนี้</h3>
         <div id="dpItems"></div>
         <div class="rf" style="margin-top:8px;">
@@ -948,26 +971,54 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     if(!dpItems.length){ toast('ยังไม่มีรายการในเที่ยวรถ'); return; }
     const incomplete=dpItems.filter(it=>!CALC.checklistComplete(it));
     if(incomplete.length && !window.confirm('มี '+incomplete.length+' รายการที่ยังเช็คลิสต์ไม่ครบ ยืนยันจะบันทึกเที่ยวรถนี้เลยหรือไม่?')) return;
-    const delivery={ id:uid(), date:$('dpDate').value||todayStr(), truck:$('dpTruck').value.trim(), createdAt:localISO(),
-      items:dpItems.map(it=>({ orderId:it.orderId, qty:it.qty, refSeqFrom:it.ref.seqFrom, refSeqTo:it.ref.seqTo, refDateFrom:it.ref.dateFrom, refDateTo:it.ref.dateTo, checkedSeqs:it.checkedSeqs||[] })) };
+    const delivery={ id:uid(), date:$('dpDate').value||todayStr(), truck:$('dpTruck').value.trim(), poNumber:$('dpPO').value.trim(), createdAt:localISO(),
+      items:dpItems.map(it=>({ orderId:it.orderId, qty:it.qty, refSeqFrom:it.ref.seqFrom, refSeqTo:it.ref.seqTo, refDateFrom:it.ref.dateFrom, refDateTo:it.ref.dateTo, seqs:it.ref.seqs||[], checkedSeqs:it.checkedSeqs||[] })) };
     S.deliveries.push(delivery);
     dpItems.forEach(it=>{ S.shipments.push({ id:uid(), time:localISO(), orderId:it.orderId, qty:it.qty, to:delivery.truck, note:'เที่ยวรถ '+delivery.date, deliveryId:delivery.id }); });
     await saveFin();
     printDelivery(delivery);
-    dpItems=[]; $('dpTruck').value=''; $('dpOrdSel').dataset.init=''; rShip(); toast('บันทึกเที่ยวรถและออกบิลแล้ว');
+    dpItems=[]; $('dpTruck').value=''; $('dpPO').value=''; $('dpOrdSel').dataset.init=''; rShip(); toast('บันทึกเที่ยวรถและออกบิลแล้ว');
   };
   function printDelivery(d){
     if(!d) return;
     const byCustomer={};
     d.items.forEach(it=>{ const o=orderById(it.orderId); const cust=o?o.customer:'(ไม่ทราบ)'; byCustomer[cust]=byCustomer[cust]||[]; byCustomer[cust].push(it); });
-    let html='<h2>ใบส่งของ</h2><p>วันที่จัดส่ง: '+esc(d.date)+' &nbsp; รถ/คนขับ: '+esc(d.truck||'-')+'</p>';
-    Object.entries(byCustomer).forEach(([cust,items])=>{
-      html+='<h3>ลูกค้า: '+esc(cust)+'</h3><table><tr><th>รหัสงาน</th><th>จำนวน (แพ็ค)</th><th>อ้างอิงลำดับผลิต</th></tr>'+
-        items.map(it=>{ const o=orderById(it.orderId);
-          return '<tr><td>'+esc(o?o.code:'-')+'</td><td>'+it.qty+'</td><td>'+(it.refSeqFrom!=null?it.refSeqFrom+'-'+it.refSeqTo+' ('+it.refDateFrom+')':'-')+'</td></tr>'; }).join('')+'</table>';
+    let html='';
+    Object.entries(byCustomer).forEach(([cust,items],idx)=>{
+      // รวมทุกรายการของลูกค้านี้เป็นแถวเดียวต่อเนื่อง: No.=ลำดับรันเฉยๆ, No.Pack=เลข seq จริงจากแอพผลิต, Date=วันที่ผลิตแพ็คนั้นจริง
+      const rows=[];
+      items.forEach(it=>{
+        const o=orderById(it.orderId);
+        (it.seqs&&it.seqs.length?it.seqs:new Array(it.qty).fill(null)).forEach(sq=>{
+          const line=sq!=null?PROD.line.find(l=>l.orderId===it.orderId&&l.seq===sq):null;
+          rows.push({ pack:sq!=null?sq:'', date:line?ymd(line.time):'', pieces:(o&&o.spec&&o.spec.piecesPerPack)||0, code:o?o.code:'-' });
+        });
+      });
+      const totalPacks=rows.length, totalPieces=rows.reduce((s,r)=>s+r.pieces,0);
+      html+='<div class="billsheet"'+(idx>0?' style="page-break-before:always;"':'')+'>'+
+        '<div class="billhead"><div class="billtitle">ใบเช็คสินค้าออก</div>'+
+        '<div class="billco">บจก.วินโพลีดีไซน์ เทรดดิ้ง</div>'+
+        '<div class="billdate">วันที่ '+esc(d.date)+'</div></div>'+
+        '<div class="billmeta"><div>ทะเบียนรถขนส่ง: '+esc(d.truck||'-')+'</div>'+
+        '<div>เลข PO: '+esc(d.poNumber||'-')+'</div>'+
+        '<div>ลูกค้า: '+esc(cust)+'</div>'+
+        '<div>รหัสงาน: '+esc([...new Set(rows.map(r=>r.code))].join(', '))+'</div></div>';
+      html+='<table class="billgrid"><tr><th>No.</th><th>No.Pack</th><th>Date</th></tr>';
+      rows.forEach((r,i)=>{
+        html+='<tr><td>'+(i+1)+'</td><td>'+esc(r.pack)+'</td><td>'+esc(r.date)+'</td></tr>';
+        if((i+1)%50===0 && i+1<rows.length){
+          const blockRows=rows.slice(i+1-50,i+1);
+          html+='<tr class="billsum"><td colspan="3">จำนวนแพ็ค '+blockRows.length+' &nbsp; จำนวนชิ้น '+blockRows.reduce((s,r)=>s+r.pieces,0)+'</td></tr>';
+        }
+      });
+      html+='</table>';
+      html+='<div class="billtotal">รวมทั้งสิ้น — จำนวนแพ็ค <b>'+totalPacks+'</b> แพ็ค &nbsp; จำนวนชิ้น <b>'+totalPieces+'</b> ชิ้น</div>';
+      html+='</div>';
     });
     $('printBill').innerHTML=html;
-    setTimeout(()=>window.print(),100);
+    const prevTitle=document.title;
+    document.title='ใบเช็คสินค้าออก '+(d.date||'');
+    setTimeout(()=>{ window.print(); setTimeout(()=>{ document.title=prevTitle; },500); },100);
   }
 
   /* ---------- 6. SUMMARY / EXPORT / CLEAR ---------- */
@@ -1039,10 +1090,10 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     rows.push(['[รับเข้าถุง]']); rows.push(['วันที่','ประเภท','ชื่อ','ล็อต','ใบ','กก.','หมายเหตุ']);
     S.bagReceipts.filter(x=>inRange(x,from,to)).forEach(r=>rows.push([ymd(r.time),r.kind==='zip'?'ถุงซิล':'ถุงแพ็ค',r.name,r.lotNo,r.qty,r.kg||'',r.note||'']));
     rows.push([]);
-    rows.push(['[เที่ยวรถจัดส่ง]']); rows.push(['วันที่','รถ/คนขับ','ลูกค้า','รหัสงาน','จำนวน(แพ็ค)','อ้างอิงลำดับ']);
+    rows.push(['[เที่ยวรถจัดส่ง]']); rows.push(['วันที่','รถ/คนขับ','เลข PO','ลูกค้า','รหัสงาน','จำนวน(แพ็ค)','อ้างอิงลำดับ']);
     S.deliveries.filter(d=>(!from||d.date>=from)&&(!to||d.date<=to)).forEach(d=>d.items.forEach(it=>{
       const o=orderById(it.orderId);
-      rows.push([d.date,d.truck||'',o?o.customer:'',o?o.code:'',it.qty,it.refSeqFrom!=null?it.refSeqFrom+'-'+it.refSeqTo:'']);
+      rows.push([d.date,d.truck||'',d.poNumber||'',o?o.customer:'',o?o.code:'',it.qty,it.refSeqFrom!=null?it.refSeqFrom+'-'+it.refSeqTo:'']);
     }));
     return toCSV(rows);
   }
@@ -1124,9 +1175,13 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   $('saveState').onclick=()=>{ if(storeDown||Object.keys(pending).length){ Object.keys(pending).forEach(k=>flush(k)); toast('กำลังลองบันทึกใหม่…'); } };
 
   (async function init(){
+    document.title='ระบบสต๊อกสินค้า — วินโพลีดีไซน์';
     lastHash=await readAll();
     if(!hasStore){ storeDown=true; setSaveState('bad','ไม่รองรับ'); } else setSaveState('ok');
     show('fiber');
   })();
 })();
 </script>
+
+</body>
+</html>

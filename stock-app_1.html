@@ -144,7 +144,7 @@
         </div>
         <button class="btn sec w" id="btnTh">บันทึก</button>
       </div>
-      <div class="card"><h3>คงเหลือแยกตามลอต</h3><div class="scr"><table id="tFiberLots"></table></div></div>
+      <div class="card"><h3>คงเหลือแยกตามลอต</h3><div class="sumline" id="fiberLotFilterBar"></div><div class="scr"><table id="tFiberLots"></table></div></div>
       <div class="card"><h3>ประวัติรับเข้าใย</h3><div class="scr"><table id="tRw"></table></div></div>
       <div class="card"><h3>ประวัติเบิกใย (จากระบบผลิต — เลือกลอตจริงเท่านั้น)</h3><div class="scr"><table id="tRwUse"></table></div></div>
     </div>
@@ -610,6 +610,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     S.fiberReceipts.forEach(r=>set.add(r.fiberName));
     return Array.from(set).filter(Boolean).sort((a,b)=>a.localeCompare(b,'th'));
   }
+  let fiberLotFilter=null;
   function rFiber(){
     if(!$('rwDate').value) $('rwDate').value=todayStr();
     const stock=CALC.rawStock(S.fiberReceipts, PROD.wd);
@@ -618,23 +619,36 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     stock.sort((a,b)=>a.name.localeCompare(b.name,'th'));
     $('fiberCards').innerHTML = stock.length ? stock.map(s=>{
       const th=+S.fiberTh[s.name]||0, low=th>0&&s.stock<th;
-      return '<div class="scard'+(low?' lowstock':'')+'"><div class="nm">'+esc(s.name)+(low?' <span class="bdg bad">ใกล้หมด</span>':'')+'</div>'+
+      return '<div class="scard'+(low?' lowstock':'')+'" data-fibercard="'+esc(s.name)+'" style="cursor:pointer;"><div class="nm">'+esc(s.name)+(low?' <span class="bdg bad">ใกล้หมด</span>':'')+'</div>'+
         '<div class="n">'+s.stock+' <span style="font-size:13px;color:#ffffff;">กก.</span></div>'+
-        '<div class="l">รับเข้า '+s.received+' กก. · เบิกใช้ '+s.used+' กก.'+(th>0?' · เตือนต่ำกว่า '+th:'')+'</div></div>';
+        '<div class="l">รับเข้า '+s.received+' กก. · เบิกใช้ '+s.used+' กก.'+(th>0?' · เตือนต่ำกว่า '+th:'')+' · แตะดูล็อต ▾</div></div>';
     }).join('') : '<div class="empty">ยังไม่มีข้อมูล</div>';
+    $('fiberCards').querySelectorAll('[data-fibercard]').forEach(c=>c.onclick=()=>{
+      fiberLotFilter=c.dataset.fibercard; rFiber();
+      document.getElementById('tFiberLots').scrollIntoView({behavior:'smooth',block:'center'});
+    });
 
     const nms=allFiberNames();
+    const keepRw=$('rwSel').value;
     $('rwSel').innerHTML='<option value="">— เลือกใย —</option>'+nms.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('')+'<option value="__new__">+ พิมพ์ชื่อใหม่…</option>';
+    if(keepRw==='__new__'||nms.includes(keepRw)) $('rwSel').value=keepRw;
     $('dlRwFiber').innerHTML=nms.map(n=>'<option value="'+esc(n)+'"></option>').join('');
     $('thSel').innerHTML=nms.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');
     updateRwLotPreview();
 
-    const lots=CALC.fiberLotStock(S.fiberReceipts, PROD.wd);
+    let lots=CALC.fiberLotStock(S.fiberReceipts, PROD.wd);
+    if($('fiberLotFilterBar')){
+      $('fiberLotFilterBar').innerHTML = fiberLotFilter
+        ? 'กำลังดูเฉพาะ: <b style="color:var(--accent2)">'+esc(fiberLotFilter)+'</b> <button class="x" id="btnClearFiberFilter">✕ ล้างตัวกรอง (ดูทั้งหมด)</button>'
+        : '';
+      if($('btnClearFiberFilter')) $('btnClearFiberFilter').onclick=()=>{ fiberLotFilter=null; rFiber(); };
+    }
+    if(fiberLotFilter) lots=lots.filter(l=>l.fiberName===fiberLotFilter);
     $('tFiberLots').innerHTML=lots.length?'<tr><th>ใย</th><th>ล็อต</th><th>รับเข้า</th><th>เบิกใช้</th><th>คงเหลือ</th><th>วันที่รับ</th><th></th></tr>'+
       lots.slice().reverse().map(l=>'<tr><td>'+esc(l.fiberName)+'</td><td>'+l.lotNo+'</td><td>'+l.kg+'</td><td>'+l.used+
         '</td><td><b style="color:'+(l.remaining<0?'var(--red)':'var(--accent2)')+'">'+l.remaining+'</b></td><td>'+ymd(l.time)+
         '</td><td><button class="ed" data-fladj="'+esc(l.fiberName)+'|'+l.lotNo+'">แก้ไขยอด</button></td></tr>').join('')
-      :'<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>';
+      :'<tr><td class="empty">'+(fiberLotFilter?'ใยนี้ยังไม่มีล็อต':'ยังไม่มีข้อมูล')+'</td></tr>';
     $('tFiberLots').querySelectorAll('[data-fladj]').forEach(b=>b.onclick=async()=>{
       const [name,lotNo]=b.dataset.fladj.split('|');
       const lot=lots.find(l=>l.fiberName===name && String(l.lotNo)===lotNo); if(!lot) return;
@@ -672,7 +686,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     S.fiberReceipts.push({id:uid(),time:dateVal,fiberName:n,lotNo,kg,supplier:$('rwSupplier').value.trim(),note:$('rwNote').value.trim()});
     await saveFiber();
     ['rwSupplier','rwNote','rwKg'].forEach(id=>$(id).value='');
-    $('rwSel').value=''; $('rwName').value=''; $('rwName').style.display='none';
+    // ชื่อใยที่เลือกไว้ค้างต่อเนื่อง จนกว่าจะเปลี่ยนเอง (มักรับเข้าใยตัวเดิมหลายรอบติดกัน)
     rFiber(); toast('บันทึกรับเข้าใยแล้ว — ล็อต '+lotNo);
   };
   $('btnTh').onclick=async()=>{ const n=$('thSel').value; if(!n){toast('เลือกใยก่อน');return;} S.fiberTh[n]=+$('thKg').value||0; await saveFiber(); $('thKg').value=''; rFiber(); toast('ตั้งจุดเตือนแล้ว'); };
@@ -1222,19 +1236,33 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   $('btnExportAll').onclick=()=>{ if(download('สำรองข้อมูลสต๊อกทั้งหมด_'+todayStr()+'.csv',buildStockCSV(null,null))) toast('สำรองข้อมูลแล้ว'); };
 
   /* ---------- ยอดยกมา (opening balance) ---------- */
+  function obNameOptions(kind){
+    if(kind==='fiber') return allFiberNames();
+    if(kind==='roll') return allFabricTypes();
+    return allBagNames(kind);
+  }
+  let lastObKind='fiber', lastObName='';
+  let obRowSeq=0;
   function addObRow(){
+    const rid='ob'+(++obRowSeq);
     const d=document.createElement('div'); d.className='cartrow';
     d.innerHTML='<div class="rf">'+
       '<div><label>ประเภท</label><select class="obKind">'+
-        '<option value="fiber">ใย (กก.)</option><option value="roll">ผ้าม้วน (จำนวนม้วน)</option>'+
-        '<option value="zip">ถุงซิล (กก. — 1 กระสอบ)</option><option value="pack">ถุงแพ็ค (กก. — 1 กระสอบ)</option></select></div>'+
-      '<div><label>ชื่อ/ชนิด</label><input class="obName" placeholder="เช่น 15DHC64"></div>'+
+        '<option value="fiber"'+(lastObKind==='fiber'?' selected':'')+'>ใย (กก.)</option>'+
+        '<option value="roll"'+(lastObKind==='roll'?' selected':'')+'>ผ้าม้วน (จำนวนม้วน)</option>'+
+        '<option value="zip"'+(lastObKind==='zip'?' selected':'')+'>ถุงซิล (กก. — 1 กระสอบ)</option>'+
+        '<option value="pack"'+(lastObKind==='pack'?' selected':'')+'>ถุงแพ็ค (กก. — 1 กระสอบ)</option></select></div>'+
+      '<div><label>ชื่อ/ชนิด</label><input class="obName" list="dl_'+rid+'" placeholder="พิมพ์หรือเลือกจากที่มีอยู่" value="'+esc(lastObName)+'">'+
+      '<datalist id="dl_'+rid+'"></datalist></div>'+
       '<div><label>จำนวน</label><input class="obQty" type="number" inputmode="decimal"></div></div>'+
       '<div class="rf" style="margin-top:6px;">'+
       '<div><label>เลขล็อต/หมายเลขก้อน (ถ้ามีเขียนไว้อยู่แล้ว)</label><input class="obLot" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ"></div>'+
       '<div><label>วันที่รับเข้าจริงของก้อนนี้</label><input class="obDate" type="date" value="'+todayStr()+'"></div></div>'+
       '<button class="x" style="margin-top:4px;">✕ ลบแถวนี้</button>';
     d.querySelector('.x').onclick=()=>d.remove();
+    const refreshDl=()=>{ d.querySelector('datalist').innerHTML=obNameOptions(d.querySelector('.obKind').value).map(n=>'<option value="'+esc(n)+'">').join(''); };
+    d.querySelector('.obKind').onchange=refreshDl;
+    refreshDl();
     $('obRows').appendChild(d);
   }
   $('btnAddObRow').onclick=addObRow;
@@ -1261,6 +1289,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         touchedBag=true;
       }
     });
+    // ประเภท+ชื่อล่าสุดค้างไว้เป็นค่าเริ่มต้นของแถวถัดไป จนกว่าจะเปลี่ยนเอง (มักยกมาใยเดิมหลายล็อตติดกัน)
+    const lastRow=rows[rows.length-1];
+    lastObKind=lastRow.kind; lastObName=lastRow.name;
     const saves=[]; if(touchedFiber) saves.push(saveFiber()); if(touchedFabric) saves.push(saveFabric()); if(touchedBag) saves.push(saveBag());
     await Promise.all(saves);
     $('obRows').innerHTML=''; addObRow();

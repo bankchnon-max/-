@@ -133,6 +133,7 @@
           <div><label>ผู้ขาย</label><input id="rwSupplier"></div>
           <div><label>หมายเหตุ</label><input id="rwNote"></div>
         </div>
+        <label>วันที่รับเข้า</label><input id="rwDate" type="date">
         <button class="btn w" id="btnRw">บันทึกรับเข้าใย</button>
       </div>
       <div class="card">
@@ -254,6 +255,7 @@
         <label>น้ำหนักต่อใบ (กก.) — ใช้แปลงเป็นจำนวนใบให้อัตโนมัติ</label>
         <input id="bagWeightPer" type="number" inputmode="decimal" step="0.001" placeholder="เช่น 0.05">
         <div class="sumline" id="bagSackPreview"></div>
+        <label>วันที่รับเข้า</label><input id="bagDate" type="date">
         <label>หมายเหตุ</label><input id="bagNote">
         <button class="btn w" id="btnBag">บันทึกรับเข้ากระสอบ</button>
       </div>
@@ -300,7 +302,7 @@
       <div class="card"><h3>⚠ ใกล้หมด</h3><div class="scr"><table id="tLow"></table></div></div>
       <div class="card">
         <h3>📋 ยอดยกมา (กรอกของที่มีอยู่แล้วก่อนเริ่มใช้จริง)</h3>
-        <p class="sumline">ใช้ครั้งเดียวตอนเริ่มระบบ เพื่อบันทึกของที่มีอยู่แล้วในสต๊อกจริงตอนนี้ กรอกได้หลายรายการรวดเดียว</p>
+        <p class="sumline">ใช้ครั้งเดียวตอนเริ่มระบบ เพื่อบันทึกของที่มีอยู่แล้วในสต๊อกจริงตอนนี้ กรอกได้หลายรายการรวดเดียว — แต่ละรายการใส่วันที่รับเข้าจริงของตัวเองได้ เพราะแต่ละก้อน/ล็อตอาจเข้ามาคนละวัน</p>
         <div id="obRows"></div>
         <button class="btn sec sm" style="margin-top:8px;" id="btnAddObRow">+ เพิ่มรายการ</button><br>
         <button class="btn w" id="btnSaveOb">บันทึกยอดยกมาทั้งหมด</button>
@@ -609,6 +611,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     return Array.from(set).filter(Boolean).sort((a,b)=>a.localeCompare(b,'th'));
   }
   function rFiber(){
+    if(!$('rwDate').value) $('rwDate').value=todayStr();
     const stock=CALC.rawStock(S.fiberReceipts, PROD.wd);
     const names=allFiberNames(); const known=new Set(stock.map(s=>s.name));
     names.forEach(n=>{ if(!known.has(n)) stock.push({name:n,received:0,used:0,stock:0}); });
@@ -665,7 +668,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     const n=($('rwSel').value==='__new__'?$('rwName').value:$('rwSel').value).trim(), kg=+$('rwKg').value;
     if(!n||!kg){ toast('กรอกชื่อใยและน้ำหนัก'); return; }
     const lotNo=CALC.nextFiberLot(S.fiberReceipts,n);
-    S.fiberReceipts.push({id:uid(),time:localISO(),fiberName:n,lotNo,kg,supplier:$('rwSupplier').value.trim(),note:$('rwNote').value.trim()});
+    const dateVal=$('rwDate').value?$('rwDate').value+'T'+localISO().slice(11):localISO();
+    S.fiberReceipts.push({id:uid(),time:dateVal,fiberName:n,lotNo,kg,supplier:$('rwSupplier').value.trim(),note:$('rwNote').value.trim()});
     await saveFiber();
     ['rwSupplier','rwNote','rwKg'].forEach(id=>$(id).value='');
     $('rwSel').value=''; $('rwName').value=''; $('rwName').style.display='none';
@@ -906,6 +910,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   /* ---------- 3. BAGS ---------- */
   function allBagNames(kind){ const set=new Set(); S.sackReceipts.filter(r=>r.kind===kind).forEach(r=>set.add(r.name)); return Array.from(set).filter(Boolean).sort(); }
   function rBag(){
+    if(!$('bagDate').value) $('bagDate').value=todayStr();
     const sackStatus=CALC.sackStatus(S.sackReceipts,PROD.bagWd);
     const zip=CALC.bagAggregate(sackStatus,'zip');
     const pack=CALC.bagAggregate(sackStatus,'pack');
@@ -961,7 +966,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     const sackWeightKg=+$('bagSackKg').value||25, weightPerBag=+$('bagWeightPer').value||0;
     if(!n||!sackWeightKg){ toast('กรอกชื่อถุงและน้ำหนักกระสอบ'); return; }
     const sackNo=CALC.nextSackNo(S.sackReceipts,kind,n);
-    S.sackReceipts.push({ id:uid(), time:localISO(), kind, name:n, size:$('bagSize').value.trim(), sackNo, sackWeightKg, weightPerBag, note:$('bagNote').value.trim() });
+    const dateVal=$('bagDate').value?$('bagDate').value+'T'+localISO().slice(11):localISO();
+    S.sackReceipts.push({ id:uid(), time:dateVal, kind, name:n, size:$('bagSize').value.trim(), sackNo, sackWeightKg, weightPerBag, note:$('bagNote').value.trim() });
     await saveBag(); $('bagSackKg').value='25'; $('bagWeightPer').value=''; $('bagSize').value=''; $('bagNote').value=''; $('bagNameNew').style.display='none';
     rBag(); toast('บันทึกรับเข้ากระสอบแล้ว — กระสอบ #'+sackNo);
   };
@@ -1224,6 +1230,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         '<option value="zip">ถุงซิล (กก. — 1 กระสอบ)</option><option value="pack">ถุงแพ็ค (กก. — 1 กระสอบ)</option></select></div>'+
       '<div><label>ชื่อ/ชนิด</label><input class="obName" placeholder="เช่น 15DHC64"></div>'+
       '<div><label>จำนวน</label><input class="obQty" type="number" inputmode="decimal"></div></div>'+
+      '<div class="rf" style="margin-top:6px;">'+
+      '<div><label>เลขล็อต/หมายเลขก้อน (ถ้ามีเขียนไว้อยู่แล้ว)</label><input class="obLot" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ"></div>'+
+      '<div><label>วันที่รับเข้าจริงของก้อนนี้</label><input class="obDate" type="date" value="'+todayStr()+'"></div></div>'+
       '<button class="x" style="margin-top:4px;">✕ ลบแถวนี้</button>';
     d.querySelector('.x').onclick=()=>d.remove();
     $('obRows').appendChild(d);
@@ -1231,22 +1240,24 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   $('btnAddObRow').onclick=addObRow;
   $('btnSaveOb').onclick=async()=>{
     const rows=Array.from(document.querySelectorAll('#obRows .cartrow')).map(d=>({
-      kind:d.querySelector('.obKind').value, name:d.querySelector('.obName').value.trim(), qty:+d.querySelector('.obQty').value||0
+      kind:d.querySelector('.obKind').value, name:d.querySelector('.obName').value.trim(), qty:+d.querySelector('.obQty').value||0,
+      lotNo:d.querySelector('.obLot').value.trim(),
+      obTime: d.querySelector('.obDate').value ? d.querySelector('.obDate').value+'T'+localISO().slice(11) : localISO()
     })).filter(r=>r.name&&r.qty>0);
     if(!rows.length){ toast('กรอกอย่างน้อย 1 รายการ (ชื่อและจำนวน)'); return; }
     let touchedFiber=false, touchedFabric=false, touchedBag=false;
     rows.forEach(r=>{
       if(r.kind==='fiber'){
-        const lotNo=CALC.nextFiberLot(S.fiberReceipts,r.name);
-        S.fiberReceipts.push({id:uid(),time:localISO(),fiberName:r.name,lotNo,kg:r.qty,supplier:'',note:'ยอดยกมา'});
+        const lotNo=r.lotNo?+r.lotNo:CALC.nextFiberLot(S.fiberReceipts,r.name);
+        S.fiberReceipts.push({id:uid(),time:r.obTime,fiberName:r.name,lotNo,kg:r.qty,supplier:'',note:'ยอดยกมา'});
         touchedFiber=true;
       } else if(r.kind==='roll'){
-        let start=CALC.nextRollNo(S.fabricReceipts,r.name);
-        for(let i=0;i<r.qty;i++) S.fabricReceipts.push({id:uid(),time:localISO(),fabricType:r.name,rollNo:start+i,note:'ยอดยกมา'});
+        let start=r.lotNo?+r.lotNo:CALC.nextRollNo(S.fabricReceipts,r.name);
+        for(let i=0;i<r.qty;i++) S.fabricReceipts.push({id:uid(),time:r.obTime,fabricType:r.name,rollNo:start+i,note:'ยอดยกมา'});
         touchedFabric=true;
       } else {
-        const sackNo=CALC.nextSackNo(S.sackReceipts,r.kind,r.name);
-        S.sackReceipts.push({id:uid(),time:localISO(),kind:r.kind,name:r.name,size:'',sackNo,sackWeightKg:r.qty,weightPerBag:0,note:'ยอดยกมา'});
+        const sackNo=r.lotNo?+r.lotNo:CALC.nextSackNo(S.sackReceipts,r.kind,r.name);
+        S.sackReceipts.push({id:uid(),time:r.obTime,kind:r.kind,name:r.name,size:'',sackNo,sackWeightKg:r.qty,weightPerBag:0,note:'ยอดยกมา'});
         touchedBag=true;
       }
     });

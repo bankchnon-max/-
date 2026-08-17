@@ -146,7 +146,8 @@
         </div>
         <button class="btn sec w" id="btnTh">บันทึก</button>
       </div>
-      <div class="card"><h3>คงเหลือแยกตามลอต</h3><div class="sumline" id="fiberLotFilterBar"></div><div class="scr"><table id="tFiberLots"></table></div></div>
+      <div class="card"><h3>คงเหลือแยกตามลอต</h3><div class="sumline" id="fiberLotFilterBar"></div>
+        <div class="scr"><table id="tFiberLots"></table></div></div>
       <div class="card"><h3>ประวัติรับเข้าใย</h3><div class="scr"><table id="tRw"></table></div></div>
       <div class="card"><h3>ประวัติเบิกใย (จากระบบผลิต — เลือกลอตจริงเท่านั้น)</h3><div class="scr"><table id="tRwUse"></table></div></div>
     </div>
@@ -216,18 +217,23 @@
         <div class="rf" id="sewFreeModeRow" style="display:none;">
           <div><label>ชนิดผ้า</label><select id="sewFreeFabSel"></select>
             <input id="sewFreeFabName" list="dlSewFreeFab" placeholder="พิมพ์ชนิดผ้า" style="display:none;"><datalist id="dlSewFreeFab"></datalist></div>
-          <div><label>ไซซ์</label><input id="sewFreeSize" placeholder="เช่น 18.5x28"></div>
+        </div>
+        <div id="sewFreeRowsWrap" style="display:none;">
+          <label>ไซซ์ — กี่ชิ้น (เพิ่มได้หลายไซซ์)</label>
+          <div id="sewFreeRows"></div>
+          <button class="btn sec sm" style="margin-top:6px;" id="btnAddSewFreeRow">+ เพิ่มไซซ์</button>
         </div>
         <div class="rf" id="sewFreeBatchRow" style="display:none;">
-          <div><label>เลขถุง (ถ้ามีเขียนไว้อยู่แล้ว)</label><input id="sewFreeBatchNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ"></div>
+          <div><label>เลขถุงเริ่มต้น (ถ้ามีเขียนไว้อยู่แล้ว)</label><input id="sewFreeBatchNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ"></div>
         </div>
         <label>ประเภทสินค้า (เช่น หมอนข้าง หมอนหนุน ปิกนิก)</label>
         <select id="sewTypeSel"></select>
         <input id="sewTypeName" list="dlProdType" placeholder="พิมพ์ประเภทใหม่" style="display:none;"><datalist id="dlProdType"></datalist>
-        <div class="rf">
+        <div class="rf" id="sewQtyRow">
           <div><label>จำนวนที่ส่งเย็บ (ชิ้น)</label><input id="sewQty" type="number" inputmode="numeric"></div>
-          <div><label>ชื่อผู้เย็บ</label><input id="sewName" placeholder="เช่น ป้าแดง"></div>
         </div>
+        <label>ชื่อผู้เย็บ</label><select id="sewNameSel"></select>
+        <input id="sewName" list="dlSewerName" placeholder="พิมพ์ชื่อใหม่" style="display:none;"><datalist id="dlSewerName"></datalist>
         <label>เวลาที่ส่ง</label><input id="sewTime" type="datetime-local">
         <label>หมายเหตุ</label><input id="sewNote">
         <button class="btn w" id="btnSew">บันทึกส่งเย็บ</button>
@@ -246,18 +252,23 @@
         <div class="rf" id="retFreeModeRow" style="display:none;">
           <div><label>ชนิดผ้า</label><select id="retFreeFabSel"></select>
             <input id="retFreeFabName" list="dlRetFreeFab" placeholder="พิมพ์ชนิดผ้า" style="display:none;"><datalist id="dlRetFreeFab"></datalist></div>
-          <div><label>ไซซ์</label><input id="retFreeSize" placeholder="เช่น 18.5x28"></div>
+        </div>
+        <div id="retFreeRowsWrap" style="display:none;">
+          <label>ไซซ์ — กี่ชิ้น (เพิ่มได้หลายไซซ์)</label>
+          <div id="retFreeRows"></div>
+          <button class="btn sec sm" style="margin-top:6px;" id="btnAddRetFreeRow">+ เพิ่มไซซ์</button>
         </div>
         <div class="rf" id="retFreeBatchRow" style="display:none;">
-          <div><label>เลขถุง (ถ้ามีเขียนไว้อยู่แล้ว)</label><input id="retFreeBatchNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ"></div>
+          <div><label>เลขถุงเริ่มต้น (ถ้ามีเขียนไว้อยู่แล้ว)</label><input id="retFreeBatchNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ"></div>
         </div>
         <label>ประเภทสินค้า (เช่น หมอนข้าง หมอนหนุน ปิกนิก)</label>
         <select id="retTypeSel"></select>
         <input id="retTypeName" list="dlProdType" placeholder="พิมพ์ประเภทใหม่" style="display:none;">
-        <div class="rf">
+        <div class="rf" id="retQtyRow">
           <div><label>รับมากี่ชิ้น</label><input id="retQty" type="number" inputmode="numeric"></div>
-          <div><label>ชื่อผู้เย็บ</label><input id="retName" placeholder="เช่น ป้าแดง"></div>
         </div>
+        <label>ชื่อผู้เย็บ</label><select id="retNameSel"></select>
+        <input id="retName" list="dlSewerName" placeholder="พิมพ์ชื่อใหม่" style="display:none;">
         <label>วันที่รับกลับ</label><input id="retDate" type="date">
         <label>หมายเหตุ</label><input id="retNote">
         <button class="btn w" id="btnRet">บันทึกรับกลับจากเย็บ</button>
@@ -281,7 +292,20 @@
         <div class="scr" style="margin-top:9px;"><table id="tWaste"></table></div>
       </div>
       <div class="card"><h3>ประวัติการตัด</h3><div class="scr"><table id="tCutHist"></table></div></div>
-      <div class="card"><h3>ตามประเภทสินค้า</h3><div class="sumline" id="prodTypeFilterBar"></div><div id="prodTypeCards"></div></div>
+      <div class="card">
+        <h3>ตามประเภทสินค้า</h3>
+        <div class="sumline" id="prodTypeFilterBar"></div>
+        <div id="prodTypeCards"></div>
+        <div id="prodTypeDetail" style="margin-top:10px;"></div>
+        <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border);">
+          <label style="font-size:12px; color:#ffffff;">ตั้งจุดเตือนสต๊อกต่ำ (ต่อประเภทสินค้า)</label>
+          <div class="rf">
+            <div><select id="prodTypeThSel"></select></div>
+            <div><input id="prodTypeThQty" type="number" inputmode="numeric" placeholder="เตือนเมื่อต่ำกว่า (ชิ้น)"></div>
+          </div>
+          <button class="btn sec sm" style="margin-top:6px;" id="btnProdTypeTh">บันทึกจุดเตือน</button>
+        </div>
+      </div>
       <div class="card"><h3>ประวัติส่งเย็บ</h3><div class="scr"><table id="tSewHist"></table></div></div>
       <div class="card"><h3>ประวัติรับกลับจากเย็บ</h3><div class="scr"><table id="tRetHist"></table></div></div>
       <div class="card"><h3>ประวัติเบิกถุงบรรจุผ้า (จากแอพผลิต)</h3><div class="scr"><table id="tFabWdHist"></table></div></div>
@@ -552,6 +576,23 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
           cutBalance: r2(b.qtyCut-sent), sewingBalance: r2(sent-returned), readyBalance: r2(returned-withdrawn) };
       });
     },
+    // สต๊อกพร้อมผลิต (นับจากรับกลับ หักเบิกไปแล้ว) แยกตามประเภทสินค้า+ชนิดผ้า+ไซซ์ — ผ้า/ไซซ์/ประเภทเดียวกันรวมเป็นก้อนเดียว
+    productTypeStock(cutBatchStatusList, sewReturns){
+      const typeByBatch={};
+      (sewReturns||[]).forEach(r=>{ if(r.productType) typeByBatch[r.batchId]=r.productType; }); // เอาตัวล่าสุดทับตัวก่อน
+      const m={};
+      (cutBatchStatusList||[]).forEach(b=>{
+        const pt=typeByBatch[b.batchId];
+        if(!pt || b.readyBalance<=0) return;
+        const key=pt+'||'+b.fabricType+'||'+b.size;
+        m[key]=m[key]||{productType:pt, fabricType:b.fabricType, size:b.size, qty:0};
+        m[key].qty=r2(m[key].qty+b.readyBalance);
+      });
+      return Object.values(m);
+    },
+    productTypeTotal(prodTypeStockList, productType){
+      return r2((prodTypeStockList||[]).filter(x=>x.productType===productType).reduce((s,x)=>s+x.qty,0));
+    },
     // เลือกถุงแบบ FIFO (เลขน้อย/เก่าสุดก่อน) ไล่หยิบจนครบจำนวนที่ต้องการ ไม่ต้องกดทีละถุง
     pickBatchesForWithdrawal(batchStatusList, fabricType, size, qtyNeeded){
       const eligible=(batchStatusList||[]).filter(b=>b.fabricType===fabricType && b.size===size && b.readyBalance>0)
@@ -655,7 +696,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   };
 
   /* ---------- STATE ---------- */
-  let S = { fiberReceipts:[], fiberTh:{}, baleUsage:[], fabricReceipts:[], cuts:[], cutBatches:[], sewSent:[], sewReturns:[], waste:[],
+  let S = { fiberReceipts:[], fiberTh:{}, baleUsage:[], fabricReceipts:[], cuts:[], cutBatches:[], sewSent:[], sewReturns:[], waste:[], prodTypeTh:{},
             sackReceipts:[], gasReceipts:[], shipments:[], deliveries:[], finAdjustments:[] };
   let PROD = { orders:[], wd:[], fabricWd:[], bagWd:[], gasSwaps:[], line:[] };
   let current='fiber', lastHash='';
@@ -665,7 +706,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   const pending={}, inflight={};
   const KEYMAP = {
     v3s_fiber:  ()=>({receipts:S.fiberReceipts, th:S.fiberTh, baleUsage:S.baleUsage}),
-    v3s_fabric: ()=>({receipts:S.fabricReceipts, cuts:S.cuts, cutBatches:S.cutBatches, sewSent:S.sewSent, sewReturns:S.sewReturns, waste:S.waste}),
+    v3s_fabric: ()=>({receipts:S.fabricReceipts, cuts:S.cuts, cutBatches:S.cutBatches, sewSent:S.sewSent, sewReturns:S.sewReturns, waste:S.waste, prodTypeTh:S.prodTypeTh}),
     v3s_bag:    ()=>({receipts:S.sackReceipts}),
     v3s_gas:    ()=>({receipts:S.gasReceipts}),
     v3s_fin:    ()=>({shipments:S.shipments, deliveries:S.deliveries, finAdjustments:S.finAdjustments})
@@ -704,7 +745,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     const parse=(s,f)=>{ try{ return s?JSON.parse(s):f; }catch(e){ return f; } };
     const Pf=parse(fi,{}), Pa=parse(fa,{}), Pb=parse(bg,{}), Pg=parse(gs,{}), Pn=parse(fn,{});
     S.fiberReceipts=Pf.receipts||[]; S.fiberTh=Pf.th||{}; S.baleUsage=Pf.baleUsage||[];
-    S.fabricReceipts=Pa.receipts||[]; S.cuts=Pa.cuts||[]; S.cutBatches=Pa.cutBatches||[]; S.sewSent=Pa.sewSent||[]; S.sewReturns=Pa.sewReturns||[]; S.waste=Pa.waste||[];
+    S.fabricReceipts=Pa.receipts||[]; S.cuts=Pa.cuts||[]; S.cutBatches=Pa.cutBatches||[]; S.sewSent=Pa.sewSent||[]; S.sewReturns=Pa.sewReturns||[]; S.waste=Pa.waste||[]; S.prodTypeTh=Pa.prodTypeTh||{};
     S.sackReceipts=Pb.receipts||[];
     S.gasReceipts=Pg.receipts||[];
     S.shipments=Pn.shipments||[]; S.deliveries=Pn.deliveries||[]; S.finAdjustments=Pn.finAdjustments||[];
@@ -896,6 +937,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     refreshCutRollOptions();
 
     if(!$('cutRows').children.length) addCutRow();
+    if($('sewFreeMode').checked && !$('sewFreeRows').children.length) addSewFreeRow();
+    if($('retFreeMode').checked && !$('retFreeRows').children.length) addRetFreeRow();
 
     const batchStatus=CALC.cutBatchStatus(S.cutBatches,S.sewSent,S.sewReturns,PROD.fabricWd);
     const pipe=CALC.fabricPipelineV3(batchStatus);
@@ -1002,21 +1045,44 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     if(allProdTypes.includes(keepRetType)||keepRetType==='__new__') $('retTypeSel').value=keepRetType;
     $('dlProdType').innerHTML=allProdTypes.map(t=>'<option value="'+esc(t)+'"></option>').join('');
 
+    const allSewers=[...new Set([...S.sewSent,...S.sewReturns].map(x=>x.sewerName).filter(Boolean))].sort();
+    const keepSewName=$('sewNameSel').value, keepRetName=$('retNameSel').value;
+    ['sewNameSel','retNameSel'].forEach(id=>{
+      $(id).innerHTML='<option value="">— ไม่ระบุ —</option>'+allSewers.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('')+'<option value="__new__">+ พิมพ์ชื่อใหม่…</option>';
+    });
+    if(allSewers.includes(keepSewName)||keepSewName==='__new__') $('sewNameSel').value=keepSewName;
+    if(allSewers.includes(keepRetName)||keepRetName==='__new__') $('retNameSel').value=keepRetName;
+    $('dlSewerName').innerHTML=allSewers.map(n=>'<option value="'+esc(n)+'"></option>').join('');
+
+    const keepThSel=$('prodTypeThSel').value;
+    $('prodTypeThSel').innerHTML='<option value="">— เลือกประเภทสินค้า —</option>'+allProdTypes.map(t=>'<option value="'+esc(t)+'">'+esc(t)+'</option>').join('');
+    if(allProdTypes.includes(keepThSel)) $('prodTypeThSel').value=keepThSel;
+
     if($('prodTypeFilterBar')){
       $('prodTypeFilterBar').innerHTML = prodTypeFilter
         ? 'กำลังดูเฉพาะ: <b style="color:var(--accent2)">'+esc(prodTypeFilter)+'</b> <button class="x" id="btnClearProdTypeFilter">✕ ล้างตัวกรอง (ดูทั้งหมด)</button>'
         : '';
       if($('btnClearProdTypeFilter')) $('btnClearProdTypeFilter').onclick=()=>{ prodTypeFilter=null; rFabric(); };
     }
-    const typeCounts={};
-    [...S.sewSent,...S.sewReturns].filter(x=>x.productType).forEach(x=>{ typeCounts[x.productType]=(typeCounts[x.productType]||0)+1; });
-    $('prodTypeCards').innerHTML=Object.keys(typeCounts).length?Object.entries(typeCounts).map(([t,n])=>
-      '<div class="scard" data-prodtypecard="'+esc(t)+'" style="cursor:pointer; display:inline-block; margin-right:8px;"><div class="nm">'+esc(t)+'</div><div class="n">'+n+' <span style="font-size:13px;color:#ffffff;">รายการ</span></div></div>'
-    ).join(''):'<div class="empty">ยังไม่มีการระบุประเภทสินค้า</div>';
+    const ptStock=CALC.productTypeStock(batchStatus, S.sewReturns);
+    $('prodTypeCards').innerHTML=allProdTypes.length?allProdTypes.map(t=>{
+      const total=CALC.productTypeTotal(ptStock,t);
+      const th=+S.prodTypeTh[t]||0, low=th>0&&total<th;
+      return '<div class="scard'+(low?' lowstock':'')+'" data-prodtypecard="'+esc(t)+'" style="cursor:pointer; display:inline-block; margin-right:8px;">'+
+        '<div class="nm">'+esc(t)+(low?' <span class="bdg bad">ใกล้หมด</span>':'')+'</div>'+
+        '<div class="n">'+total+' <span style="font-size:13px;color:#ffffff;">ชิ้น</span></div>'+
+        '<div class="l">'+(th>0?'เตือนต่ำกว่า '+th+' · ':'')+'แตะดูรายละเอียด ▾</div></div>';
+    }).join(''):'<div class="empty">ยังไม่มีการระบุประเภทสินค้า</div>';
     $('prodTypeCards').querySelectorAll('[data-prodtypecard]').forEach(c=>c.onclick=()=>{
       prodTypeFilter=c.dataset.prodtypecard; rFabric();
-      document.getElementById('tSewHist').scrollIntoView({behavior:'smooth',block:'center'});
+      document.getElementById('prodTypeDetail').scrollIntoView({behavior:'smooth',block:'center'});
     });
+    if(prodTypeFilter){
+      const rows=ptStock.filter(x=>x.productType===prodTypeFilter);
+      $('prodTypeDetail').innerHTML='<div class="scr"><table><tr><th>ชนิดผ้า</th><th>ไซซ์</th><th>มีกี่ชิ้น (พร้อมผลิต)</th></tr>'+
+        (rows.length?rows.map(r=>'<tr><td>'+esc(r.fabricType)+'</td><td>'+esc(r.size)+'</td><td><b style="color:var(--accent2)">'+r.qty+'</b></td></tr>').join('')
+          :'<tr><td class="empty" colspan="3">ประเภทนี้ยังไม่มีของพร้อมผลิต</td></tr>')+'</table></div>';
+    } else $('prodTypeDetail').innerHTML='';
 
     let sewRows=S.sewSent.slice(), retRows=S.sewReturns.slice();
     if(prodTypeFilter){ sewRows=sewRows.filter(s=>s.productType===prodTypeFilter); retRows=retRows.filter(s=>s.productType===prodTypeFilter); }
@@ -1120,95 +1186,143 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     $('cutRows').innerHTML=''; addCutRow(); $('cutNote').value=''; $('cutFreeBatchNo').value='';
     rFabric(); toast((isFree?'บันทึกยอดยกมาแล้ว':'บันทึกการตัดผ้าแล้ว')+' — ได้ '+newBatchNos.join(', '));
   };
+  let lastSewFreeSize='';
+  function addSewFreeRow(size,qty){
+    const d=document.createElement('div'); d.className='frow';
+    d.innerHTML='<input class="sfs" placeholder="ไซซ์ เช่น 18.5x28" value="'+esc(size!=null?size:lastSewFreeSize)+'">'+
+      '<input class="sfq" type="number" inputmode="numeric" placeholder="ชิ้น" style="max-width:90px;" value="'+(qty==null?'':qty)+'">'+
+      '<button class="x">✕</button>';
+    d.querySelector('.x').onclick=()=>{ if($('sewFreeRows').children.length>1) d.remove(); };
+    $('sewFreeRows').appendChild(d);
+  }
+  $('btnAddSewFreeRow').onclick=()=>addSewFreeRow();
   $('sewTypeSel').onchange=function(){ const v=this.value,t=$('sewTypeName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} };
+  $('sewNameSel').onchange=function(){ const v=this.value,t=$('sewName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} };
+  $('retNameSel').onchange=function(){ const v=this.value,t=$('retName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} };
   $('sewFreeMode').onchange=function(){
     const free=this.checked;
     $('sewBatchModeRow').style.display=free?'none':'flex';
     $('sewBatchSelLabel').style.display=free?'none':'block';
     $('sewBatchSel').style.display=free?'none':'block';
     $('sewFreeModeRow').style.display=free?'flex':'none';
+    $('sewFreeRowsWrap').style.display=free?'block':'none';
     $('sewFreeBatchRow').style.display=free?'flex':'none';
+    $('sewQtyRow').style.display=free?'none':'flex';
+    if(free && !$('sewFreeRows').children.length) addSewFreeRow();
   };
   $('sewFreeFabSel').onchange=function(){ const v=this.value,t=$('sewFreeFabName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} };
   $('btnSew').onclick=async()=>{
-    const qty=+$('sewQty').value;
-    if(!qty){ toast('กรอกจำนวนที่ส่ง'); return; }
     const productType=($('sewTypeSel').value==='__new__'?$('sewTypeName').value:$('sewTypeSel').value).trim();
+    const sewerName=($('sewNameSel').value==='__new__'?$('sewName').value:$('sewNameSel').value).trim();
     const timeVal=$('sewTime').value?$('sewTime').value+':00':localISO();
     if($('sewFreeMode').checked){
       const fab=($('sewFreeFabSel').value==='__new__'?$('sewFreeFabName').value:$('sewFreeFabSel').value).trim();
-      const size=$('sewFreeSize').value.trim();
-      if(!fab||!size){ toast('กรอกชนิดผ้าและไซซ์'); return; }
-      // สร้างถุงตัดจำลอง + ส่งเย็บพร้อมกัน (ตัดแล้ว+ส่งแล้ว อยู่ที่ช่างเย็บ) เพื่อลงของเก่าที่ไม่มีถุงตัดจริงอ้างอิง
-      const customBatchNo=$('sewFreeBatchNo').value.trim();
-      const batchNo=customBatchNo?+customBatchNo:CALC.nextCutBatchNo(S.cutBatches,fab,size);
-      if(customBatchNo && S.cutBatches.some(b=>b.batchNo===batchNo && b.fabricType===fab && b.size===size)){
-        if(!await ask('เลขถุง #'+batchNo+' ('+fab+' '+size+') มีอยู่แล้วในระบบ','ยืนยันจะสร้างถุงใหม่เลขซ้ำกันหรือไม่? (แนะนำให้เว้นว่างให้ระบบเรียงเลขใหม่แทน)')) return;
-      }
-      const newBatch={ id:uid(), batchNo, fabricType:fab, size, qtyCut:qty, time:timeVal, rollNo:null, note:'ยอดยกมา — ส่งเย็บอิสระ' };
-      S.cutBatches.push(newBatch);
-      S.sewSent.push({ id:uid(), time:timeVal, batchId:newBatch.id, batchNo, fabricType:fab, size, productType, qty, sewerName:$('sewName').value.trim(), note:$('sewNote').value.trim()||'ยอดยกมา — ส่งเย็บอิสระ' });
+      if(!fab){ toast('กรอกชนิดผ้าก่อน'); return; }
+      const rows=Array.from(document.querySelectorAll('#sewFreeRows .frow')).map(r=>({ size:r.querySelector('.sfs').value.trim(), qty:+r.querySelector('.sfq').value||0 })).filter(r=>r.size&&r.qty);
+      if(!rows.length){ toast('กรอกไซซ์และจำนวนอย่างน้อย 1 แถว'); return; }
+      const customStartBatchNo=$('sewFreeBatchNo').value.trim();
+      if(customStartBatchNo && rows.length>1) toast('มีหลายไซซ์ — ระบบจะเรียงเลขถุงอัตโนมัติให้ทุกไซซ์แทน (เลขที่กำหนดใช้ได้แค่ตอนมีไซซ์เดียว)');
+      const newBatchNos=[];
+      rows.forEach(row=>{
+        const useCustom=customStartBatchNo && rows.length===1;
+        const batchNo=useCustom?+customStartBatchNo:CALC.nextCutBatchNo(S.cutBatches,fab,row.size);
+        const newBatch={ id:uid(), batchNo, fabricType:fab, size:row.size, qtyCut:row.qty, time:timeVal, rollNo:null, note:'ยอดยกมา — ส่งเย็บอิสระ' };
+        S.cutBatches.push(newBatch);
+        S.sewSent.push({ id:uid(), time:timeVal, batchId:newBatch.id, batchNo, fabricType:fab, size:row.size, productType, qty:row.qty, sewerName, note:$('sewNote').value.trim()||'ยอดยกมา — ส่งเย็บอิสระ' });
+        newBatchNos.push(row.size+' → ถุง #'+batchNo);
+      });
       await saveFabric();
-      $('sewQty').value=''; $('sewName').value=''; $('sewNote').value=''; $('sewFreeSize').value=''; $('sewFreeBatchNo').value='';
-      rFabric(); toast('บันทึกยอดยกมาแล้ว — ถุง #'+batchNo+' ('+fab+' '+size+')');
+      // ไซซ์ล่าสุดค้างไว้เป็นค่าเริ่มต้นของแถวถัดไป จนกว่าจะเปลี่ยนเอง
+      lastSewFreeSize=rows[rows.length-1].size;
+      $('sewName').value=''; $('sewNote').value=''; $('sewFreeBatchNo').value='';
+      $('sewFreeRows').innerHTML=''; addSewFreeRow();
+      rFabric(); toast('บันทึกยอดยกมาแล้ว — '+newBatchNos.join(', '));
       return;
     }
+    const qty=+$('sewQty').value;
+    if(!qty){ toast('กรอกจำนวนที่ส่ง'); return; }
     const batchId=$('sewBatchSel').value;
     if(!batchId){ toast('เลือกถุงตัดที่จะส่งเย็บก่อน'); return; }
     const batch=S.cutBatches.find(b=>b.id===batchId); if(!batch){ toast('ไม่พบถุงนี้'); return; }
     const status=CALC.cutBatchStatus(S.cutBatches,S.sewSent,S.sewReturns,PROD.fabricWd).find(b=>b.batchId===batchId);
     if(qty>status.cutBalance && !await ask('ถุง #'+batch.batchNo+' เหลือรอส่งอยู่ '+status.cutBalance+' ชิ้น แต่กรอก '+qty+' ชิ้น\n\nยืนยันจะส่งเกินยอดที่มีหรือไม่?')) return;
     S.sewSent.push({ id:uid(), time:timeVal, batchId, batchNo:batch.batchNo,
-      fabricType:batch.fabricType, size:batch.size, productType, qty, sewerName:$('sewName').value.trim(), note:$('sewNote').value.trim() });
+      fabricType:batch.fabricType, size:batch.size, productType, qty, sewerName, note:$('sewNote').value.trim() });
     await saveFabric(); $('sewQty').value=''; $('sewName').value=''; $('sewNote').value='';
     // ประเภทสินค้าที่เลือกไว้ค้างต่อเนื่อง จนกว่าจะเปลี่ยนเอง
     rFabric(); toast('บันทึกส่งเย็บถุง #'+batch.batchNo+' แล้ว');
   };
+  let lastRetFreeSize='';
+  function addRetFreeRow(size,qty){
+    const d=document.createElement('div'); d.className='frow';
+    d.innerHTML='<input class="rfs" placeholder="ไซซ์ เช่น 18.5x28" value="'+esc(size!=null?size:lastRetFreeSize)+'">'+
+      '<input class="rfq" type="number" inputmode="numeric" placeholder="ชิ้น" style="max-width:90px;" value="'+(qty==null?'':qty)+'">'+
+      '<button class="x">✕</button>';
+    d.querySelector('.x').onclick=()=>{ if($('retFreeRows').children.length>1) d.remove(); };
+    $('retFreeRows').appendChild(d);
+  }
+  $('btnAddRetFreeRow').onclick=()=>addRetFreeRow();
   $('retFreeMode').onchange=function(){
     const free=this.checked;
     $('retBatchModeRow').style.display=free?'none':'flex';
     $('retBatchSelLabel').style.display=free?'none':'block';
     $('retBatchSel').style.display=free?'none':'block';
     $('retFreeModeRow').style.display=free?'flex':'none';
+    $('retFreeRowsWrap').style.display=free?'block':'none';
     $('retFreeBatchRow').style.display=free?'flex':'none';
+    $('retQtyRow').style.display=free?'none':'flex';
+    if(free && !$('retFreeRows').children.length) addRetFreeRow();
   };
   $('retFreeFabSel').onchange=function(){ const v=this.value,t=$('retFreeFabName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} };
   $('retTypeSel').onchange=function(){ const v=this.value,t=$('retTypeName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} };
   $('btnRet').onclick=async()=>{
-    const qty=+$('retQty').value;
-    if(!qty){ toast('กรอกจำนวนที่รับกลับ'); return; }
     const dateVal=$('retDate').value?$('retDate').value+'T'+localISO().slice(11):localISO();
     const productType=($('retTypeSel').value==='__new__'?$('retTypeName').value:$('retTypeSel').value).trim();
+    const sewerName=($('retNameSel').value==='__new__'?$('retName').value:$('retNameSel').value).trim();
     if($('retFreeMode').checked){
       const fab=($('retFreeFabSel').value==='__new__'?$('retFreeFabName').value:$('retFreeFabSel').value).trim();
-      const size=$('retFreeSize').value.trim();
-      if(!fab||!size){ toast('กรอกชนิดผ้าและไซซ์'); return; }
-      // สร้างถุงตัดจำลองให้ครบวงจร (ตัด→ส่งเย็บ→รับกลับ เท่ากันหมด) เพื่อให้เข้าสถานะ "พร้อมผลิต" ทันทีโดยไม่ต้องมีถุงตัดจริงอ้างอิง
-      const customBatchNo=$('retFreeBatchNo').value.trim();
-      const batchNo=customBatchNo?+customBatchNo:CALC.nextCutBatchNo(S.cutBatches,fab,size);
-      if(customBatchNo && S.cutBatches.some(b=>b.batchNo===batchNo && b.fabricType===fab && b.size===size)){
-        if(!await ask('เลขถุง #'+batchNo+' ('+fab+' '+size+') มีอยู่แล้วในระบบ','ยืนยันจะสร้างถุงใหม่เลขซ้ำกันหรือไม่? (แนะนำให้เว้นว่างให้ระบบเรียงเลขใหม่แทน)')) return;
-      }
-      const newBatch={ id:uid(), batchNo, fabricType:fab, size, qtyCut:qty, time:dateVal, rollNo:null, note:'ยอดยกมา — รับกลับอิสระ' };
-      S.cutBatches.push(newBatch);
-      S.sewSent.push({ id:uid(), time:dateVal, batchId:newBatch.id, batchNo, fabricType:fab, size, productType, qty, sewerName:$('retName').value.trim(), note:'ยอดยกมา' });
-      S.sewReturns.push({ id:uid(), time:dateVal, batchId:newBatch.id, batchNo, fabricType:fab, size, productType, qty, sewerName:$('retName').value.trim(), note:$('retNote').value.trim()||'ยอดยกมา — รับกลับอิสระ' });
+      if(!fab){ toast('กรอกชนิดผ้าก่อน'); return; }
+      const rows=Array.from(document.querySelectorAll('#retFreeRows .frow')).map(r=>({ size:r.querySelector('.rfs').value.trim(), qty:+r.querySelector('.rfq').value||0 })).filter(r=>r.size&&r.qty);
+      if(!rows.length){ toast('กรอกไซซ์และจำนวนอย่างน้อย 1 แถว'); return; }
+      const customStartBatchNo=$('retFreeBatchNo').value.trim();
+      if(customStartBatchNo && rows.length>1) toast('มีหลายไซซ์ — ระบบจะเรียงเลขถุงอัตโนมัติให้ทุกไซซ์แทน (เลขที่กำหนดใช้ได้แค่ตอนมีไซซ์เดียว)');
+      const newBatchNos=[];
+      rows.forEach(row=>{
+        const useCustom=customStartBatchNo && rows.length===1;
+        const batchNo=useCustom?+customStartBatchNo:CALC.nextCutBatchNo(S.cutBatches,fab,row.size);
+        // สร้างถุงตัดจำลองให้ครบวงจร (ตัด→ส่งเย็บ→รับกลับ เท่ากันหมด) เพื่อให้เข้าสถานะ "พร้อมผลิต" ทันทีโดยไม่ต้องมีถุงตัดจริงอ้างอิง
+        const newBatch={ id:uid(), batchNo, fabricType:fab, size:row.size, qtyCut:row.qty, time:dateVal, rollNo:null, note:'ยอดยกมา — รับกลับอิสระ' };
+        S.cutBatches.push(newBatch);
+        S.sewSent.push({ id:uid(), time:dateVal, batchId:newBatch.id, batchNo, fabricType:fab, size:row.size, productType, qty:row.qty, sewerName, note:'ยอดยกมา' });
+        S.sewReturns.push({ id:uid(), time:dateVal, batchId:newBatch.id, batchNo, fabricType:fab, size:row.size, productType, qty:row.qty, sewerName, note:$('retNote').value.trim()||'ยอดยกมา — รับกลับอิสระ' });
+        newBatchNos.push(row.size+' → ถุง #'+batchNo);
+      });
       await saveFabric();
-      $('retQty').value=''; $('retName').value=''; $('retNote').value=''; $('retFreeSize').value=''; $('retFreeBatchNo').value='';
+      // ไซซ์ล่าสุดค้างไว้เป็นค่าเริ่มต้นของแถวถัดไป จนกว่าจะเปลี่ยนเอง
+      lastRetFreeSize=rows[rows.length-1].size;
+      $('retName').value=''; $('retNote').value=''; $('retFreeBatchNo').value='';
+      $('retFreeRows').innerHTML=''; addRetFreeRow();
       // ประเภทสินค้า+ชนิดผ้าค้างไว้ จนกว่าจะเปลี่ยนเอง
-      rFabric(); toast('บันทึกยอดยกมาแล้ว — ถุง #'+batchNo+' ('+fab+' '+size+')');
+      rFabric(); toast('บันทึกยอดยกมาแล้ว — '+newBatchNos.join(', '));
       return;
     }
+    const qty=+$('retQty').value;
+    if(!qty){ toast('กรอกจำนวนที่รับกลับ'); return; }
     const batchId=$('retBatchSel').value;
     if(!batchId){ toast('เลือกถุงตัดที่จะรับกลับก่อน'); return; }
     const batch=S.cutBatches.find(b=>b.id===batchId); if(!batch){ toast('ไม่พบถุงนี้'); return; }
     const status=CALC.cutBatchStatus(S.cutBatches,S.sewSent,S.sewReturns,PROD.fabricWd).find(b=>b.batchId===batchId);
     if(qty>status.sewingBalance && !await ask('ถุง #'+batch.batchNo+' อยู่ที่ช่างเย็บแค่ '+status.sewingBalance+' ชิ้น แต่กรอกรับกลับ '+qty+' ชิ้น\n\nยืนยันหรือไม่?')) return;
     S.sewReturns.push({ id:uid(), time:dateVal, batchId, batchNo:batch.batchNo,
-      fabricType:batch.fabricType, size:batch.size, productType, qty, sewerName:$('retName').value.trim(), note:$('retNote').value.trim() });
+      fabricType:batch.fabricType, size:batch.size, productType, qty, sewerName, note:$('retNote').value.trim() });
     await saveFabric(); $('retQty').value=''; $('retName').value=''; $('retNote').value='';
     // ประเภทสินค้าค้างไว้ จนกว่าจะเปลี่ยนเอง
     rFabric(); toast('บันทึกรับกลับถุง #'+batch.batchNo+' แล้ว');
+  };
+  $('btnProdTypeTh').onclick=async()=>{
+    const t=$('prodTypeThSel').value; if(!t){ toast('เลือกประเภทสินค้าก่อน'); return; }
+    S.prodTypeTh[t]=+$('prodTypeThQty').value||0;
+    await saveFabric(); $('prodTypeThQty').value=''; rFabric(); toast('ตั้งจุดเตือนแล้ว');
   };
   $('btnWaste').onclick=async()=>{
     const fab=$('wasteFabSel').value, qty=+$('wasteQty').value;
@@ -1657,7 +1771,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   $('btnClearAll').onclick=async()=>{
     if(!window.confirm('⚠ จะลบข้อมูลสต๊อกทั้งหมด (ใย/ผ้า/ถุง/สินค้า/จัดส่ง) — ข้อมูลในแอพผลิตไม่กระทบ\n\nแนะนำให้กด "ออกทั้งหมด" เก็บไฟล์ไว้ก่อน\n\nยืนยันครั้งที่ 1 — ต้องการลบจริงหรือไม่?')) return;
     if(!window.confirm('⚠ ยืนยันอีกครั้ง — การลบนี้กู้คืนไม่ได้\n\nพิมพ์ "ตกลง" เพื่อยืนยันการลบข้อมูลสต๊อกทั้งหมด')) return;
-    S.fiberReceipts=[]; S.fiberTh={}; S.baleUsage=[]; S.fabricReceipts=[]; S.cuts=[]; S.cutBatches=[]; S.sewSent=[]; S.sewReturns=[]; S.waste=[];
+    S.fiberReceipts=[]; S.fiberTh={}; S.baleUsage=[]; S.fabricReceipts=[]; S.cuts=[]; S.cutBatches=[]; S.sewSent=[]; S.sewReturns=[]; S.waste=[]; S.prodTypeTh={};
     S.sackReceipts=[]; S.gasReceipts=[]; S.shipments=[]; S.deliveries=[]; S.finAdjustments=[];
     await Promise.all([saveFiber(),saveFabric(),saveBag(),saveGas(),saveFin()]);
     renderPanel(); toast('ล้างข้อมูลสต๊อกทั้งหมดแล้ว');

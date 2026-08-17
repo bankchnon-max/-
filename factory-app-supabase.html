@@ -277,6 +277,13 @@
 
     <!-- 4. END OF LINE -->
     <div class="panel" id="p-line">
+      <div class="card">
+        <h3>🔥 เปลี่ยนถังแก๊ส (โรง 1 — ใยแผ่น)</h3>
+        <p class="sumline">ไม่ผูกกับออเดอร์ใดออเดอร์หนึ่ง เพราะแก๊สใช้ต่อเนื่องทั้งไลน์ — กดครั้งเดียวเปลี่ยน 2 ถังพร้อมกัน ระบบหยิบถังเก่าสุดที่เหลืออยู่ให้อัตโนมัติ พร้อมลงเวลาให้เอง</p>
+        <div class="sumline" id="gasAvailInfo"></div>
+        <button class="btn w" id="btnGasSwap">🔥 เปลี่ยนถังใหม่ 2 ใบ</button>
+        <div class="scr" style="margin-top:11px;"><table id="tGasSwap"></table></div>
+      </div>
       <div class="card" id="cardSpec">
         <div id="specForm"></div>
       </div>
@@ -721,6 +728,15 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         {maxPct:null, color:'#e5595f', label:'เกินเกณฑ์'},
       ];
     },
+    // ---------- ถังแก๊ส ----------
+    gasStatus(gasReceipts, gasSwaps){
+      const usedNos=new Set();
+      (gasSwaps||[]).forEach(s=>(s.gasNos||[]).forEach(n=>usedNos.add(n)));
+      return (gasReceipts||[]).map(g=>({ gasNo:g.gasNo, time:g.time, used:usedNos.has(g.gasNo) }));
+    },
+    availableGas(gasReceipts, gasSwaps){
+      return CALC.gasStatus(gasReceipts,gasSwaps).filter(g=>!g.used).sort((a,b)=>a.gasNo-b.gasNo);
+    },
     // bagPerPiece=true (ใหม่): ถุงซิลห่อทีละชิ้น คูณตามจำนวนชิ้นต่อแพ็ค
     stdPerPack(spec){
       if (!spec) return 0;
@@ -785,7 +801,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   };
 
   /* ---------- STATE ---------- */
-  let S = { orders:[], activeId:null, activeFeedId:null, fiberMaster:[], feed:[], wd:[], fabricWd:[], bagWd:[], line:[], scrap:[], breaks:[], settings:{gapMin:20} };
+  let S = { orders:[], activeId:null, activeFeedId:null, fiberMaster:[], feed:[], wd:[], fabricWd:[], bagWd:[], gasSwaps:[], line:[], scrap:[], breaks:[], settings:{gapMin:20} };
   let officeView='feed', current='order', lastHash='', modalOpen=0, ordersSig='';
 
   /* ---------- STORAGE (4 keys, parallel) ---------- */
@@ -805,7 +821,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   const pending={}, inflight={};
   function snapshot(k){
     if(k==='v3_orders') return {orders:S.orders,activeId:S.activeId,activeFeedId:S.activeFeedId,fiberMaster:S.fiberMaster||[]};
-    if(k==='v3_feed')   return {feed:S.feed,wd:S.wd,fabricWd:S.fabricWd,bagWd:S.bagWd};
+    if(k==='v3_feed')   return {feed:S.feed,wd:S.wd,fabricWd:S.fabricWd,bagWd:S.bagWd,gasSwaps:S.gasSwaps};
     if(k==='v3_line')   return {line:S.line,scrap:S.scrap,breaks:S.breaks};
     return S.settings;
   }
@@ -856,16 +872,18 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   const saveLine   = () => put('v3_line');
   const saveSet    = () => put('v3_set');
 
-  let STOCKFIBER = {};   // ชื่อใย -> [{lotNo, kg, time}] อ่านจากแอพสต๊อก (v3s_fiber) เพื่อให้เลือกลอตจริงตอนเบิกใย
+  let STOCKFIBER = {};   // ชื่อใย -> [{lotNo, kg, time, baleCount}] อ่านจากแอพสต๊อก (v3s_fiber) เพื่อให้เลือกลอตจริงตอนเบิกใย
+  let STOCKFIBER_BALES = {};   // ชื่อใย -> จำนวนก้อนคงเหลือรวม
   let STOCKFABRIC = { types:[], sizes:[], batches:[] };   // ชนิดผ้า/ไซซ์/สถานะถุงตัด อ่านจากแอพสต๊อก
   let STOCKBAG = { zip:{}, pack:{}, sacks:[] };   // ชื่อถุง -> รายละเอียดล่าสุด, sacks = สถานะกระสอบทั้งหมด อ่านจากแอพสต๊อก (v3s_bag)
+  let STOCKGAS = [];   // สถานะถังแก๊สทั้งหมด อ่านจากแอพสต๊อก (v3s_gas)
   async function readAll(){
-    const [a,b,c,d,sf,sa,sb] = await Promise.all([rawGet('v3_orders'),rawGet('v3_feed'),rawGet('v3_line'),rawGet('v3_set'),
-      rawGet('v3s_fiber'),rawGet('v3s_fabric'),rawGet('v3s_bag')]);
-    const hash = [a,b,c,d,sf,sa,sb].map(x=>x||'').join('|');
+    const [a,b,c,d,sf,sa,sb,sg] = await Promise.all([rawGet('v3_orders'),rawGet('v3_feed'),rawGet('v3_line'),rawGet('v3_set'),
+      rawGet('v3s_fiber'),rawGet('v3s_fabric'),rawGet('v3s_bag'),rawGet('v3s_gas')]);
+    const hash = [a,b,c,d,sf,sa,sb,sg].map(x=>x||'').join('|');
     const parse = (s,f)=>{ try{ return s?JSON.parse(s):f; }catch(e){ return f; } };
-    const A=parse(a,null), B=parse(b,{}), C=parse(c,{}), D=parse(d,null), SF=parse(sf,{receipts:[]}),
-      SA=parse(sa,{receipts:[],cuts:[],cutBatches:[],sewSent:[],sewReturns:[]}), SB=parse(sb,{receipts:[]});
+    const A=parse(a,null), B=parse(b,{}), C=parse(c,{}), D=parse(d,null), SF=parse(sf,{receipts:[],baleUsage:[]}),
+      SA=parse(sa,{receipts:[],cuts:[],cutBatches:[],sewSent:[],sewReturns:[]}), SB=parse(sb,{receipts:[]}), SG=parse(sg,{receipts:[]});
     if (A){ S.orders=A.orders||[]; S.activeId=A.activeId||null; S.activeFeedId=A.activeFeedId||null; S.fiberMaster=A.fiberMaster||[]; }
     else if (!S.orders.length){
       S.orders=[{ id:uid(), customer:'ทรัพย์รุ่งเรือง', code:'ใย 300*34*46', orderedPacks:0,
@@ -875,16 +893,22 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         due:null,status:'pending',startedAt:null,finishedAt:null,createdAt:localISO() }];
       await saveOrders();
     }
-    S.feed=B.feed||[]; S.wd=B.wd||[]; S.fabricWd=B.fabricWd||[]; S.bagWd=B.bagWd||[]; S.line=C.line||[]; S.scrap=C.scrap||[]; S.breaks=C.breaks||[];
+    S.feed=B.feed||[]; S.wd=B.wd||[]; S.fabricWd=B.fabricWd||[]; S.bagWd=B.bagWd||[]; S.gasSwaps=B.gasSwaps||[]; S.line=C.line||[]; S.scrap=C.scrap||[]; S.breaks=C.breaks||[];
     if (D) S.settings=D;
     STOCKFIBER = {};
-    (SF.receipts||[]).forEach(r=>{ (STOCKFIBER[r.fiberName]=STOCKFIBER[r.fiberName]||[]).push({lotNo:r.lotNo,kg:r.kg,time:r.time}); });
+    (SF.receipts||[]).forEach(r=>{ (STOCKFIBER[r.fiberName]=STOCKFIBER[r.fiberName]||[]).push({lotNo:r.lotNo,kg:r.kg,time:r.time,baleCount:r.baleCount}); });
+    STOCKFIBER_BALES = {};
+    (SF.receipts||[]).filter(r=>r.baleCount!=null).forEach(r=>{
+      const used=(SF.baleUsage||[]).filter(u=>u.fiberName===r.fiberName && u.lotNo===r.lotNo).reduce((s,u)=>s+(u.count||1),0);
+      STOCKFIBER_BALES[r.fiberName]=(STOCKFIBER_BALES[r.fiberName]||0)+Math.max(0,r.baleCount-used);
+    });
     STOCKFABRIC = { types:[...new Set((SA.receipts||[]).map(r=>r.fabricType))],
       sizes:[...new Set((SA.cutBatches||[]).map(b=>b.size))],
       batches: CALC.cutBatchStatus(SA.cutBatches||[], SA.sewSent||[], SA.sewReturns||[], S.fabricWd) };
     const sacks = CALC.sackStatus(SB.receipts||[], S.bagWd);
     STOCKBAG = { zip:{}, pack:{}, sacks };
     sacks.forEach(s=>{ const bucket=STOCKBAG[s.kind]; if(!bucket) return; bucket[s.name]=bucket[s.name]||{sizes:new Set(),lastWeightPerBag:0}; bucket[s.name].sizes.add(s.size); bucket[s.name].lastWeightPerBag=s.weightPerBag; });
+    STOCKGAS = CALC.gasStatus(SG.receipts||[], S.gasSwaps);
     return hash;
   }
 
@@ -1315,6 +1339,34 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     S.feed=S.feed.filter(x=>x.id!==last.id); await saveFeed(); rFeed(); toast('ลบแล้ว');
   };
 
+  function refreshGasUI(){
+    const availList=STOCKGAS.filter(g=>!g.used).sort((a,b)=>a.gasNo-b.gasNo);
+    $('gasAvailInfo').innerHTML = availList.length
+      ? 'ถังพร้อมใช้เหลือ <b style="color:var(--accent2)">'+availList.length+' ถัง</b> — ถังถัดไปที่จะหยิบ: '+
+        availList.slice(0,2).map(g=>'#'+g.gasNo).join(', ')
+      : '<span class="bdg bad">ไม่มีถังพร้อมใช้เลย — ไปรับเข้าถังแก๊สที่แอพสต๊อกก่อน</span>';
+    const hist=S.gasSwaps.slice().reverse().slice(0,30);
+    $('tGasSwap').innerHTML=hist.length?'<tr><th>เวลาที่เปลี่ยน</th><th>ถังที่ใช้</th><th></th></tr>'+
+      hist.map(s=>'<tr><td>'+(s.time||'').slice(0,16).replace('T',' ')+'</td><td>'+(s.gasNos||[]).map(n=>'#'+n).join(', ')+'</td><td><button class="x" data-gsrm="'+s.id+'">✕</button></td></tr>').join('')
+      :'<tr><td class="empty">ยังไม่มีการเปลี่ยนถัง</td></tr>';
+    $('tGasSwap').querySelectorAll('[data-gsrm]').forEach(b=>b.onclick=async()=>{
+      if(!await ask('ลบรายการเปลี่ยนถังนี้?','ถังที่ใช้ไปจะกลับมาเป็น "พร้อมใช้" ให้เลือกใหม่ได้')) return;
+      S.gasSwaps=S.gasSwaps.filter(x=>x.id!==b.dataset.gsrm); await saveFeed();
+      STOCKGAS=CALC.gasStatus(STOCKGAS.map(g=>({gasNo:g.gasNo,time:g.time})),S.gasSwaps);
+      refreshGasUI(); toast('ลบแล้ว');
+    });
+  }
+  if($('btnGasSwap')) $('btnGasSwap').onclick=async()=>{
+    const avail=STOCKGAS.filter(g=>!g.used).sort((a,b)=>a.gasNo-b.gasNo).slice(0,2);
+    if(avail.length<2){ toast('ถังพร้อมใช้เหลือไม่ถึง 2 ถัง — ไปรับเข้าถังแก๊สที่แอพสต๊อกก่อน'); return; }
+    const gasNos=avail.map(g=>g.gasNo);
+    if(!await ask('ยืนยันเปลี่ยนถัง #'+gasNos.join(' และ #')+'?')) return;
+    S.gasSwaps.push({ id:uid(), time:localISO(), gasNos });
+    await saveFeed();
+    STOCKGAS.forEach(g=>{ if(gasNos.includes(g.gasNo)) g.used=true; });
+    refreshGasUI(); toast('เปลี่ยนถังแก๊สแล้ว — ถัง #'+gasNos.join(', #'));
+  };
+
   // ใยตัวนี้อยู่ในสูตรของออเดอร์นี้ไหม (รวมสูตรเวอร์ชันเก่าด้วย)
   function inRecipe(o,name){
     if(!o||!name) return true;
@@ -1365,7 +1417,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     const lot=STOCKFIBER[fiberName].find(l=>String(l.lotNo)===String(lotNo)); if(!lot) return;
     const remBefore=lotRemaining(fiberName,lotNo,+lot.kg||0);
     const remAfter=Math.round((remBefore-kg)*1000)/1000;
-    hint.innerHTML='ลอตนี้เหลืออยู่ <b>'+remBefore+' กก.</b>'+(kg>0?' — เบิกครั้งนี้แล้วจะเหลือ <b style="color:'+(remAfter<0?'var(--red)':'var(--accent2)')+'">'+remAfter+' กก.</b>':'');
+    const balesLeft=STOCKFIBER_BALES[fiberName];
+    hint.innerHTML='ลอตนี้เหลืออยู่ <b>'+remBefore+' กก.</b>'+(balesLeft!=null?' (ทั้งชื่อใยนี้เหลือ '+balesLeft+' ก้อน)':'')+
+      (kg>0?' — เบิกครั้งนี้แล้วจะเหลือ <b style="color:'+(remAfter<0?'var(--red)':'var(--accent2)')+'">'+remAfter+' กก.</b>':'');
   }
   function wdSelOptions(o,sel){
     const rec=(o&&o.fibers||[]).map(f=>f.name);
@@ -1489,7 +1543,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       const withRemain=lots.map(l=>({...l, remaining:lotRemaining(n,l.lotNo,+l.kg||0)}));
       const total=r3(withRemain.reduce((s,l)=>s+Math.max(0,l.remaining),0));
       const active=withRemain.filter(l=>l.remaining>0).sort((a,b)=>a.lotNo-b.lotNo)[0];
+      const balesLeft=STOCKFIBER_BALES[n];
       hint.innerHTML='คงเหลือในสต๊อกรวม <b style="color:'+(total<=0?'var(--red)':'var(--accent2)')+'">'+total+' กก.</b>'+
+        (balesLeft!=null?' (<b style="color:var(--accent2)">'+balesLeft+' ก้อน</b>)':'')+
         (active?' — ล็อตที่จะเบิกต่อไปคือ ล็อต '+esc(active.lotNo)+' (เหลือ '+active.remaining+' กก.)':' <span class="bdg bad">ใยหมดสต๊อกแล้ว</span>')+
         '<br><span style="color:var(--dim)">เบอร์แท็กก้อน: ระบุได้อิสระ ไม่บังคับเรียงลำดับ — ไว้ตามรอยว่ารอบนี้หยิบก้อนไหนมาใช้จริง</span>';
     };
@@ -1600,6 +1656,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     if((o?o.id:null)!==lastLineOrder){ lastLineOrder=o?o.id:null; specOpen=null; }
     if($('fwFabSel')) refreshFwSelects();
     if($('bwKindSel')) refreshBwSelects();
+    if($('gasAvailInfo')) refreshGasUI();
     $('lineInfo').innerHTML=o
       ? '<div class="sumline">ออเดอร์: <b style="color:var(--accent2)" class="kn">'+esc(o.customer)+' — '+esc(o.code)+
         '</b> <span class="bdg ok">'+esc(o.productType||'ใย')+'</span></div>'
@@ -2045,7 +2102,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       if(!fwPick || !fwPick.picks.length){ toast('ยังไม่มีถุงให้เบิก — เลือกชนิดผ้า/ไซซ์/จำนวนก่อน'); return; }
       if(fwPick.short>0 && !await ask('ผ้าไม่พอ','ขาดอยู่ '+fwPick.short+' ชิ้น\n\nยืนยันจะเบิกเท่าที่มี ('+fwPick.total+' ชิ้น) หรือไม่?')) return;
       const total=fwPick.total;
-      S.fabricWd.push({ id:uid(), time:localISO(), fabricType:$('fwFabSel').value, size:$('fwSizeSel').value,
+      S.fabricWd.push({ id:uid(), time:localISO(), orderId:(active()?active().id:null), fabricType:$('fwFabSel').value, size:$('fwSizeSel').value,
         qty:total, picks:fwPick.picks.map(p=>({batchId:p.batchId,batchNo:p.batchNo,qty:p.take})) });
       await saveFeed();
       $('fwQty').value=''; $('fwPreview').innerHTML=''; fwPick=null;
@@ -2090,7 +2147,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       if(!bwPick || !bwPick.picks.length){ toast('ยังไม่มีกระสอบให้เบิก — เลือกประเภท/ชื่อถุง/น้ำหนักก่อน'); return; }
       if(bwPick.short>0 && !await ask('ถุงไม่พอ','ขาดอยู่ '+bwPick.short+' กก.\n\nยืนยันจะเบิกเท่าที่มี ('+bwPick.total+' กก.) หรือไม่?')) return;
       const total=bwPick.total;
-      S.bagWd.push({ id:uid(), time:localISO(), kind:$('bwKindSel').value, name:$('bwNameSel').value,
+      S.bagWd.push({ id:uid(), time:localISO(), orderId:(active()?active().id:null), kind:$('bwKindSel').value, name:$('bwNameSel').value,
         kg:total, picks:bwPick.picks.map(p=>({sackId:p.sackId,sackNo:p.sackNo,kg:p.take})) });
       await saveFeed();
       $('bwQty').value=''; $('bwPreview').innerHTML=''; bwPick=null;
@@ -2418,7 +2475,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       '\n\nแนะนำให้กด "ออกทั้งหมด" เก็บไฟล์ไว้ก่อน\n\nยืนยันครั้งที่ 1 — ต้องการลบจริงหรือไม่?')) return;
     if(!await ask('⚠ ยืนยันอีกครั้ง','การลบนี้กู้คืนไม่ได้ ยืนยันจะลบข้อมูลการผลิตทั้งหมดหรือไม่?')) return;
     S.orders=[]; S.activeId=null; S.activeFeedId=null; S.fiberMaster=[];
-    S.feed=[]; S.wd=[]; S.line=[]; S.scrap=[]; S.breaks=[];
+    S.feed=[]; S.wd=[]; S.gasSwaps=[]; S.line=[]; S.scrap=[]; S.breaks=[];
     await saveOrders(); await saveFeed(); await saveLine();
     rTop(); renderPanel(true); toast('ล้างข้อมูลการผลิตทั้งหมดแล้ว');
   };

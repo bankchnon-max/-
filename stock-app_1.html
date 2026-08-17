@@ -122,20 +122,6 @@
     <div class="panel" id="p-fiber">
       <div class="card"><h3>สต๊อกใย</h3><div id="fiberCards"></div></div>
       <div class="card">
-        <h3>📋 ยอดยกมา (ใย) — ลงของเดิมที่มีอยู่แล้ว</h3>
-        <div class="rf">
-          <div><label>ชื่อใย</label><select id="obFiberSel"></select>
-            <input id="obFiberName" list="dlObFiber" placeholder="พิมพ์ชื่อใย" style="display:none;"><datalist id="dlObFiber"></datalist></div>
-          <div><label>น้ำหนัก (กก.)</label><input id="obFiberKg" type="number" inputmode="decimal" step="0.01"></div>
-        </div>
-        <div class="rf">
-          <div><label>จำนวนก้อน (ถ้ามี)</label><input id="obFiberBales" type="number" inputmode="numeric"></div>
-          <div><label>เลขล็อต/ก้อน (ถ้ามีเขียนไว้)</label><input id="obFiberLot" type="number" inputmode="numeric" placeholder="ไม่ใส่=เรียงอัตโนมัติ"></div>
-        </div>
-        <label>วันที่มีของอยู่แล้ว</label><input id="obFiberDate" type="date">
-        <button class="btn sec w" id="btnObFiber">บันทึกยอดยกมา</button>
-      </div>
-      <div class="card">
         <h3>รับเข้าใย (ออกเลขล็อตให้อัตโนมัติ)</h3>
         <div class="rf">
           <div><label>ชื่อใย</label><select id="rwSel"></select>
@@ -168,21 +154,6 @@
     <!-- 2. FABRIC -->
     <div class="panel" id="p-fabric">
       <div class="card"><h3>ม้วนผ้าที่ยังไม่ตัด</h3><div id="rollCards"></div></div>
-      <div class="card">
-        <h3>📋 ยอดยกมา (ผ้าม้วน) — ลงของเดิมที่มีอยู่แล้ว</h3>
-        <div class="rf">
-          <div><label>ชนิดผ้า</label><select id="obFabSel"></select>
-            <input id="obFabName" list="dlObFabric" placeholder="พิมพ์ชนิดผ้า" style="display:none;"><datalist id="dlObFabric"></datalist></div>
-          <div><label>จำนวนม้วน</label><input id="obFabRolls" type="number" inputmode="numeric"></div>
-        </div>
-        <div class="rf">
-          <div><label>หน้ากว้าง (นิ้ว — ถ้ารู้)</label><input id="obFabWidth" type="number" inputmode="decimal" step="0.1"></div>
-          <div><label>ความยาว/ม้วน (นิ้ว — ถ้ารู้)</label><input id="obFabLength" type="number" inputmode="decimal" step="0.1"></div>
-        </div>
-        <label>เลขม้วนเริ่มต้น (ถ้ามีเขียนไว้อยู่แล้ว)</label><input id="obFabRollNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ">
-        <label>วันที่มีของอยู่แล้ว</label><input id="obFabDate" type="date">
-        <button class="btn sec w" id="btnObFab">บันทึกยอดยกมา</button>
-      </div>
       <div class="card">
         <h3>รับเข้าม้วนผ้า (ออกเลขให้แต่ละม้วนทันที)</h3>
         <div class="rf">
@@ -319,21 +290,6 @@
     <!-- 3. BAGS -->
     <div class="panel" id="p-bag">
       <div class="card"><h3>สต๊อกถุง (รวมทุกกระสอบ)</h3><div id="zipCards"></div><div id="packCards" style="margin-top:9px;"></div></div>
-      <div class="card">
-        <h3>📋 ยอดยกมา (ถุง) — ลงของเดิมที่มีอยู่แล้ว</h3>
-        <div class="rf">
-          <div><label>ประเภท</label><select id="obBagKind"><option value="zip">ถุงซิล</option><option value="pack">ถุงแพ็ค</option></select></div>
-          <div><label>ชื่อ/แบรนด์ถุง</label><select id="obBagNameSel"></select>
-            <input id="obBagNameNew" placeholder="พิมพ์ชื่อใหม่" style="display:none;"></div>
-        </div>
-        <div class="rf">
-          <div><label>ไซซ์ถุง</label><input id="obBagSize" placeholder="เช่น 40x70"></div>
-          <div><label>น้ำหนักกระสอบ (กก.)</label><input id="obBagSackKg" type="number" inputmode="decimal" step="0.1" value="25"></div>
-        </div>
-        <label>เลขกระสอบ (ถ้ามีเขียนไว้อยู่แล้ว)</label><input id="obBagSackNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ">
-        <label>วันที่มีของอยู่แล้ว</label><input id="obBagDate" type="date">
-        <button class="btn sec w" id="btnObBag">บันทึกยอดยกมา</button>
-      </div>
       <div class="card">
         <h3>รับเข้ากระสอบถุง (ออกเลขกระสอบให้อัตโนมัติ)</h3>
         <div class="rf">
@@ -801,12 +757,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     stock.sort((a,b)=>a.name.localeCompare(b.name,'th'));
     $('fiberCards').innerHTML = stock.length ? stock.map(s=>{
       const th=+S.fiberTh[s.name]||0, low=th>0&&s.stock<th;
-      const balesLeft=CALC.totalBalesRemaining(S.fiberReceipts,S.baleUsage,s.name);
-      const hasBales=CALC.baleStatus(S.fiberReceipts,S.baleUsage).some(b=>b.fiberName===s.name);
-      return '<div class="scard'+(low?' lowstock':'')+'" data-fibercard="'+esc(s.name)+'" style="cursor:pointer;"><div class="nm">'+esc(s.name)+(low?' <span class="bdg bad">ใกล้หมด</span>':'')+
-        (hasBales?' <span class="bdg ok">'+balesLeft+' ก้อน</span>':'')+'</div>'+
+      return '<div class="scard'+(low?' lowstock':'')+'" data-fibercard="'+esc(s.name)+'" style="cursor:pointer;"><div class="nm">'+esc(s.name)+(low?' <span class="bdg bad">ใกล้หมด</span>':'')+'</div>'+
         '<div class="n">'+s.stock+' <span style="font-size:13px;color:#ffffff;">กก.</span></div>'+
-        '<div class="l">รับเข้า '+s.received+' กก. · เบิกใช้ '+s.used+' กก.'+(th>0?' · เตือนต่ำกว่า '+th:'')+' · แตะดูล็อต ▾</div></div>';
+        '<div class="l">รับเข้า '+s.received+' กก. · เบิกใช้ '+s.used+' กก.'+(th>0?' · เตือนต่ำกว่า '+th:'')+' · แตะดูล็อต+จำนวนก้อน ▾</div></div>';
     }).join('') : '<div class="empty">ยังไม่มีข้อมูล</div>';
     $('fiberCards').querySelectorAll('[data-fibercard]').forEach(c=>c.onclick=()=>{
       fiberLotFilter=c.dataset.fibercard; rFiber();
@@ -820,12 +773,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     $('dlRwFiber').innerHTML=nms.map(n=>'<option value="'+esc(n)+'"></option>').join('');
     $('thSel').innerHTML=nms.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');
     updateRwLotPreview();
-
-    if(!$('obFiberDate').value) $('obFiberDate').value=todayStr();
-    const keepOb=$('obFiberSel').value;
-    $('obFiberSel').innerHTML='<option value="">— เลือกใย —</option>'+nms.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('')+'<option value="__new__">+ พิมพ์ชื่อใหม่…</option>';
-    if(keepOb==='__new__'||nms.includes(keepOb)) $('obFiberSel').value=keepOb;
-    $('dlObFiber').innerHTML=nms.map(n=>'<option value="'+esc(n)+'"></option>').join('');
 
     let lots=CALC.fiberLotStock(S.fiberReceipts, PROD.wd);
     if($('fiberLotFilterBar')){
@@ -904,20 +851,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     // ชื่อใยที่เลือกไว้ค้างต่อเนื่อง จนกว่าจะเปลี่ยนเอง (มักรับเข้าใยตัวเดิมหลายรอบติดกัน)
     rFiber(); toast('บันทึกรับเข้าใยแล้ว — ล็อต '+lotNo+(baleCount?' ('+baleCount+' ก้อน)':''));
   };
-  $('obFiberSel').onchange=function(){ const v=this.value,t=$('obFiberName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} };
-  $('btnObFiber').onclick=async()=>{
-    const n=($('obFiberSel').value==='__new__'?$('obFiberName').value:$('obFiberSel').value).trim(), kg=+$('obFiberKg').value;
-    if(!n||!kg){ toast('กรอกชื่อใยและน้ำหนัก'); return; }
-    const lotInput=$('obFiberLot').value.trim();
-    const lotNo=lotInput?+lotInput:CALC.nextFiberLot(S.fiberReceipts,n);
-    const dateVal=$('obFiberDate').value?$('obFiberDate').value+'T'+localISO().slice(11):localISO();
-    const baleCount=+$('obFiberBales').value||null;
-    S.fiberReceipts.push({id:uid(),time:dateVal,fiberName:n,lotNo,kg,baleCount,supplier:'',note:'ยอดยกมา'});
-    await saveFiber();
-    ['obFiberKg','obFiberBales','obFiberLot'].forEach(id=>$(id).value='');
-    // ชื่อใย+วันที่ค้างไว้ จนกว่าจะเปลี่ยนเอง (มักลงยอดยกมาหลายล็อตติดกัน)
-    rFiber(); toast('บันทึกยอดยกมาแล้ว — ล็อต '+lotNo+(baleCount?' ('+baleCount+' ก้อน)':''));
-  };
   $('btnTh').onclick=async()=>{ const n=$('thSel').value; if(!n){toast('เลือกใยก่อน');return;} S.fiberTh[n]=+$('thKg').value||0; await saveFiber(); $('thKg').value=''; rFiber(); toast('ตั้งจุดเตือนแล้ว'); };
   let editingFiberId=null;
   function editFiberReceipt(id){
@@ -947,20 +880,18 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       '<div class="n">'+r.avail+' <span style="font-size:13px;color:#ffffff;">ม้วน</span></div></div>').join('')
       :'<div class="empty">ยังไม่มีข้อมูลม้วนผ้า</div>';
 
-    ['fabRecSel','obFabSel','retFreeFabSel','cutFreeFabSel','sewFreeFabSel','cutFabSel','sewFabSel','retFabSel','wasteFabSel'].forEach(id=>{
+    ['fabRecSel','retFreeFabSel','cutFreeFabSel','sewFreeFabSel','cutFabSel','sewFabSel','retFabSel','wasteFabSel'].forEach(id=>{
       const keep=$(id).value;
-      const allowNew=(id==='fabRecSel'||id==='obFabSel'||id==='retFreeFabSel'||id==='cutFreeFabSel'||id==='sewFreeFabSel');
+      const allowNew=(id==='fabRecSel'||id==='retFreeFabSel'||id==='cutFreeFabSel'||id==='sewFreeFabSel');
       $(id).innerHTML=(allowNew?'<option value="">— เลือกชนิดผ้า —</option>':'<option value="">— เลือก —</option>')+
         types.map(t=>'<option value="'+esc(t)+'">'+esc(t)+'</option>').join('')+
         (allowNew?'<option value="__new__">+ พิมพ์ชนิดใหม่…</option>':'');
       if(types.includes(keep)||keep==='__new__') $(id).value=keep;
     });
     $('dlFabric').innerHTML=types.map(t=>'<option value="'+esc(t)+'"></option>').join('');
-    $('dlObFabric').innerHTML=types.map(t=>'<option value="'+esc(t)+'"></option>').join('');
     $('dlRetFreeFab').innerHTML=types.map(t=>'<option value="'+esc(t)+'"></option>').join('');
     $('dlCutFreeFab').innerHTML=types.map(t=>'<option value="'+esc(t)+'"></option>').join('');
     $('dlSewFreeFab').innerHTML=types.map(t=>'<option value="'+esc(t)+'"></option>').join('');
-    if(!$('obFabDate').value) $('obFabDate').value=todayStr();
     updateFabRecPreview();
     refreshCutRollOptions();
 
@@ -1130,27 +1061,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     $('fabRecRolls').value=''; $('fabRecNote').value=''; $('fabRecRollNo').value='';
     // ชนิดผ้า+วันที่ค้างไว้ จนกว่าจะเปลี่ยนเอง (มักรับเข้าม้วนเดิมหลายรอบติดกัน)
     rFabric(); toast('รับเข้า '+nRolls+' ม้วน — เลข '+start+' ถึง '+(start+nRolls-1));
-  };
-  $('obFabSel').onchange=function(){ const v=this.value,t=$('obFabName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} };
-  $('btnObFab').onclick=async()=>{
-    const n=($('obFabSel').value==='__new__'?$('obFabName').value:$('obFabSel').value).trim();
-    const nRolls=+$('obFabRolls').value;
-    if(!n||!nRolls){ toast('กรอกชนิดผ้าและจำนวนม้วน'); return; }
-    const customStart=$('obFabRollNo').value.trim();
-    let start=customStart?+customStart:CALC.nextRollNo(S.fabricReceipts,n);
-    if(customStart){
-      const overlap=[]; for(let i=0;i<nRolls;i++){ if(S.fabricReceipts.some(r=>r.fabricType===n && r.rollNo===start+i)) overlap.push(start+i); }
-      if(overlap.length && !await ask('เลขม้วน #'+overlap.join(', #')+' ('+n+') มีอยู่แล้วในระบบ','ยืนยันจะสร้างม้วนใหม่เลขซ้ำกันหรือไม่? (แนะนำให้เว้นว่างให้ระบบเรียงเลขใหม่แทน)')) return;
-    }
-    const dateVal=$('obFabDate').value?$('obFabDate').value+'T'+localISO().slice(11):localISO();
-    const widthIn=+$('obFabWidth').value||null, lengthIn=+$('obFabLength').value||null;
-    for(let i=0;i<nRolls;i++){
-      S.fabricReceipts.push({id:uid(),time:dateVal,fabricType:n,rollNo:start+i,widthIn,lengthIn,note:'ยอดยกมา'});
-    }
-    await saveFabric();
-    $('obFabRolls').value=''; $('obFabRollNo').value='';
-    // ชนิดผ้า+วันที่ค้างไว้ จนกว่าจะเปลี่ยนเอง
-    rFabric(); toast('บันทึกยอดยกมาแล้ว '+nRolls+' ม้วน — เลข '+start+' ถึง '+(start+nRolls-1));
   };
 
   function refreshCutRollOptions(){
@@ -1327,13 +1237,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     if(existing.includes(keepBagName)||keepBagName==='__new__') $('bagNameSel').value=keepBagName;
     updateBagSackPreview();
 
-    if(!$('obBagDate').value) $('obBagDate').value=todayStr();
-    const obCurKind=$('obBagKind').value;
-    const obExisting=obCurKind==='zip'?zn:pn;
-    const keepObBagName=$('obBagNameSel').value;
-    $('obBagNameSel').innerHTML='<option value="">— เลือก —</option>'+obExisting.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('')+'<option value="__new__">+ พิมพ์ชื่อใหม่…</option>';
-    if(obExisting.includes(keepObBagName)||keepObBagName==='__new__') $('obBagNameSel').value=keepObBagName;
-
     $('tSackStatus').innerHTML=sackStatus.length?'<tr><th>กระสอบ #</th><th>ประเภท</th><th>ชื่อ</th><th>ไซซ์</th><th>น้ำหนักกระสอบ</th><th>เบิกแล้ว</th><th>คงเหลือ</th><th>≈ใบ</th><th></th></tr>'+
       sackStatus.slice().sort((a,b)=>b.time<a.time?-1:1).map(s=>'<tr><td>#'+s.sackNo+'</td><td>'+(s.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+'</td><td>'+esc(s.name)+'</td><td>'+esc(s.size||'—')+
         '</td><td>'+s.sackWeightKg+' กก.</td><td>'+s.used+' กก.</td><td><b style="color:'+(s.remainingKg>0?'var(--accent2)':'var(--dim)')+'">'+s.remainingKg+' กก.</b></td><td>'+s.remainingPieces+
@@ -1384,24 +1287,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     await saveBag(); $('bagSackKg').value='25'; $('bagWeightPer').value=''; $('bagSize').value=''; $('bagNote').value=''; $('bagSackNo').value='';
     // ประเภท+ชื่อถุงค้างไว้ จนกว่าจะเปลี่ยนเอง (มักรับเข้ากระสอบเดิมหลายรอบติดกัน)
     rBag(); toast('บันทึกรับเข้ากระสอบแล้ว — กระสอบ #'+sackNo);
-  };
-  $('obBagKind').onchange=rBag;
-  $('obBagNameSel').onchange=function(){ const v=this.value,t=$('obBagNameNew'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} };
-  $('btnObBag').onclick=async()=>{
-    const kind=$('obBagKind').value;
-    const n=($('obBagNameSel').value==='__new__'?$('obBagNameNew').value:$('obBagNameSel').value).trim();
-    const sackWeightKg=+$('obBagSackKg').value||25;
-    if(!n||!sackWeightKg){ toast('กรอกชื่อถุงและน้ำหนักกระสอบ'); return; }
-    const customSackNo=$('obBagSackNo').value.trim();
-    const sackNo=customSackNo?+customSackNo:CALC.nextSackNo(S.sackReceipts,kind,n);
-    if(customSackNo && S.sackReceipts.some(s=>s.kind===kind && s.name===n && s.sackNo===sackNo)){
-      if(!await ask('เลขกระสอบ #'+sackNo+' ('+n+') มีอยู่แล้วในระบบ','ยืนยันจะสร้างกระสอบใหม่เลขซ้ำกันหรือไม่? (แนะนำให้เว้นว่างให้ระบบเรียงเลขใหม่แทน)')) return;
-    }
-    const dateVal=$('obBagDate').value?$('obBagDate').value+'T'+localISO().slice(11):localISO();
-    S.sackReceipts.push({ id:uid(), time:dateVal, kind, name:n, size:$('obBagSize').value.trim(), sackNo, sackWeightKg, weightPerBag:0, note:'ยอดยกมา' });
-    await saveBag(); $('obBagSackKg').value='25'; $('obBagSize').value=''; $('obBagSackNo').value='';
-    // ประเภท+ชื่อถุง+วันที่ค้างไว้ จนกว่าจะเปลี่ยนเอง
-    rBag(); toast('บันทึกยอดยกมาแล้ว — กระสอบ #'+sackNo);
   };
 
   /* ---------- 3b. GAS ---------- */

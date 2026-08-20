@@ -591,6 +591,64 @@
 </div>
 
 <script>
+/* ═══════════ WPD PATCH 2569-08-20 (ส่วนเสริม ไม่ได้แก้ของเดิม) ═══════════ */
+(function(){try{
+  var d=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
+  if(!d||!d.set) return;
+  Object.defineProperty(HTMLSelectElement.prototype,'innerHTML',{configurable:true,
+    get:function(){return d.get.call(this);},
+    set:function(v){var prev=this.value; d.set.call(this,v);
+      if(prev!==''&&prev!=null){for(var i=0;i<this.options.length;i++){if(this.options[i].value===prev){this.value=prev;break;}}}
+    }});
+}catch(e){}})();
+(function(){try{
+  var inflight=0, badge=null, guarded=null;
+  function ui(){
+    if(!badge){badge=document.createElement('div');
+      badge.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:99999;background:#ff8a3d;color:#12181f;font:600 14px Sarabun,sans-serif;padding:9px 20px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.45);display:none';
+      badge.textContent='กำลังบันทึก…';document.body.appendChild(badge);}
+    badge.style.display=inflight>0?'block':'none';
+    if(guarded){ if(inflight>0){guarded.setAttribute('data-busy','1');guarded.style.opacity='0.5';guarded.style.pointerEvents='none';}
+      else {guarded.removeAttribute('data-busy');guarded.style.opacity='';guarded.style.pointerEvents='';guarded=null;} }
+  }
+  document.addEventListener('click',function(ev){
+    var b=ev.target&&ev.target.closest?ev.target.closest('button'):null;
+    if(!b) return;                                  /* วงกลมแตะป้อนใยเป็น div จึงไม่โดนกัน */
+    if(b.getAttribute('data-busy')==='1'){ev.stopImmediatePropagation();ev.preventDefault();return;}
+    if(b.getAttribute('data-noguard')==='1') return;
+    if(b.id==='btnUndoFeed') return;
+    guarded=b;
+  },true);
+  var of=window.fetch;
+  window.fetch=function(){
+    var m=(arguments[1]&&arguments[1].method||'GET').toUpperCase();
+    if(m==='GET'||m==='HEAD') return of.apply(this,arguments);
+    inflight++; ui();
+    return of.apply(this,arguments).finally(function(){inflight--; if(inflight<0)inflight=0; ui();});
+  };
+}catch(e){}})();
+(function(){try{
+  function yearOf(v){ var m=String(v||'').match(/^(\d{4})-/); return m?+m[1]:null; }
+  document.addEventListener('change',function(ev){
+    var el=ev.target; if(!el||el.tagName!=='INPUT') return;
+    if(el.type!=='date'&&el.type!=='datetime-local') return;
+    var y=yearOf(el.value); if(y==null||(y>=2015&&y<=2100)) return;
+    var fix=null;
+    if(y>=2558&&y<=2643) fix=String(y-543)+String(el.value).slice(4);
+    var msg='ปี '+y+' ไม่น่าถูกต้อง'+(fix?('\n\nระบบเปลี่ยนเป็น ค.ศ. '+(y-543)+' ให้แล้ว'):('\n\nช่องนี้ใช้ปี ค.ศ. เช่น '+(new Date().getFullYear())));
+    el.value = fix ? fix : '';
+    try{
+      var t=document.getElementById('__wpdDateWarn');
+      if(!t){ t=document.createElement('div'); t.id='__wpdDateWarn';
+        t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:110px;z-index:99999;background:#e5595f;color:#fff;font:600 14px/1.5 Sarabun,sans-serif;padding:10px 16px;border-radius:12px;max-width:88%;white-space:pre-line;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.45)';
+        document.body.appendChild(t); }
+      t.textContent=msg; t.style.display='block';
+      clearTimeout(t.__tm); t.__tm=setTimeout(function(){ t.style.display='none'; },5000);
+    }catch(e){}
+  },true);
+}catch(e){}})();
+</script>
+<script>
 /* ==========================================================================
    SUPABASE STORAGE SHIM
    ต้องกรอก URL กับ Anon Key ของโปรเจกต์ Supabase ตัวเองตรงนี้ก่อน (2 บรรทัดล่างนี้)
@@ -834,7 +892,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   }
   async function flush(k,attempt){
     attempt=attempt||0;
-    if(inflight[k]) return;
+    /* ถ้ากำลังบันทึกคีย์นี้อยู่ ต้องนัดลองใหม่ ห้ามทิ้งเงียบ ไม่งั้นการแก้ล่าสุดจะไม่ถูกเขียนลงเซิร์ฟเวอร์ */
+    if(inflight[k]){ setTimeout(()=>flush(k,attempt),400); return; }
     if(!(k in pending)) return;
     const data=pending[k]; delete pending[k];
     inflight[k]=true;
@@ -846,7 +905,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       myPulse=Date.now()+'-'+deviceId;
       lastPulse=myPulse;
       try{ await window.storage.set('v3_pulse',myPulse,true); }catch(e){}
-      if(Object.keys(pending).length) { flush(Object.keys(pending)[0]); }
+      if(Object.keys(pending).length) { Object.keys(pending).forEach(kk=>flush(kk)); }
       else setSaveState('ok');
     }catch(e){
       inflight[k]=false;
@@ -862,6 +921,11 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     }
   }
   function put(k){ pending[k]=snapshot(k); return flush(k); }
+  /* กันข้อมูลหาย: ถ้ายังบันทึกไม่เสร็จแล้วผู้ใช้ปิด/รีเฟรชหน้า ให้เตือนก่อน */
+  window.addEventListener('beforeunload',function(e){
+    const busy = Object.keys(pending).length || Object.keys(inflight).some(k=>inflight[k]);
+    if(busy){ e.preventDefault(); e.returnValue=''; return ''; }
+  });
   function retryAll(){
     ['v3_orders','v3_feed','v3_line','v3_set'].forEach(k=>{ pending[k]=snapshot(k); });
     Object.keys(pending).forEach(k=>flush(k));
@@ -1880,10 +1944,33 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     if($('spBagPP')) $('spBagPP').onchange=()=>{ formDirty=true; prev(); };
     if($('spPackBag')) $('spPackBag').addEventListener('input',refreshPackBagLotOptions);
     ['spBag','spBag2','spTol','spPackBag','spFabType','spFabSize','spBagSize','spBag2Size'].forEach(id=>{ if($(id)) $(id).oninput=()=>{ formDirty=true; }; });
-    if($('btnAddBag2')) $('btnAddBag2').onclick=()=>{ o.spec=o.spec||{}; o.spec.hasBag2=true; formDirty=true; buildSpecForm(); };
+    /* เก็บสิ่งที่พิมพ์ค้างไว้ก่อนวาดฟอร์มใหม่ จะได้ไม่หาย */
+    function keepTypedSpec(){
+      o.spec=o.spec||{};
+      if($('spW')) o.spec.weightPerPiece=+$('spW').value||0;
+      if($('spN')) o.spec.piecesPerPack=+$('spN').value||0;
+      if($('spBag')) o.spec.bagName=$('spBag').value.trim();
+      if($('spBagW')) o.spec.bagWeight=+$('spBagW').value||0;
+      if($('spBagSize')) o.spec.bagSize=$('spBagSize').value.trim();
+      if($('spBagSack')) o.spec.bagSackNo=$('spBagSack').value;
+      if($('spBagPP')) o.spec.bagPerPiece=$('spBagPP').checked;
+      if($('spBag2')) o.spec.bagName2=$('spBag2').value.trim();
+      if($('spBag2W')) o.spec.bagWeight2=+$('spBag2W').value||0;
+      if($('spBag2Size')) o.spec.bagSize2=$('spBag2Size').value.trim();
+      if($('spBag2Sack')) o.spec.bagSackNo2=$('spBag2Sack').value;
+      if($('spPackBag')) o.spec.packBagName=$('spPackBag').value.trim();
+      if($('spFabType')) o.spec.fabricType=$('spFabType').value.trim();
+      if($('spFabSize')) o.spec.fabricSize=$('spFabSize').value.trim();
+      if($('spTol')) o.spec.tolPct=+$('spTol').value||3;
+    }
+    if($('btnAddBag2')) $('btnAddBag2').onclick=()=>{
+      keepTypedSpec(); o.spec.hasBag2=true;
+      formDirty=false; buildSpecForm(); formDirty=true;   /* ต้องปลดก่อน ไม่งั้น buildSpecForm() จะ return ทิ้ง */
+    };
     if($('btnRemoveBag2')) $('btnRemoveBag2').onclick=async()=>{
       if(!await ask('เอาถุงใบที่ 2 ออก?','ข้อมูลถุงใบที่ 2 ที่กรอกไว้จะหายไป')) return;
-      o.spec=o.spec||{}; o.spec.hasBag2=false; o.spec.bagName2=''; o.spec.bagWeight2=0; o.spec.bagSize2=''; formDirty=true; buildSpecForm();
+      keepTypedSpec(); o.spec.hasBag2=false; o.spec.bagName2=''; o.spec.bagWeight2=0; o.spec.bagSize2=''; o.spec.bagSackNo2='';
+      formDirty=false; buildSpecForm(); formDirty=true;
     };
     prev(); refreshBagLotOptions(); refreshBag2LotOptions(); refreshPackBagLotOptions();
 
@@ -2121,7 +2208,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     const hist=S.bagWd.slice().reverse().slice(0,30);
     $('tBagWdHist').innerHTML=hist.length?'<tr><th>เวลา</th><th>ประเภท</th><th>ชื่อ</th><th>กก.</th><th>หยิบจากกระสอบ</th><th></th></tr>'+
       hist.map(w=>'<tr><td>'+(w.time||'').slice(0,16).replace('T',' ')+'</td><td>'+(w.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+'</td><td>'+esc(w.name)+'</td><td>'+w.kg+
-        '</td><td>'+(w.picks||[]).map(p=>'#'+p.sackNo+':'+p.take+'กก.').join(', ')+'</td><td><button class="x" data-bwd="'+w.id+'">✕</button></td></tr>').join('')
+        '</td><td>'+(w.picks||[]).map(p=>'#'+p.sackNo+':'+(p.kg!=null?p.kg:p.take)+' กก.').join(', ')+'</td><td><button class="x" data-bwd="'+w.id+'">✕</button></td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีการเบิก</td></tr>';
     $('tBagWdHist').querySelectorAll('[data-bwd]').forEach(b=>b.onclick=async()=>{
       if(!await ask('ลบรายการเบิกนี้?','ยอดที่หยิบไปจะกลับเข้ากระสอบเดิม')) return;

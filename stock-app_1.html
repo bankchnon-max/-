@@ -789,14 +789,17 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     else { el.className='savechip bad'; el.textContent='⚠ ยังบันทึกไม่สำเร็จ — แตะเพื่อลองใหม่'+(msg?' ('+msg+')':''); }
   }
   async function flush(k,attempt){
-    attempt=attempt||0; if(inflight[k]) return; if(!(k in pending)) return;
+    attempt=attempt||0;
+    /* ถ้ากำลังบันทึกคีย์นี้อยู่ ต้องนัดลองใหม่ ห้ามทิ้งเงียบ ไม่งั้นการแก้ล่าสุดจะไม่ถูกเขียนลงเซิร์ฟเวอร์ */
+    if(inflight[k]){ setTimeout(()=>flush(k,attempt),400); return; }
+    if(!(k in pending)) return;
     const data=pending[k]; delete pending[k]; inflight[k]=true; setSaveState('saving');
     try{
       if(!hasStore) throw new Error('no storage');
       await window.storage.set(k,JSON.stringify(data),true);
       inflight[k]=false; storeDown=false;
       await window.storage.set('v3s_pulse',Date.now()+'',true).catch(()=>{});
-      if(Object.keys(pending).length) flush(Object.keys(pending)[0]); else setSaveState('ok');
+      if(Object.keys(pending).length) Object.keys(pending).forEach(kk=>flush(kk)); else setSaveState('ok');
     }catch(e){
       inflight[k]=false; pending[k]=data;
       if(attempt<6){ setTimeout(()=>flush(k,attempt+1), Math.min(15000,600*Math.pow(2,attempt))); setSaveState('saving'); }
@@ -804,6 +807,11 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     }
   }
   function put(k){ pending[k]=KEYMAP[k](); return flush(k); }
+  /* กันข้อมูลหาย: ถ้ายังบันทึกไม่เสร็จแล้วผู้ใช้ปิด/รีเฟรชหน้า ให้เตือนก่อน */
+  window.addEventListener('beforeunload',function(e){
+    const busy = Object.keys(pending).length || Object.keys(inflight).some(k=>inflight[k]);
+    if(busy){ e.preventDefault(); e.returnValue=''; return ''; }
+  });
   const saveFiber=()=>put('v3s_fiber'), saveFabric=()=>put('v3s_fabric'), saveBag=()=>put('v3s_bag'), saveGas=()=>put('v3s_gas'), saveFin=()=>put('v3s_fin');
 
   async function rawGet(k){ if(!hasStore) return null; try{ const r=await window.storage.get(k,true); return r?r.value:null; }catch(e){ return null; } }

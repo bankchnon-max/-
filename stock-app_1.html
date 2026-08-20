@@ -311,6 +311,19 @@
               <div><button class="btn sec sm" id="btnProdTypeRename">✎ แก้ไขชื่อประเภท</button></div>
             </div>
           </div>
+          <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border);">
+            <label style="font-size:12px; color:#ffffff;">แก้ไขชื่อชนิดผ้า — พิมพ์ผิดหรือมีชื่อซ้ำ แก้ให้เป็นชื่อเดียวกันได้</label>
+            <div class="rf">
+              <div><select id="fabTypeRenameSel"></select></div>
+              <div><button class="btn sec sm" id="btnFabTypeRename">✎ แก้ไขชื่อผ้า</button></div>
+            </div>
+            <label style="font-size:12px; color:#ffffff; margin-top:10px;">แก้ไขไซซ์ — เช่น 18x28 กับ 18*28 ให้รวมเป็นอันเดียว</label>
+            <div class="rf">
+              <div><select id="fabSizeRenameSel"></select></div>
+              <div><button class="btn sec sm" id="btnFabSizeRename">✎ แก้ไขไซซ์</button></div>
+            </div>
+            <div class="sumline" id="fabDupWarn" style="margin-top:8px;"></div>
+          </div>
         </div>
       </div>
       <div class="card"><h3>ประวัติส่งเย็บ</h3><div class="scr"><table id="tSewHist"></table></div></div>
@@ -1039,6 +1052,12 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   }
 
   /* ---------- 2. FABRIC ---------- */
+
+  /* ตัวคูณในไซซ์ใช้ตัว x ตัวเดียวทั้งระบบ พิมพ์ * หรือ × มาก็แปลงให้เอง จะได้ไม่มีไซซ์ซ้ำเพราะเขียนคนละแบบ */
+  function normSize(v){
+    /* แปลงเฉพาะตอนที่เป็นตัวคูณจริงๆ คือมีตัวเลขตามหลัง จะได้ไม่ไปยุ่งกับดอกจันที่ใช้ทำเครื่องหมายอย่างอื่น */
+    return String(v==null?'':v).trim().replace(/\s*[*×✕Xx]\s*(?=\d)/g,'x');
+  }
   function allFabricTypes(){
     const set=new Set(); S.fabricReceipts.forEach(r=>set.add(r.fabricType)); S.cuts.forEach(c=>set.add(c.fabricType));
     /* รวมชนิดผ้าที่มาจากถุงตัด/ส่งเย็บ/รับกลับ (โหมดกรอกอิสระที่ไม่มีม้วนอ้างอิง) ด้วย */
@@ -1198,6 +1217,26 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     const keepThSel=$('prodTypeThSel').value;
     $('prodTypeThSel').innerHTML='<option value="">— เลือกประเภทสินค้า —</option>'+allProdTypes.map(t=>'<option value="'+esc(t)+'">'+esc(t)+'</option>').join('');
     if(allProdTypes.includes(keepThSel)) $('prodTypeThSel').value=keepThSel;
+    if($('fabTypeRenameSel')){
+      const fillSel=(id,list,ph)=>{
+        const el=$(id); if(!el) return;
+        const keep=el.value;
+        el.innerHTML='<option value="">'+ph+'</option>'+list.map(t=>'<option value="'+esc(t)+'">'+esc(t)+'</option>').join('');
+        if(list.includes(keep)) el.value=keep;
+      };
+      const _ft=allFabricTypes(), _sz=allSizes();
+      fillSel('fabTypeRenameSel',_ft,'— เลือกชนิดผ้าที่จะแก้ชื่อ —');
+      fillSel('fabSizeRenameSel',_sz,'— เลือกไซซ์ที่จะแก้ —');
+      if($('fabDupWarn')){
+        const norm=x=>String(x).toLowerCase().replace(/[\s"']/g,'').replace(/[*×✕]/g,'x').replace(/cm|มม|มิล|นิ้ว/g,'');
+        const groups={};
+        _ft.concat(_sz).forEach(v=>{ const k=norm(v); (groups[k]=groups[k]||[]).push(v); });
+        const dups=Object.values(groups).filter(g=>g.length>1);
+        $('fabDupWarn').innerHTML = dups.length
+          ? '<span class="bdg warn">น่าจะเป็นอันเดียวกันแต่เขียนคนละแบบ: '+dups.map(g=>g.map(esc).join(' / ')).join(' · ')+' — แก้ให้เหมือนกันแล้วยอดจะรวมเป็นชุดเดียว</span>'
+          : '<span class="bdg ok">ชื่อผ้าและไซซ์ไม่มีที่เขียนซ้ำกัน</span>';
+      }
+    }
     if($('prodTypeRenameSel')){
       const keepRn=$('prodTypeRenameSel').value;
       $('prodTypeRenameSel').innerHTML='<option value="">— เลือกประเภทที่จะแก้ชื่อ —</option>'+allProdTypes.map(t=>'<option value="'+esc(t)+'">'+esc(t)+'</option>').join('');
@@ -1321,7 +1360,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     const rollNo=isFree?(+$('cutFreeRollNo').value||null):+$('cutRollSel').value;
     if(!fab){ toast('เลือกชนิดผ้าก่อน'); return; }
     if(!isFree && !rollNo){ toast('เลือกม้วนที่จะตัด — ถ้าไม่มีม้วนว่าง ต้องไปรับเข้าม้วนผ้าก่อน'); return; }
-    const rows=Array.from(document.querySelectorAll('#cutRows .frow')).map(r=>({ size:r.querySelector('.cs').value.trim(), qty:+r.querySelector('.cq').value||0 })).filter(r=>r.size&&r.qty);
+    const rows=Array.from(document.querySelectorAll('#cutRows .frow')).map(r=>({ size:normSize(r.querySelector('.cs').value), qty:+r.querySelector('.cq').value||0 })).filter(r=>r.size&&r.qty);
     if(!rows.length){ toast('กรอกไซซ์และจำนวนอย่างน้อย 1 แถว'); return; }
     const t=localISO();
     const customStartBatchNo=isFree?$('cutFreeBatchNo').value.trim():'';
@@ -1371,7 +1410,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     if($('sewFreeMode').checked){
       const fab=($('sewFreeFabSel').value==='__new__'?$('sewFreeFabName').value:$('sewFreeFabSel').value).trim();
       if(!fab){ toast('กรอกชนิดผ้าก่อน'); return; }
-      const rows=Array.from(document.querySelectorAll('#sewFreeRows .frow')).map(r=>({ size:r.querySelector('.sfs').value.trim(), qty:+r.querySelector('.sfq').value||0 })).filter(r=>r.size&&r.qty);
+      const rows=Array.from(document.querySelectorAll('#sewFreeRows .frow')).map(r=>({ size:normSize(r.querySelector('.sfs').value), qty:+r.querySelector('.sfq').value||0 })).filter(r=>r.size&&r.qty);
       if(!rows.length){ toast('กรอกไซซ์และจำนวนอย่างน้อย 1 แถว'); return; }
       /* เตือนถ้ามีถุงตัดจริงของผ้า+ไซซ์นี้รออยู่แล้ว จะได้ไม่ลงซ้ำจนยอด "ตัดได้" บวมเกินจริง */
       try{
@@ -1447,7 +1486,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     if($('retFreeMode').checked){
       const fab=($('retFreeFabSel').value==='__new__'?$('retFreeFabName').value:$('retFreeFabSel').value).trim();
       if(!fab){ toast('กรอกชนิดผ้าก่อน'); return; }
-      const rows=Array.from(document.querySelectorAll('#retFreeRows .frow')).map(r=>({ size:r.querySelector('.rfs').value.trim(), qty:+r.querySelector('.rfq').value||0 })).filter(r=>r.size&&r.qty);
+      const rows=Array.from(document.querySelectorAll('#retFreeRows .frow')).map(r=>({ size:normSize(r.querySelector('.rfs').value), qty:+r.querySelector('.rfq').value||0 })).filter(r=>r.size&&r.qty);
       if(!rows.length){ toast('กรอกไซซ์และจำนวนอย่างน้อย 1 แถว'); return; }
       const customStartBatchNo=$('retFreeBatchNo').value.trim();
       if(customStartBatchNo && rows.length>1) toast('มีหลายไซซ์ — ระบบจะเรียงเลขถุงอัตโนมัติให้ทุกไซซ์แทน (เลขที่กำหนดใช้ได้แค่ตอนมีไซซ์เดียว)');
@@ -1499,7 +1538,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     const n2=(S.sewReturns||[]).filter(x=>x.productType===oldName).length;
     const newNameRaw=await askText('แก้ไขชื่อประเภทสินค้า','ชื่อเดิม: '+oldName+'\nมีรายการส่งเย็บ '+n1+' รายการ และรับกลับ '+n2+' รายการที่จะย้ายตามไปด้วย',oldName);
     if(newNameRaw==null) return;
-    const newName=String(newNameRaw).trim();
+    const newName=normSize(newNameRaw);
     if(!newName){ toast('ยังไม่ได้พิมพ์ชื่อใหม่'); return; }
     if(newName===oldName) return;
     const allTypes=new Set();
@@ -1517,6 +1556,43 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     }
     await saveFabric(); rFabric(); toast('เปลี่ยนชื่อเป็น "'+newName+'" แล้ว');
   };
+  /* แก้ชื่อชนิดผ้า / ไซซ์ ให้ย้ายข้อมูลเก่าตามไปทั้งหมด ไม่มีอะไรหาย */
+  async function renameFabricField(field,label){
+    const sel=$(field==='fabricType'?'fabTypeRenameSel':'fabSizeRenameSel');
+    const oldName=sel?sel.value:'';
+    if(!oldName){ toast('เลือก'+label+'ที่จะแก้ก่อน'); return; }
+    const lists=[['รับเข้าผ้า',S.fabricReceipts],['ตัดผ้า',S.cuts],['ถุงที่ตัดไว้',S.cutBatches],
+                 ['ส่งเย็บ',S.sewSent],['รับกลับ',S.sewReturns],['ของเสีย',S.waste]];
+    const count=r=>{
+      if(field==='fabricType') return r.fabricType===oldName;
+      if(r.size===oldName) return true;
+      return Array.isArray(r.rows) && r.rows.some(x=>x.size===oldName);
+    };
+    const detail=lists.map(([n,a])=>[n,(a||[]).filter(count).length]).filter(x=>x[1]>0);
+    const total=detail.reduce((s,x)=>s+x[1],0);
+    const newRaw=await askText('แก้ไข'+label,'ของเดิม: '+oldName+'\nจะย้ายข้อมูลตามไปด้วย '+total+' รายการ ('+
+      (detail.map(x=>x[0]+' '+x[1]).join(', ')||'ไม่มี')+')\n\nถ้าพิมพ์ให้ตรงกับของที่มีอยู่แล้ว ระบบจะรวมเป็นชุดเดียวกันให้',oldName);
+    if(newRaw==null) return;
+    const newName=normSize(newRaw);
+    if(!newName){ toast('ยังไม่ได้พิมพ์ชื่อใหม่'); return; }
+    if(newName===oldName) return;
+    const existing=(field==='fabricType'?allFabricTypes():allSizes());
+    if(existing.includes(newName)){
+      if(!await ask('มี "'+newName+'" อยู่แล้ว','ยืนยันแล้วระบบจะรวมข้อมูลของ "'+oldName+'" เข้ากับ "'+newName+'" เป็นชุดเดียวกัน\n\nยอดทั้งหมดยังอยู่ครบ ไม่มีข้อมูลหาย')) return;
+    }
+    let n=0;
+    lists.forEach(([,a])=>(a||[]).forEach(r=>{
+      if(field==='fabricType'){ if(r.fabricType===oldName){ r.fabricType=newName; n++; } }
+      else {
+        if(r.size===oldName){ r.size=newName; n++; }
+        if(Array.isArray(r.rows)) r.rows.forEach(x=>{ if(x.size===oldName){ x.size=newName; n++; } });
+      }
+    }));
+    await saveFabric(); rFabric(); toast('แก้เป็น "'+newName+'" แล้ว ย้ายข้อมูล '+n+' รายการ');
+  }
+  if($('btnFabTypeRename')) $('btnFabTypeRename').onclick=()=>renameFabricField('fabricType','ชื่อชนิดผ้า');
+  if($('btnFabSizeRename')) $('btnFabSizeRename').onclick=()=>renameFabricField('size','ไซซ์');
+
   $('btnWaste').onclick=async()=>{
     const fab=$('wasteFabSel').value, qty=+$('wasteQty').value;
     if(!fab||!qty){ toast('เลือกชนิดผ้าและกรอกจำนวน'); return; }
@@ -1590,7 +1666,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       if(!await ask('เลขกระสอบ #'+sackNo+' ('+n+') มีอยู่แล้วในระบบ','ยืนยันจะสร้างกระสอบใหม่เลขซ้ำกันหรือไม่? (แนะนำให้เว้นว่างให้ระบบเรียงเลขใหม่แทน)')) return;
     }
     const dateVal=$('bagDate').value?$('bagDate').value+'T'+localISO().slice(11):localISO();
-    S.sackReceipts.push({ id:uid(), time:dateVal, kind, name:n, size:$('bagSize').value.trim(), sackNo, sackWeightKg, weightPerBag, note:$('bagNote').value.trim() });
+    S.sackReceipts.push({ id:uid(), time:dateVal, kind, name:n, size:normSize($('bagSize').value), sackNo, sackWeightKg, weightPerBag, note:$('bagNote').value.trim() });
     await saveBag(); $('bagNote').value=''; $('bagSackNo').value='';
     /* ไซซ์ถุง / น้ำหนักกระสอบ / น้ำหนักต่อใบ ค้างไว้ เพราะมักรับเข้าแบบเดิมซ้ำๆ */
     // ประเภท+ชื่อถุงค้างไว้ จนกว่าจะเปลี่ยนเอง (มักรับเข้ากระสอบเดิมหลายรอบติดกัน)

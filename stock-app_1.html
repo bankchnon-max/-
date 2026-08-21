@@ -39,6 +39,16 @@
   #sk input,#sk select { width:100%; background:var(--panel2); border:1px solid var(--border);
     border-radius:8px; padding:9px 10px; color:var(--text); font-family:'Sarabun',sans-serif; font-size:14px; margin-top:4px; }
   #sk label { font-size:12px; color:#ffffff; display:block; margin-top:9px; }
+  /* มือถือ: ปุ่มและช่องกรอกต้องกดถนัด แม้ใส่ถุงมือหรือมือเปื้อน (มาตรฐาน 44px) */
+  @media (max-width:640px){
+    #sk input,#sk select,#sk textarea { min-height:44px; padding:11px 12px; font-size:16px; }
+    #sk .chkrow input[type="checkbox"], #sk input[type="checkbox"] { min-height:0; width:22px; height:22px; }
+    #sk button.btn { min-height:44px; }
+    #sk button.btn.sm { min-height:40px; }
+    #sk .nb { min-height:52px; }
+    #sk .x, #sk .ed { min-height:40px; min-width:40px; padding:8px 10px; font-size:15px; }
+  }
+
   #sk button.btn { background:var(--accent); color:#201305; border:none; border-radius:9px; padding:10px 15px;
     font-family:'Kanit',sans-serif; font-weight:500; font-size:14px; cursor:pointer; margin-top:11px; }
   #sk button.btn.sec { background:var(--panel2); color:var(--text); border:1px solid var(--border); }
@@ -122,14 +132,16 @@
     <div class="panel" id="p-fiber">
       <div class="card"><h3>สต๊อกใย</h3><div id="fiberCards"></div></div>
       <div class="card">
-        <h3>รับเข้าใย (ออกเลขล็อตให้อัตโนมัติ)</h3>
+        <h3>รับเข้าใย — 1 ครั้ง = 1 ก้อน</h3>
+        <p class="sumline" style="margin-top:-4px;">กรอกตามที่เขียนบนก้อน เช่น <b>เบอร์ 1 · 7D64HC · 265 กก. · 21/8/2569</b><br>
+        <span style="color:var(--muted)">ใยชื่อเดียวกันแต่ละก้อนหนักไม่เท่ากันได้ ระบบแยกยอดให้ทีละก้อน</span></p>
         <div class="rf">
           <div><label>ชื่อใย</label><select id="rwSel"></select>
             <input id="rwName" list="dlRwFiber" placeholder="พิมพ์ชื่อใย" style="display:none;"><datalist id="dlRwFiber"></datalist></div>
-          <div><label>น้ำหนักรับเข้า (กก.)</label><input id="rwKg" type="number" inputmode="decimal" step="0.01"></div>
+          <div><label>น้ำหนักก้อนนี้ (กก.)</label><input id="rwKg" type="number" inputmode="decimal" step="0.01" placeholder="เช่น 265"></div>
         </div>
-        <label>จำนวนก้อน (ถ้านับได้ — ไว้ติ๊กออกทีละก้อนตอนใช้)</label><input id="rwBales" type="number" inputmode="numeric" placeholder="เช่น 10">
-        <label>เลขล็อต (ถ้ามีเขียนไว้อยู่แล้ว)</label><input id="rwLotNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ">
+        <label>ถ้ารับเข้าหลายก้อนพร้อมกันแต่ไม่แยกเบอร์ ใส่จำนวนก้อนตรงนี้ (ปกติเว้นว่าง)</label><input id="rwBales" type="number" inputmode="numeric" placeholder="เว้นว่าง = 1 ก้อน">
+        <label>เบอร์ก้อน — เลขที่เขียนไว้บนก้อน</label><input id="rwLotNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ = ออกเบอร์ถัดไปให้อัตโนมัติ">
         <div class="sumline" id="rwLotPreview"></div>
         <div class="rf">
           <div><label>ผู้ขาย</label><input id="rwSupplier"></div>
@@ -1030,10 +1042,18 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     const customLot=$('rwLotNo').value.trim();
     const lotNo=customLot?+customLot:CALC.nextFiberLot(S.fiberReceipts,n);
     if(customLot && S.fiberReceipts.some(r=>r.fiberName===n && String(r.lotNo)===String(lotNo))){
-      if(!await ask('เลขล็อต '+lotNo+' ('+n+') มีอยู่แล้วในระบบ','ยืนยันจะสร้างล็อตใหม่เลขซ้ำกันหรือไม่? (แนะนำให้เว้นว่างให้ระบบเรียงเลขใหม่แทน)')) return;
+      if(!await ask('เบอร์ก้อน '+lotNo+' ของ '+n+' มีอยู่แล้ว','ระบบจะมีก้อนเบอร์ '+lotNo+' ซ้ำกัน 2 ก้อน ทำให้ยอดคงเหลือดูสับสน\n\nแนะนำให้เว้นว่างไว้ ระบบจะออกเบอร์ถัดไปให้เอง\n\nยืนยันจะใช้เบอร์ซ้ำหรือไม่?')) return;
     }
     const dateVal=$('rwDate').value?$('rwDate').value+'T'+localISO().slice(11):localISO();
     const baleCount=+$('rwBales').value||null;
+    const _w=[];
+    if(kg>20000) _w.push('รับเข้า '+kg+' กก. ในครั้งเดียว ดูเยอะผิดปกติ');
+    if(kg<1) _w.push('รับเข้าแค่ '+kg+' กก. ดูน้อยผิดปกติ');
+    const _ref=lastOf(S.fiberReceipts,r=>r.fiberName===n,'kg');
+    if(_ref>0 && (kg>_ref*10||kg<_ref/10))
+      _w.push('ครั้งก่อนใย "'+n+'" รับเข้า '+_ref+' กก. แต่ครั้งนี้กรอก '+kg+' กก.');
+    if(baleCount && kg/baleCount>500) _w.push('เฉลี่ยก้อนละ '+Math.round(kg/baleCount)+' กก. ดูหนักผิดปกติ');
+    if(!await confirmOdd(_w)) return;
     S.fiberReceipts.push({id:uid(),time:dateVal,fiberName:n,lotNo,kg,baleCount,supplier:$('rwSupplier').value.trim(),note:$('rwNote').value.trim()});
     await saveFiber();
     ['rwSupplier','rwNote','rwKg','rwBales','rwLotNo'].forEach(id=>$(id).value='');
@@ -1057,6 +1077,18 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   function normSize(v){
     /* แปลงเฉพาะตอนที่เป็นตัวคูณจริงๆ คือมีตัวเลขตามหลัง จะได้ไม่ไปยุ่งกับดอกจันที่ใช้ทำเครื่องหมายอย่างอื่น */
     return String(v==null?'':v).trim().replace(/\s*[*×✕Xx]\s*(?=\d)/g,'x');
+  }
+  /* กันพิมพ์ผิด — เทียบกับที่เคยรับเข้าของเดิม ถ้าต่างกันมากให้ถามก่อน */
+  function lastOf(list, match, field){
+    const rows=(list||[]).filter(match);
+    if(!rows.length) return 0;
+    const last=rows.reduce((m,x)=>(x.time>m.time?x:m),rows[0]);
+    return +last[field]||0;
+  }
+  async function confirmOdd(lines){
+    if(!lines.length) return true;
+    return await ask('ตัวเลขดูผิดปกติ — ตรวจอีกครั้งก่อนบันทึก',
+      lines.map(x=>'• '+x).join('\n')+'\n\nยืนยันว่าตัวเลขถูกต้องแล้ว?');
   }
   function allFabricTypes(){
     const set=new Set(); S.fabricReceipts.forEach(r=>set.add(r.fabricType)); S.cuts.forEach(c=>set.add(c.fabricType));
@@ -1404,7 +1436,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   };
   $('sewFreeFabSel').onchange=function(){ const v=this.value,t=$('sewFreeFabName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} };
   $('btnSew').onclick=async()=>{
-    const productType=($('sewTypeSel').value==='__new__'?$('sewTypeName').value:$('sewTypeSel').value).trim();
+    const productType=normSize($('sewTypeSel').value==='__new__'?$('sewTypeName').value:$('sewTypeSel').value);
     const sewerName=($('sewNameSel').value==='__new__'?$('sewName').value:$('sewNameSel').value).trim();
     const timeVal=$('sewTime').value?$('sewTime').value+':00':localISO();
     if($('sewFreeMode').checked){
@@ -1481,7 +1513,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   $('retTypeSel').onchange=function(){ const v=this.value,t=$('retTypeName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} };
   $('btnRet').onclick=async()=>{
     const dateVal=$('retDate').value?$('retDate').value+'T'+localISO().slice(11):localISO();
-    const productType=($('retTypeSel').value==='__new__'?$('retTypeName').value:$('retTypeSel').value).trim();
+    const productType=normSize($('retTypeSel').value==='__new__'?$('retTypeName').value:$('retTypeSel').value);
     const sewerName=($('retNameSel').value==='__new__'?$('retName').value:$('retNameSel').value).trim();
     if($('retFreeMode').checked){
       const fab=($('retFreeFabSel').value==='__new__'?$('retFreeFabName').value:$('retFreeFabSel').value).trim();
@@ -1657,7 +1689,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   $('bagNameNew').oninput=updateBagSackPreview;
   $('btnBag').onclick=async()=>{
     const kind=$('bagKind').value;
-    const n=($('bagNameSel').value==='__new__'?$('bagNameNew').value:$('bagNameSel').value).trim();
+    const n=normSize($('bagNameSel').value==='__new__'?$('bagNameNew').value:$('bagNameSel').value);
     const sackWeightKg=+$('bagSackKg').value||25, weightPerBag=+$('bagWeightPer').value||0;
     if(!n||!sackWeightKg){ toast('กรอกชื่อถุงและน้ำหนักกระสอบ'); return; }
     const customSackNo=$('bagSackNo').value.trim();
@@ -1665,6 +1697,22 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     if(customSackNo && S.sackReceipts.some(s=>s.kind===kind && s.name===n && s.sackNo===sackNo)){
       if(!await ask('เลขกระสอบ #'+sackNo+' ('+n+') มีอยู่แล้วในระบบ','ยืนยันจะสร้างกระสอบใหม่เลขซ้ำกันหรือไม่? (แนะนำให้เว้นว่างให้ระบบเรียงเลขใหม่แทน)')) return;
     }
+    const _w=[];
+    if(weightPerBag>0 && weightPerBag>=sackWeightKg) _w.push('น้ำหนักถุง 1 ใบ ('+weightPerBag+' กก.) มากกว่าหรือเท่ากับน้ำหนักทั้งกระสอบ ('+sackWeightKg+' กก.)');
+    if(weightPerBag>0 && weightPerBag>5) _w.push('ถุง 1 ใบหนัก '+weightPerBag+' กก. ดูผิดปกติ — เช็คจุดทศนิยมอีกที');
+    if(weightPerBag>0){
+      const pcs=CALC.sackPieces(sackWeightKg,weightPerBag);
+      if(pcs<3) _w.push('กระสอบนี้จะได้ถุงแค่ '+pcs+' ใบ ดูน้อยผิดปกติ');
+      if(pcs>200000) _w.push('กระสอบนี้จะได้ถุงถึง '+pcs+' ใบ ดูเยอะผิดปกติ');
+    }
+    if(sackWeightKg>200) _w.push('น้ำหนักกระสอบ '+sackWeightKg+' กก. ดูหนักผิดปกติ');
+    const _refW=lastOf(S.sackReceipts,x=>x.kind===kind&&x.name===n,'weightPerBag');
+    if(_refW>0 && weightPerBag>0 && (weightPerBag>_refW*3||weightPerBag<_refW/3))
+      _w.push('ครั้งก่อนถุง "'+n+'" บันทึกไว้ '+_refW+' กก./ใบ แต่ครั้งนี้กรอก '+weightPerBag+' กก./ใบ');
+    const _refS=lastOf(S.sackReceipts,x=>x.kind===kind&&x.name===n,'sackWeightKg');
+    if(_refS>0 && (sackWeightKg>_refS*3||sackWeightKg<_refS/3))
+      _w.push('ครั้งก่อนกระสอบ "'+n+'" หนัก '+_refS+' กก. แต่ครั้งนี้กรอก '+sackWeightKg+' กก.');
+    if(!await confirmOdd(_w)) return;
     const dateVal=$('bagDate').value?$('bagDate').value+'T'+localISO().slice(11):localISO();
     S.sackReceipts.push({ id:uid(), time:dateVal, kind, name:n, size:normSize($('bagSize').value), sackNo, sackWeightKg, weightPerBag, note:$('bagNote').value.trim() });
     await saveBag(); $('bagNote').value=''; $('bagSackNo').value='';

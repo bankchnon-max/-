@@ -228,6 +228,10 @@
         <h3>⚠ ยังคิดไม่ครบ</h3>
         <div class="sumline" id="jobWarn"></div>
       </div>
+      <div class="card"><h3>วันเวลาที่ผลิตจริง</h3>
+        <div class="sumline" id="jobSpan"></div>
+        <div class="scr" style="margin-top:8px;"><table id="tJobDays"></table></div>
+      </div>
       <div class="card"><h3>ต้นทุนต่อหน่วย</h3><div class="sg" id="jobStats"></div></div>
       <div class="card"><h3>แยกรายการ</h3><div class="scr"><table id="tJobBreak"></table></div></div>
       <div class="card"><h3>ที่มาของตัวเลข</h3><div class="scr"><table id="tJobDetail"></table></div></div>
@@ -547,6 +551,10 @@ window.WPDAUTH = {
     return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds()); }
   function thDate(iso){ if(!iso) return ''; const d=String(iso).slice(0,10).split('-');
     if(d.length<3) return ''; return (+d[2])+'/'+(+d[1])+'/'+(+d[0]+543); }
+  function thDateTime(iso){ if(!iso) return ''; const t=String(iso).slice(11,16); return thDate(iso)+(t?' '+t+' น.':''); }
+  const DOW=['อา','จ','อ','พ','พฤ','ศ','ส'];
+  function thDow(ymd){ const p=String(ymd).split('-'); if(p.length<3) return '';
+    const d=new Date(+p[0],+p[1]-1,+p[2]); return isNaN(d.getTime())?'':DOW[d.getDay()]; }
 
   /* ═══════════════════════════════════════════════════════════════
      COST — คิดเงินล้วนๆ ไม่แตะ DOM (มีเทสแยกทุกฟังก์ชัน)
@@ -640,6 +648,27 @@ window.WPDAUTH = {
       return r2(min/60);
     },
 
+    /* ช่วงวันเวลาที่ลงมือผลิตจริง — เอาจากเวลาที่บันทึกท้ายไลน์ ไม่ใช่วันเปิดออเดอร์ */
+    runSpan(rows){
+      const ts=(rows||[]).map(r=>String(r.time||'')).filter(Boolean).sort();
+      if(!ts.length) return null;
+      return { from:ts[0], to:ts[ts.length-1], days:new Set(ts.map(t=>t.slice(0,10))).size };
+    },
+
+    /* แยกรายวัน — วันไหนเริ่มกี่โมง เลิกกี่โมง ได้กี่แพ็ค กี่ชิ้น เดินเครื่องกี่ชั่วโมง */
+    runDays(rows, capMin){
+      const by={};
+      (rows||[]).forEach(r=>{ const d=String(r.time||'').slice(0,10); if(!d) return; (by[d]=by[d]||[]).push(r); });
+      return Object.keys(by).sort().map(d=>{
+        const rs=by[d].slice().sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+        return { date:d, packs:rs.length,
+                 pieces:rs.reduce((s,x)=>s+(+x.piecesPerPack||0),0),
+                 first:String(rs[0].time).slice(11,16),
+                 last:String(rs[rs.length-1].time).slice(11,16),
+                 hours:COST.machineHours(rs,capMin) };
+      });
+    },
+
     /* ชั่วโมงเดินเครื่องเฉลี่ยต่อเดือน จากยอดผลิตจริง */
     hoursPerMonth(rows, capMin){
       const byMonth={};
@@ -674,6 +703,8 @@ window.WPDAUTH = {
       let pieces=lines.reduce((s,l)=>s+(+l.piecesPerPack||0),0);
       if(!pieces && order && order.spec) pieces=packs*(+order.spec.piecesPerPack||0);
       const hours=COST.machineHours(lines);
+      const span=COST.runSpan(lines);
+      const days=COST.runDays(lines);
       const miss=[]; const detail=[];
 
       /* ---- ใย ---- */
@@ -764,7 +795,7 @@ window.WPDAUTH = {
 
       const total=r2(fiberBaht+fabBaht+bagBaht+sewBaht+laborTime+laborPiece+gasBaht+elec+ship+fixed);
       return {
-        orderId, order, packs, pieces, hours,
+        orderId, order, packs, pieces, hours, span, days,
         fiber:{kg:fiberKg, baht:fiberBaht, from:fiberFrom},
         fabric:{pieces:fabPieces, baht:fabBaht},
         bag:{zip:zipPcs, pack:packPcs, baht:bagBaht},
@@ -1158,8 +1189,8 @@ window.WPDAUTH = {
       $('jobWarnCard').style.display='none'; return; }
     const c=COST.jobCost(ctx(), id);
     $('jobMeta').innerHTML='ผลิตแล้ว <b>'+c.packs+' แพ็ค</b> · <b>'+fmtInt(c.pieces)+' ชิ้น</b> · เดินเครื่องราว <b>'+c.hours+' ชม.</b>'+
-      (c.order&&c.order.startedAt?' · เริ่ม '+thDate(c.order.startedAt):'')+
       (c.fiber.from==='wd'?'<br><span class="bdg warn">งานนี้ยังไม่มีบันทึกป้อนใยรายรอบ — ใช้ยอดเบิกใยแทน</span>':'');
+    renderJobDays(c);
 
     $('jobStats').innerHTML =
       '<div class="stat"><div class="v">'+fmtBaht(c.perPiece)+'</div><div class="l">บาท/ชิ้น</div></div>'+
@@ -1194,6 +1225,28 @@ window.WPDAUTH = {
         c.missing.map(m=>'• '+esc(m)).join('<br>')+
         '<br><br>ไปใส่ได้ที่หน้า <b>💰 ราคาของ</b>';
     } else $('jobWarnCard').style.display='none';
+  }
+
+  function renderJobDays(c){
+    const sp=c.span;
+    if(!sp){
+      $('jobSpan').innerHTML='<span class="bdg warn">ยังไม่มีบันทึกท้ายไลน์ของงานนี้</span> ต้องมีการบันทึกแพ็คก่อน ถึงจะรู้วันเวลาที่ผลิตจริง';
+      $('tJobDays').innerHTML=''; return;
+    }
+    const opened=(c.order&&c.order.startedAt)?thDateTime(c.order.startedAt):'';
+    const done=(c.order&&c.order.finishedAt)?thDateTime(c.order.finishedAt):'';
+    $('jobSpan').innerHTML=
+      'ลงมือผลิตจริง <b style="color:var(--accent2)">'+thDateTime(sp.from)+'</b> → <b style="color:var(--accent2)">'+thDateTime(sp.to)+'</b>'+
+      ' · รวม <b>'+sp.days+' วัน</b> ที่มีการผลิต'+
+      (opened?'<br><span style="color:var(--muted)">เปิดออเดอร์ '+opened+(done?' · ปิดงาน '+done:'')+'</span>':'');
+    $('tJobDays').innerHTML='<tr><th>วันที่</th><th>เริ่ม</th><th>เลิก</th><th style="text-align:right">แพ็ค</th>'+
+      '<th style="text-align:right">ชิ้น</th><th style="text-align:right">ชม.เดินเครื่อง</th><th style="text-align:right">ชิ้น/ชม.</th></tr>'+
+      c.days.map(d=>'<tr><td>'+thDate(d.date)+' ('+thDow(d.date)+')</td><td>'+d.first+'</td><td>'+d.last+'</td>'+
+        '<td style="text-align:right">'+fmtInt(d.packs)+'</td><td style="text-align:right">'+fmtInt(d.pieces)+'</td>'+
+        '<td style="text-align:right">'+d.hours+'</td><td style="text-align:right" class="kn">'+(d.hours>0?r2(d.pieces/d.hours):'—')+'</td></tr>').join('')+
+      (c.days.length>1?'<tr><td><b>รวม</b></td><td></td><td></td><td style="text-align:right"><b>'+fmtInt(c.packs)+'</b></td>'+
+        '<td style="text-align:right"><b>'+fmtInt(c.pieces)+'</b></td><td style="text-align:right"><b>'+c.hours+'</b></td>'+
+        '<td style="text-align:right"><b>'+(c.hours>0?r2(c.pieces/c.hours):'—')+'</b></td></tr>':'');
   }
 
   /* ═══════════════════════════════════════════════════════════════
@@ -1302,8 +1355,10 @@ window.WPDAUTH = {
       '<div class="stat"><div class="v">'+totalHours+'</div><div class="l">ชั่วโมงเดินเครื่องรวม</div></div>';
 
     $('tSumJobs').innerHTML = costs.length
-      ? '<tr><th>งาน</th><th style="text-align:right">ชิ้น</th><th style="text-align:right">ต้นทุนรวม</th><th style="text-align:right">บาท/ชิ้น</th><th>ครบราคามั้ย</th></tr>'+
-        costs.slice().reverse().map(c=>'<tr><td>'+esc(orderLabel(c.order))+'</td><td style="text-align:right">'+fmtInt(c.pieces)+'</td>'+
+      ? '<tr><th>งาน</th><th>ผลิตจริง</th><th style="text-align:right">ชิ้น</th><th style="text-align:right">ต้นทุนรวม</th><th style="text-align:right">บาท/ชิ้น</th><th>ครบราคามั้ย</th></tr>'+
+        costs.slice().reverse().map(c=>'<tr><td>'+esc(orderLabel(c.order))+'</td>'+
+          '<td>'+(c.span?(thDate(c.span.from)+(thDate(c.span.to)!==thDate(c.span.from)?' – '+thDate(c.span.to):'')):'—')+'</td>'+
+          '<td style="text-align:right">'+fmtInt(c.pieces)+'</td>'+
           '<td style="text-align:right">'+fmtBaht(c.total)+'</td><td style="text-align:right" class="kn">'+fmtBaht(c.perPiece)+'</td>'+
           '<td>'+(c.missing.length?'<span class="bdg warn">ขาด '+c.missing.length+' รายการ</span>':'<span class="bdg ok">ครบ</span>')+'</td></tr>').join('')
       : '<tr><td class="empty">ยังไม่มีงานที่บันทึกการผลิตไว้</td></tr>';

@@ -554,140 +554,21 @@
    ========================================================================== */
 const SUPABASE_URL = 'https://tekhjdnbfncfvpwejlni.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRla2hqZG5iZm5jZnZwd2VqbG5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5NjgzNDIsImV4cCI6MjEwMTU0NDM0Mn0.bOO7i_NyD-noFzyPjs22R0M2wGlUznViV-_YjOTqbak';
-
-/* ==========================================================================
-   ล็อกอินก่อนใช้งาน — กันคนนอกเข้าถึงข้อมูลผ่าน key ที่ฝังอยู่ในหน้าเว็บ
-   ล็อกอินครั้งเดียวต่อเครื่อง ระบบจำไว้ให้ ไม่ต้องกรอกซ้ำทุกวัน
-   ========================================================================== */
-const WPD_AUTH_KEY = 'wpd_auth_v1';
-let WPD_SESSION = null;
-try { WPD_SESSION = JSON.parse(localStorage.getItem(WPD_AUTH_KEY) || 'null'); } catch(e){}
-
-function wpdSaveSession(s){
-  WPD_SESSION = s;
-  try { s ? localStorage.setItem(WPD_AUTH_KEY, JSON.stringify(s)) : localStorage.removeItem(WPD_AUTH_KEY); } catch(e){}
-}
-function wpdTokenOk(){
-  if(!WPD_SESSION || !WPD_SESSION.access_token) return false;
-  const exp = (WPD_SESSION.expires_at ? WPD_SESSION.expires_at*1000 : 0);
-  return !exp || (exp - Date.now() > 60000);
-}
-async function wpdSignIn(email, password){
-  const r = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
-    method:'POST', headers:{ apikey:SUPABASE_ANON_KEY, 'Content-Type':'application/json' },
-    body: JSON.stringify({ email: email, password: password }) });
-  let j = {}; try { j = await r.json(); } catch(e){}
-  if(!r.ok) throw new Error(j.error_description || j.msg || j.message || ('เข้าระบบไม่สำเร็จ (HTTP '+r.status+')'));
-  wpdSaveSession(j); return j;
-}
-async function wpdRefresh(){
-  if(!WPD_SESSION || !WPD_SESSION.refresh_token) return false;
-  try{
-    const r = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
-      method:'POST', headers:{ apikey:SUPABASE_ANON_KEY, 'Content-Type':'application/json' },
-      body: JSON.stringify({ refresh_token: WPD_SESSION.refresh_token }) });
-    if(!r.ok) return false;
-    wpdSaveSession(await r.json()); return true;
-  }catch(e){ return false; }
-}
-let wpdLoginBox = null;
-function wpdShowLogin(errMsg){
-  if(wpdLoginBox) { if(errMsg) wpdLoginBox.setError(errMsg); return wpdLoginBox.promise; }
-  let setError;
-  const promise = new Promise(function(resolve){
-    const ov = document.createElement('div');
-    ov.style.cssText = 'position:fixed;inset:0;background:#10151c;z-index:100000;display:flex;align-items:center;'+
-      'justify-content:center;padding:20px;font-family:Sarabun,sans-serif;';
-    const bx = document.createElement('div');
-    bx.style.cssText = 'background:#1a222c;color:#f2ede3;border:1px solid #2b3645;border-radius:16px;max-width:380px;'+
-      'width:100%;padding:24px;box-shadow:0 10px 40px rgba(0,0,0,.5);';
-    bx.innerHTML =
-      '<div style="font-size:34px;text-align:center;">🔒</div>'+
-      '<h2 style="font:600 19px Kanit,sans-serif;margin:10px 0 4px;text-align:center;">เข้าสู่ระบบก่อนใช้งาน</h2>'+
-      '<div style="font:400 13px/1.6 Sarabun,sans-serif;color:#93a1b0;text-align:center;margin-bottom:16px;">'+
-      'กรอกครั้งเดียวต่อเครื่อง ระบบจำไว้ให้</div>'+
-      '<label style="font-size:12px;color:#c7d2dd;">อีเมล</label>'+
-      '<input id="wpdEmail" type="email" autocomplete="username" style="width:100%;padding:13px;margin:5px 0 12px;'+
-      'border:1px solid #2b3645;border-radius:10px;background:#12181f;color:#f2ede3;font:400 16px Sarabun,sans-serif;">'+
-      '<label style="font-size:12px;color:#c7d2dd;">รหัสผ่าน</label>'+
-      '<input id="wpdPass" type="password" autocomplete="current-password" style="width:100%;padding:13px;margin:5px 0 4px;'+
-      'border:1px solid #2b3645;border-radius:10px;background:#12181f;color:#f2ede3;font:400 16px Sarabun,sans-serif;">'+
-      '<div id="wpdErr" style="font:400 13px/1.55 Sarabun,sans-serif;color:#ff6b6b;min-height:19px;margin:6px 0 10px;"></div>'+
-      '<button id="wpdGo" style="width:100%;padding:15px;border:0;border-radius:11px;background:#ff8a3d;color:#12181f;'+
-      'font:600 16px Kanit,sans-serif;">เข้าสู่ระบบ</button>';
-    ov.appendChild(bx); document.body.appendChild(ov);
-    const em = bx.querySelector('#wpdEmail'), pw = bx.querySelector('#wpdPass'),
-          er = bx.querySelector('#wpdErr'), go = bx.querySelector('#wpdGo');
-    setError = function(m){ er.textContent = m || ''; };
-    try { const last = localStorage.getItem('wpd_last_email'); if(last) em.value = last; } catch(e){}
-    let busy = false;
-    async function submit(){
-      if(busy) return;
-      const e = em.value.trim(), p = pw.value;
-      if(!e || !p){ setError('กรอกอีเมลและรหัสผ่านก่อน'); return; }
-      busy = true; go.textContent = 'กำลังเข้าระบบ…'; setError('');
-      try{
-        await wpdSignIn(e, p);
-        try { localStorage.setItem('wpd_last_email', e); } catch(x){}
-        document.body.removeChild(ov); wpdLoginBox = null; resolve(true);
-      }catch(err){
-        busy = false; go.textContent = 'เข้าสู่ระบบ';
-        const m = String(err && err.message || err);
-        setError(/Invalid login/i.test(m) ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
-              : /Email not confirmed/i.test(m) ? 'บัญชีนี้ยังไม่ได้ยืนยันอีเมล — ให้แอดมินกด Confirm ให้ก่อน'
-              : m);
-      }
-    }
-    go.onclick = submit;
-    pw.onkeydown = function(ev){ if(ev.key === 'Enter') submit(); };
-    em.onkeydown = function(ev){ if(ev.key === 'Enter') pw.focus(); };
-    setTimeout(function(){ (em.value ? pw : em).focus(); }, 60);
-  });
-  wpdLoginBox = { promise: promise, setError: function(m){ setError(m); } };
-  if(errMsg) wpdLoginBox.setError(errMsg);
-  return promise;
-}
-async function wpdRequireSession(){
-  if(wpdTokenOk()) return;
-  if(WPD_SESSION && await wpdRefresh()) return;
-  wpdSaveSession(null);
-  await wpdShowLogin();
-}
-window.WPDAUTH = {
-  signOut: function(){ wpdSaveSession(null); location.reload(); },
-  email: function(){ return (WPD_SESSION && WPD_SESSION.user && WPD_SESSION.user.email) || null; }
-};
-
 (function setupSupabaseStorage(){
   const needsSetup = SUPABASE_URL.includes('YOUR-PROJECT-REF') || SUPABASE_ANON_KEY.includes('YOUR-ANON-PUBLIC-KEY');
   const base = SUPABASE_URL.replace(/\/$/,'') + '/rest/v1/kv_store';
-  const headers = () => ({
-    'apikey': SUPABASE_ANON_KEY,
-    'Authorization': 'Bearer ' + ((WPD_SESSION && WPD_SESSION.access_token) ? WPD_SESSION.access_token : SUPABASE_ANON_KEY),
-    'Content-Type': 'application/json'
-  });
+  const headers = () => ({ 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' });
   async function get(key){
-    await wpdRequireSession();
-    let r = await fetch(base + '?id=eq.' + encodeURIComponent(key) + '&select=value', { headers: headers() });
-    if (r.status === 401 || r.status === 403) {
-      if (!(await wpdRefresh())) { wpdSaveSession(null); await wpdShowLogin('เซสชันหมดอายุ — เข้าสู่ระบบอีกครั้ง'); }
-      r = await fetch(base + '?id=eq.' + encodeURIComponent(key) + '&select=value', { headers: headers() });
-    }
+    const r = await fetch(base + '?id=eq.' + encodeURIComponent(key) + '&select=value', { headers: headers() });
     if (!r.ok) throw new Error('Supabase get failed: HTTP ' + r.status + ' ' + (await r.text()).slice(0,150));
     const rows = await r.json();
     if (!rows.length) return null;
     return { key: key, value: rows[0].value, shared: true };
   }
   async function set(key, value){
-    await wpdRequireSession();
-    const doPost = () => fetch(base, { method: 'POST',
+    const r = await fetch(base, { method: 'POST',
       headers: Object.assign(headers(), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
       body: JSON.stringify([{ id: key, value: value, shared: true, updated_at: new Date().toISOString() }]) });
-    let r = await doPost();
-    if (r.status === 401 || r.status === 403) {
-      if (!(await wpdRefresh())) { wpdSaveSession(null); await wpdShowLogin('เซสชันหมดอายุ — เข้าสู่ระบบอีกครั้ง'); }
-      r = await doPost();
-    }
     if (!r.ok) throw new Error('Supabase set failed: HTTP ' + r.status + ' ' + (await r.text()).slice(0,150));
     return { key: key, value: value, shared: true };
   }
@@ -908,17 +789,12 @@ window.WPDAUTH = {
             .reduce((a,s)=>a+CALC.sackPieces(Math.max(0,s.remainingKg), s.weightPerBag),0)};
       });
     },
-    /* สินค้าสำเร็จรูปออกจากคลังได้ 2 ทาง — ส่งให้ลูกค้า กับ เบิกไปแพ็คต่อเป็นสินค้าอีกตัว
-       (เช่น ใยแผ่นถูกเบิกไปแพ็คปิกนิก) ถ้าไม่หักทางที่ 2 ยอดจะค้างทั้งที่ของออกจากคลังไปแล้ว */
-    finStock(producedByOrder, shipments, adjustments, sheetWd){
-      const m={}, blank=()=>({produced:0,shipped:0,adjusted:0,packed:0});
-      Object.entries(producedByOrder||{}).forEach(([id,qty])=>{ m[id]=m[id]||blank(); m[id].produced=qty; });
-      (shipments||[]).forEach(s=>{ m[s.orderId]=m[s.orderId]||blank(); m[s.orderId].shipped=r2(m[s.orderId].shipped+(+s.qty||0)); });
-      (adjustments||[]).filter(a=>a.orderId).forEach(a=>{ m[a.orderId]=m[a.orderId]||blank(); m[a.orderId].adjusted=r2(m[a.orderId].adjusted+(+a.delta||0)); });
-      (sheetWd||[]).forEach(w=>{ if(!w.srcOrderId) return; m[w.srcOrderId]=m[w.srcOrderId]||blank();
-        m[w.srcOrderId].packed=r2(m[w.srcOrderId].packed+(+w.qty||0)); });
-      return Object.entries(m).map(([orderId,v])=>({ orderId, produced:v.produced, shipped:v.shipped,
-        adjusted:v.adjusted, packed:v.packed, stock:r2(v.produced-v.shipped-v.packed+v.adjusted) }));
+    finStock(producedByOrder, shipments, adjustments){
+      const m={};
+      Object.entries(producedByOrder||{}).forEach(([id,qty])=>{ m[id]=m[id]||{produced:0,shipped:0,adjusted:0}; m[id].produced=qty; });
+      (shipments||[]).forEach(s=>{ m[s.orderId]=m[s.orderId]||{produced:0,shipped:0,adjusted:0}; m[s.orderId].shipped=r2(m[s.orderId].shipped+(+s.qty||0)); });
+      (adjustments||[]).filter(a=>a.orderId).forEach(a=>{ m[a.orderId]=m[a.orderId]||{produced:0,shipped:0,adjusted:0}; m[a.orderId].adjusted=r2(m[a.orderId].adjusted+(+a.delta||0)); });
+      return Object.entries(m).map(([orderId,v])=>({ orderId, produced:v.produced, shipped:v.shipped, adjusted:v.adjusted, stock:r2(v.produced-v.shipped+v.adjusted) }));
     },
     // สินค้าที่ยังไม่มีออเดอร์จริงในแอพผลิต — ลงยอดยกมาอิสระด้วยชื่อลูกค้า+รหัสของตัวเอง ไม่ผูกกับ orderId เลย
     freeFinStock(adjustments){
@@ -958,7 +834,7 @@ window.WPDAUTH = {
   /* ---------- STATE ---------- */
   let S = { fiberReceipts:[], fiberTh:{}, baleUsage:[], fabricReceipts:[], cuts:[], cutBatches:[], sewSent:[], sewReturns:[], waste:[], prodTypeTh:{},
             sackReceipts:[], gasReceipts:[], shipments:[], deliveries:[], finAdjustments:[] };
-  let PROD = { orders:[], wd:[], fabricWd:[], bagWd:[], gasSwaps:[], line:[], sheetWd:[] };
+  let PROD = { orders:[], wd:[], fabricWd:[], bagWd:[], gasSwaps:[], line:[] };
   let current='fiber', lastHash='';
 
   const hasStore = !!(window.storage && window.storage.get && window.storage.set);
@@ -1019,7 +895,6 @@ window.WPDAUTH = {
     S.shipments=Pn.shipments||[]; S.deliveries=Pn.deliveries||[]; S.finAdjustments=Pn.finAdjustments||[];
     const A=parse(ord,{orders:[]}), B=parse(fd,{wd:[]}), C=parse(ln,{line:[]});
     PROD.orders=A.orders||[]; PROD.wd=B.wd||[]; PROD.fabricWd=B.fabricWd||[]; PROD.bagWd=B.bagWd||[]; PROD.gasSwaps=B.gasSwaps||[]; PROD.line=C.line||[];
-    PROD.sheetWd=B.sheetWd||[];
     return hash;
   }
 
@@ -2223,19 +2098,10 @@ window.WPDAUTH = {
     rGas(); toast('บันทึกรับเข้าถังแก๊ส '+qty+' ถัง — เริ่มที่ #'+start);
   };
 
-  /* บรรทัดบอกว่าของที่เบิกไปแพ็คต่อ ไปเข้างานไหนบ้าง */
-  function sheetOutLine(srcOrderId){
-    const rows=(PROD.sheetWd||[]).filter(w=>w.srcOrderId===srcOrderId);
-    if(!rows.length) return '';
-    const by={};
-    rows.forEach(w=>{ by[w.orderId]=r2((by[w.orderId]||0)+(+w.qty||0)); });
-    return '↳ ' + Object.entries(by).map(([oid,q])=>esc(orderLabel(oid))+' '+q+' แพ็ค').join(' · ');
-  }
-
   /* ---------- 4. FINISHED GOODS ---------- */
   function rFin(){
     const produced=producedByOrder();
-    const stock=CALC.finStock(produced, S.shipments, S.finAdjustments, PROD.sheetWd);
+    const stock=CALC.finStock(produced, S.shipments, S.finAdjustments);
     stock.sort((a,b)=>orderLabel(a.orderId).localeCompare(orderLabel(b.orderId),'th'));
     const freeStock=CALC.freeFinStock(S.finAdjustments);
     freeStock.sort((a,b)=>a.freeLabel.localeCompare(b.freeLabel,'th'));
@@ -2243,9 +2109,7 @@ window.WPDAUTH = {
     let cardsHtml=stock.length?stock.map(s=>{ const o=orderById(s.orderId);
       return '<div class="scard" data-fincard="'+esc(s.orderId)+'" style="cursor:pointer;"><div class="nm">'+esc(orderLabel(s.orderId))+(o?' <span class="bdg ok">'+esc(o.productType||'ใย')+'</span>':'')+'</div>'+
       '<div class="n">'+s.stock+' <span style="font-size:13px;color:#ffffff;">แพ็ค</span></div><div class="l">ผลิตได้ '+s.produced+' · ส่งออกแล้ว '+s.shipped+' แพ็ค'+
-      (s.packed?' · <b style="color:var(--accent2)">เบิกไปแพ็คต่อ '+s.packed+' แพ็ค</b>':'')+
       (s.adjusted?' · ปรับยอด '+(s.adjusted>0?'+':'')+s.adjusted+' แพ็ค':'')+' · แตะดูรายละเอียด ▾</div>'+
-      (s.packed?'<div class="l" style="color:var(--muted)">'+sheetOutLine(s.orderId)+'</div>':'')+
       '<button class="ed" style="margin-top:6px;" data-finadj="'+s.orderId+'">ปรับยอดคงเหลือ</button></div>'; }).join(''):'';
     cardsHtml += freeStock.length?freeStock.map(s=>
       '<div class="scard"><div class="nm">'+esc(s.freeLabel)+' <span class="bdg warn">ไม่มีออเดอร์</span></div>'+
@@ -2344,7 +2208,7 @@ window.WPDAUTH = {
     const orderId=$('obFinSel').value;
     if(!orderId){ toast('เลือกออเดอร์ก่อน'); return; }
     if(isNaN(target)){ toast('กรอกจำนวนแพ็ค'); return; }
-    const stock=CALC.finStock(producedByOrder(), S.shipments, S.finAdjustments, PROD.sheetWd);
+    const stock=CALC.finStock(producedByOrder(), S.shipments, S.finAdjustments);
     const cur=stock.find(x=>x.orderId===orderId);
     const curStock=cur?cur.stock:0;
     const delta=r2(target-curStock);
@@ -2365,7 +2229,7 @@ window.WPDAUTH = {
   function rShip(){
     if(!$('dpDate').value) $('dpDate').value=todayStr();
     if(!$('dpOrdSel').dataset.init){
-      const stock=CALC.finStock(producedByOrder(),S.shipments,S.finAdjustments,PROD.sheetWd);
+      const stock=CALC.finStock(producedByOrder(),S.shipments,S.finAdjustments);
       $('dpOrdSel').innerHTML=stock.filter(s=>s.stock>0).map(s=>'<option value="'+s.orderId+'">'+esc(orderLabel(s.orderId))+' (เหลือ '+s.stock+' แพ็ค)</option>').join('');
       $('dpOrdSel').dataset.init='1';
       $('dpOrdSel').onchange=refreshDpDateOptions;
@@ -2478,7 +2342,7 @@ window.WPDAUTH = {
   /* ---------- 6. SUMMARY / EXPORT / CLEAR ---------- */
   function rSum(){
     const rawS=CALC.rawStock(S.fiberReceipts,PROD.wd);
-    const finS=CALC.finStock(producedByOrder(),S.shipments,S.finAdjustments,PROD.sheetWd);
+    const finS=CALC.finStock(producedByOrder(),S.shipments,S.finAdjustments);
     const sackStatus=CALC.sackStatus(S.sackReceipts,PROD.bagWd);
     const zipS=CALC.bagAggregate(sackStatus,'zip');
     const packS=CALC.bagAggregate(sackStatus,'pack');

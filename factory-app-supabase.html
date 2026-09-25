@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="แอพผลิต">
-<meta name="theme-color" content="#ff8a3d">
+<meta name="theme-color" content="#ffffff">
 <title>ระบบรายงานการผลิต — วินโพลีดีไซน์</title>
 </head>
 <body>
@@ -150,6 +150,143 @@
   #fr .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
   #fr .sumline { font-size:12.5px; color:var(--dim); margin-top:8px; }
 </style>
+<style id="wpd-theme">
+  /* ===== ธีมสว่าง วินโพลีดีไซน์ — ใช้ชุดเดียวกันทั้ง 3 แอพ (แก้ที่ theme/theme-light.css แล้วรัน theme/apply.js) ===== */
+  #fr {
+    --bg:#f2f4f7; --panel:#ffffff; --panel2:#f6f8fa; --border:#e2e7ee;
+    --accent:#ff8a3d; --accent2:#c4570c; --text:#1b2430; --dim:#667385;
+    --green:#15864f; --red:#cf3e45; --yellow:#a86608; --blue:#2566b0;
+    --label:#465262; --line:#edf0f4; --shadow:0 1px 2px rgba(16,24,40,.05), 0 2px 8px rgba(16,24,40,.05);
+    font-size:15px; line-height:1.55;
+  }
+  body { background:#f2f4f7; margin:0; }
+
+  /* แถบบน */
+  #fr .topbar { background:#ffffff; border-bottom:1px solid var(--border); box-shadow:0 1px 6px rgba(16,24,40,.06); padding:14px 16px 12px; }
+  #fr .topbar h1 { font-size:19px; color:var(--text); }
+  #fr .sub { font-size:13px; color:var(--dim); font-weight:400; }
+  #fr .topbar .sumline { font-size:12.5px; }
+  #fr .chip { background:#fff7f0; border-color:#fbd9bd; font-size:14px; }
+  #fr .chip b { color:var(--accent2); }
+  #fr .banner.warn { background:#fff6e5; color:#8a5300; border-color:#f5d9a4; }
+  #fr .banner.late { background:#fdecec; color:#b3262e; border-color:#f4c1c4; }
+  #fr .savechip { font-size:12.5px; padding:5px 11px; border-radius:999px; }
+  #fr .savechip.ok { background:#e6f5ec; color:var(--green); }
+  #fr .savechip.saving { background:#eef1f5; color:var(--dim); }
+  #fr .savechip.bad { background:#fdecec; color:#b3262e; border-color:#f4c1c4; }
+
+  /* การ์ดและหัวข้อ */
+  #fr .content { padding:14px 14px 20px; }
+  #fr .card { background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px; box-shadow:var(--shadow); }
+  #fr .card h3 { font-size:16.5px; font-weight:600; color:var(--text); text-transform:none; letter-spacing:0; margin:0 0 10px; line-height:1.4; }
+  #fr .card.need { border-color:var(--accent); box-shadow:0 0 0 2px rgba(255,138,61,.35); }
+  #fr .sumline { font-size:13.5px; color:var(--dim); line-height:1.6; }
+  #fr .hint { font-size:13px; }
+  #fr .empty { font-size:14px; color:#8a95a5; padding:18px 0; }
+
+  /* ช่องกรอก */
+  #fr label { font-size:13.5px; font-weight:500; color:var(--label); margin-top:12px; }
+  #fr input, #fr select, #fr textarea {
+    background:#ffffff; border:1.5px solid #d5dce6; border-radius:10px; color:var(--text); font-size:15.5px; padding:11px 12px; }
+  #fr input::placeholder, #fr textarea::placeholder { color:#a3adba; }
+  #fr input:focus, #fr select:focus, #fr textarea:focus {
+    outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(255,138,61,.2); }
+  #fr input[type="checkbox"] { accent-color:var(--accent); }
+  #fr details summary { color:var(--accent2); }
+
+  /* ปุ่ม */
+  #fr button.btn { border-radius:12px; padding:12px 16px; font-size:15.5px; font-weight:600; color:#2a1403;
+    box-shadow:0 1px 0 rgba(0,0,0,.04), 0 2px 6px rgba(255,138,61,.28); }
+  #fr button.btn:active { transform:translateY(1px); }
+  #fr button.btn.sec { background:#ffffff; color:var(--text); border:1.5px solid #d5dce6; box-shadow:none; }
+  #fr button.btn.dg { background:#fff1f1; color:#b3262e; border:1.5px solid #f4c1c4; box-shadow:none; }
+  #fr button.btn.blue { background:#2566b0; color:#ffffff; box-shadow:none; }
+  #fr button.btn.sm { padding:7px 12px; font-size:13.5px; border-radius:9px; }
+  #fr button.btn[disabled] { background:#e9edf2; color:#9aa5b3; box-shadow:none; }
+  #fr .x { color:var(--red); }
+  #fr .ed { color:var(--blue); font-size:13.5px; }
+
+  /* ตาราง */
+  #fr table { font-size:14px; }
+  #fr th { background:var(--panel2); color:var(--dim); font-size:12.5px; font-weight:500; padding:9px 10px; border-bottom:1px solid var(--border); }
+  #fr td { padding:9px 10px; border-bottom:1px solid var(--line); }
+  #fr tr:hover td { background:#fafbfc; }
+
+  /* ป้ายสถานะ */
+  #fr .bdg { font-size:12px; padding:2px 9px; }
+  #fr .bdg.ok, #fr .st.active { background:#e6f5ec; color:var(--green); }
+  #fr .bdg.warn { background:#fff4df; color:var(--yellow); }
+  #fr .bdg.bad { background:#fdecec; color:#b3262e; }
+  #fr .st { font-size:11.5px; }
+  #fr .st.pending, #fr .st.done { background:#eef1f5; color:var(--dim); }
+
+  /* ตัวเลขสรุป */
+  #fr .stat, #fr .scard { background:var(--panel2); border:1px solid var(--border); border-radius:14px; }
+  #fr .stat .v { font-size:26px; font-weight:600; color:var(--text); line-height:1.2; }
+  #fr .stat .l, #fr .scard .l { font-size:13px; color:var(--dim); }
+  #fr .scard .nm { font-size:16px; font-weight:600; color:var(--text); }
+  #fr .scard .n { font-size:26px; font-weight:600; color:var(--accent2); }
+  #fr .lowstock { border-color:#f0a3a7; box-shadow:0 0 0 1px #f0a3a7 inset; background:#fff7f7; }
+  #fr .cartrow { background:var(--panel2); }
+  #fr .chkrow { background:#ffffff; border:1.5px solid #d5dce6; font-size:14px; padding:6px 10px; }
+  #fr .bigstd { background:#fff7f0; border:1.5px solid #fbd9bd; }
+  #fr .bigstd .v { color:var(--accent2); font-size:32px; font-weight:600; }
+  #fr .bigstd .l, #fr .bigstd .brk { color:#7a6555; font-size:13px; }
+
+  /* ออเดอร์ (ระบบผลิต) */
+  #fr .ocard { background:#ffffff; border:1.5px solid var(--border); border-radius:14px; }
+  #fr .ocard.sel { background:#fff7f0; border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  #fr .ocard .cust { font-size:16.5px; font-weight:600; color:var(--text); }
+  #fr .ocard .code { color:var(--accent2); font-size:14px; }
+  #fr .ocard .meta { font-size:13px; }
+  #fr .stab { background:#ffffff; border:1.5px solid #d5dce6; color:var(--label); font-size:14px; padding:7px 13px; border-radius:999px; }
+  #fr .stab.on { background:#fff1e6; color:var(--accent2); border-color:var(--accent); }
+
+  /* วงกลมกดนับ */
+  #fr .ring { background:radial-gradient(circle at 35% 30%,#ffffff,#f1f4f8 72%); border:6px solid #ffd9bd;
+    box-shadow:0 10px 24px rgba(255,138,61,.22), inset 0 0 0 2px #ffffff; }
+  #fr .ring .n { color:var(--accent2); }
+  #fr .ring .l { color:var(--dim); font-size:13px; }
+
+  /* เมนูล่าง */
+  #fr .nav { background:#ffffff; border-top:1px solid var(--border); box-shadow:0 -2px 10px rgba(16,24,40,.06);
+    padding-bottom:env(safe-area-inset-bottom); }
+  #fr .nb { color:#7b8797; font-size:12px; font-weight:500; gap:2px; padding:9px 2px 8px; position:relative; min-width:0; white-space:nowrap; }
+  #fr .nb .ic { font-size:21px; filter:grayscale(.6); opacity:.75; }
+  #fr .nb.on { color:var(--accent2); font-weight:600; }
+  #fr .nb.on .ic { filter:none; opacity:1; }
+  #fr .nb.on::before { content:''; position:absolute; top:0; left:22%; right:22%; height:3px; border-radius:0 0 3px 3px; background:var(--accent); }
+
+  /* กล่องยืนยัน / แจ้งเตือน */
+  #fr .ov { background:rgba(20,28,38,.45); }
+  #fr .box { background:#ffffff; border:1px solid var(--border); box-shadow:0 12px 40px rgba(16,24,40,.18); }
+  #fr .box h3 { font-size:17px; color:var(--text); }
+  #fr .box p { font-size:14px; }
+  #fr .toast { background:#1b2430; color:#ffffff; border:none; font-size:14px; box-shadow:0 8px 24px rgba(16,24,40,.25); }
+  #fr .flash { animation:fl 1.3s ease; }
+
+  /* ช่องกรอกที่อยู่คู่กันให้ตรงแนวเดียวกัน แม้ชื่อช่องยาว 2 บรรทัด */
+  #fr .rf { align-items:flex-end; }
+
+  @media (max-width:640px){
+    /* มือถือ: แถบบนเลื่อนหายไปกับหน้า ไม่กินพื้นที่ทำงาน */
+    #fr .topbar { position:static; }
+    #fr input, #fr select, #fr textarea { font-size:16px; min-height:46px; }
+    #fr button.btn { min-height:48px; }
+    #fr button.btn.sm { min-height:40px; }
+  }
+  @media (max-width:360px){
+    #fr .nb { font-size:11px; }
+    #fr .nb .ic { font-size:19px; }
+  }
+</style><!-- /wpd-theme -->
+
+
+
+
+
+
+
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
@@ -164,8 +301,8 @@
     </div>
     <div class="banner" id="banner"></div>
     <div class="savechip ok" id="saveState">บันทึกแล้ว ✓</div>
-    <div class="savechip" id="wakeChip" style="margin-left:6px; background:#232e3b; color:var(--dim); cursor:pointer;">☀ กันจอดับ: ปิด</div>
-    <div class="savechip" id="roleChip" style="margin-left:6px; background:#232e3b; color:var(--dim); cursor:pointer;">👤 พนักงาน</div>
+    <div class="savechip" id="wakeChip" style="margin-left:6px; background:#eef1f5; color:var(--dim); cursor:pointer;">☀ กันจอดับ: ปิด</div>
+    <div class="savechip" id="roleChip" style="margin-left:6px; background:#eef1f5; color:var(--dim); cursor:pointer;">👤 พนักงาน</div>
   </div>
 
   <div class="content">
@@ -650,7 +787,7 @@
   var inflight=0, badge=null, guarded=null;
   function ui(){
     if(!badge){badge=document.createElement('div');
-      badge.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:99999;background:#ff8a3d;color:#12181f;font:600 14px Sarabun,sans-serif;padding:9px 20px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.45);display:none';
+      badge.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:99999;background:#ff8a3d;color:#12181f;font:600 14px Sarabun,sans-serif;padding:9px 20px;border-radius:20px;box-shadow:0 6px 18px rgba(16,24,40,.16);display:none';
       badge.textContent='กำลังบันทึก…';document.body.appendChild(badge);}
     badge.style.display=inflight>0?'block':'none';
     if(guarded){ if(inflight>0){guarded.setAttribute('data-busy','1');guarded.style.opacity='0.5';guarded.style.pointerEvents='none';}
@@ -685,7 +822,7 @@
     try{
       var t=document.getElementById('__wpdDateWarn');
       if(!t){ t=document.createElement('div'); t.id='__wpdDateWarn';
-        t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:110px;z-index:99999;background:#e5595f;color:#fff;font:600 14px/1.5 Sarabun,sans-serif;padding:10px 16px;border-radius:12px;max-width:88%;white-space:pre-line;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.45)';
+        t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:110px;z-index:99999;background:#e5595f;color:#fff;font:600 14px/1.5 Sarabun,sans-serif;padding:10px 16px;border-radius:12px;max-width:88%;white-space:pre-line;text-align:center;box-shadow:0 6px 20px rgba(16,24,40,.25)';
         document.body.appendChild(t); }
       t.textContent=msg; t.style.display='block';
       clearTimeout(t.__tm); t.__tm=setTimeout(function(){ t.style.display='none'; },5000);
@@ -744,23 +881,23 @@ function wpdShowLogin(errMsg){
   let setError;
   const promise = new Promise(function(resolve){
     const ov = document.createElement('div');
-    ov.style.cssText = 'position:fixed;inset:0;background:#10151c;z-index:100000;display:flex;align-items:center;'+
+    ov.style.cssText = 'position:fixed;inset:0;background:#f2f4f7;z-index:100000;display:flex;align-items:center;'+
       'justify-content:center;padding:20px;font-family:Sarabun,sans-serif;';
     const bx = document.createElement('div');
-    bx.style.cssText = 'background:#1a222c;color:#f2ede3;border:1px solid #2b3645;border-radius:16px;max-width:380px;'+
-      'width:100%;padding:24px;box-shadow:0 10px 40px rgba(0,0,0,.5);';
+    bx.style.cssText = 'background:#ffffff;color:#1b2430;border:1px solid #e2e7ee;border-radius:16px;max-width:380px;'+
+      'width:100%;padding:24px;box-shadow:0 12px 40px rgba(16,24,40,.18);';
     bx.innerHTML =
       '<div style="font-size:34px;text-align:center;">🔒</div>'+
       '<h2 style="font:600 19px Kanit,sans-serif;margin:10px 0 4px;text-align:center;">เข้าสู่ระบบก่อนใช้งาน</h2>'+
-      '<div style="font:400 13px/1.6 Sarabun,sans-serif;color:#93a1b0;text-align:center;margin-bottom:16px;">'+
+      '<div style="font:400 13px/1.6 Sarabun,sans-serif;color:#667385;text-align:center;margin-bottom:16px;">'+
       'กรอกครั้งเดียวต่อเครื่อง ระบบจำไว้ให้</div>'+
-      '<label style="font-size:12px;color:#c7d2dd;">อีเมล</label>'+
-      '<input id="wpdEmail" type="email" autocomplete="username" style="width:100%;padding:13px;margin:5px 0 12px;'+
-      'border:1px solid #2b3645;border-radius:10px;background:#12181f;color:#f2ede3;font:400 16px Sarabun,sans-serif;">'+
-      '<label style="font-size:12px;color:#c7d2dd;">รหัสผ่าน</label>'+
-      '<input id="wpdPass" type="password" autocomplete="current-password" style="width:100%;padding:13px;margin:5px 0 4px;'+
-      'border:1px solid #2b3645;border-radius:10px;background:#12181f;color:#f2ede3;font:400 16px Sarabun,sans-serif;">'+
-      '<div id="wpdErr" style="font:400 13px/1.55 Sarabun,sans-serif;color:#ff6b6b;min-height:19px;margin:6px 0 10px;"></div>'+
+      '<label style="font-size:14px;color:#465262;">อีเมล</label>'+
+      '<input id="wpdEmail" type="email" autocomplete="username" style="box-sizing:border-box;width:100%;padding:13px;margin:5px 0 12px;'+
+      'border:1px solid #e2e7ee;border-radius:10px;background:#f6f8fa;color:#1b2430;font:400 16px Sarabun,sans-serif;">'+
+      '<label style="font-size:14px;color:#465262;">รหัสผ่าน</label>'+
+      '<input id="wpdPass" type="password" autocomplete="current-password" style="box-sizing:border-box;width:100%;padding:13px;margin:5px 0 4px;'+
+      'border:1px solid #e2e7ee;border-radius:10px;background:#f6f8fa;color:#1b2430;font:400 16px Sarabun,sans-serif;">'+
+      '<div id="wpdErr" style="font:400 13px/1.55 Sarabun,sans-serif;color:#cf3e45;min-height:19px;margin:6px 0 10px;"></div>'+
       '<button id="wpdGo" style="width:100%;padding:15px;border:0;border-radius:11px;background:#ff8a3d;color:#12181f;'+
       'font:600 16px Kanit,sans-serif;">เข้าสู่ระบบ</button>';
     ov.appendChild(bx); document.body.appendChild(ov);
@@ -847,11 +984,11 @@ window.WPDAUTH = {
     window.storage = null;
     document.addEventListener('DOMContentLoaded', () => {
       const b = document.createElement('div');
-      b.style.cssText = 'position:fixed;inset:0;background:#10151c;color:#f2ede3;z-index:9999;'+
+      b.style.cssText = 'position:fixed;inset:0;background:#f2f4f7;color:#1b2430;z-index:9999;'+
         'display:flex;align-items:center;justify-content:center;padding:24px;font-family:sans-serif;text-align:center;';
       b.innerHTML = '<div style="max-width:420px;"><div style="font-size:40px;">⚠️</div>'+
         '<h2 style="margin:12px 0 6px;">ยังไม่ได้ตั้งค่า Supabase</h2>'+
-        '<p style="color:#93a1b0;line-height:1.6;">เปิดไฟล์นี้ด้วยโปรแกรมแก้ไขข้อความ แล้วใส่ SUPABASE_URL กับ '+
+        '<p style="color:#667385;line-height:1.6;">เปิดไฟล์นี้ด้วยโปรแกรมแก้ไขข้อความ แล้วใส่ SUPABASE_URL กับ '+
         'SUPABASE_ANON_KEY ที่ด้านบนสุดของโค้ด (ดูคู่มือติดตั้ง ขั้นตอนที่ 3-4)</p></div>';
       document.body.appendChild(b);
     });
@@ -888,14 +1025,20 @@ window.WPDAUTH = {
       (sewSent||[]).forEach(s=>{ sentByBatch[s.batchId]=(sentByBatch[s.batchId]||0)+(+s.qty||0); });
       (sewReturns||[]).forEach(s=>{ retByBatch[s.batchId]=(retByBatch[s.batchId]||0)+(+s.qty||0); });
       (fabricWd||[]).forEach(w=>(w.picks||[]).forEach(p=>{ wdByBatch[p.batchId]=(wdByBatch[p.batchId]||0)+(+p.qty||0); }));
+      /* ถุงที่รับกลับโดยไม่ได้กรอกไซซ์สำเร็จ ให้ใช้ไซซ์สำเร็จของถุงอื่นที่ผ้า+ไซซ์ตัดเดียวกัน
+         ไม่งั้นปลอกแบบเดียวกันจะแยกเป็น 2 ไซซ์ (ไซซ์ตัด กับ ไซซ์สำเร็จ) แล้วหน้าไลน์หาไม่เจอ */
+      const finOf={};
+      (cutBatches||[]).slice().sort((a,b)=>String(a.time).localeCompare(String(b.time))).forEach(b=>{
+        if(b.sizeFinished) finOf[b.fabricType+'\u0000'+b.size]=b.sizeFinished; });
       return (cutBatches||[]).map(b=>{
         const sent=sentByBatch[b.id]||0, returned=retByBatch[b.id]||0, withdrawn=wdByBatch[b.id]||0;
         /* ไซซ์ที่ใช้ตอนเบิก/ตั้งสเปค = ไซซ์สำเร็จหลังเย็บ (ตัด 18x32 → เย็บเสร็จ 17.5x26)
            ถุงเก่าที่ตัดก่อนเปลี่ยนระบบ ไซซ์ตัดไม่เคยถูกบันทึก → cutSize = null */
         const cutKnown = !!b.sizeFinished || String(b.time||'') >= CUTSIZE_SINCE;
+        const fin = b.sizeFinished || (cutKnown && finOf[b.fabricType+'\u0000'+b.size]) || b.size;
         return { batchId:b.id, batchNo:b.batchNo, fabricType:b.fabricType,
-          size:(b.sizeFinished||b.size), cutSize:(cutKnown?b.size:null), cutKnown:cutKnown,
-          sizeFinished:(b.sizeFinished||b.size),
+          size:fin, cutSize:(cutKnown?b.size:null), cutKnown:cutKnown,
+          sizeFinished:fin,
           qtyCut:b.qtyCut, time:b.time,
           sent, returned, withdrawn, readyBalance: r2(returned-withdrawn) };
       });
@@ -1108,18 +1251,86 @@ window.WPDAUTH = {
   let storeDown = !hasStore;     // true = บันทึกลงเครื่องกลางไม่ได้ ใช้ในเครื่องไปก่อน
   let lastErr = hasStore ? '' : 'อุปกรณ์นี้ไม่รองรับการบันทึกข้อมูลกลาง';
 
+  /* คีย์ที่ยังไม่มี storage.get คืน null อยู่แล้ว ส่วนเน็ต/เซิร์ฟเวอร์พลาดต้องโยน error ขึ้นไป
+     ห้ามคืนค่าว่าง ไม่งั้นแอพจะเข้าใจว่าไม่มีออเดอร์ แล้วสร้างออเดอร์ตัวอย่างบันทึกทับของจริง */
   async function rawGet(k){
     if(!hasStore) return null;
-    try{ const r=await window.storage.get(k,true); return r?r.value:null; }
-    catch(e){ return null; }   // ยังไม่มีคีย์นี้ ถือว่าว่าง
+    const r=await window.storage.get(k,true); return r?r.value:null;
   }
 
   // คิวบันทึก: รวมการเขียนซ้ำ ๆ ให้เหลือครั้งเดียว และลองใหม่เองถ้าพลาด
   const pending={}, inflight={};
+
+  /* ---------- กันข้อมูลหาย ----------
+     1) ยังโหลดข้อมูลจากเซิร์ฟเวอร์ไม่สำเร็จ = ห้ามบันทึก ไม่งั้นข้อมูลว่างในเครื่องจะไปทับของจริง
+     2) ก่อนบันทึก เช็คว่าเครื่องอื่นแก้หมวดเดียวกันไปก่อนหรือไม่ ถ้าแก้ ให้รวมรายการเข้าด้วยกันแทนการเขียนทับ */
+  let loadOk=false;
+  const SEEN={};
+  function wpdMarkLoaded(vals){
+    Object.keys(vals).forEach(k=>{ if(!(k in pending) && !inflight[k]) SEEN[k]=vals[k]; });
+    loadOk=true;
+  }
+  function wpdMerge3(base, local, server){
+    const js=JSON.stringify, same=(a,b)=>js(a)===js(b);
+    if(same(local,base)) return server;
+    if(same(server,base)) return local;
+    const isObj=v=>v!==null && typeof v==='object' && !Array.isArray(v);
+    const allObj=a=>Array.isArray(a) && a.every(isObj);
+    if(allObj(local) && allObj(server) && (base==null || allObj(base))){
+      const keyed=arr=>{ const seen={}, m=new Map();
+        (arr||[]).forEach(x=>{ let k=(x.id!=null)?'i:'+x.id:'j:'+js(x); if(k[0]==='j'){ seen[k]=(seen[k]||0)+1; k+='#'+seen[k]; } m.set(k,x); });
+        return m; };
+      const B=keyed(base), L=keyed(local), R=keyed(server), out=[];
+      L.forEach((x,k)=>{ out.push(R.has(k) && B.has(k) ? wpdMerge3(B.get(k),x,R.get(k)) : x); });
+      R.forEach((x,k)=>{ if(!L.has(k) && !B.has(k)) out.push(x); });
+      return out;
+    }
+    if(isObj(local) && isObj(server)){
+      const b=isObj(base)?base:{}, out={};
+      new Set(Object.keys(server).concat(Object.keys(local))).forEach(k=>{
+        const inL=k in local, inR=k in server, inB=k in b;
+        if(inL && inR) out[k]=wpdMerge3(b[k],local[k],server[k]);
+        else if(inL){ if(!inB || !same(local[k],b[k])) out[k]=local[k]; }
+        else if(!inB || !same(server[k],b[k])) out[k]=server[k];
+      });
+      return out;
+    }
+    return local;
+  }
+  let wpdMergedAt=0;
+  let wpdWriteSeq=0;
+  function wpdBusy(){ return Object.keys(pending).length>0 || Object.keys(inflight).some(k=>inflight[k]); }
+  function wpdStale(seq,busyAtStart){ return busyAtStart || seq!==wpdWriteSeq || wpdBusy(); }
+  async function wpdPrepareWrite(k,data){
+    const r=await window.storage.get(k,true);
+    const cur=r?r.value:null;
+    if(cur===SEEN[k] || cur===null) return data;
+    const parse=s=>{ try{ return s?JSON.parse(s):null; }catch(e){ return null; } };
+    wpdMergedAt=Date.now();
+    return wpdMerge3(parse(SEEN[k]), data, parse(cur));
+  }
+  function wpdGate(msg){
+    let g=document.getElementById('__wpdGate');
+    if(!msg){ if(g) g.remove(); return; }
+    if(!g){ g=document.createElement('div'); g.id='__wpdGate';
+      g.style.cssText='position:fixed;inset:0;z-index:99990;background:rgba(242,244,247,.97);color:#1b2430;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;font:500 15px/1.7 Sarabun,sans-serif;white-space:pre-line';
+      document.body.appendChild(g); }
+    g.textContent=msg;
+  }
+  async function wpdLoadFirst(load){
+    wpdGate('กำลังโหลดข้อมูล…');
+    for(let i=0;;i++){
+      try{ const h=await load(); wpdGate(null); return h; }
+      catch(e){
+        wpdGate('⚠ เชื่อมต่อฐานข้อมูลไม่ได้ — กำลังลองใหม่อัตโนมัติ\nยังไม่ให้บันทึกจนกว่าจะโหลดข้อมูลสำเร็จ กันข้อมูลเดิมถูกทับ\n\n('+String(e&&e.message||e).slice(0,80)+')');
+        await new Promise(r=>setTimeout(r,Math.min(15000,2000*(i+1))));
+      }
+    }
+  }
   function snapshot(k){
     if(k==='v3_orders') return {orders:S.orders,activeId:S.activeId,activeFeedId:S.activeFeedId,fiberMaster:S.fiberMaster||[]};
     if(k==='v3_feed')   return {feed:S.feed,wd:S.wd,use:S.use,fabricWd:S.fabricWd,bagWd:S.bagWd,bagUse:S.bagUse,gasSwaps:S.gasSwaps,
-                                sheetWd:S.sheetWd||[],sheetUse:S.sheetUse||[]};
+                                sheetWd:S.sheetWd||[],sheetUse:S.sheetUse||[],caseUse:S.caseUse||[]};
     if(k==='v3_line')   return {line:S.line,scrap:S.scrap,breaks:S.breaks};
     return S.settings;
   }
@@ -1135,18 +1346,22 @@ window.WPDAUTH = {
     /* ถ้ากำลังบันทึกคีย์นี้อยู่ ต้องนัดลองใหม่ ห้ามทิ้งเงียบ ไม่งั้นการแก้ล่าสุดจะไม่ถูกเขียนลงเซิร์ฟเวอร์ */
     if(inflight[k]){ setTimeout(()=>flush(k,attempt),400); return; }
     if(!(k in pending)) return;
+    if(hasStore && !loadOk){ delete pending[k]; setSaveState('bad','ยังโหลดข้อมูลไม่สำเร็จ — รายการนี้ไม่ได้บันทึก'); return; }
     const data=pending[k]; delete pending[k];
     inflight[k]=true;
     setSaveState('saving');
     try{
       if(!hasStore) throw new Error('no storage');
-      await window.storage.set(k,JSON.stringify(data),true);
+      wpdWriteSeq++;
+      const str=JSON.stringify(await wpdPrepareWrite(k,data));
+      await window.storage.set(k,str,true);
+      SEEN[k]=str;
       inflight[k]=false; storeDown=false; lastErr='';
       myPulse=Date.now()+'-'+deviceId;
       lastPulse=myPulse;
       try{ await window.storage.set('v3_pulse',myPulse,true); }catch(e){}
       if(Object.keys(pending).length) { Object.keys(pending).forEach(kk=>flush(kk)); }
-      else setSaveState('ok');
+      else { setSaveState('ok'); wpdRefreshAfterMerge(); }
     }catch(e){
       inflight[k]=false;
       lastErr=(e&&e.message)?String(e.message).slice(0,60):'ไม่ทราบสาเหตุ';
@@ -1184,8 +1399,11 @@ window.WPDAUTH = {
   /* งานปิกนิก: เอา "ใยแผ่นที่ผลิตเสร็จแล้ว" มาแพ็คต่อ จึงต้องรู้ยอดสินค้าสำเร็จรูปด้วย */
   let STOCKFIN = { shipments:[], finAdjustments:[] };
   async function readAll(){
+    const _seq=wpdWriteSeq, _busy=wpdBusy();
     const [a,b,c,d,sf,sa,sb,sg,sn] = await Promise.all([rawGet('v3_orders'),rawGet('v3_feed'),rawGet('v3_line'),rawGet('v3_set'),
       rawGet('v3s_fiber'),rawGet('v3s_fabric'),rawGet('v3s_bag'),rawGet('v3s_gas'),rawGet('v3s_fin')]);
+    /* มีการบันทึกเกิดขึ้นระหว่างที่กำลังดึงข้อมูล = ข้อมูลที่ได้มาเก่ากว่าในเครื่อง ห้ามเอามาทับ รอบหน้าค่อยดึงใหม่ */
+    if(wpdStale(_seq,_busy)) return lastHash;
     const hash = [a,b,c,d,sf,sa,sb,sg,sn].map(x=>x||'').join('|');
     const parse = (s,f)=>{ try{ return s?JSON.parse(s):f; }catch(e){ return f; } };
     const A=parse(a,null), B=parse(b,{}), C=parse(c,{}), D=parse(d,null), SF=parse(sf,{receipts:[],baleUsage:[]}),
@@ -1201,7 +1419,7 @@ window.WPDAUTH = {
       await saveOrders();
     }
     S.feed=B.feed||[]; S.wd=B.wd||[]; S.use=B.use||[]; S.fabricWd=B.fabricWd||[]; S.bagWd=B.bagWd||[]; S.bagUse=B.bagUse||[]; S.gasSwaps=B.gasSwaps||[]; S.line=C.line||[]; S.scrap=C.scrap||[]; S.breaks=C.breaks||[];
-    S.sheetWd=B.sheetWd||[]; S.sheetUse=B.sheetUse||[];
+    S.sheetWd=B.sheetWd||[]; S.sheetUse=B.sheetUse||[]; S.caseUse=B.caseUse||[];
     if (D) S.settings=D;
     STOCKFIBER = {};
     (SF.receipts||[]).forEach(r=>{ (STOCKFIBER[r.fiberName]=STOCKFIBER[r.fiberName]||[]).push({lotNo:r.lotNo,kg:r.kg,time:r.time,baleCount:r.baleCount}); });
@@ -1226,6 +1444,7 @@ window.WPDAUTH = {
     sacks.forEach(s=>{ const bucket=STOCKBAG[s.kind]; if(!bucket) return; bucket[s.name]=bucket[s.name]||{sizes:new Set(),lastWeightPerBag:0}; bucket[s.name].sizes.add(s.size); bucket[s.name].lastWeightPerBag=s.weightPerBag; });
     STOCKGAS = CALC.gasStatus(SG.receipts||[], S.gasSwaps);
     STOCKFIN = { shipments:SN.shipments||[], finAdjustments:SN.finAdjustments||[] };
+    wpdMarkLoaded({v3_orders:a, v3_feed:b, v3_line:c, v3_set:d});
     return hash;
   }
 
@@ -1238,18 +1457,18 @@ window.WPDAUTH = {
   function askText(title, detail, defVal){
     return new Promise(function(res){
       var ov=document.createElement('div');
-      ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:99998;display:flex;align-items:center;justify-content:center;padding:18px';
+      ov.style.cssText='position:fixed;inset:0;background:rgba(20,28,38,.45);z-index:99998;display:flex;align-items:center;justify-content:center;padding:18px';
       var bx=document.createElement('div');
-      bx.style.cssText='background:#1a222c;color:#f2ede3;border:1px solid #2b3645;border-radius:14px;max-width:430px;width:100%;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.5)';
+      bx.style.cssText='background:#ffffff;color:#1b2430;border:1px solid #e2e7ee;border-radius:14px;max-width:430px;width:100%;padding:18px;box-shadow:0 12px 40px rgba(16,24,40,.18)';
       var h=document.createElement('div'); h.style.cssText="font:600 17px 'Kanit',sans-serif;margin-bottom:8px"; h.textContent=title||'';
-      var p=document.createElement('div'); p.style.cssText="font:400 14px/1.65 'Sarabun',sans-serif;white-space:pre-line;color:#c7d2dd;margin-bottom:12px"; p.textContent=detail||'';
+      var p=document.createElement('div'); p.style.cssText="font:400 14px/1.65 'Sarabun',sans-serif;white-space:pre-line;color:#465262;margin-bottom:12px"; p.textContent=detail||'';
       var inp=document.createElement('input'); inp.type='text'; inp.value=(defVal==null?'':String(defVal));
-      inp.style.cssText="width:100%;padding:13px;border:1px solid #2b3645;border-radius:10px;background:#12181f;color:#f2ede3;font:400 16px 'Sarabun',sans-serif;margin-bottom:14px";
+      inp.style.cssText="width:100%;padding:13px;border:1px solid #e2e7ee;border-radius:10px;background:#f6f8fa;color:#1b2430;font:400 16px 'Sarabun',sans-serif;margin-bottom:14px";
       var row=document.createElement('div'); row.style.cssText='display:flex;gap:10px';
       var ok=document.createElement('button'); ok.textContent='บันทึก';
       ok.style.cssText="flex:1;padding:14px;border:0;border-radius:10px;background:#ff8a3d;color:#12181f;font:600 15px 'Kanit',sans-serif";
       var no=document.createElement('button'); no.textContent='ยกเลิก';
-      no.style.cssText="flex:1;padding:14px;border:1px solid #2b3645;border-radius:10px;background:#212b37;color:#f2ede3;font:600 15px 'Kanit',sans-serif";
+      no.style.cssText="flex:1;padding:14px;border:1px solid #e2e7ee;border-radius:10px;background:#f1f4f8;color:#1b2430;font:600 15px 'Kanit',sans-serif";
       function done(v){ try{ document.body.removeChild(ov); }catch(e){} res(v); }
       ok.onclick=function(){ done(inp.value); }; no.onclick=function(){ done(null); };
       inp.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); done(inp.value); } };
@@ -1312,9 +1531,9 @@ window.WPDAUTH = {
   function paintRole(){
     paintNav();
     const c=$('roleChip'); if(!c) return;
-    if(!lockOn()){ c.style.background='#232e3b'; c.style.color='var(--dim)'; c.textContent='👤 ยังไม่ได้ล็อก'; return; }
-    if(bossActive()){ c.style.background='#163022'; c.style.color='var(--green)'; c.textContent='🔓 หัวหน้า — แตะเพื่อล็อก'; }
-    else { c.style.background='#232e3b'; c.style.color='var(--dim)'; c.textContent='🔒 พนักงาน — แตะถ้าเป็นหัวหน้า'; }
+    if(!lockOn()){ c.style.background='#eef1f5'; c.style.color='var(--dim)'; c.textContent='👤 ยังไม่ได้ล็อก'; return; }
+    if(bossActive()){ c.style.background='#e6f5ec'; c.style.color='var(--green)'; c.textContent='🔓 หัวหน้า — แตะเพื่อล็อก'; }
+    else { c.style.background='#eef1f5'; c.style.color='var(--dim)'; c.textContent='🔒 พนักงาน — แตะถ้าเป็นหัวหน้า'; }
   }
   function askPin(onOk){
     $('pinInput').value=''; $('pinWarn').innerHTML='';
@@ -1947,12 +2166,12 @@ window.WPDAUTH = {
       seq:$('wdSeq').value.trim(),
       fiberName:n, lot:lot, kg:kg, note:$('wdNote').value.trim(),
       offRecipe:!inRecipe(o,n) });
+    const backKg=settlePendingFiber(n);
     await saveFeed();
     await rememberFiber(n);
     $('wdKg').value=''; $('wdNote').value=''; $('wdSeq').value=''; formDirty=false;
-    toast('เบิกแล้ว — ก้อน '+($('wdSeq').value||lot)+' เข้าคิวที่ไลน์เรียบร้อย');
     // ชื่อใย+ลอตที่เลือกไว้ค้างต่อเนื่องไปเรื่อยๆ จนกว่าจะเปลี่ยนเอง (มักเบิกล็อตเดิมซ้ำหลายรอบติดกัน)
-    rFeed(); toast('บันทึกการเบิกใย');
+    rFeed(); toast('บันทึกการเบิกใย — ก้อน '+bale+' เข้าคิวที่ไลน์แล้ว'+(backKg>0?' · หักย้อนหลัง '+backKg+' กก. ที่ป้อนไปก่อนเบิก':''));
   };
 
   let ewId=null;
@@ -2322,7 +2541,11 @@ window.WPDAUTH = {
         : 'ลบรายการผลิตนี้?';
       if(!await ask('ลบรายการ',_msg)) return;
       S.line=S.line.filter(x=>x.id!==_id);
-      if(_back.length){ S.bagWd=S.bagWd.filter(w=>!(w.auto && w.lineId===_id)); await saveFeed(); }
+      const _hadUse=(S.bagUse||[]).some(u=>u.lineId===_id)||(S.caseUse||[]).some(u=>u.lineId===_id);
+      /* คืนถุงและปลอกที่หักไปกับแพ็คนี้ด้วย */
+      S.bagUse=(S.bagUse||[]).filter(u=>u.lineId!==_id); S.caseUse=(S.caseUse||[]).filter(u=>u.lineId!==_id);
+      if(_back.length){ S.bagWd=S.bagWd.filter(w=>!(w.auto && w.lineId===_id)); }
+      if(_back.length||_hadUse) await saveFeed();
       await saveLine(); rLine(); toast(_back.length?'ลบแล้ว — คืนถุงเข้ากระสอบเรียบร้อย':'ลบแล้ว');
     });
 
@@ -2338,7 +2561,9 @@ window.WPDAUTH = {
       : '<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>';
     $('tScrap').querySelectorAll('[data-sc]').forEach(b=>b.onclick=async()=>{
       if(!await ask('ลบรายการ','ลบรายการเศษนี้?')) return;
-      S.scrap=S.scrap.filter(x=>x.id!==b.dataset.sc); await saveLine(); rLine(); toast('ลบแล้ว');
+      S.scrap=S.scrap.filter(x=>x.id!==b.dataset.sc);
+      if((S.caseUse||[]).some(u=>u.scrapId===b.dataset.sc)){ S.caseUse=S.caseUse.filter(u=>u.scrapId!==b.dataset.sc); await saveFeed(); }
+      await saveLine(); rLine(); toast('ลบแล้ว');
     });
   }
 
@@ -2392,7 +2617,7 @@ window.WPDAUTH = {
         '<div><h3 style="margin:0;">น้ำหนัก Standard ที่ตั้งไว้</h3>'+
         '<div class="sumline" style="margin-top:3px;"><b style="color:var(--accent2)">'+CALC.stdPerPack(sp)+' กก./แพ็ค</b>'+
         ' — '+sp.weightPerPiece+' กก./ชิ้น × '+sp.piecesPerPack+' ชิ้น'+
-        (CALC.zipKgPerPack(sp)?'<br>ถุงซิล: '+(sp.bagName?esc(sp.bagName)+' ':'')+(sp.bagSize?'('+esc(sp.bagSize)+') ':'')+
+        (CALC.zipKgPerPack(sp)?'<br>'+(isPillow?'ถุงซิล':'ถุง')+': '+(sp.bagName?esc(sp.bagName)+' ':'')+(sp.bagSize?'('+esc(sp.bagSize)+') ':'')+
           sp.bagWeight+' กก./ใบ × '+CALC.zipPerPack(sp)+' ใบ = '+CALC.zipKgPerPack(sp)+' กก.'+
           (sp.bagSackNo?' — เบอร์กระสอบ #'+esc(sp.bagSackNo):''):'')+
         (CALC.packKgPerPack(sp)?'<br>ถุงแพ็ค: '+(sp.packBagName?esc(sp.packBagName)+' ':'')+
@@ -2444,9 +2669,9 @@ window.WPDAUTH = {
         '<div class="rf" style="margin-top:9px;"><div><label>ชนิดผ้าที่ใช้</label>'+
         '<input id="spFabType" list="dlFabType" value="'+esc(sp.fabricType||'')+'" placeholder="เช่น ผ้าขาว 65g">'+
         '<datalist id="dlFabType">'+STOCKFABRIC.types.map(n=>'<option value="'+esc(n)+'">').join('')+'</datalist></div>'+
-        '<div><label>ไซซ์ผ้าที่ใช้</label><input id="spFabSize" list="dlFabSize" value="'+esc(sp.fabricSize||'')+'" placeholder="เช่น 18.5x28">'+
-        '<datalist id="dlFabSize">'+STOCKFABRIC.sizes.map(n=>'<option value="'+esc(n)+'">').join('')+'</datalist></div></div>'+
-        '<div class="sumline" style="margin-top:2px;">ใช้ให้แอพสต๊อกหักผ้าเย็บอัตโนมัติตอนบันทึกแพ็ค ไม่ต้องไปผูกซ้ำที่แอพสต๊อก — พิมพ์ชื่อจะมีตัวเลือกจากสต๊อกเด้งให้เลือกด้วย</div>'
+        '<div><label>ไซซ์ปลอก (ไซซ์สำเร็จหลังเย็บ)</label><input id="spFabSize" list="dlFabSize" value="'+esc(sp.fabricSize||'')+'" placeholder="เช่น 17.5x26">'+
+        '<datalist id="dlFabSize">'+[...new Set(fabBatchesNow().filter(b=>!sp.fabricType||b.fabricType===sp.fabricType).map(b=>b.size))].map(n=>'<option value="'+esc(n)+'">').join('')+'</datalist></div></div>'+
+        '<div class="sumline" style="margin-top:2px;">บันทึกแพ็คแล้ว ระบบหักปลอกออกจากถุงบรรจุผ้าที่เบิกมาไว้ที่ไลน์ให้เอง (ชิ้นต่อแพ็ค = ปลอกที่ใช้) — ต้องกด "เบิกถุงบรรจุผ้า" ด้านล่างก่อน</div>'
       ) : '') +
       '<label>ยอมรับคลาดเคลื่อนได้ ± (%) — ใช้ตัดสินว่าน้ำหนักจริงตรงสเปคไหม</label>'+
       '<input id="spTol" type="number" inputmode="decimal" step="0.1" value="'+(sp.tolPct||3)+'">'+
@@ -2672,8 +2897,9 @@ window.WPDAUTH = {
   let lastPackAt=null, idleNotified=false, idleBeeped=false;
   function lastPackTime(){
     const o=active(); if(!o) return null;
-    const rows=S.line.filter(l=>l.orderId===o.id);
-    if(!rows.length) return o.startedAt||null;
+    const _t=todayStr();
+    const rows=S.line.filter(l=>dayOf(l.time)===_t);
+    if(!rows.length) return (o.startedAt && dayOf(o.startedAt)===_t) ? o.startedAt : null;
     return rows.reduce((m,l)=>l.time>m?l.time:m,rows[0].time);
   }
   function beep(){
@@ -2740,11 +2966,12 @@ window.WPDAUTH = {
       note:note, gapMinutes:gapMin||null,
       gapReason:gapReason||null, isDowntime:!!flagged });
     const _cut=autoCutBags(o,_lineId);
+    const _case=autoCutCases(o,+o.spec.piecesPerPack||0,{lineId:_lineId});
     const _sheet=autoUseSheet(o,_lineId);
     if(_sheet){ saveFeed(); }
     $('lineNote').value=''; $('actW').value=''; $('actPc').value=''; $('actHint').innerHTML='';
     $('bagNo').value=''; lastPackAt=localISO(); idleNotified=false;
-    if(_cut){ saveFeed(); }
+    if(_cut||_case){ saveFeed(); }
     // ถุงเลขที่/ขนาด ตั้งใจไม่ล้าง เพราะพนักงานมักใช้ถุงกล่องเดียวกันต่อเนื่องหลายแพ็ค — เปลี่ยนกล่องแล้วค่อยแก้เอง
     saveLine().then(()=>{ if(current==='line') rLine(); });
     const st=CALC.tolStatus(act,std,o.spec.tolPct);
@@ -2752,6 +2979,7 @@ window.WPDAUTH = {
     if(_cut && _cut.msgs && _cut.msgs.length) _tail=' — '+_cut.msgs.join(' · ');
     if(_cut && _cut.switched && _cut.switched.length) _tail+=' 🔄 '+_cut.switched.join(' · ');
     if(_cut && _cut.shorts && _cut.shorts.length) _tail+=' ⚠ '+_cut.shorts.join(' · ');
+    if(_case) _tail+=(_case.short?' ⚠ '+_case.short:' · '+_case.msg);
     toast('แพ็คที่ '+seq+' · '+(act==null?std+' กก. (ตาม Std)':act+' กก.'+
       (st==='ok'?' ✓ ตรงสเปค':st==='over'?' ▲ เกิน '+r3(act-std):' ▼ ขาด '+r3(std-act)))+_tail);
   }
@@ -2828,28 +3056,34 @@ window.WPDAUTH = {
     S.use=S.use||[];
     rec.forEach(f=>{
       let remain=+f.kg||0;
-      const before=(f.lot!=null&&f.lot!=='')?String(f.lot):'';
+      /* ก้อนที่ใช้อยู่จริงล่าสุด (ดูจากการหักจริง ไม่ใช่เลขก้อนที่พิมพ์ไว้ในสูตร) */
+      const lastUse=(S.use||[]).slice().reverse().find(u=>u.fiberName===f.name && u.wdId);
+      const before=lastUse?String(lastUse.baleNo):'';
+      /* สลับได้เฉพาะก้อนที่กดเบิกมาไว้ที่ไลน์แล้ว และชื่อใยตรงกันเท่านั้น (เรียงตามลำดับที่เบิก) */
       const q=baleQueue(f.name).filter(b=>b.remaining>0.0000001);
-      if(!q.length){ needWd.push(f.name); shorts.push(f.name+' ไม่มีก้อนที่ไลน์ — ต้องกดเบิกก่อน'); return; }
       for(const b of q){
         if(remain<=0.0000001) break;
         const take=Math.min(b.remaining, remain);
         if(take<=0) continue;
-        /* ก้อนเดิมหมด ก้อนที่เบิกไว้มาแทนที่ — บันทึกไว้ในประวัติ */
-        if(String(b.no)!==before && String(b.no)!==String(f.lot||'')){
-          const from=f.lot||'';
-          f.lot=String(b.no);
-          o.lotLog.push({ time:localISO(), fiberName:f.name, from:from, to:String(b.no),
+        if(String(b.no)!==before){
+          o.lotLog.push({ time:localISO(), fiberName:f.name, from:before, to:String(b.no),
             toRemaining:r3(b.remaining), toKg:b.kg, toDate:thDate(b.time), orderId:o.id });
-          switched.push(f.name+': '+(from?'ก้อน '+from+' หมด → ':'เริ่ม ')+'ก้อน '+b.no+' ('+b.kg+' กก.)');
+          switched.push(f.name+': '+(before?'ก้อน '+before+' หมด → ':'เริ่ม ')+'ก้อน '+b.no+' ('+b.kg+' กก.)');
         }
+        f.lot=String(b.no);
         S.use.push({ id:uid(), time:localISO(), orderId:o.id, feedId:feedId||null,
           fiberName:f.name, wdId:b.wdId, baleNo:String(b.no), lot:b.lot, kg:r3(take) });
         remain=r3(remain-take);
       }
       const atLine=baleAtLine(f.name);
       msgs.push(f.name+' '+(atLine?'ก้อน '+atLine.no+' เหลือ '+atLine.remaining+' กก.':'ที่ไลน์หมดแล้ว'));
-      if(remain>0.0000001) shorts.push(f.name+' ที่ไลน์ขาด '+r3(remain)+' กก. — เบิกก้อนใหม่ก่อน');
+      if(remain>0.0000001){
+        /* ใยที่ป้อนจริงแต่ยังไม่มีก้อนให้หัก — จดค้างไว้ พอกดเบิกก้อนชื่อเดียวกันแล้วจะหักย้อนหลังให้เอง ไม่หายจากต้นทุน */
+        S.use.push({ id:uid(), time:localISO(), orderId:o.id, feedId:feedId||null,
+          fiberName:f.name, wdId:null, baleNo:'', lot:null, kg:r3(remain), pending:true });
+        needWd.push(f.name);
+        shorts.push(f.name+' ที่ไลน์ขาด '+r3(remain)+' กก. — เบิกก้อนใหม่ก่อน (จดค้างไว้ จะหักย้อนหลังตอนเบิก)');
+      }
     });
     if(rec.length) saveOrders();
     return { msgs, shorts, switched, needWd };
@@ -2886,10 +3120,13 @@ window.WPDAUTH = {
   function sackUsed(bwId){
     return r3((S.bagUse||[]).filter(u=>u.bwId===bwId).reduce((a,b)=>a+(+b.kg||0),0));
   }
+  /* ของที่ยกมาไว้ที่ไลน์นานเกิน 14 วันโดยไม่เคยมีบันทึกการใช้เลย = ข้อมูลก่อนมีระบบหักอัตโนมัติ ถือว่าใช้หมดแล้ว */
+  function lineSince(){ const d=new Date(); d.setDate(d.getDate()-14); return localISO(d); }
   function sackQueue(kind,name){
-    const st=sackStatusNow();
+    const st=sackStatusNow(), since=lineSince();
+    const tracked=new Set((S.bagUse||[]).map(u=>u.bwId));
     return (S.bagWd||[])
-      .filter(w=>!w.auto && w.kind===kind && w.name===name)
+      .filter(w=>!w.auto && w.kind===kind && w.name===name && (String(w.time)>=since || tracked.has(w.id)))
       .slice().sort((a,b)=>String(a.time).localeCompare(String(b.time)))
       .map(w=>{
         const used=sackUsed(w.id);
@@ -2906,10 +3143,15 @@ window.WPDAUTH = {
   /* หักถุงออกจากกระสอบที่แท็กไว้ ทุกครั้งที่บันทึก 1 แพ็ค */
   function autoCutBags(o,lineId){
     const sp=o.spec||{};
-    if(sp.autoCutBag===false) return null;
+    /* งานใยแผ่นก็ต้องหักถุงด้วย ไม่งั้นต้นทุนถุงเป็น 0 — ค่า autoCutBag=false ของงานใยแผ่นเดิมมาจากโค้ดเก่าที่บังคับปิดไว้ ไม่ใช่คนเลือก */
+    const pillowLike = o.productType==='หมอน' || isPicnic(o);
+    if(pillowLike && sp.autoCutBag===false) return null;
     const jobs=[];
-    if(sp.bagName && CALC.zipPerPack(sp)>0)
-      jobs.push({kind:'zip', label:'ถุงซิล', name:sp.bagName, n:CALC.zipPerPack(sp), wKey:'bagWeight', sackKey:'bagSackNo'});
+    if(sp.bagName && CALC.zipPerPack(sp)>0){
+      /* ชื่อถุงอยู่ในกระสอบประเภทไหนในสต๊อก ก็หักจากประเภทนั้น (งานใยแผ่นมักใช้ถุงแพ็ค) */
+      const k=(STOCKBAG.zip||{})[sp.bagName]?'zip':((STOCKBAG.pack||{})[sp.bagName]?'pack':'zip');
+      jobs.push({kind:k, label:k==='zip'?'ถุงซิล':'ถุงแพ็ค', name:sp.bagName, n:CALC.zipPerPack(sp), wKey:'bagWeight', sackKey:'bagSackNo'});
+    }
     if(sp.packBagName && CALC.packBagPerPack(sp)>0)
       jobs.push({kind:'pack', label:'ถุงแพ็ค', name:sp.packBagName, n:CALC.packBagPerPack(sp), wKey:'packBagWeight', sackKey:'packBagLotRef'});
     if(!jobs.length) return null;
@@ -2958,6 +3200,59 @@ window.WPDAUTH = {
     return { msgs, shorts, switched, needWd };
   }
 
+  /* ---------- ปลอกหมอนที่เบิกมาไว้ที่ไลน์ (โครงเดียวกับก้อนใย/กระสอบถุง) ----------
+     เบิกถุงบรรจุผ้า = ยกปลอกมาที่ไลน์ · บันทึก 1 แพ็ค = ใช้ปลอกเท่าจำนวนชิ้นต่อแพ็ค */
+  function caseLots(o){
+    const sp=o.spec||{}, fab=sp.fabricType, want=normSize(sp.fabricSize||'');
+    if(!fab) return [];
+    const bs=fabBatchesNow();
+    const sizeOf=id=>{ const b=bs.find(x=>x.batchId===id); return b?[b.size,b.cutSize]:[]; };
+    const used={}; (S.caseUse||[]).forEach(u=>{ const k=u.fwId+'\u0000'+u.batchId; used[k]=(used[k]||0)+(+u.pieces||0); });
+    const lots=[];
+    const since=lineSince(), tracked=new Set((S.caseUse||[]).map(u=>u.fwId));
+    (S.fabricWd||[]).filter(w=>w.fabricType===fab && (String(w.time)>=since || tracked.has(w.id))).slice().sort((a,b)=>String(a.time).localeCompare(String(b.time))).forEach(w=>{
+      (w.picks||[]).forEach(p=>{
+        if(want && normSize(w.size)!==want && !sizeOf(p.batchId).includes(want)) return;
+        const rem=(+p.qty||0)-(used[w.id+'\u0000'+p.batchId]||0);
+        if(rem>0) lots.push({ fwId:w.id, batchId:p.batchId, batchNo:p.batchNo, size:w.size, remaining:rem });
+      });
+    });
+    return lots;
+  }
+  function caseAtLine(o){ return caseLots(o).reduce((s,l)=>s+l.remaining,0); }
+  function autoCutCases(o,pieces,ref){
+    if(!(o && (o.productType==='หมอน' || isPicnic(o)) && (o.spec||{}).fabricType) || !(pieces>0)) return null;
+    S.caseUse=S.caseUse||[];
+    let left=pieces;
+    for(const l of caseLots(o)){
+      if(left<=0) break;
+      const take=Math.min(l.remaining,left);
+      S.caseUse.push(Object.assign({ id:uid(), time:localISO(), orderId:o.id, fwId:l.fwId, batchId:l.batchId, batchNo:l.batchNo,
+        fabricType:o.spec.fabricType, size:l.size, pieces:take }, ref||{}));
+      left-=take;
+    }
+    const at=caseAtLine(o);
+    return { msg:'ปลอกที่ไลน์เหลือ '+at+' ใบ', short: left>0 ? 'ปลอกที่ไลน์ขาดอีก '+left+' ใบ — กดเบิกถุงบรรจุผ้าก่อน' : '' };
+  }
+
+  /* ใยที่ป้อนไปตอนยังไม่มีก้อนที่ไลน์ (ลืมกดเบิก) — พอกดเบิกก้อนชื่อเดียวกันแล้ว ให้หักย้อนหลังจากก้อนนั้นทันที */
+  function settlePendingFiber(name){
+    const pend=(S.use||[]).filter(u=>u.pending && u.fiberName===name).sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+    let moved=0;
+    for(const p of pend){
+      let left=+p.kg||0;
+      for(const b of baleQueue(name).filter(x=>x.remaining>0.0000001)){
+        if(left<=0.0000001) break;
+        const take=r3(Math.min(b.remaining,left));
+        S.use.push({ id:uid(), time:p.time, orderId:p.orderId, feedId:p.feedId||null, fiberName:name, wdId:b.wdId,
+          baleNo:String(b.no), lot:b.lot, kg:take, backfilled:true });
+        left=r3(left-take); moved=r3(moved+take);
+      }
+      if(left<=0.0000001) S.use=S.use.filter(u=>u.id!==p.id); else p.kg=left;
+    }
+    return moved;
+  }
+
   async function startPack(actual,actualPc){
     const o=active();
     if(!o){ toast('เลือกออเดอร์ก่อน'); return; }
@@ -2971,7 +3266,9 @@ window.WPDAUTH = {
         return;
       }
     }
-    const prev=S.line.filter(l=>l.orderId===o.id).sort((a,b)=>a.time<b.time?-1:1).pop();
+    /* วัดช่วงห่างจากแพ็คล่าสุดของ "ไลน์" ในวันเดียวกัน (ทุกออเดอร์) — ข้ามคืนหรือสลับงานไม่นับเป็นเวลาที่เสีย */
+    const _today=todayStr();
+    const prev=S.line.filter(l=>dayOf(l.time)===_today).sort((a,b)=>a.time<b.time?-1:1).pop();
     const now=localISO();
     const gap=prev?Math.max(0,minsBetween(now,prev.time)-breakOverlapMinutes(prev.time,now)):null;
     if(gap!==null && gap>(+S.settings.gapMin||20)){
@@ -3002,7 +3299,7 @@ window.WPDAUTH = {
   $('actPc').oninput=()=>{ formDirty=true; actHint(); };
   $('actW').oninput=()=>{ formDirty=true; };
 
-  $('btnPack').onclick=()=>{
+  $('btnPack').onclick=async()=>{
     if(openBreak()){ endBreak(); }
     const v=$('actW').value.trim(), pc=$('actPc').value.trim();
     if(!v&&!pc){ toast('กรอกน้ำหนักจริง (ต่อชิ้นหรือต่อแพ็ค) หรือกดปุ่ม "ตรงตาม Standard"'); return; }
@@ -3014,6 +3311,13 @@ window.WPDAUTH = {
       packW=r3((+pc)*(+sp.piecesPerPack||0)+bagTotal+bag2Total);
     }
     if(!(packW>0)){ toast('น้ำหนักไม่ถูกต้อง'); return; }
+    /* กันพิมพ์ผิด เช่น 10.5 แทน 1.05 — ห่างจาก Standard เกิน 30% ให้ถามก่อน */
+    const _std=CALC.stdPerPack((active()||{}).spec||{});
+    if(_std>0 && (packW>_std*1.3 || packW<_std*0.7)){
+      const _pct=Math.round((packW/_std-1)*100);
+      if(!await ask('น้ำหนักห่างจาก Standard มาก — พิมพ์ผิดหรือเปล่า?',
+        'กรอก '+packW+' กก. แต่ Standard คือ '+_std+' กก./แพ็ค ('+(_pct>0?'+':'')+_pct+'%)\n\nถ้าชั่งได้จริงกดยืนยัน ถ้าพิมพ์ผิดกดยกเลิกแล้วแก้ตัวเลข')) return;
+    }
     formDirty=false;
     startPack(packW, pc||null);
   };
@@ -3023,8 +3327,12 @@ window.WPDAUTH = {
     const o=active(); if(!o){ toast('เลือกออเดอร์ก่อน'); return; }
     const kg=+$('scKg').value||0, pieces=+($('scPieces')?$('scPieces').value:0)||0;
     if(!kg && !pieces){ toast('กรอกน้ำหนักเศษ หรือจำนวนชิ้นเสีย อย่างน้อย 1 อย่าง'); return; }
-    S.scrap.push({ id:uid(), time:localISO(), orderId:o.id, kg:kg||null, pieces:pieces||null,
+    const _scId=uid();
+    S.scrap.push({ id:_scId, time:localISO(), orderId:o.id, kg:kg||null, pieces:pieces||null,
       reason:$('scReason')?$('scReason').value.trim():'', note:$('scNote').value.trim() });
+    /* หมอนเสียก็ใช้ปลอกไปแล้วจริง ต้องหักปลอกด้วย */
+    const _sc=pieces?autoCutCases(o,pieces,{scrapId:_scId}):null;
+    if(_sc) await saveFeed();
     await saveLine();
     $('scKg').value=''; $('scNote').value='';
     if($('scPieces')) $('scPieces').value=''; if($('scReason')) $('scReason').value='';
@@ -3266,17 +3574,16 @@ window.WPDAUTH = {
   $('btnFinish').onclick=async()=>{
     const o=active();
     if(!o){ toast('ยังไม่ได้เลือกออเดอร์'); return; }
-    const t=todayStr();
     const rowsF=S.line.filter(l=>l.orderId===o.id);
     const packs=rowsF.length;
     const actF=r3(rowsF.reduce((s,l)=>s+((l.actualWeight!=null?+l.actualWeight:+l.stdPerPack)||0),0));
-    const cyc=S.feed.filter(l=>l.orderId===o.id&&dayOf(l.time)===t).length;
     const scrap=r2(S.scrap.filter(x=>x.orderId===o.id).reduce((s,x)=>s+(+x.kg||0),0));
-    const fiber=r3(CALC.recipeTotal(o.fibers)*cyc);
+    const scrapPcs=S.scrap.filter(x=>x.orderId===o.id).reduce((s,x)=>s+(+x.pieces||0),0);
+    const fiberUsed=r2((S.use||[]).filter(u=>u.orderId===o.id).reduce((s,u)=>s+(+u.kg||0),0));
     if(!await ask('จบงานออเดอร์นี้?',
       o.customer+' — '+o.code+'\nผลิตได้ '+packs+' แพ็ค'+(o.orderedPacks?' / สั่ง '+o.orderedPacks:'')+
       ' · น้ำหนักจริงรวม '+actF+' กก.'+
-      ' · ใยเบิกเข้า '+r2(S.wd.filter(x=>x.orderId===o.id).reduce((s,x)=>s+(+x.kg||0),0))+' กก. · เศษ '+scrap+' กก.')) return;
+      ' · ใยที่ใช้จริง '+fiberUsed+' กก. · เศษ '+scrap+' กก.'+(scrapPcs?' · ของเสีย '+scrapPcs+' ชิ้น':''))) return;
     o.status='done'; o.finishedAt=localISO();
     const nextId = (S.activeFeedId && S.activeFeedId!==o.id && orderById(S.activeFeedId) && orderById(S.activeFeedId).status!=='done') ? S.activeFeedId : null;
     if(nextId){
@@ -3307,6 +3614,16 @@ window.WPDAUTH = {
   }
   const inRange=(x,R)=>{ const d=dayOf(x.time); return d>=R.from && d<=R.to; };
 
+  /* เวลาผลิตจริงของออเดอร์ = รวมช่วงแพ็คแรก→แพ็คสุดท้ายของแต่ละวัน หักพัก (ไม่นับกลางคืน/ช่วงที่ไลน์ทำงานอื่น) */
+  function activeMinutes(oid,R){
+    const o=orderById(oid), byDay={};
+    S.line.filter(l=>l.orderId===oid && inRange(l,R)).forEach(l=>{ (byDay[dayOf(l.time)]=byDay[dayOf(l.time)]||[]).push(l.time); });
+    return Object.entries(byDay).reduce((tot,[d,ts])=>{
+      ts.sort(); let st=ts[0]; const en=ts[ts.length-1];
+      if(o && o.startedAt && dayOf(o.startedAt)===d && o.startedAt<st) st=o.startedAt;
+      return tot+Math.max(0,minsBetween(en,st)-breakOverlapMinutes(st,en));
+    },0);
+  }
   function rSum(){
     const di=$('sumDate'); if(!di.value) di.value=todayStr();
     di.onchange=rSum; $('sumRange').onchange=rSum;
@@ -3319,7 +3636,8 @@ window.WPDAUTH = {
     const sc=S.scrap.filter(x=>inRange(x,R));
     rStoreInfo(); rLockInfo(); rInstallInfo();
     if($('dbRows') && !$('dbRows').dataset.init) renderDbRows();
-    const gaps=line.filter(x=>x.isDowntime||(x.gapMinutes&&x.gapMinutes>(+S.settings.gapMin||20)));
+    /* ช่วงห่างเกิน 8 ชม. คือข้อมูลเก่าที่นับข้ามคืน/สลับงานไว้ ไม่ใช่เวลาที่เสียจริง */
+    const gaps=line.filter(x=>(x.isDowntime||(x.gapMinutes&&x.gapMinutes>(+S.settings.gapMin||20))) && (+x.gapMinutes||0)<480);
 
     const ids=new Set([...feed,...line,...wd,...sc].map(x=>x.orderId));
     let totFiber=0;
@@ -3333,13 +3651,8 @@ window.WPDAUTH = {
       const scKg=r2(sl.reduce((s,x)=>s+(+x.kg||0),0));
       const stdKg=r3(ll.reduce((s,x)=>s+(+x.stdPerPack||0),0));
       const actKg=r3(ll.reduce((s,x)=>s+((x.actualWeight!=null?+x.actualWeight:+x.stdPerPack)||0),0));
-      let dur='-', brk=0;
-      if(o&&o.startedAt){
-        const end=o.finishedAt||localISO();
-        const gross=minsBetween(end,o.startedAt);
-        brk=breakMinutesForOrder(o.id,R.from,R.to);
-        dur=Math.max(0,gross-brk)+' นาที'+(brk?' (พัก '+brk+')':'')+(o.finishedAt?'':' (ยังไม่จบ)');
-      }
+      let dur='-';
+      if(o){ const _am=activeMinutes(id,R); dur=_am+' นาที'+(o.finishedAt?'':' (ยังไม่จบ)'); }
       return '<tr><td>'+(o?esc(o.customer):'(ลบแล้ว)')+'</td><td>'+(o?esc(o.code):'-')+'</td>'+
         '<td>'+dur+'</td><td>'+(o&&o.startedAt?hhmm(o.startedAt):'-')+'</td><td>'+(o&&o.finishedAt?hhmm(o.finishedAt):'-')+'</td>'+
         '<td>'+ll.length+(o&&o.orderedPacks?' / '+o.orderedPacks:'')+'</td>'+
@@ -3352,10 +3665,8 @@ window.WPDAUTH = {
     const totStd=r3(line.reduce((s,x)=>s+(+x.stdPerPack||0),0));
     const totScrap=r2(sc.reduce((s,x)=>s+(+x.kg||0),0));
     const totGap=gaps.reduce((s,x)=>s+(+x.gapMinutes||0),0);
-    const grossMin=Array.from(ids).reduce((s,id)=>{ const o=orderById(id);
-      if(!o||!o.startedAt) return s; const end=o.finishedAt||localISO(); return s+minsBetween(end,o.startedAt); },0);
     const brkMin=breakMinutes(R.from,R.to);
-    const totMin=Math.max(0,grossMin-brkMin);
+    const totMin=Array.from(ids).reduce((s,id)=>s+activeMinutes(id,R),0);
 
     $('sumStats').innerHTML=
       '<div class="stat"><div class="v">'+totPacks+'</div><div class="l">จำนวนแพ็คที่ผลิตจริง</div></div>'+
@@ -3372,7 +3683,7 @@ window.WPDAUTH = {
     const wdKg=r2(wd.reduce((s,x)=>s+(+x.kg||0),0));
     /* ใยที่หักออกจากก้อนที่ไลน์จริง ๆ ในช่วงเวลาที่ดูอยู่ */
     const feedIds=new Set(feed.map(f=>f.id));
-    const dedKg=r3((S.use||[]).filter(u=>!u.feedId || feedIds.has(u.feedId)).reduce((a,b)=>a+(+b.kg||0),0));
+    const dedKg=r3((S.use||[]).filter(u=>!u.pending && (!u.feedId || feedIds.has(u.feedId))).reduce((a,b)=>a+(+b.kg||0),0));
     const bal=CALC.fiberBalance(line, fedKg, totScrap, wdKg, dedKg);
     $('balStats').innerHTML=
       '<div class="stat"><div class="v">'+bal.inKg+'</div><div class="l">⬇ ใยเข้า — ป้อนเข้าไลน์ทั้งหมด (กก.)</div></div>'+
@@ -3384,7 +3695,7 @@ window.WPDAUTH = {
     /* รอบที่ป้อนตอนยังไม่ได้เบิกก้อน — ใยเข้านับตามสูตร แต่ไม่มีก้อนให้หัก */
     const _dedLine=(bal.notDeductedKg>0.005
       ? '<span class="bdg warn">มี '+bal.notDeductedKg+' กก. ที่นับว่าป้อนเข้าไลน์ แต่ยังไม่ได้หักจากก้อนไหน</span> '+
-        '<span style="color:var(--dim)">(ป้อนรอบตอนที่ยังไม่ได้กดเบิกก้อน — ไปกดเบิกย้อนหลังที่ ป้อนใย → เบิกใย แล้วยอดจะตรงกัน)</span><br>'
+        '<span style="color:var(--dim)">(ป้อนรอบตอนที่ยังไม่ได้กดเบิกก้อน — จดค้างไว้แล้ว พอกดเบิกก้อนชื่อเดียวกันที่ ป้อนใย → เบิกใย ระบบจะหักย้อนหลังให้เอง)</span><br>'
       : (bal.deductedKg!=null && bal.inKg>0
         ? '<span style="color:var(--dim)">หักจากก้อนที่ไลน์จริง '+bal.deductedKg+' กก. — ตรงกับที่ป้อนเข้าไลน์</span><br>' : ''));
     const _fabLine=(bal.fabricKg?'<span style="color:var(--dim)">หมอน = ผ้าปลอก + ใย — ผ้าปลอก '+bal.fabricKg+' กก. ถูกหักออกจากน้ำหนักสินค้าแล้ว ไม่นับเป็นใย</span><br>':'')+
@@ -3656,8 +3967,8 @@ window.WPDAUTH = {
   }
   function paintWake(ok){
     const c=$('wakeChip'); if(!c) return;
-    if(wakeOn){ c.style.background='#163022'; c.style.color='var(--green)'; c.textContent='☀ กันจอดับ: เปิด'; }
-    else { c.style.background='#232e3b'; c.style.color='var(--dim)'; c.textContent='☀ กันจอดับ: ปิด'; }
+    if(wakeOn){ c.style.background='#e6f5ec'; c.style.color='var(--green)'; c.textContent='☀ กันจอดับ: เปิด'; }
+    else { c.style.background='#eef1f5'; c.style.color='var(--dim)'; c.textContent='☀ กันจอดับ: ปิด'; }
   }
   $('wakeChip').onclick=async()=>{
     if(wakeOn){
@@ -3688,14 +3999,6 @@ window.WPDAUTH = {
   function breakMinutes(from,to){
     return S.breaks.reduce((sum,b)=>{
       if(dayOf(b.start)<from||dayOf(b.start)>to) return sum;
-      const end=b.end||localISO();
-      return sum+Math.max(0,minsBetween(end,b.start));
-    },0);
-  }
-  function breakMinutesForOrder(oid,from,to){
-    return S.breaks.reduce((sum,b)=>{
-      if(b.orderId!==oid) return sum;
-      if(from&&(dayOf(b.start)<from||dayOf(b.start)>to)) return sum;
       const end=b.end||localISO();
       return sum+Math.max(0,minsBetween(end,b.start));
     },0);
@@ -3832,6 +4135,11 @@ window.WPDAUTH = {
     }
     syncBusy=false;
   }
+  function wpdRefreshAfterMerge(){
+    if(!wpdMergedAt) return; wpdMergedAt=0;
+    setTimeout(()=>toast('มีเครื่องอื่นบันทึกพร้อมกัน — รวมรายการให้แล้ว ไม่มีข้อมูลหาย'),2600);
+    lastPulse=null; syncNow(true);
+  }
   (function loop(){ setTimeout(()=>{ syncNow().then(loop); }, pollMs); })();
   if(document.addEventListener){
     document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ pollMs=3000; syncNow(); } });
@@ -3840,8 +4148,8 @@ window.WPDAUTH = {
   setInterval(()=>{ if(storeDown&&!Object.keys(inflight).some(k=>inflight[k])) retryAll(); },60000);
 
   (async function init(){
-    lastHash=await readAll();
-    lastPulse=await rawGet('v3_pulse');
+    lastHash=await wpdLoadFirst(readAll);
+    try{ lastPulse=await rawGet('v3_pulse'); }catch(e){}
     if(!hasStore){
       storeDown=true; setSaveState('bad','ไม่รองรับ');
       toast('อุปกรณ์นี้บันทึกข้อมูลกลางไม่ได้ — ใช้งานได้แต่ต้องกดออกไฟล์เก็บเอง');

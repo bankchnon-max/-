@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ต้นทุน">
-<meta name="theme-color" content="#ff8a3d">
+<meta name="theme-color" content="#ffffff">
 <title>ต้นทุน &amp; ตีราคา — วินโพลีดีไซน์</title>
 </head>
 <body>
@@ -15,7 +15,7 @@
   #sk, #sk * { box-sizing: border-box; }
   #sk {
     --bg:#e6f4ea; --panel:#1a222c; --panel2:#212b37; --border:#2b3645;
-    --accent:#ff8a3d; --accent2:#ffb27a; --text:#f2ede3; --dim:#ffffff;
+    --accent:#ff8a3d; --accent2:#ffb27a; --text:#f2ede3; --dim:#93a1b0;
     --green:#3fb27f; --red:#e5595f; --yellow:#f0b429; --blue:#5b9bd5;
     font-family:'Sarabun',sans-serif; background:var(--bg); color:var(--text);
     min-height:100vh; padding-bottom:78px; position:relative; -webkit-tap-highlight-color:transparent;
@@ -25,20 +25,20 @@
     background:linear-gradient(180deg,#141b23,#10151c); position:sticky; top:0; z-index:20; }
   #sk .topbar h1 { font-size:17px; font-weight:600; margin:0 0 2px; display:flex; align-items:center; gap:8px; }
   #sk .dotled { width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent); }
-  #sk .sub { font-size:13px; color:#ffffff; font-weight:500; }
+  #sk .sub { font-size:13px; color:var(--dim); font-weight:500; }
   #sk .savechip { margin-top:7px; font-size:11.5px; padding:5px 10px; border-radius:8px;
     font-family:'Kanit',sans-serif; display:inline-block; cursor:default; }
   #sk .savechip.ok { background:#163022; color:var(--green); }
-  #sk .savechip.saving { background:#232e3b; color:#ffffff; }
+  #sk .savechip.saving { background:#232e3b; color:var(--dim); }
   #sk .savechip.bad { background:#3a1c1e; color:var(--red); border:1px solid #5c2a2c; cursor:pointer; }
   #sk .content { padding:14px; max-width:980px; margin:0 auto; }
   #sk .panel { display:none; }
   #sk .panel.show { display:block; }
   #sk .card { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:11px; }
-  #sk .card h3 { font-size:13px; color:#ffffff; font-weight:500; margin:0 0 9px; text-transform:uppercase; letter-spacing:.5px; }
+  #sk .card h3 { font-size:13px; color:var(--dim); font-weight:500; margin:0 0 9px; text-transform:uppercase; letter-spacing:.5px; }
   #sk input,#sk select { width:100%; background:var(--panel2); border:1px solid var(--border);
     border-radius:8px; padding:9px 10px; color:var(--text); font-family:'Sarabun',sans-serif; font-size:14px; margin-top:4px; }
-  #sk label { font-size:12px; color:#ffffff; display:block; margin-top:9px; }
+  #sk label { font-size:12px; color:var(--dim); display:block; margin-top:9px; }
   /* มือถือ: ปุ่มและช่องกรอกต้องกดถนัด แม้ใส่ถุงมือหรือมือเปื้อน (มาตรฐาน 44px) */
   @media (max-width:640px){
     #sk input,#sk select,#sk textarea { min-height:44px; padding:11px 12px; font-size:16px; }
@@ -59,7 +59,7 @@
   #sk .rf { display:flex; gap:9px; flex-wrap:wrap; }
   #sk .rf > div { flex:1; min-width:120px; }
   #sk table { width:100%; border-collapse:collapse; font-size:12.5px; }
-  #sk th { text-align:left; color:#ffffff; font-weight:500; padding:7px 8px; border-bottom:1px solid var(--border);
+  #sk th { text-align:left; color:var(--dim); font-weight:500; padding:7px 8px; border-bottom:1px solid var(--border);
     white-space:nowrap; font-family:'Kanit',sans-serif; }
   #sk td { padding:7px 8px; border-bottom:1px solid #1f2833; white-space:nowrap; }
   #sk .scr { overflow-x:auto; -webkit-overflow-scrolling:touch; }
@@ -70,14 +70,14 @@
   #sk .sg { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
   #sk .stat { background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:11px; }
   #sk .stat .v { font-size:21px; font-family:'Kanit',sans-serif; color:var(--accent2); }
-  #sk .stat .l { font-size:11px; color:#ffffff; margin-top:2px; }
+  #sk .stat .l { font-size:11px; color:var(--dim); margin-top:2px; }
   #sk .nav { position:fixed; bottom:0; left:0; right:0; background:#141b23; border-top:1px solid var(--border); display:flex; z-index:30; overflow-x:auto; }
-  #sk .nb { flex:1; background:none; border:none; color:#ffffff; padding:8px 2px 7px; cursor:pointer;
+  #sk .nb { flex:1; background:none; border:none; color:var(--dim); padding:8px 2px 7px; cursor:pointer;
     display:flex; flex-direction:column; align-items:center; gap:3px; font-size:10px; font-family:'Sarabun',sans-serif; min-width:64px; }
   #sk .nb .ic { font-size:17px; }
   #sk .nb.on { color:var(--accent); }
-  #sk .empty { color:#ffffff; font-size:12.5px; text-align:center; padding:16px 0; }
-  #sk .sumline { font-size:12.5px; color:#ffffff; margin-top:8px; }
+  #sk .empty { color:var(--dim); font-size:12.5px; text-align:center; padding:16px 0; }
+  #sk .sumline { font-size:12.5px; color:var(--dim); margin-top:8px; }
   #sk .toast { position:fixed; bottom:88px; left:50%; transform:translateX(-50%) translateY(12px);
     background:#243040; border:1px solid var(--accent); color:var(--text); padding:10px 16px; border-radius:10px;
     font-size:13px; font-family:'Kanit',sans-serif; z-index:200; opacity:0; transition:.22s; pointer-events:none;
@@ -86,7 +86,7 @@
   #sk .scard { background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:8px; }
   #sk .scard .nm { font-family:'Kanit',sans-serif; font-size:15px; }
   #sk .scard .n { font-size:24px; font-family:'Kanit',sans-serif; color:var(--accent2); margin-top:4px; }
-  #sk .scard .l { font-size:11px; color:#ffffff; }
+  #sk .scard .l { font-size:11px; color:var(--dim); }
   #sk .lowstock { border-color:var(--red); box-shadow:0 0 0 1px var(--red) inset; }
   #sk .frow { display:flex; gap:6px; margin-top:6px; align-items:center; }
   #sk .frow input { margin-top:0; }
@@ -114,6 +114,143 @@
     #sk .billtotal { margin-top:8px; font-size:14px; text-align:right; }
   }
 </style>
+<style id="wpd-theme">
+  /* ===== ธีมสว่าง วินโพลีดีไซน์ — ใช้ชุดเดียวกันทั้ง 3 แอพ (แก้ที่ theme/theme-light.css แล้วรัน theme/apply.js) ===== */
+  #sk {
+    --bg:#f2f4f7; --panel:#ffffff; --panel2:#f6f8fa; --border:#e2e7ee;
+    --accent:#ff8a3d; --accent2:#c4570c; --text:#1b2430; --dim:#667385;
+    --green:#15864f; --red:#cf3e45; --yellow:#a86608; --blue:#2566b0;
+    --label:#465262; --line:#edf0f4; --shadow:0 1px 2px rgba(16,24,40,.05), 0 2px 8px rgba(16,24,40,.05);
+    font-size:15px; line-height:1.55;
+  }
+  body { background:#f2f4f7; margin:0; }
+
+  /* แถบบน */
+  #sk .topbar { background:#ffffff; border-bottom:1px solid var(--border); box-shadow:0 1px 6px rgba(16,24,40,.06); padding:14px 16px 12px; }
+  #sk .topbar h1 { font-size:19px; color:var(--text); }
+  #sk .sub { font-size:13px; color:var(--dim); font-weight:400; }
+  #sk .topbar .sumline { font-size:12.5px; }
+  #sk .chip { background:#fff7f0; border-color:#fbd9bd; font-size:14px; }
+  #sk .chip b { color:var(--accent2); }
+  #sk .banner.warn { background:#fff6e5; color:#8a5300; border-color:#f5d9a4; }
+  #sk .banner.late { background:#fdecec; color:#b3262e; border-color:#f4c1c4; }
+  #sk .savechip { font-size:12.5px; padding:5px 11px; border-radius:999px; }
+  #sk .savechip.ok { background:#e6f5ec; color:var(--green); }
+  #sk .savechip.saving { background:#eef1f5; color:var(--dim); }
+  #sk .savechip.bad { background:#fdecec; color:#b3262e; border-color:#f4c1c4; }
+
+  /* การ์ดและหัวข้อ */
+  #sk .content { padding:14px 14px 20px; }
+  #sk .card { background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px; box-shadow:var(--shadow); }
+  #sk .card h3 { font-size:16.5px; font-weight:600; color:var(--text); text-transform:none; letter-spacing:0; margin:0 0 10px; line-height:1.4; }
+  #sk .card.need { border-color:var(--accent); box-shadow:0 0 0 2px rgba(255,138,61,.35); }
+  #sk .sumline { font-size:13.5px; color:var(--dim); line-height:1.6; }
+  #sk .hint { font-size:13px; }
+  #sk .empty { font-size:14px; color:#8a95a5; padding:18px 0; }
+
+  /* ช่องกรอก */
+  #sk label { font-size:13.5px; font-weight:500; color:var(--label); margin-top:12px; }
+  #sk input, #sk select, #sk textarea {
+    background:#ffffff; border:1.5px solid #d5dce6; border-radius:10px; color:var(--text); font-size:15.5px; padding:11px 12px; }
+  #sk input::placeholder, #sk textarea::placeholder { color:#a3adba; }
+  #sk input:focus, #sk select:focus, #sk textarea:focus {
+    outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(255,138,61,.2); }
+  #sk input[type="checkbox"] { accent-color:var(--accent); }
+  #sk details summary { color:var(--accent2); }
+
+  /* ปุ่ม */
+  #sk button.btn { border-radius:12px; padding:12px 16px; font-size:15.5px; font-weight:600; color:#2a1403;
+    box-shadow:0 1px 0 rgba(0,0,0,.04), 0 2px 6px rgba(255,138,61,.28); }
+  #sk button.btn:active { transform:translateY(1px); }
+  #sk button.btn.sec { background:#ffffff; color:var(--text); border:1.5px solid #d5dce6; box-shadow:none; }
+  #sk button.btn.dg { background:#fff1f1; color:#b3262e; border:1.5px solid #f4c1c4; box-shadow:none; }
+  #sk button.btn.blue { background:#2566b0; color:#ffffff; box-shadow:none; }
+  #sk button.btn.sm { padding:7px 12px; font-size:13.5px; border-radius:9px; }
+  #sk button.btn[disabled] { background:#e9edf2; color:#9aa5b3; box-shadow:none; }
+  #sk .x { color:var(--red); }
+  #sk .ed { color:var(--blue); font-size:13.5px; }
+
+  /* ตาราง */
+  #sk table { font-size:14px; }
+  #sk th { background:var(--panel2); color:var(--dim); font-size:12.5px; font-weight:500; padding:9px 10px; border-bottom:1px solid var(--border); }
+  #sk td { padding:9px 10px; border-bottom:1px solid var(--line); }
+  #sk tr:hover td { background:#fafbfc; }
+
+  /* ป้ายสถานะ */
+  #sk .bdg { font-size:12px; padding:2px 9px; }
+  #sk .bdg.ok, #sk .st.active { background:#e6f5ec; color:var(--green); }
+  #sk .bdg.warn { background:#fff4df; color:var(--yellow); }
+  #sk .bdg.bad { background:#fdecec; color:#b3262e; }
+  #sk .st { font-size:11.5px; }
+  #sk .st.pending, #sk .st.done { background:#eef1f5; color:var(--dim); }
+
+  /* ตัวเลขสรุป */
+  #sk .stat, #sk .scard { background:var(--panel2); border:1px solid var(--border); border-radius:14px; }
+  #sk .stat .v { font-size:26px; font-weight:600; color:var(--text); line-height:1.2; }
+  #sk .stat .l, #sk .scard .l { font-size:13px; color:var(--dim); }
+  #sk .scard .nm { font-size:16px; font-weight:600; color:var(--text); }
+  #sk .scard .n { font-size:26px; font-weight:600; color:var(--accent2); }
+  #sk .lowstock { border-color:#f0a3a7; box-shadow:0 0 0 1px #f0a3a7 inset; background:#fff7f7; }
+  #sk .cartrow { background:var(--panel2); }
+  #sk .chkrow { background:#ffffff; border:1.5px solid #d5dce6; font-size:14px; padding:6px 10px; }
+  #sk .bigstd { background:#fff7f0; border:1.5px solid #fbd9bd; }
+  #sk .bigstd .v { color:var(--accent2); font-size:32px; font-weight:600; }
+  #sk .bigstd .l, #sk .bigstd .brk { color:#7a6555; font-size:13px; }
+
+  /* ออเดอร์ (ระบบผลิต) */
+  #sk .ocard { background:#ffffff; border:1.5px solid var(--border); border-radius:14px; }
+  #sk .ocard.sel { background:#fff7f0; border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  #sk .ocard .cust { font-size:16.5px; font-weight:600; color:var(--text); }
+  #sk .ocard .code { color:var(--accent2); font-size:14px; }
+  #sk .ocard .meta { font-size:13px; }
+  #sk .stab { background:#ffffff; border:1.5px solid #d5dce6; color:var(--label); font-size:14px; padding:7px 13px; border-radius:999px; }
+  #sk .stab.on { background:#fff1e6; color:var(--accent2); border-color:var(--accent); }
+
+  /* วงกลมกดนับ */
+  #sk .ring { background:radial-gradient(circle at 35% 30%,#ffffff,#f1f4f8 72%); border:6px solid #ffd9bd;
+    box-shadow:0 10px 24px rgba(255,138,61,.22), inset 0 0 0 2px #ffffff; }
+  #sk .ring .n { color:var(--accent2); }
+  #sk .ring .l { color:var(--dim); font-size:13px; }
+
+  /* เมนูล่าง */
+  #sk .nav { background:#ffffff; border-top:1px solid var(--border); box-shadow:0 -2px 10px rgba(16,24,40,.06);
+    padding-bottom:env(safe-area-inset-bottom); }
+  #sk .nb { color:#7b8797; font-size:12px; font-weight:500; gap:2px; padding:9px 2px 8px; position:relative; min-width:0; white-space:nowrap; }
+  #sk .nb .ic { font-size:21px; filter:grayscale(.6); opacity:.75; }
+  #sk .nb.on { color:var(--accent2); font-weight:600; }
+  #sk .nb.on .ic { filter:none; opacity:1; }
+  #sk .nb.on::before { content:''; position:absolute; top:0; left:22%; right:22%; height:3px; border-radius:0 0 3px 3px; background:var(--accent); }
+
+  /* กล่องยืนยัน / แจ้งเตือน */
+  #sk .ov { background:rgba(20,28,38,.45); }
+  #sk .box { background:#ffffff; border:1px solid var(--border); box-shadow:0 12px 40px rgba(16,24,40,.18); }
+  #sk .box h3 { font-size:17px; color:var(--text); }
+  #sk .box p { font-size:14px; }
+  #sk .toast { background:#1b2430; color:#ffffff; border:none; font-size:14px; box-shadow:0 8px 24px rgba(16,24,40,.25); }
+  #sk .flash { animation:fl 1.3s ease; }
+
+  /* ช่องกรอกที่อยู่คู่กันให้ตรงแนวเดียวกัน แม้ชื่อช่องยาว 2 บรรทัด */
+  #sk .rf { align-items:flex-end; }
+
+  @media (max-width:640px){
+    /* มือถือ: แถบบนเลื่อนหายไปกับหน้า ไม่กินพื้นที่ทำงาน */
+    #sk .topbar { position:static; }
+    #sk input, #sk select, #sk textarea { font-size:16px; min-height:46px; }
+    #sk button.btn { min-height:48px; }
+    #sk button.btn.sm { min-height:40px; }
+  }
+  @media (max-width:360px){
+    #sk .nb { font-size:11px; }
+    #sk .nb .ic { font-size:19px; }
+  }
+</style><!-- /wpd-theme -->
+
+
+
+
+
+
+
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
@@ -121,7 +258,7 @@
 <div id="sk">
   <div class="topbar">
     <h1><span class="dotled"></span> ต้นทุน &amp; ตีราคา</h1>
-    <div class="sub" id="clock" style="color:#ffffff;">—</div>
+    <div class="sub" id="clock" style="color:var(--dim);">—</div>
     <div class="savechip ok" id="saveState">บันทึกแล้ว ✓</div>
     <div class="sumline" style="margin-top:6px;">ดึงยอดที่เบิกจริงจากแอพสต๊อก+แอพผลิต มาคูณราคาที่ใส่ไว้ในแอพนี้ — ไม่แตะข้อมูล 2 แอพเดิม</div>
   </div>
@@ -201,7 +338,7 @@
           <div><input id="fixBaht" type="number" inputmode="decimal" step="1" placeholder="บาท/เดือน"></div>
         </div>
         <button class="btn sec sm" id="btnAddFixed" style="margin-top:8px;">➕ เพิ่มรายการ</button>
-        <label style="margin-top:12px;">ชั่วโมงเดินเครื่องต่อเดือน — เว้นว่าง = คำนวณจากยอดผลิตจริง</label>
+        <label style="margin-top:12px;">ชั่วโมงเดินเครื่องต่อเดือน — เว้นว่าง = ใช้ชั่วโมงตามแผน (ชม./วัน × 26 วัน) หรือยอดจริงถ้ามากกว่า</label>
         <input id="stHours" type="number" inputmode="decimal" step="1" placeholder="เว้นว่าง = ให้ระบบคำนวณเอง">
         <div class="sumline" id="fixedPreview"></div>
       </div>
@@ -298,6 +435,11 @@
 
     <!-- ══════════ 5. สรุป ══════════ -->
     <div class="panel" id="p-sum">
+      <div class="card"><h3>สรุปต้นทุนตามช่วงเวลา</h3>
+        <div class="rf" style="align-items:center;"><div><select id="perMode">
+          <option value="day">รายวัน</option><option value="month">รายเดือน</option><option value="year">รายปี</option></select></div><div></div></div>
+        <div class="scr" style="margin-top:10px;"><table id="tPeriod"></table></div>
+        <div class="sumline" id="perNote"></div></div>
       <div class="card"><h3>ภาพรวม</h3><div class="sg" id="sumStats"></div></div>
       <div class="card"><h3>ต้นทุนต่อชิ้น แยกตามงาน</h3><div class="scr"><table id="tSumJobs"></table></div></div>
       <div class="card"><h3>ตีไว้ vs ทำจริง</h3><div class="scr"><table id="tCompare"></table></div>
@@ -337,7 +479,7 @@
   var inflight=0, badge=null, guarded=null;
   function ui(){
     if(!badge){badge=document.createElement('div');
-      badge.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:99999;background:#ff8a3d;color:#12181f;font:600 14px Sarabun,sans-serif;padding:9px 20px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.45);display:none';
+      badge.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:99999;background:#ff8a3d;color:#12181f;font:600 14px Sarabun,sans-serif;padding:9px 20px;border-radius:20px;box-shadow:0 6px 18px rgba(16,24,40,.16);display:none';
       badge.textContent='กำลังบันทึก…';document.body.appendChild(badge);}
     badge.style.display=inflight>0?'block':'none';
     if(guarded){ if(inflight>0){guarded.setAttribute('data-busy','1');guarded.style.opacity='0.5';guarded.style.pointerEvents='none';}
@@ -372,7 +514,7 @@
     try{
       var t=document.getElementById('__wpdDateWarn');
       if(!t){ t=document.createElement('div'); t.id='__wpdDateWarn';
-        t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:110px;z-index:99999;background:#e5595f;color:#fff;font:600 14px/1.5 Sarabun,sans-serif;padding:10px 16px;border-radius:12px;max-width:88%;white-space:pre-line;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.45)';
+        t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:110px;z-index:99999;background:#e5595f;color:#fff;font:600 14px/1.5 Sarabun,sans-serif;padding:10px 16px;border-radius:12px;max-width:88%;white-space:pre-line;text-align:center;box-shadow:0 6px 20px rgba(16,24,40,.25)';
         document.body.appendChild(t); }
       t.textContent=msg; t.style.display='block';
       clearTimeout(t.__tm); t.__tm=setTimeout(function(){ t.style.display='none'; },5000);
@@ -428,23 +570,23 @@ function wpdShowLogin(errMsg){
   let setError;
   const promise = new Promise(function(resolve){
     const ov = document.createElement('div');
-    ov.style.cssText = 'position:fixed;inset:0;background:#10151c;z-index:100000;display:flex;align-items:center;'+
+    ov.style.cssText = 'position:fixed;inset:0;background:#f2f4f7;z-index:100000;display:flex;align-items:center;'+
       'justify-content:center;padding:20px;font-family:Sarabun,sans-serif;';
     const bx = document.createElement('div');
-    bx.style.cssText = 'background:#1a222c;color:#f2ede3;border:1px solid #2b3645;border-radius:16px;max-width:380px;'+
-      'width:100%;padding:24px;box-shadow:0 10px 40px rgba(0,0,0,.5);';
+    bx.style.cssText = 'background:#ffffff;color:#1b2430;border:1px solid #e2e7ee;border-radius:16px;max-width:380px;'+
+      'width:100%;padding:24px;box-shadow:0 12px 40px rgba(16,24,40,.18);';
     bx.innerHTML =
       '<div style="font-size:34px;text-align:center;">🔒</div>'+
       '<h2 style="font:600 19px Kanit,sans-serif;margin:10px 0 4px;text-align:center;">เข้าสู่ระบบก่อนใช้งาน</h2>'+
-      '<div style="font:400 13px/1.6 Sarabun,sans-serif;color:#93a1b0;text-align:center;margin-bottom:16px;">'+
+      '<div style="font:400 13px/1.6 Sarabun,sans-serif;color:#667385;text-align:center;margin-bottom:16px;">'+
       'กรอกครั้งเดียวต่อเครื่อง ระบบจำไว้ให้</div>'+
-      '<label style="font-size:12px;color:#c7d2dd;">อีเมล</label>'+
-      '<input id="wpdEmail" type="email" autocomplete="username" style="width:100%;padding:13px;margin:5px 0 12px;'+
-      'border:1px solid #2b3645;border-radius:10px;background:#12181f;color:#f2ede3;font:400 16px Sarabun,sans-serif;">'+
-      '<label style="font-size:12px;color:#c7d2dd;">รหัสผ่าน</label>'+
-      '<input id="wpdPass" type="password" autocomplete="current-password" style="width:100%;padding:13px;margin:5px 0 4px;'+
-      'border:1px solid #2b3645;border-radius:10px;background:#12181f;color:#f2ede3;font:400 16px Sarabun,sans-serif;">'+
-      '<div id="wpdErr" style="font:400 13px/1.55 Sarabun,sans-serif;color:#ff6b6b;min-height:19px;margin:6px 0 10px;"></div>'+
+      '<label style="font-size:14px;color:#465262;">อีเมล</label>'+
+      '<input id="wpdEmail" type="email" autocomplete="username" style="box-sizing:border-box;width:100%;padding:13px;margin:5px 0 12px;'+
+      'border:1px solid #e2e7ee;border-radius:10px;background:#f6f8fa;color:#1b2430;font:400 16px Sarabun,sans-serif;">'+
+      '<label style="font-size:14px;color:#465262;">รหัสผ่าน</label>'+
+      '<input id="wpdPass" type="password" autocomplete="current-password" style="box-sizing:border-box;width:100%;padding:13px;margin:5px 0 4px;'+
+      'border:1px solid #e2e7ee;border-radius:10px;background:#f6f8fa;color:#1b2430;font:400 16px Sarabun,sans-serif;">'+
+      '<div id="wpdErr" style="font:400 13px/1.55 Sarabun,sans-serif;color:#cf3e45;min-height:19px;margin:6px 0 10px;"></div>'+
       '<button id="wpdGo" style="width:100%;padding:15px;border:0;border-radius:11px;background:#ff8a3d;color:#12181f;'+
       'font:600 16px Kanit,sans-serif;">เข้าสู่ระบบ</button>';
     ov.appendChild(bx); document.body.appendChild(ov);
@@ -527,7 +669,7 @@ window.WPDAUTH = {
     window.storage = null;
     document.addEventListener('DOMContentLoaded', () => {
       const b = document.createElement('div');
-      b.style.cssText='position:fixed;inset:0;background:#10151c;color:#f2ede3;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;font-family:sans-serif;text-align:center;';
+      b.style.cssText='position:fixed;inset:0;background:#f2f4f7;color:#1b2430;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;font-family:sans-serif;text-align:center;';
       b.innerHTML='<div style="max-width:420px;"><div style="font-size:40px;">⚠️</div><h2>ยังไม่ได้ตั้งค่า Supabase</h2></div>';
       document.body.appendChild(b);
     });
@@ -708,6 +850,46 @@ window.WPDAUTH = {
                total:c.total, packs:c.packs, missing:c.missing.length };
     },
 
+    /* ปลอกที่ใช้จริงของงาน: ถ้ามีบันทึกการใช้ต่อแพ็คใช้ตามนั้น ไม่งั้น (งานเก่า) ใช้ยอดที่เบิกไปไลน์ */
+    caseRowsFor(P, orderId, inRange){
+      const ok=inRange||(()=>true);
+      const cu=(P.caseUse||[]).filter(u=>u.orderId===orderId && ok(u));
+      if(cu.length || (P.caseUse||[]).some(u=>u.orderId===orderId)) return cu;
+      const out=[];
+      (P.fabricWd||[]).filter(w=>w.orderId===orderId && ok(w)).forEach(w=>(w.picks||[]).forEach(pk=>
+        out.push({ batchId:pk.batchId, batchNo:pk.batchNo, fabricType:w.fabricType, size:w.size, pieces:+pk.qty||0, time:w.time })));
+      return out;
+    },
+
+    /* ═══ ต้นทุนรวมของทั้งโรงในช่วงวันที่ (รายวัน/เดือน/ปี) — ใช้สูตรเดียวกับต้นทุนต่องาน แต่ตัดตามวันที่แทนออเดอร์ ═══ */
+    periodCost(ctx, from, to){
+      const S=ctx.S||{}, P=ctx.PROD||{}, K=ctx.KSET||{}, PRICE=ctx.PRICE||{};
+      const inR=x=>{ const d=String(x.time||'').slice(0,10); return d>=from && d<=to; };
+      const lines=(P.line||[]).filter(inR);
+      const packs=lines.length, pieces=lines.reduce((s,l)=>s+(+l.piecesPerPack||0),0);
+      const hours=r2(COST.runDays(lines).reduce((s,d)=>s+d.hours,0));
+      let fiber=0, fiberKg=0;
+      (P.use||[]).filter(inR).forEach(u=>{ const kg=+u.kg||0; fiberKg+=kg; fiber+=kg*COST.fiberPricePerKg(PRICE,u.fiberName,u.lot).baht; });
+      const withUse=new Set((P.use||[]).map(u=>u.orderId));
+      (P.wd||[]).filter(w=>inR(w) && !withUse.has(w.orderId)).forEach(w=>{ const kg=+w.kg||0; fiberKg+=kg; fiber+=kg*COST.fiberPricePerKg(PRICE,w.fiberName,w.lot).baht; });
+      let fab=0, sew=0;
+      (P.orders||[]).forEach(o=>COST.caseRowsFor(P,o.id,inR).forEach(cu=>{
+        const q=+cu.pieces||0; fab+=q*COST.fabricBahtPerPiece(PRICE,S.cutBatches,cu.batchId).baht;
+        if((o.productType||'')!=='ใย') sew+=q*(+((K.sewBySize||{})[cu.size])||+K.sewPerPiece||0);
+      }));
+      let bag=0; (P.bagUse||[]).filter(inR).forEach(b=>{ bag+=(+b.pieces||0)*COST.bagBahtPerPiece(PRICE,S.sackReceipts,b.kind,b.name,b.sackNo).baht; });
+      let sheet=0; (P.sheetUse||[]).filter(inR).forEach(u=>{ sheet+=(+u.qty||0)*COST.sheetCostPerPiece(ctx,u.srcOrderId,0).baht; });
+      const hrRate=(+K.laborHoursPerDay>0)?(+K.laborDaily||0)/(+K.laborHoursPerDay):0;
+      const labor=hours*hrRate+pieces*(+K.laborPerPiece||0);
+      const tanks=(P.gasSwaps||[]).filter(inR).reduce((s,g)=>s+((g.gasNos&&g.gasNos.length)||1),0);
+      const gas=tanks*COST.gasPricePerTank(PRICE).baht;
+      const elec=hours*(+K.elecPerHour||0), ship=packs*(+K.shipPerPack||0);
+      const fixed=hours*COST.fixedPerHour(K.fixed,+K._hoursPerMonth||0);
+      const total=fiber+sheet+fab+sew+bag+labor+gas+elec+ship+fixed;
+      return { packs, pieces, hours, fiberKg:r2(fiberKg), fiber:r2(fiber+sheet), fabric:r2(fab+sew), bag:r2(bag), labor:r2(labor),
+               gas:r2(gas), elec:r2(elec), ship:r2(ship), fixed:r2(fixed), total:r2(total), perPiece:pieces?r2(total/pieces):0 };
+    },
+
     /* ═══ ต้นทุนจริงของงานหนึ่งงาน ═══ */
     jobCost(ctx, orderId, depth){
       const S=ctx.S||{}, P=ctx.PROD||{}, K=ctx.KSET||{}, PRICE=ctx.PRICE||{};
@@ -726,13 +908,18 @@ window.WPDAUTH = {
       let useRows=(P.use||[]).filter(u=>u.orderId===orderId);
       let fiberFrom='use';
       if(!useRows.length){ useRows=(P.wd||[]).filter(w=>w.orderId===orderId); fiberFrom='wd'; }
+      const byBale={};
       useRows.forEach(u=>{
         const kg=+u.kg||0; if(!kg) return;
         const p=COST.fiberPricePerKg(PRICE, u.fiberName, u.lot);
         fiberKg=r3(fiberKg+kg); fiberBaht=r2(fiberBaht+kg*p.baht);
         if(p.src==='none') miss.push('ใย "'+u.fiberName+'" ยังไม่ได้ใส่ราคา');
-        detail.push({cat:'ใย', what:u.fiberName+' เบอร์ '+u.lot, qty:kg+' กก.', unit:p.baht, baht:r2(kg*p.baht), src:p.src});
+        if(u.pending) miss.push('ใย "'+u.fiberName+'" บางส่วนป้อนไปตอนยังไม่ได้เบิกก้อน — คิดราคามาตรฐานไว้ก่อน จนกว่าจะกดเบิกก้อน');
+        const k=u.fiberName+'|'+(u.pending?'?':u.lot);
+        const d=byBale[k]=byBale[k]||{cat:'ใย', what:u.fiberName+(u.pending?' (ยังไม่ได้เบิกก้อน)':' ก้อน '+u.lot), kg:0, unit:p.baht, baht:0, src:p.src};
+        d.kg=r3(d.kg+kg); d.baht=r2(d.baht+kg*p.baht);
       });
+      Object.values(byBale).forEach(d=>detail.push({cat:d.cat, what:d.what, qty:d.kg+' กก.', unit:d.unit, baht:d.baht, src:d.src}));
 
       /* ---- ใยแผ่นที่เบิกมาแพ็ค (งานปิกนิก) ---- */
       let sheetPcs=0, sheetBaht=0;
@@ -748,15 +935,15 @@ window.WPDAUTH = {
 
       /* ---- ผ้า ---- */
       let fabPieces=0, fabBaht=0;
-      (P.fabricWd||[]).filter(w=>w.orderId===orderId).forEach(w=>{
-        (w.picks||[]).forEach(pk=>{
-          const q=+pk.qty||0; if(!q) return;
-          const c=COST.fabricBahtPerPiece(PRICE, S.cutBatches, pk.batchId);
-          fabPieces+=q; fabBaht=r2(fabBaht+q*c.baht);
-          if(c.src==='none') miss.push('ผ้า "'+(c.type||w.fabricType)+'" ยังไม่ได้ใส่ราคา');
-          else if(c.src==='noCut') miss.push('ผ้า "'+(c.type||w.fabricType)+'" ถุง #'+pk.batchNo+' ไม่รู้ว่าตัดได้กี่ชิ้น');
-          detail.push({cat:'ผ้า', what:(c.type||w.fabricType)+' ถุง #'+pk.batchNo, qty:q+' ชิ้น', unit:c.baht, baht:r2(q*c.baht), src:c.src});
-        });
+      /* ปลอกคิดตามที่ใช้จริงต่อแพ็ค (caseUse) — งานเก่าก่อนมีระบบนี้ใช้ยอดที่เบิกแทน */
+      const caseRows=COST.caseRowsFor(P, orderId);
+      caseRows.forEach(cu=>{
+        const q=+cu.pieces||0; if(!q) return;
+        const c=COST.fabricBahtPerPiece(PRICE, S.cutBatches, cu.batchId);
+        fabPieces+=q; fabBaht=r2(fabBaht+q*c.baht);
+        if(c.src==='none') miss.push('ผ้า "'+(c.type||cu.fabricType)+'" ยังไม่ได้ใส่ราคา');
+        else if(c.src==='noCut') miss.push('ผ้า "'+(c.type||cu.fabricType)+'" ถุง #'+cu.batchNo+' ไม่รู้ว่าตัดได้กี่ชิ้น');
+        detail.push({cat:'ผ้า', what:(c.type||cu.fabricType)+' ถุง #'+cu.batchNo, qty:q+' ชิ้น', unit:c.baht, baht:r2(q*c.baht), src:c.src});
       });
 
       /* ---- ถุง ---- */
@@ -774,8 +961,8 @@ window.WPDAUTH = {
       /* ---- ค่าจ้างเย็บ ---- */
       let sewPieces=0, sewBaht=0;
       if(order && (order.productType||'')!=='ใย'){
-        (P.fabricWd||[]).filter(w=>w.orderId===orderId).forEach(w=>{
-          const q=+w.qty||0; if(!q) return;
+        caseRows.forEach(w=>{
+          const q=+w.pieces||0; if(!q) return;
           const rate=+((K.sewBySize||{})[w.size])||+K.sewPerPiece||0;
           sewPieces+=q; sewBaht=r2(sewBaht+q*rate);
           if(!rate) miss.push('ยังไม่ได้ตั้งค่าจ้างเย็บ (ไซซ์ '+w.size+')');
@@ -880,7 +1067,7 @@ window.WPDAUTH = {
      STATE
      ═══════════════════════════════════════════════════════════════ */
   let S = { fiberReceipts:[], fabricReceipts:[], cutBatches:[], sackReceipts:[], gasReceipts:[] };
-  let PROD = { orders:[], wd:[], use:[], fabricWd:[], bagWd:[], bagUse:[], gasSwaps:[], line:[], sheetWd:[], sheetUse:[] };
+  let PROD = { orders:[], wd:[], use:[], fabricWd:[], caseUse:[], bagWd:[], bagUse:[], gasSwaps:[], line:[], sheetWd:[], sheetUse:[] };
   let KSET = { sewPerPiece:0, sewBySize:{}, laborDaily:0, laborHoursPerDay:8, laborPerPiece:0,
                elecPerHour:0, shipPerPack:0, fixed:[], hoursOverride:0, marginPct:20, vatPct:0 };
   let PRICE = { fiber:{}, fabric:{}, zip:{}, pack:{}, gas:0 };
@@ -890,6 +1077,73 @@ window.WPDAUTH = {
   const hasStore = !!(window.storage && window.storage.get && window.storage.set);
   let storeDown = !hasStore;
   const pending={}, inflight={};
+
+  /* ---------- กันข้อมูลหาย ----------
+     1) ยังโหลดข้อมูลจากเซิร์ฟเวอร์ไม่สำเร็จ = ห้ามบันทึก ไม่งั้นข้อมูลว่างในเครื่องจะไปทับของจริง
+     2) ก่อนบันทึก เช็คว่าเครื่องอื่นแก้หมวดเดียวกันไปก่อนหรือไม่ ถ้าแก้ ให้รวมรายการเข้าด้วยกันแทนการเขียนทับ */
+  let loadOk=false;
+  const SEEN={};
+  function wpdMarkLoaded(vals){
+    Object.keys(vals).forEach(k=>{ if(!(k in pending) && !inflight[k]) SEEN[k]=vals[k]; });
+    loadOk=true;
+  }
+  function wpdMerge3(base, local, server){
+    const js=JSON.stringify, same=(a,b)=>js(a)===js(b);
+    if(same(local,base)) return server;
+    if(same(server,base)) return local;
+    const isObj=v=>v!==null && typeof v==='object' && !Array.isArray(v);
+    const allObj=a=>Array.isArray(a) && a.every(isObj);
+    if(allObj(local) && allObj(server) && (base==null || allObj(base))){
+      const keyed=arr=>{ const seen={}, m=new Map();
+        (arr||[]).forEach(x=>{ let k=(x.id!=null)?'i:'+x.id:'j:'+js(x); if(k[0]==='j'){ seen[k]=(seen[k]||0)+1; k+='#'+seen[k]; } m.set(k,x); });
+        return m; };
+      const B=keyed(base), L=keyed(local), R=keyed(server), out=[];
+      L.forEach((x,k)=>{ out.push(R.has(k) && B.has(k) ? wpdMerge3(B.get(k),x,R.get(k)) : x); });
+      R.forEach((x,k)=>{ if(!L.has(k) && !B.has(k)) out.push(x); });
+      return out;
+    }
+    if(isObj(local) && isObj(server)){
+      const b=isObj(base)?base:{}, out={};
+      new Set(Object.keys(server).concat(Object.keys(local))).forEach(k=>{
+        const inL=k in local, inR=k in server, inB=k in b;
+        if(inL && inR) out[k]=wpdMerge3(b[k],local[k],server[k]);
+        else if(inL){ if(!inB || !same(local[k],b[k])) out[k]=local[k]; }
+        else if(!inB || !same(server[k],b[k])) out[k]=server[k];
+      });
+      return out;
+    }
+    return local;
+  }
+  let wpdMergedAt=0;
+  let wpdWriteSeq=0;
+  function wpdBusy(){ return Object.keys(pending).length>0 || Object.keys(inflight).some(k=>inflight[k]); }
+  function wpdStale(seq,busyAtStart){ return busyAtStart || seq!==wpdWriteSeq || wpdBusy(); }
+  async function wpdPrepareWrite(k,data){
+    const r=await window.storage.get(k,true);
+    const cur=r?r.value:null;
+    if(cur===SEEN[k] || cur===null) return data;
+    const parse=s=>{ try{ return s?JSON.parse(s):null; }catch(e){ return null; } };
+    wpdMergedAt=Date.now();
+    return wpdMerge3(parse(SEEN[k]), data, parse(cur));
+  }
+  function wpdGate(msg){
+    let g=document.getElementById('__wpdGate');
+    if(!msg){ if(g) g.remove(); return; }
+    if(!g){ g=document.createElement('div'); g.id='__wpdGate';
+      g.style.cssText='position:fixed;inset:0;z-index:99990;background:rgba(242,244,247,.97);color:#1b2430;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;font:500 15px/1.7 Sarabun,sans-serif;white-space:pre-line';
+      document.body.appendChild(g); }
+    g.textContent=msg;
+  }
+  async function wpdLoadFirst(load){
+    wpdGate('กำลังโหลดข้อมูล…');
+    for(let i=0;;i++){
+      try{ const h=await load(); wpdGate(null); return h; }
+      catch(e){
+        wpdGate('⚠ เชื่อมต่อฐานข้อมูลไม่ได้ — กำลังลองใหม่อัตโนมัติ\nยังไม่ให้บันทึกจนกว่าจะโหลดข้อมูลสำเร็จ กันข้อมูลเดิมถูกทับ\n\n('+String(e&&e.message||e).slice(0,80)+')');
+        await new Promise(r=>setTimeout(r,Math.min(15000,2000*(i+1))));
+      }
+    }
+  }
   const KEYMAP = { v3k_set:()=>KSET, v3k_price:()=>PRICE, v3k_quote:()=>({quotes:QUOTES}) };
   function setSaveState(state,msg){
     const el=$('saveState'); if(!el) return;
@@ -901,13 +1155,17 @@ window.WPDAUTH = {
     attempt=attempt||0;
     if(inflight[k]){ setTimeout(()=>flush(k,attempt),400); return; }
     if(!(k in pending)) return;
+    if(hasStore && !loadOk){ delete pending[k]; setSaveState('bad','ยังโหลดข้อมูลไม่สำเร็จ — รายการนี้ไม่ได้บันทึก'); return; }
     const data=pending[k]; delete pending[k]; inflight[k]=true; setSaveState('saving');
     try{
       if(!hasStore) throw new Error('no storage');
-      await window.storage.set(k,JSON.stringify(data),true);
+      wpdWriteSeq++;
+      const str=JSON.stringify(await wpdPrepareWrite(k,data));
+      await window.storage.set(k,str,true);
+      SEEN[k]=str;
       inflight[k]=false; storeDown=false;
       await window.storage.set('v3k_pulse',Date.now()+'',true).catch(()=>{});
-      if(Object.keys(pending).length) Object.keys(pending).forEach(kk=>flush(kk)); else setSaveState('ok');
+      if(Object.keys(pending).length) Object.keys(pending).forEach(kk=>flush(kk)); else { setSaveState('ok'); wpdRefreshAfterMerge(); }
     }catch(e){
       inflight[k]=false; pending[k]=data;
       if(attempt<6){ setTimeout(()=>flush(k,attempt+1), Math.min(15000,600*Math.pow(2,attempt))); setSaveState('saving'); }
@@ -921,13 +1179,17 @@ window.WPDAUTH = {
   });
   const saveSet=()=>put('v3k_set'), savePrice=()=>put('v3k_price'), saveQuotes=()=>put('v3k_quote');
 
-  async function rawGet(k){ if(!hasStore) return null; try{ const r=await window.storage.get(k,true); return r?r.value:null; }catch(e){ return null; } }
+  /* โหลดพลาดต้องโยน error ขึ้นไป ห้ามคืนค่าว่าง ไม่งั้นแอพจะเข้าใจว่าไม่มีข้อมูล แล้วบันทึกทับของจริง */
+  async function rawGet(k){ if(!hasStore) return null; const r=await window.storage.get(k,true); return r?r.value:null; }
   async function readAll(){
+    const _seq=wpdWriteSeq, _busy=wpdBusy();
     const [fi,fa,bg,gs,ord,fd,ln,st,pr,qt] = await Promise.all([
       rawGet('v3s_fiber'), rawGet('v3s_fabric'), rawGet('v3s_bag'), rawGet('v3s_gas'),
       rawGet('v3_orders'), rawGet('v3_feed'), rawGet('v3_line'),
       rawGet('v3k_set'), rawGet('v3k_price'), rawGet('v3k_quote')
     ]);
+    /* มีการบันทึกเกิดขึ้นระหว่างที่กำลังดึงข้อมูล = ข้อมูลที่ได้มาเก่ากว่าในเครื่อง ห้ามเอามาทับ รอบหน้าค่อยดึงใหม่ */
+    if(wpdStale(_seq,_busy)) return lastHash;
     const hash=[fi,fa,bg,gs,ord,fd,ln,st,pr,qt].map(x=>x||'').join('|');
     const parse=(s,f)=>{ try{ return s?JSON.parse(s):f; }catch(e){ return f; } };
     const Pf=parse(fi,{}), Pa=parse(fa,{}), Pb=parse(bg,{}), Pg=parse(gs,{});
@@ -936,7 +1198,7 @@ window.WPDAUTH = {
     S.sackReceipts=Pb.receipts||[]; S.gasReceipts=Pg.receipts||[];
     const A=parse(ord,{}), B=parse(fd,{}), C=parse(ln,{});
     PROD.orders=A.orders||[];
-    PROD.wd=B.wd||[]; PROD.use=B.use||[]; PROD.fabricWd=B.fabricWd||[]; PROD.bagWd=B.bagWd||[];
+    PROD.wd=B.wd||[]; PROD.use=B.use||[]; PROD.fabricWd=B.fabricWd||[]; PROD.caseUse=B.caseUse||[]; PROD.bagWd=B.bagWd||[];
     PROD.bagUse=B.bagUse||[]; PROD.gasSwaps=B.gasSwaps||[];
     PROD.sheetWd=B.sheetWd||[]; PROD.sheetUse=B.sheetUse||[];
     PROD.line=C.line||[];
@@ -945,6 +1207,7 @@ window.WPDAUTH = {
     const P=parse(pr,null);
     if(P && typeof P==='object') PRICE=Object.assign({fiber:{},fabric:{},zip:{},pack:{},gas:0}, P);
     QUOTES=(parse(qt,{}).quotes)||[];
+    wpdMarkLoaded({v3k_set:st, v3k_price:pr, v3k_quote:qt});
     return hash;
   }
 
@@ -954,16 +1217,16 @@ window.WPDAUTH = {
     opts=opts||{};
     return new Promise(function(res){
       var ov=document.createElement('div');
-      ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:99998;display:flex;align-items:center;justify-content:center;padding:18px';
+      ov.style.cssText='position:fixed;inset:0;background:rgba(20,28,38,.45);z-index:99998;display:flex;align-items:center;justify-content:center;padding:18px';
       var bx=document.createElement('div');
-      bx.style.cssText='background:#1a222c;color:#f2ede3;border:1px solid #2b3645;border-radius:14px;max-width:430px;width:100%;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.5)';
+      bx.style.cssText='background:#ffffff;color:#1b2430;border:1px solid #e2e7ee;border-radius:14px;max-width:430px;width:100%;padding:18px;box-shadow:0 12px 40px rgba(16,24,40,.18)';
       var h=document.createElement('div'); h.style.cssText="font:600 17px 'Kanit',sans-serif;margin-bottom:8px"; h.textContent=title||'';
-      var p=document.createElement('div'); p.style.cssText="font:400 14px/1.65 'Sarabun',sans-serif;white-space:pre-line;color:#c7d2dd;margin-bottom:16px"; p.textContent=detail||'';
+      var p=document.createElement('div'); p.style.cssText="font:400 14px/1.65 'Sarabun',sans-serif;white-space:pre-line;color:#465262;margin-bottom:16px"; p.textContent=detail||'';
       var row=document.createElement('div'); row.style.cssText='display:flex;gap:10px';
       var ok=document.createElement('button'); ok.textContent=opts.okText||'ยืนยัน'; ok.setAttribute('data-noguard','1');
       ok.style.cssText="flex:1;padding:13px;border:0;border-radius:10px;background:#ff8a3d;color:#12181f;font:600 15px 'Kanit',sans-serif";
       var no=document.createElement('button'); no.textContent=opts.cancelText||'ยกเลิก'; no.setAttribute('data-noguard','1');
-      no.style.cssText="flex:1;padding:13px;border:1px solid #2b3645;border-radius:10px;background:#212b37;color:#f2ede3;font:600 15px 'Kanit',sans-serif";
+      no.style.cssText="flex:1;padding:13px;border:1px solid #e2e7ee;border-radius:10px;background:#f1f4f8;color:#1b2430;font:600 15px 'Kanit',sans-serif";
       function done(v){ try{ document.body.removeChild(ov); }catch(e){} res(v); }
       ok.onclick=function(){done(true);}; no.onclick=function(){done(false);};
       ov.onclick=function(e){ if(e.target===ov) done(false); };
@@ -980,9 +1243,12 @@ window.WPDAUTH = {
     if(t.closest('#p-price')||t.closest('#p-set')) formDirty=true;
   },true);
 
+  /* ชั่วโมงเดินเครื่องต่อเดือนตามแผน = ชั่วโมงทำงานต่อวัน × 26 วัน — ใช้เป็นขั้นต่ำ
+     กันต้นเดือนที่เพิ่งเดินเครื่องไม่กี่ชั่วโมง แล้วค่าคงที่ต่อชั่วโมงพุ่งสูงเกินจริง */
+  function plannedHoursPerMonth(){ return r2((+KSET.laborHoursPerDay||8)*26); }
   function hoursPerMonthNow(){
     const ov=+KSET.hoursOverride||0;
-    return ov>0 ? ov : COST.hoursPerMonth(PROD.line);
+    return ov>0 ? ov : Math.max(COST.hoursPerMonth(PROD.line), plannedHoursPerMonth());
   }
   function ctx(){ return { S, PROD, PRICE, KSET:Object.assign({}, KSET, {_hoursPerMonth:hoursPerMonthNow()}) }; }
   const SRCTXT = { lot:'ราคาก้อนนั้น', roll:'ราคาม้วนนั้น', sack:'ราคากระสอบนั้น',
@@ -1067,7 +1333,7 @@ window.WPDAUTH = {
     ['zip','pack'].forEach(kind=>{
       const names=bagNames(kind);
       if(!names.length) return;
-      bh+='<div style="margin-top:10px;font-size:12px;color:#fff;">'+(kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+'</div>';
+      bh+='<div style="margin-top:14px;font-size:14px;font-weight:600;color:#465262;">'+(kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+'</div>';
       names.forEach(n=>{
         const e=((PRICE[kind]||{})[n])||{};
         const sacks=S.sackReceipts.filter(r=>r.kind===kind&&r.name===n)
@@ -1156,7 +1422,7 @@ window.WPDAUTH = {
     const rate=COST.fixedPerHour(KSET.fixed,hpm);
     const real=COST.hoursPerMonth(PROD.line);
     $('fixedPreview').innerHTML = hpm>0
-      ? 'ชั่วโมงเดินเครื่อง <b>'+hpm+' ชม./เดือน</b>'+(KSET.hoursOverride>0?' (ตั้งเอง)':' (คำนวณจากยอดผลิตจริง)')+
+      ? 'ชั่วโมงเดินเครื่อง <b>'+hpm+' ชม./เดือน</b>'+(KSET.hoursOverride>0?' (ตั้งเอง)':(hpm>real?' (ตามแผน — ยอดจริงเดือนนี้ยังน้อยกว่า)':' (คำนวณจากยอดผลิตจริง)'))+
         ' → ค่าคงที่เฉลี่ย <b style="color:var(--accent2)">'+fmtBaht(rate)+' บาท/ชั่วโมง</b>'+
         (KSET.hoursOverride>0&&real>0?'<br><span style="color:var(--muted)">ยอดผลิตจริงคำนวณได้ '+real+' ชม./เดือน</span>':'')
       : '<span class="bdg warn">ยังไม่รู้ชั่วโมงเดินเครื่อง</span> ยังไม่มีข้อมูลการผลิตพอให้คำนวณ — กรอกเองไปก่อนได้';
@@ -1175,11 +1441,11 @@ window.WPDAUTH = {
       ? 'คิดเป็น '+(hr?'<b>'+fmtBaht(hr)+' บาท/ชั่วโมง</b>':'')+(hr&&pc?' + ':'')+(pc?'<b>'+fmtBaht(pc)+' บาท/ชิ้น</b>':'')
       : '<span style="color:var(--muted)">ยังไม่ได้ตั้งค่าแรง</span>';
     const ov=+$('stHours').value||0;
-    const hpm=ov>0?ov:COST.hoursPerMonth(PROD.line);
+    const hpm=ov>0?ov:Math.max(COST.hoursPerMonth(PROD.line), plannedHoursPerMonth());
     const rate=COST.fixedPerHour(KSET.fixed,hpm);
     const real=COST.hoursPerMonth(PROD.line);
     $('fixedPreview').innerHTML = hpm>0
-      ? 'ชั่วโมงเดินเครื่อง <b>'+hpm+' ชม./เดือน</b>'+(ov>0?' (ตั้งเอง)':' (คำนวณจากยอดผลิตจริง)')+
+      ? 'ชั่วโมงเดินเครื่อง <b>'+hpm+' ชม./เดือน</b>'+(ov>0?' (ตั้งเอง)':(hpm>real?' (ตามแผน — ยอดจริงเดือนนี้ยังน้อยกว่า)':' (คำนวณจากยอดผลิตจริง)'))+
         ' → ค่าคงที่เฉลี่ย <b style="color:var(--accent2)">'+fmtBaht(rate)+' บาท/ชั่วโมง</b>'+
         (ov>0&&real>0?'<br><span style="color:var(--muted)">ยอดผลิตจริงคำนวณได้ '+real+' ชม./เดือน</span>':'')
       : '<span class="bdg warn">ยังไม่รู้ชั่วโมงเดินเครื่อง</span> ยังไม่มีข้อมูลการผลิตพอให้คำนวณ — กรอกเองไปก่อนได้';
@@ -1240,7 +1506,7 @@ window.WPDAUTH = {
       ['ค่าใช้จ่ายคงที่', c.hours+' ชม. × '+fmtBaht(c.fixed.perHour), c.fixed.baht]
     ];
     $('tJobBreak').innerHTML='<tr><th>รายการ</th><th>ปริมาณ</th><th style="text-align:right">บาท</th><th style="text-align:right">ต่อชิ้น</th><th style="text-align:right">%</th></tr>'+
-      rows.map(([a,b,v])=>'<tr><td>'+a+'</td><td style="color:#9fb0c0">'+b+'</td><td style="text-align:right">'+fmtBaht(v)+'</td><td style="text-align:right">'+
+      rows.map(([a,b,v])=>'<tr><td>'+a+'</td><td style="color:#667385">'+b+'</td><td style="text-align:right">'+fmtBaht(v)+'</td><td style="text-align:right">'+
         (c.pieces>0?fmtBaht(v/c.pieces):'—')+'</td><td style="text-align:right">'+(c.total>0?Math.round(v/c.total*100):0)+'%</td></tr>').join('')+
       '<tr><td><b>รวม</b></td><td></td><td style="text-align:right"><b>'+fmtBaht(c.total)+'</b></td><td style="text-align:right"><b>'+fmtBaht(c.perPiece)+'</b></td><td style="text-align:right">100%</td></tr>';
 
@@ -1372,7 +1638,30 @@ window.WPDAUTH = {
   /* ═══════════════════════════════════════════════════════════════
      5. สรุป
      ═══════════════════════════════════════════════════════════════ */
+  const TH_MON=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  function rPeriod(){
+    const mode=$('perMode').value||'day';
+    const dates=new Set();
+    [PROD.line,PROD.use,PROD.caseUse,PROD.bagUse,PROD.gasSwaps].forEach(a=>(a||[]).forEach(x=>{ const d=String(x.time||'').slice(0,10); if(d) dates.add(d); }));
+    const keyOf=d=>mode==='day'?d:mode==='month'?d.slice(0,7):d.slice(0,4);
+    const keys=[...new Set([...dates].map(keyOf))].sort().reverse().slice(0,mode==='day'?62:mode==='month'?24:10);
+    const range=k=>mode==='day'?[k,k]:mode==='month'?[k+'-01',k+'-31']:[k+'-01-01',k+'-12-31'];
+    const label=k=>mode==='day'?thDate(k):mode==='month'?TH_MON[+k.slice(5,7)-1]+' '+(+k.slice(0,4)+543):String(+k+543);
+    const c=ctx();
+    const rows=keys.map(k=>({k, ...COST.periodCost(c, ...range(k))})).filter(r=>r.packs||r.total);
+    const tot=rows.reduce((a,r)=>{ ['packs','pieces','hours','fiberKg','fiber','fabric','bag','labor','gas','elec','ship','fixed','total'].forEach(f=>a[f]=r2((a[f]||0)+r[f])); return a; },{});
+    const td=(v,b)=>'<td'+(b?' class="kn"':'')+'>'+v+'</td>';
+    const line=(lbl,r,b)=>'<tr>'+td(lbl,b)+td(fmtInt(r.packs),b)+td(fmtInt(r.pieces),b)+td(r.hours,b)+td(r.fiberKg+' กก. · '+fmtBaht(r.fiber),b)+
+      td(fmtBaht(r.fabric),b)+td(fmtBaht(r.bag),b)+td(fmtBaht(r.labor),b)+td(fmtBaht(r2(r.gas+r.elec)),b)+td(fmtBaht(r.ship),b)+td(fmtBaht(r.fixed),b)+
+      td('<b>'+fmtBaht(r.total)+'</b>',b)+td(r.pieces?fmtBaht(r2(r.total/r.pieces)):'—',b)+'</tr>';
+    $('tPeriod').innerHTML=rows.length
+      ? '<tr><th>'+(mode==='day'?'วันที่':mode==='month'?'เดือน':'ปี')+'</th><th>แพ็ค</th><th>ชิ้น</th><th>ชม.เดินเครื่อง</th><th>ใย</th><th>ผ้าปลอก+เย็บ</th><th>ถุง</th><th>ค่าแรง</th><th>แก๊ส+ไฟ</th><th>ค่าส่ง</th><th>ค่าคงที่</th><th>รวม (บาท)</th><th>บาท/ชิ้น</th></tr>'+
+        rows.map(r=>line(label(r.k),r)).join('')+(rows.length>1?line('รวม',tot,true):'')
+      : '<tr><td class="empty">ยังไม่มีข้อมูลการผลิต</td></tr>';
+    $('perNote').innerHTML='รวมทุกงานที่ผลิตในช่วงนั้น · ใยคิดตามราคาของก้อนที่ใช้จริง · ปลอก/ถุงคิดตามที่ใช้จริงต่อแพ็ค';
+  }
   function rSum(){
+    $('perMode').onchange=rPeriod; rPeriod();
     const jobs=jobsWithWork();
     const costs=jobs.map(o=>COST.jobCost(ctx(),o.id));
     const totalBaht=r2(costs.reduce((s,c)=>s+c.total,0));
@@ -1500,13 +1789,20 @@ window.WPDAUTH = {
 
   let pollMs=3000, syncBusy=false;
   async function syncNow(force){
-    if(syncBusy) return; syncBusy=true;
+    if(syncBusy) return;
+    if(!force && (Object.keys(pending).length||Object.keys(inflight).some(k=>inflight[k]))) return;
+    syncBusy=true;
     try{
       const h=await readAll();
       pollMs=3000;
       if(h!==lastHash || force){ lastHash=h; if(!formDirty) renderPanel(); }
     }catch(e){ pollMs=Math.min(30000,pollMs*2); }
     syncBusy=false;
+  }
+  function wpdRefreshAfterMerge(){
+    if(!wpdMergedAt) return; wpdMergedAt=0;
+    setTimeout(()=>toast('มีเครื่องอื่นบันทึกพร้อมกัน — รวมรายการให้แล้ว ไม่มีข้อมูลหาย'),2600);
+    syncNow(true);
   }
   (function loop(){ setTimeout(()=>{ syncNow().then(loop); }, pollMs); })();
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ pollMs=3000; syncNow(true); } });
@@ -1523,7 +1819,7 @@ window.WPDAUTH = {
 
   (async function init(){
     document.title='ต้นทุน & ตีราคา — วินโพลีดีไซน์';
-    lastHash=await readAll();
+    lastHash=await wpdLoadFirst(readAll);
     if(!hasStore){ storeDown=true; setSaveState('bad','ไม่รองรับ'); } else setSaveState('ok');
     show('price');
   })();

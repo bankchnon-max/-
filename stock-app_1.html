@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="แอพสต๊อก">
-<meta name="theme-color" content="#ff8a3d">
+<meta name="theme-color" content="#ffffff">
 <title>ระบบสต๊อกสินค้า — วินโพลีดีไซน์</title>
 </head>
 <body>
@@ -15,7 +15,7 @@
   #sk, #sk * { box-sizing: border-box; }
   #sk {
     --bg:#e6f4ea; --panel:#1a222c; --panel2:#212b37; --border:#2b3645;
-    --accent:#ff8a3d; --accent2:#ffb27a; --text:#f2ede3; --dim:#ffffff;
+    --accent:#ff8a3d; --accent2:#ffb27a; --text:#f2ede3; --dim:#93a1b0;
     --green:#3fb27f; --red:#e5595f; --yellow:#f0b429; --blue:#5b9bd5;
     font-family:'Sarabun',sans-serif; background:var(--bg); color:var(--text);
     min-height:100vh; padding-bottom:78px; position:relative; -webkit-tap-highlight-color:transparent;
@@ -25,20 +25,20 @@
     background:linear-gradient(180deg,#141b23,#10151c); position:sticky; top:0; z-index:20; }
   #sk .topbar h1 { font-size:17px; font-weight:600; margin:0 0 2px; display:flex; align-items:center; gap:8px; }
   #sk .dotled { width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent); }
-  #sk .sub { font-size:13px; color:#ffffff; font-weight:500; }
+  #sk .sub { font-size:13px; color:var(--dim); font-weight:500; }
   #sk .savechip { margin-top:7px; font-size:11.5px; padding:5px 10px; border-radius:8px;
     font-family:'Kanit',sans-serif; display:inline-block; cursor:default; }
   #sk .savechip.ok { background:#163022; color:var(--green); }
-  #sk .savechip.saving { background:#232e3b; color:#ffffff; }
+  #sk .savechip.saving { background:#232e3b; color:var(--dim); }
   #sk .savechip.bad { background:#3a1c1e; color:var(--red); border:1px solid #5c2a2c; cursor:pointer; }
   #sk .content { padding:14px; max-width:980px; margin:0 auto; }
   #sk .panel { display:none; }
   #sk .panel.show { display:block; }
   #sk .card { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:11px; }
-  #sk .card h3 { font-size:13px; color:#ffffff; font-weight:500; margin:0 0 9px; text-transform:uppercase; letter-spacing:.5px; }
+  #sk .card h3 { font-size:13px; color:var(--dim); font-weight:500; margin:0 0 9px; text-transform:uppercase; letter-spacing:.5px; }
   #sk input,#sk select { width:100%; background:var(--panel2); border:1px solid var(--border);
     border-radius:8px; padding:9px 10px; color:var(--text); font-family:'Sarabun',sans-serif; font-size:14px; margin-top:4px; }
-  #sk label { font-size:12px; color:#ffffff; display:block; margin-top:9px; }
+  #sk label { font-size:12px; color:var(--dim); display:block; margin-top:9px; }
   /* มือถือ: ปุ่มและช่องกรอกต้องกดถนัด แม้ใส่ถุงมือหรือมือเปื้อน (มาตรฐาน 44px) */
   @media (max-width:640px){
     #sk input,#sk select,#sk textarea { min-height:44px; padding:11px 12px; font-size:16px; }
@@ -59,7 +59,7 @@
   #sk .rf { display:flex; gap:9px; flex-wrap:wrap; }
   #sk .rf > div { flex:1; min-width:120px; }
   #sk table { width:100%; border-collapse:collapse; font-size:12.5px; }
-  #sk th { text-align:left; color:#ffffff; font-weight:500; padding:7px 8px; border-bottom:1px solid var(--border);
+  #sk th { text-align:left; color:var(--dim); font-weight:500; padding:7px 8px; border-bottom:1px solid var(--border);
     white-space:nowrap; font-family:'Kanit',sans-serif; }
   #sk td { padding:7px 8px; border-bottom:1px solid #1f2833; white-space:nowrap; }
   #sk .scr { overflow-x:auto; -webkit-overflow-scrolling:touch; }
@@ -70,14 +70,14 @@
   #sk .sg { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
   #sk .stat { background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:11px; }
   #sk .stat .v { font-size:21px; font-family:'Kanit',sans-serif; color:var(--accent2); }
-  #sk .stat .l { font-size:11px; color:#ffffff; margin-top:2px; }
+  #sk .stat .l { font-size:11px; color:var(--dim); margin-top:2px; }
   #sk .nav { position:fixed; bottom:0; left:0; right:0; background:#141b23; border-top:1px solid var(--border); display:flex; z-index:30; overflow-x:auto; }
-  #sk .nb { flex:1; background:none; border:none; color:#ffffff; padding:8px 2px 7px; cursor:pointer;
+  #sk .nb { flex:1; background:none; border:none; color:var(--dim); padding:8px 2px 7px; cursor:pointer;
     display:flex; flex-direction:column; align-items:center; gap:3px; font-size:10px; font-family:'Sarabun',sans-serif; min-width:64px; }
   #sk .nb .ic { font-size:17px; }
   #sk .nb.on { color:var(--accent); }
-  #sk .empty { color:#ffffff; font-size:12.5px; text-align:center; padding:16px 0; }
-  #sk .sumline { font-size:12.5px; color:#ffffff; margin-top:8px; }
+  #sk .empty { color:var(--dim); font-size:12.5px; text-align:center; padding:16px 0; }
+  #sk .sumline { font-size:12.5px; color:var(--dim); margin-top:8px; }
   #sk .toast { position:fixed; bottom:88px; left:50%; transform:translateX(-50%) translateY(12px);
     background:#243040; border:1px solid var(--accent); color:var(--text); padding:10px 16px; border-radius:10px;
     font-size:13px; font-family:'Kanit',sans-serif; z-index:200; opacity:0; transition:.22s; pointer-events:none;
@@ -86,7 +86,7 @@
   #sk .scard { background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:8px; }
   #sk .scard .nm { font-family:'Kanit',sans-serif; font-size:15px; }
   #sk .scard .n { font-size:24px; font-family:'Kanit',sans-serif; color:var(--accent2); margin-top:4px; }
-  #sk .scard .l { font-size:11px; color:#ffffff; }
+  #sk .scard .l { font-size:11px; color:var(--dim); }
   #sk .lowstock { border-color:var(--red); box-shadow:0 0 0 1px var(--red) inset; }
   #sk .frow { display:flex; gap:6px; margin-top:6px; align-items:center; }
   #sk .frow input { margin-top:0; }
@@ -114,6 +114,143 @@
     #sk .billtotal { margin-top:8px; font-size:14px; text-align:right; }
   }
 </style>
+<style id="wpd-theme">
+  /* ===== ธีมสว่าง วินโพลีดีไซน์ — ใช้ชุดเดียวกันทั้ง 3 แอพ (แก้ที่ theme/theme-light.css แล้วรัน theme/apply.js) ===== */
+  #sk {
+    --bg:#f2f4f7; --panel:#ffffff; --panel2:#f6f8fa; --border:#e2e7ee;
+    --accent:#ff8a3d; --accent2:#c4570c; --text:#1b2430; --dim:#667385;
+    --green:#15864f; --red:#cf3e45; --yellow:#a86608; --blue:#2566b0;
+    --label:#465262; --line:#edf0f4; --shadow:0 1px 2px rgba(16,24,40,.05), 0 2px 8px rgba(16,24,40,.05);
+    font-size:15px; line-height:1.55;
+  }
+  body { background:#f2f4f7; margin:0; }
+
+  /* แถบบน */
+  #sk .topbar { background:#ffffff; border-bottom:1px solid var(--border); box-shadow:0 1px 6px rgba(16,24,40,.06); padding:14px 16px 12px; }
+  #sk .topbar h1 { font-size:19px; color:var(--text); }
+  #sk .sub { font-size:13px; color:var(--dim); font-weight:400; }
+  #sk .topbar .sumline { font-size:12.5px; }
+  #sk .chip { background:#fff7f0; border-color:#fbd9bd; font-size:14px; }
+  #sk .chip b { color:var(--accent2); }
+  #sk .banner.warn { background:#fff6e5; color:#8a5300; border-color:#f5d9a4; }
+  #sk .banner.late { background:#fdecec; color:#b3262e; border-color:#f4c1c4; }
+  #sk .savechip { font-size:12.5px; padding:5px 11px; border-radius:999px; }
+  #sk .savechip.ok { background:#e6f5ec; color:var(--green); }
+  #sk .savechip.saving { background:#eef1f5; color:var(--dim); }
+  #sk .savechip.bad { background:#fdecec; color:#b3262e; border-color:#f4c1c4; }
+
+  /* การ์ดและหัวข้อ */
+  #sk .content { padding:14px 14px 20px; }
+  #sk .card { background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px; box-shadow:var(--shadow); }
+  #sk .card h3 { font-size:16.5px; font-weight:600; color:var(--text); text-transform:none; letter-spacing:0; margin:0 0 10px; line-height:1.4; }
+  #sk .card.need { border-color:var(--accent); box-shadow:0 0 0 2px rgba(255,138,61,.35); }
+  #sk .sumline { font-size:13.5px; color:var(--dim); line-height:1.6; }
+  #sk .hint { font-size:13px; }
+  #sk .empty { font-size:14px; color:#8a95a5; padding:18px 0; }
+
+  /* ช่องกรอก */
+  #sk label { font-size:13.5px; font-weight:500; color:var(--label); margin-top:12px; }
+  #sk input, #sk select, #sk textarea {
+    background:#ffffff; border:1.5px solid #d5dce6; border-radius:10px; color:var(--text); font-size:15.5px; padding:11px 12px; }
+  #sk input::placeholder, #sk textarea::placeholder { color:#a3adba; }
+  #sk input:focus, #sk select:focus, #sk textarea:focus {
+    outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(255,138,61,.2); }
+  #sk input[type="checkbox"] { accent-color:var(--accent); }
+  #sk details summary { color:var(--accent2); }
+
+  /* ปุ่ม */
+  #sk button.btn { border-radius:12px; padding:12px 16px; font-size:15.5px; font-weight:600; color:#2a1403;
+    box-shadow:0 1px 0 rgba(0,0,0,.04), 0 2px 6px rgba(255,138,61,.28); }
+  #sk button.btn:active { transform:translateY(1px); }
+  #sk button.btn.sec { background:#ffffff; color:var(--text); border:1.5px solid #d5dce6; box-shadow:none; }
+  #sk button.btn.dg { background:#fff1f1; color:#b3262e; border:1.5px solid #f4c1c4; box-shadow:none; }
+  #sk button.btn.blue { background:#2566b0; color:#ffffff; box-shadow:none; }
+  #sk button.btn.sm { padding:7px 12px; font-size:13.5px; border-radius:9px; }
+  #sk button.btn[disabled] { background:#e9edf2; color:#9aa5b3; box-shadow:none; }
+  #sk .x { color:var(--red); }
+  #sk .ed { color:var(--blue); font-size:13.5px; }
+
+  /* ตาราง */
+  #sk table { font-size:14px; }
+  #sk th { background:var(--panel2); color:var(--dim); font-size:12.5px; font-weight:500; padding:9px 10px; border-bottom:1px solid var(--border); }
+  #sk td { padding:9px 10px; border-bottom:1px solid var(--line); }
+  #sk tr:hover td { background:#fafbfc; }
+
+  /* ป้ายสถานะ */
+  #sk .bdg { font-size:12px; padding:2px 9px; }
+  #sk .bdg.ok, #sk .st.active { background:#e6f5ec; color:var(--green); }
+  #sk .bdg.warn { background:#fff4df; color:var(--yellow); }
+  #sk .bdg.bad { background:#fdecec; color:#b3262e; }
+  #sk .st { font-size:11.5px; }
+  #sk .st.pending, #sk .st.done { background:#eef1f5; color:var(--dim); }
+
+  /* ตัวเลขสรุป */
+  #sk .stat, #sk .scard { background:var(--panel2); border:1px solid var(--border); border-radius:14px; }
+  #sk .stat .v { font-size:26px; font-weight:600; color:var(--text); line-height:1.2; }
+  #sk .stat .l, #sk .scard .l { font-size:13px; color:var(--dim); }
+  #sk .scard .nm { font-size:16px; font-weight:600; color:var(--text); }
+  #sk .scard .n { font-size:26px; font-weight:600; color:var(--accent2); }
+  #sk .lowstock { border-color:#f0a3a7; box-shadow:0 0 0 1px #f0a3a7 inset; background:#fff7f7; }
+  #sk .cartrow { background:var(--panel2); }
+  #sk .chkrow { background:#ffffff; border:1.5px solid #d5dce6; font-size:14px; padding:6px 10px; }
+  #sk .bigstd { background:#fff7f0; border:1.5px solid #fbd9bd; }
+  #sk .bigstd .v { color:var(--accent2); font-size:32px; font-weight:600; }
+  #sk .bigstd .l, #sk .bigstd .brk { color:#7a6555; font-size:13px; }
+
+  /* ออเดอร์ (ระบบผลิต) */
+  #sk .ocard { background:#ffffff; border:1.5px solid var(--border); border-radius:14px; }
+  #sk .ocard.sel { background:#fff7f0; border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  #sk .ocard .cust { font-size:16.5px; font-weight:600; color:var(--text); }
+  #sk .ocard .code { color:var(--accent2); font-size:14px; }
+  #sk .ocard .meta { font-size:13px; }
+  #sk .stab { background:#ffffff; border:1.5px solid #d5dce6; color:var(--label); font-size:14px; padding:7px 13px; border-radius:999px; }
+  #sk .stab.on { background:#fff1e6; color:var(--accent2); border-color:var(--accent); }
+
+  /* วงกลมกดนับ */
+  #sk .ring { background:radial-gradient(circle at 35% 30%,#ffffff,#f1f4f8 72%); border:6px solid #ffd9bd;
+    box-shadow:0 10px 24px rgba(255,138,61,.22), inset 0 0 0 2px #ffffff; }
+  #sk .ring .n { color:var(--accent2); }
+  #sk .ring .l { color:var(--dim); font-size:13px; }
+
+  /* เมนูล่าง */
+  #sk .nav { background:#ffffff; border-top:1px solid var(--border); box-shadow:0 -2px 10px rgba(16,24,40,.06);
+    padding-bottom:env(safe-area-inset-bottom); }
+  #sk .nb { color:#7b8797; font-size:12px; font-weight:500; gap:2px; padding:9px 2px 8px; position:relative; min-width:0; white-space:nowrap; }
+  #sk .nb .ic { font-size:21px; filter:grayscale(.6); opacity:.75; }
+  #sk .nb.on { color:var(--accent2); font-weight:600; }
+  #sk .nb.on .ic { filter:none; opacity:1; }
+  #sk .nb.on::before { content:''; position:absolute; top:0; left:22%; right:22%; height:3px; border-radius:0 0 3px 3px; background:var(--accent); }
+
+  /* กล่องยืนยัน / แจ้งเตือน */
+  #sk .ov { background:rgba(20,28,38,.45); }
+  #sk .box { background:#ffffff; border:1px solid var(--border); box-shadow:0 12px 40px rgba(16,24,40,.18); }
+  #sk .box h3 { font-size:17px; color:var(--text); }
+  #sk .box p { font-size:14px; }
+  #sk .toast { background:#1b2430; color:#ffffff; border:none; font-size:14px; box-shadow:0 8px 24px rgba(16,24,40,.25); }
+  #sk .flash { animation:fl 1.3s ease; }
+
+  /* ช่องกรอกที่อยู่คู่กันให้ตรงแนวเดียวกัน แม้ชื่อช่องยาว 2 บรรทัด */
+  #sk .rf { align-items:flex-end; }
+
+  @media (max-width:640px){
+    /* มือถือ: แถบบนเลื่อนหายไปกับหน้า ไม่กินพื้นที่ทำงาน */
+    #sk .topbar { position:static; }
+    #sk input, #sk select, #sk textarea { font-size:16px; min-height:46px; }
+    #sk button.btn { min-height:48px; }
+    #sk button.btn.sm { min-height:40px; }
+  }
+  @media (max-width:360px){
+    #sk .nb { font-size:11px; }
+    #sk .nb .ic { font-size:19px; }
+  }
+</style><!-- /wpd-theme -->
+
+
+
+
+
+
+
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
@@ -121,7 +258,7 @@
 <div id="sk">
   <div class="topbar">
     <h1><span class="dotled"></span> ระบบสต๊อกสินค้า</h1>
-    <div class="sub" id="clock" style="color:#ffffff;">—</div>
+    <div class="sub" id="clock" style="color:var(--dim);">—</div>
     <div class="savechip ok" id="saveState">บันทึกแล้ว ✓</div>
     <div class="sumline" style="margin-top:6px;">เชื่อมกับระบบผลิตอัตโนมัติ — เบิกใย/ผลิตแพ็ค/ท้ายไลน์ หักสต๊อกให้เองทุกจุด</div>
   </div>
@@ -324,26 +461,26 @@
         <div id="prodTypeCards"></div>
         <div id="prodTypeDetail" style="margin-top:10px;"></div>
         <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border);">
-          <label style="font-size:12px; color:#ffffff;">ตั้งจุดเตือนสต๊อกต่ำ (ต่อประเภทสินค้า)</label>
+          <label style="font-size:12px; color:var(--dim);">ตั้งจุดเตือนสต๊อกต่ำ (ต่อประเภทสินค้า)</label>
           <div class="rf">
             <div><select id="prodTypeThSel"></select></div>
             <div><input id="prodTypeThQty" type="number" inputmode="numeric" placeholder="เตือนเมื่อต่ำกว่า (ชิ้น)"></div>
           </div>
           <button class="btn sec sm" style="margin-top:6px;" id="btnProdTypeTh">บันทึกจุดเตือน</button>
           <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border);">
-            <label style="font-size:12px; color:#ffffff;">แก้ไขชื่อประเภทสินค้า (เปลี่ยนแล้วข้อมูลเก่าย้ายตามทั้งหมด)</label>
+            <label style="font-size:12px; color:var(--dim);">แก้ไขชื่อประเภทสินค้า (เปลี่ยนแล้วข้อมูลเก่าย้ายตามทั้งหมด)</label>
             <div class="rf">
               <div><select id="prodTypeRenameSel"></select></div>
               <div><button class="btn sec sm" id="btnProdTypeRename">✎ แก้ไขชื่อประเภท</button></div>
             </div>
           </div>
           <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border);">
-            <label style="font-size:12px; color:#ffffff;">แก้ไขชื่อชนิดผ้า — พิมพ์ผิดหรือมีชื่อซ้ำ แก้ให้เป็นชื่อเดียวกันได้</label>
+            <label style="font-size:12px; color:var(--dim);">แก้ไขชื่อชนิดผ้า — พิมพ์ผิดหรือมีชื่อซ้ำ แก้ให้เป็นชื่อเดียวกันได้</label>
             <div class="rf">
               <div><select id="fabTypeRenameSel"></select></div>
               <div><button class="btn sec sm" id="btnFabTypeRename">✎ แก้ไขชื่อผ้า</button></div>
             </div>
-            <label style="font-size:12px; color:#ffffff; margin-top:10px;">แก้ไขไซซ์ — เช่น 18x28 กับ 18*28 ให้รวมเป็นอันเดียว</label>
+            <label style="font-size:12px; color:var(--dim); margin-top:10px;">แก้ไขไซซ์ — เช่น 18x28 กับ 18*28 ให้รวมเป็นอันเดียว</label>
             <div class="rf">
               <div><select id="fabSizeRenameSel"></select></div>
               <div><button class="btn sec sm" id="btnFabSizeRename">✎ แก้ไขไซซ์</button></div>
@@ -505,7 +642,7 @@
   var inflight=0, badge=null, guarded=null;
   function ui(){
     if(!badge){badge=document.createElement('div');
-      badge.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:99999;background:#ff8a3d;color:#12181f;font:600 14px Sarabun,sans-serif;padding:9px 20px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.45);display:none';
+      badge.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:99999;background:#ff8a3d;color:#12181f;font:600 14px Sarabun,sans-serif;padding:9px 20px;border-radius:20px;box-shadow:0 6px 18px rgba(16,24,40,.16);display:none';
       badge.textContent='กำลังบันทึก…';document.body.appendChild(badge);}
     badge.style.display=inflight>0?'block':'none';
     if(guarded){ if(inflight>0){guarded.setAttribute('data-busy','1');guarded.style.opacity='0.5';guarded.style.pointerEvents='none';}
@@ -540,7 +677,7 @@
     try{
       var t=document.getElementById('__wpdDateWarn');
       if(!t){ t=document.createElement('div'); t.id='__wpdDateWarn';
-        t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:110px;z-index:99999;background:#e5595f;color:#fff;font:600 14px/1.5 Sarabun,sans-serif;padding:10px 16px;border-radius:12px;max-width:88%;white-space:pre-line;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.45)';
+        t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:110px;z-index:99999;background:#e5595f;color:#fff;font:600 14px/1.5 Sarabun,sans-serif;padding:10px 16px;border-radius:12px;max-width:88%;white-space:pre-line;text-align:center;box-shadow:0 6px 20px rgba(16,24,40,.25)';
         document.body.appendChild(t); }
       t.textContent=msg; t.style.display='block';
       clearTimeout(t.__tm); t.__tm=setTimeout(function(){ t.style.display='none'; },5000);
@@ -550,34 +687,164 @@
 </script>
 <script>
 /* ==========================================================================
-   SUPABASE STORAGE SHIM — ใช้โปรเจกต์เดียวกับระบบผลิต ข้อมูลจึงเชื่อมกันอัตโนมัติ
+   SUPABASE STORAGE SHIM
+   ต้องกรอก URL กับ Anon Key ของโปรเจกต์ Supabase ตัวเองตรงนี้ก่อน (2 บรรทัดล่างนี้)
+   ดูวิธีหาค่าทั้งสองตัวได้ในคู่มือติดตั้ง ขั้นตอนที่ 3
    ========================================================================== */
 const SUPABASE_URL = 'https://tekhjdnbfncfvpwejlni.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRla2hqZG5iZm5jZnZwd2VqbG5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5NjgzNDIsImV4cCI6MjEwMTU0NDM0Mn0.bOO7i_NyD-noFzyPjs22R0M2wGlUznViV-_YjOTqbak';
+
+
+/* ==========================================================================
+   ล็อกอินก่อนใช้งาน — กันคนนอกเข้าถึงข้อมูลผ่าน key ที่ฝังอยู่ในหน้าเว็บ
+   ล็อกอินครั้งเดียวต่อเครื่อง ระบบจำไว้ให้ ไม่ต้องกรอกซ้ำทุกวัน
+   ========================================================================== */
+const WPD_AUTH_KEY = 'wpd_auth_v1';
+let WPD_SESSION = null;
+try { WPD_SESSION = JSON.parse(localStorage.getItem(WPD_AUTH_KEY) || 'null'); } catch(e){}
+
+function wpdSaveSession(s){
+  WPD_SESSION = s;
+  try { s ? localStorage.setItem(WPD_AUTH_KEY, JSON.stringify(s)) : localStorage.removeItem(WPD_AUTH_KEY); } catch(e){}
+}
+function wpdTokenOk(){
+  if(!WPD_SESSION || !WPD_SESSION.access_token) return false;
+  const exp = (WPD_SESSION.expires_at ? WPD_SESSION.expires_at*1000 : 0);
+  return !exp || (exp - Date.now() > 60000);
+}
+async function wpdSignIn(email, password){
+  const r = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+    method:'POST', headers:{ apikey:SUPABASE_ANON_KEY, 'Content-Type':'application/json' },
+    body: JSON.stringify({ email: email, password: password }) });
+  let j = {}; try { j = await r.json(); } catch(e){}
+  if(!r.ok) throw new Error(j.error_description || j.msg || j.message || ('เข้าระบบไม่สำเร็จ (HTTP '+r.status+')'));
+  wpdSaveSession(j); return j;
+}
+async function wpdRefresh(){
+  if(!WPD_SESSION || !WPD_SESSION.refresh_token) return false;
+  try{
+    const r = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
+      method:'POST', headers:{ apikey:SUPABASE_ANON_KEY, 'Content-Type':'application/json' },
+      body: JSON.stringify({ refresh_token: WPD_SESSION.refresh_token }) });
+    if(!r.ok) return false;
+    wpdSaveSession(await r.json()); return true;
+  }catch(e){ return false; }
+}
+let wpdLoginBox = null;
+function wpdShowLogin(errMsg){
+  if(wpdLoginBox) { if(errMsg) wpdLoginBox.setError(errMsg); return wpdLoginBox.promise; }
+  let setError;
+  const promise = new Promise(function(resolve){
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:#f2f4f7;z-index:100000;display:flex;align-items:center;'+
+      'justify-content:center;padding:20px;font-family:Sarabun,sans-serif;';
+    const bx = document.createElement('div');
+    bx.style.cssText = 'background:#ffffff;color:#1b2430;border:1px solid #e2e7ee;border-radius:16px;max-width:380px;'+
+      'width:100%;padding:24px;box-shadow:0 12px 40px rgba(16,24,40,.18);';
+    bx.innerHTML =
+      '<div style="font-size:34px;text-align:center;">🔒</div>'+
+      '<h2 style="font:600 19px Kanit,sans-serif;margin:10px 0 4px;text-align:center;">เข้าสู่ระบบก่อนใช้งาน</h2>'+
+      '<div style="font:400 13px/1.6 Sarabun,sans-serif;color:#667385;text-align:center;margin-bottom:16px;">'+
+      'กรอกครั้งเดียวต่อเครื่อง ระบบจำไว้ให้</div>'+
+      '<label style="font-size:14px;color:#465262;">อีเมล</label>'+
+      '<input id="wpdEmail" type="email" autocomplete="username" style="box-sizing:border-box;width:100%;padding:13px;margin:5px 0 12px;'+
+      'border:1px solid #e2e7ee;border-radius:10px;background:#f6f8fa;color:#1b2430;font:400 16px Sarabun,sans-serif;">'+
+      '<label style="font-size:14px;color:#465262;">รหัสผ่าน</label>'+
+      '<input id="wpdPass" type="password" autocomplete="current-password" style="box-sizing:border-box;width:100%;padding:13px;margin:5px 0 4px;'+
+      'border:1px solid #e2e7ee;border-radius:10px;background:#f6f8fa;color:#1b2430;font:400 16px Sarabun,sans-serif;">'+
+      '<div id="wpdErr" style="font:400 13px/1.55 Sarabun,sans-serif;color:#cf3e45;min-height:19px;margin:6px 0 10px;"></div>'+
+      '<button id="wpdGo" style="width:100%;padding:15px;border:0;border-radius:11px;background:#ff8a3d;color:#12181f;'+
+      'font:600 16px Kanit,sans-serif;">เข้าสู่ระบบ</button>';
+    ov.appendChild(bx); document.body.appendChild(ov);
+    const em = bx.querySelector('#wpdEmail'), pw = bx.querySelector('#wpdPass'),
+          er = bx.querySelector('#wpdErr'), go = bx.querySelector('#wpdGo');
+    setError = function(m){ er.textContent = m || ''; };
+    try { const last = localStorage.getItem('wpd_last_email'); if(last) em.value = last; } catch(e){}
+    let busy = false;
+    async function submit(){
+      if(busy) return;
+      const e = em.value.trim(), p = pw.value;
+      if(!e || !p){ setError('กรอกอีเมลและรหัสผ่านก่อน'); return; }
+      busy = true; go.textContent = 'กำลังเข้าระบบ…'; setError('');
+      try{
+        await wpdSignIn(e, p);
+        try { localStorage.setItem('wpd_last_email', e); } catch(x){}
+        document.body.removeChild(ov); wpdLoginBox = null; resolve(true);
+      }catch(err){
+        busy = false; go.textContent = 'เข้าสู่ระบบ';
+        const m = String(err && err.message || err);
+        setError(/Invalid login/i.test(m) ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
+              : /Email not confirmed/i.test(m) ? 'บัญชีนี้ยังไม่ได้ยืนยันอีเมล — ให้แอดมินกด Confirm ให้ก่อน'
+              : m);
+      }
+    }
+    go.onclick = submit;
+    pw.onkeydown = function(ev){ if(ev.key === 'Enter') submit(); };
+    em.onkeydown = function(ev){ if(ev.key === 'Enter') pw.focus(); };
+    setTimeout(function(){ (em.value ? pw : em).focus(); }, 60);
+  });
+  wpdLoginBox = { promise: promise, setError: function(m){ setError(m); } };
+  if(errMsg) wpdLoginBox.setError(errMsg);
+  return promise;
+}
+async function wpdRequireSession(){
+  if(wpdTokenOk()) return;
+  if(WPD_SESSION && await wpdRefresh()) return;
+  wpdSaveSession(null);
+  await wpdShowLogin();
+}
+window.WPDAUTH = {
+  signOut: function(){ wpdSaveSession(null); location.reload(); },
+  email: function(){ return (WPD_SESSION && WPD_SESSION.user && WPD_SESSION.user.email) || null; }
+};
+
 (function setupSupabaseStorage(){
   const needsSetup = SUPABASE_URL.includes('YOUR-PROJECT-REF') || SUPABASE_ANON_KEY.includes('YOUR-ANON-PUBLIC-KEY');
   const base = SUPABASE_URL.replace(/\/$/,'') + '/rest/v1/kv_store';
-  const headers = () => ({ 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' });
+  const headers = () => ({
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': 'Bearer ' + ((WPD_SESSION && WPD_SESSION.access_token) ? WPD_SESSION.access_token : SUPABASE_ANON_KEY),
+    'Content-Type': 'application/json'
+  });
+
   async function get(key){
-    const r = await fetch(base + '?id=eq.' + encodeURIComponent(key) + '&select=value', { headers: headers() });
+    await wpdRequireSession();
+    let r = await fetch(base + '?id=eq.' + encodeURIComponent(key) + '&select=value', { headers: headers() });
+    if (r.status === 401 || r.status === 403) {
+      if (!(await wpdRefresh())) { wpdSaveSession(null); await wpdShowLogin('เซสชันหมดอายุ — เข้าสู่ระบบอีกครั้ง'); }
+      r = await fetch(base + '?id=eq.' + encodeURIComponent(key) + '&select=value', { headers: headers() });
+    }
     if (!r.ok) throw new Error('Supabase get failed: HTTP ' + r.status + ' ' + (await r.text()).slice(0,150));
     const rows = await r.json();
     if (!rows.length) return null;
     return { key: key, value: rows[0].value, shared: true };
   }
+
   async function set(key, value){
-    const r = await fetch(base, { method: 'POST',
+    await wpdRequireSession();
+    const doPost = () => fetch(base, { method: 'POST',
       headers: Object.assign(headers(), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
       body: JSON.stringify([{ id: key, value: value, shared: true, updated_at: new Date().toISOString() }]) });
+    let r = await doPost();
+    if (r.status === 401 || r.status === 403) {
+      if (!(await wpdRefresh())) { wpdSaveSession(null); await wpdShowLogin('เซสชันหมดอายุ — เข้าสู่ระบบอีกครั้ง'); }
+      r = await doPost();
+    }
     if (!r.ok) throw new Error('Supabase set failed: HTTP ' + r.status + ' ' + (await r.text()).slice(0,150));
     return { key: key, value: value, shared: true };
   }
+
   if (needsSetup){
+    // ยังไม่ได้กรอกค่า Supabase — แสดงคำเตือนแทนที่จะให้แอปพังเงียบๆ
     window.storage = null;
     document.addEventListener('DOMContentLoaded', () => {
       const b = document.createElement('div');
-      b.style.cssText='position:fixed;inset:0;background:#10151c;color:#f2ede3;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;font-family:sans-serif;text-align:center;';
-      b.innerHTML='<div style="max-width:420px;"><div style="font-size:40px;">⚠️</div><h2>ยังไม่ได้ตั้งค่า Supabase</h2></div>';
+      b.style.cssText = 'position:fixed;inset:0;background:#f2f4f7;color:#1b2430;z-index:9999;'+
+        'display:flex;align-items:center;justify-content:center;padding:24px;font-family:sans-serif;text-align:center;';
+      b.innerHTML = '<div style="max-width:420px;"><div style="font-size:40px;">⚠️</div>'+
+        '<h2 style="margin:12px 0 6px;">ยังไม่ได้ตั้งค่า Supabase</h2>'+
+        '<p style="color:#667385;line-height:1.6;">เปิดไฟล์นี้ด้วยโปรแกรมแก้ไขข้อความ แล้วใส่ SUPABASE_URL กับ '+
+        'SUPABASE_ANON_KEY ที่ด้านบนสุดของโค้ด (ดูคู่มือติดตั้ง ขั้นตอนที่ 3-4)</p></div>';
       document.body.appendChild(b);
     });
     return;
@@ -834,12 +1101,79 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   /* ---------- STATE ---------- */
   let S = { fiberReceipts:[], fiberTh:{}, baleUsage:[], fabricReceipts:[], cuts:[], cutBatches:[], sewSent:[], sewReturns:[], waste:[], prodTypeTh:{},
             sackReceipts:[], gasReceipts:[], shipments:[], deliveries:[], finAdjustments:[] };
-  let PROD = { orders:[], wd:[], fabricWd:[], bagWd:[], gasSwaps:[], line:[] };
+  let PROD = { orders:[], wd:[], use:[], fabricWd:[], caseUse:[], bagWd:[], bagUse:[], gasSwaps:[], line:[] };
   let current='fiber', lastHash='';
 
   const hasStore = !!(window.storage && window.storage.get && window.storage.set);
   let storeDown = !hasStore;
   const pending={}, inflight={};
+
+  /* ---------- กันข้อมูลหาย ----------
+     1) ยังโหลดข้อมูลจากเซิร์ฟเวอร์ไม่สำเร็จ = ห้ามบันทึก ไม่งั้นข้อมูลว่างในเครื่องจะไปทับของจริง
+     2) ก่อนบันทึก เช็คว่าเครื่องอื่นแก้หมวดเดียวกันไปก่อนหรือไม่ ถ้าแก้ ให้รวมรายการเข้าด้วยกันแทนการเขียนทับ */
+  let loadOk=false;
+  const SEEN={};
+  function wpdMarkLoaded(vals){
+    Object.keys(vals).forEach(k=>{ if(!(k in pending) && !inflight[k]) SEEN[k]=vals[k]; });
+    loadOk=true;
+  }
+  function wpdMerge3(base, local, server){
+    const js=JSON.stringify, same=(a,b)=>js(a)===js(b);
+    if(same(local,base)) return server;
+    if(same(server,base)) return local;
+    const isObj=v=>v!==null && typeof v==='object' && !Array.isArray(v);
+    const allObj=a=>Array.isArray(a) && a.every(isObj);
+    if(allObj(local) && allObj(server) && (base==null || allObj(base))){
+      const keyed=arr=>{ const seen={}, m=new Map();
+        (arr||[]).forEach(x=>{ let k=(x.id!=null)?'i:'+x.id:'j:'+js(x); if(k[0]==='j'){ seen[k]=(seen[k]||0)+1; k+='#'+seen[k]; } m.set(k,x); });
+        return m; };
+      const B=keyed(base), L=keyed(local), R=keyed(server), out=[];
+      L.forEach((x,k)=>{ out.push(R.has(k) && B.has(k) ? wpdMerge3(B.get(k),x,R.get(k)) : x); });
+      R.forEach((x,k)=>{ if(!L.has(k) && !B.has(k)) out.push(x); });
+      return out;
+    }
+    if(isObj(local) && isObj(server)){
+      const b=isObj(base)?base:{}, out={};
+      new Set(Object.keys(server).concat(Object.keys(local))).forEach(k=>{
+        const inL=k in local, inR=k in server, inB=k in b;
+        if(inL && inR) out[k]=wpdMerge3(b[k],local[k],server[k]);
+        else if(inL){ if(!inB || !same(local[k],b[k])) out[k]=local[k]; }
+        else if(!inB || !same(server[k],b[k])) out[k]=server[k];
+      });
+      return out;
+    }
+    return local;
+  }
+  let wpdMergedAt=0;
+  let wpdWriteSeq=0;
+  function wpdBusy(){ return Object.keys(pending).length>0 || Object.keys(inflight).some(k=>inflight[k]); }
+  function wpdStale(seq,busyAtStart){ return busyAtStart || seq!==wpdWriteSeq || wpdBusy(); }
+  async function wpdPrepareWrite(k,data){
+    const r=await window.storage.get(k,true);
+    const cur=r?r.value:null;
+    if(cur===SEEN[k] || cur===null) return data;
+    const parse=s=>{ try{ return s?JSON.parse(s):null; }catch(e){ return null; } };
+    wpdMergedAt=Date.now();
+    return wpdMerge3(parse(SEEN[k]), data, parse(cur));
+  }
+  function wpdGate(msg){
+    let g=document.getElementById('__wpdGate');
+    if(!msg){ if(g) g.remove(); return; }
+    if(!g){ g=document.createElement('div'); g.id='__wpdGate';
+      g.style.cssText='position:fixed;inset:0;z-index:99990;background:rgba(242,244,247,.97);color:#1b2430;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;font:500 15px/1.7 Sarabun,sans-serif;white-space:pre-line';
+      document.body.appendChild(g); }
+    g.textContent=msg;
+  }
+  async function wpdLoadFirst(load){
+    wpdGate('กำลังโหลดข้อมูล…');
+    for(let i=0;;i++){
+      try{ const h=await load(); wpdGate(null); return h; }
+      catch(e){
+        wpdGate('⚠ เชื่อมต่อฐานข้อมูลไม่ได้ — กำลังลองใหม่อัตโนมัติ\nยังไม่ให้บันทึกจนกว่าจะโหลดข้อมูลสำเร็จ กันข้อมูลเดิมถูกทับ\n\n('+String(e&&e.message||e).slice(0,80)+')');
+        await new Promise(r=>setTimeout(r,Math.min(15000,2000*(i+1))));
+      }
+    }
+  }
   const KEYMAP = {
     v3s_fiber:  ()=>({receipts:S.fiberReceipts, th:S.fiberTh, baleUsage:S.baleUsage}),
     v3s_fabric: ()=>({receipts:S.fabricReceipts, cuts:S.cuts, cutBatches:S.cutBatches, sewSent:S.sewSent, sewReturns:S.sewReturns, waste:S.waste, prodTypeTh:S.prodTypeTh}),
@@ -858,13 +1192,17 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     /* ถ้ากำลังบันทึกคีย์นี้อยู่ ต้องนัดลองใหม่ ห้ามทิ้งเงียบ ไม่งั้นการแก้ล่าสุดจะไม่ถูกเขียนลงเซิร์ฟเวอร์ */
     if(inflight[k]){ setTimeout(()=>flush(k,attempt),400); return; }
     if(!(k in pending)) return;
+    if(hasStore && !loadOk){ delete pending[k]; setSaveState('bad','ยังโหลดข้อมูลไม่สำเร็จ — รายการนี้ไม่ได้บันทึก'); return; }
     const data=pending[k]; delete pending[k]; inflight[k]=true; setSaveState('saving');
     try{
       if(!hasStore) throw new Error('no storage');
-      await window.storage.set(k,JSON.stringify(data),true);
+      wpdWriteSeq++;
+      const str=JSON.stringify(await wpdPrepareWrite(k,data));
+      await window.storage.set(k,str,true);
+      SEEN[k]=str;
       inflight[k]=false; storeDown=false;
       await window.storage.set('v3s_pulse',Date.now()+'',true).catch(()=>{});
-      if(Object.keys(pending).length) Object.keys(pending).forEach(kk=>flush(kk)); else setSaveState('ok');
+      if(Object.keys(pending).length) Object.keys(pending).forEach(kk=>flush(kk)); else { setSaveState('ok'); wpdRefreshAfterMerge(); }
     }catch(e){
       inflight[k]=false; pending[k]=data;
       if(attempt<6){ setTimeout(()=>flush(k,attempt+1), Math.min(15000,600*Math.pow(2,attempt))); setSaveState('saving'); }
@@ -879,12 +1217,16 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   });
   const saveFiber=()=>put('v3s_fiber'), saveFabric=()=>put('v3s_fabric'), saveBag=()=>put('v3s_bag'), saveGas=()=>put('v3s_gas'), saveFin=()=>put('v3s_fin');
 
-  async function rawGet(k){ if(!hasStore) return null; try{ const r=await window.storage.get(k,true); return r?r.value:null; }catch(e){ return null; } }
+  /* โหลดพลาดต้องโยน error ขึ้นไป ห้ามคืนค่าว่าง ไม่งั้นแอพจะเข้าใจว่าไม่มีข้อมูล แล้วบันทึกทับของจริง */
+  async function rawGet(k){ if(!hasStore) return null; const r=await window.storage.get(k,true); return r?r.value:null; }
   async function readAll(){
+    const _seq=wpdWriteSeq, _busy=wpdBusy();
     const [fi,fa,bg,gs,fn,ord,fd,ln] = await Promise.all([
       rawGet('v3s_fiber'), rawGet('v3s_fabric'), rawGet('v3s_bag'), rawGet('v3s_gas'), rawGet('v3s_fin'),
       rawGet('v3_orders'), rawGet('v3_feed'), rawGet('v3_line')
     ]);
+    /* มีการบันทึกเกิดขึ้นระหว่างที่กำลังดึงข้อมูล = ข้อมูลที่ได้มาเก่ากว่าในเครื่อง ห้ามเอามาทับ รอบหน้าค่อยดึงใหม่ */
+    if(wpdStale(_seq,_busy)) return lastHash;
     const hash=[fi,fa,bg,gs,fn,ord,fd,ln].map(x=>x||'').join('|');
     const parse=(s,f)=>{ try{ return s?JSON.parse(s):f; }catch(e){ return f; } };
     const Pf=parse(fi,{}), Pa=parse(fa,{}), Pb=parse(bg,{}), Pg=parse(gs,{}), Pn=parse(fn,{});
@@ -894,7 +1236,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     S.gasReceipts=Pg.receipts||[];
     S.shipments=Pn.shipments||[]; S.deliveries=Pn.deliveries||[]; S.finAdjustments=Pn.finAdjustments||[];
     const A=parse(ord,{orders:[]}), B=parse(fd,{wd:[]}), C=parse(ln,{line:[]});
-    PROD.orders=A.orders||[]; PROD.wd=B.wd||[]; PROD.fabricWd=B.fabricWd||[]; PROD.bagWd=B.bagWd||[]; PROD.gasSwaps=B.gasSwaps||[]; PROD.line=C.line||[];
+    PROD.orders=A.orders||[]; PROD.wd=B.wd||[]; PROD.use=B.use||[]; PROD.fabricWd=B.fabricWd||[]; PROD.caseUse=B.caseUse||[]; PROD.bagWd=B.bagWd||[]; PROD.bagUse=B.bagUse||[]; PROD.gasSwaps=B.gasSwaps||[]; PROD.line=C.line||[];
+    wpdMarkLoaded({v3s_fiber:fi, v3s_fabric:fa, v3s_bag:bg, v3s_gas:gs, v3s_fin:fn});
     return hash;
   }
 
@@ -902,21 +1245,43 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2400); }
   const orderById = id => PROD.orders.find(o=>o.id===id) || null;
   function orderLabel(id){ const o=orderById(id); return o? o.customer+' — '+o.code : '(ออเดอร์ถูกลบแล้ว)'; }
+  /* ของที่ยกไปไว้ที่ไลน์แล้วแต่ยังไม่ได้ใช้ — สต๊อกในคลังหักไปแล้ว แต่ของยังมีอยู่จริง ต้องนับด้วยไม่งั้นยอดรวมต่ำกว่าจริง
+     ดูย้อนหลังแค่ช่วงที่ของมักค้างอยู่ที่ไลน์ (ข้อมูลเก่าก่อนมีระบบบันทึกการใช้ ถือว่าใช้หมดแล้ว) */
+  function sinceDays(n){ const d=new Date(); d.setDate(d.getDate()-n); return localISO(d); }
+  function fiberAtLine(){
+    const since=sinceDays(30), used={}, m={};
+    (PROD.use||[]).forEach(u=>{ if(u.wdId) used[u.wdId]=(used[u.wdId]||0)+(+u.kg||0); });
+    (PROD.wd||[]).forEach(w=>{ if(w.auto || (String(w.time)<since && !used[w.id])) return;
+      const rem=r3(Math.max(0,(+w.kg||0)-(used[w.id]||0))); if(rem>0) m[w.fiberName]=r3((m[w.fiberName]||0)+rem); });
+    return m;
+  }
+  function casesAtLine(){
+    const since=sinceDays(14), used={}; let tot=0;
+    (PROD.caseUse||[]).forEach(u=>{ used[u.fwId]=(used[u.fwId]||0)+(+u.pieces||0); });
+    (PROD.fabricWd||[]).forEach(w=>{ if(String(w.time)<since && !used[w.id]) return; tot+=Math.max(0,(+w.qty||0)-(used[w.id]||0)); });
+    return tot;
+  }
+  function bagsAtLineKg(kind){
+    const since=sinceDays(14), used={}; let tot=0;
+    (PROD.bagUse||[]).forEach(u=>{ used[u.bwId]=(used[u.bwId]||0)+(+u.kg||0); });
+    (PROD.bagWd||[]).forEach(w=>{ if(w.auto || w.kind!==kind || (String(w.time)<since && !used[w.id])) return; tot+=Math.max(0,(+w.kg||0)-(used[w.id]||0)); });
+    return r2(tot);
+  }
   function producedByOrder(){ const m={}; PROD.line.forEach(l=>{ m[l.orderId]=(m[l.orderId]||0)+1; }); return m; }
   function ask(title, detail, opts){
     opts=opts||{};
     return new Promise(function(res){
       var ov=document.createElement('div');
-      ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:99998;display:flex;align-items:center;justify-content:center;padding:18px';
+      ov.style.cssText='position:fixed;inset:0;background:rgba(20,28,38,.45);z-index:99998;display:flex;align-items:center;justify-content:center;padding:18px';
       var bx=document.createElement('div');
-      bx.style.cssText='background:#1a222c;color:#f2ede3;border:1px solid #2b3645;border-radius:14px;max-width:430px;width:100%;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.5)';
+      bx.style.cssText='background:#ffffff;color:#1b2430;border:1px solid #e2e7ee;border-radius:14px;max-width:430px;width:100%;padding:18px;box-shadow:0 12px 40px rgba(16,24,40,.18)';
       var h=document.createElement('div'); h.style.cssText="font:600 17px 'Kanit',sans-serif;margin-bottom:8px"; h.textContent=title||'';
-      var p=document.createElement('div'); p.style.cssText="font:400 14px/1.65 'Sarabun',sans-serif;white-space:pre-line;color:#c7d2dd;margin-bottom:16px"; p.textContent=detail||'';
+      var p=document.createElement('div'); p.style.cssText="font:400 14px/1.65 'Sarabun',sans-serif;white-space:pre-line;color:#465262;margin-bottom:16px"; p.textContent=detail||'';
       var row=document.createElement('div'); row.style.cssText='display:flex;gap:10px';
       var ok=document.createElement('button'); ok.textContent=opts.okText||'ยืนยัน'; ok.setAttribute('data-noguard','1');
       ok.style.cssText="flex:1;padding:13px;border:0;border-radius:10px;background:#ff8a3d;color:#12181f;font:600 15px 'Kanit',sans-serif";
       var no=document.createElement('button'); no.textContent=opts.cancelText||'ยกเลิก'; no.setAttribute('data-noguard','1');
-      no.style.cssText="flex:1;padding:13px;border:1px solid #2b3645;border-radius:10px;background:#212b37;color:#f2ede3;font:600 15px 'Kanit',sans-serif";
+      no.style.cssText="flex:1;padding:13px;border:1px solid #e2e7ee;border-radius:10px;background:#f1f4f8;color:#1b2430;font:600 15px 'Kanit',sans-serif";
       function done(v){ try{ document.body.removeChild(ov); }catch(e){} res(v); }
       ok.onclick=function(){done(true);}; no.onclick=function(){done(false);};
       ov.onclick=function(e){ if(e.target===ov) done(false); };
@@ -929,18 +1294,18 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   function askText(title, detail, defVal){
     return new Promise(function(res){
       var ov=document.createElement('div');
-      ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:99998;display:flex;align-items:center;justify-content:center;padding:18px';
+      ov.style.cssText='position:fixed;inset:0;background:rgba(20,28,38,.45);z-index:99998;display:flex;align-items:center;justify-content:center;padding:18px';
       var bx=document.createElement('div');
-      bx.style.cssText='background:#1a222c;color:#f2ede3;border:1px solid #2b3645;border-radius:14px;max-width:430px;width:100%;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.5)';
+      bx.style.cssText='background:#ffffff;color:#1b2430;border:1px solid #e2e7ee;border-radius:14px;max-width:430px;width:100%;padding:18px;box-shadow:0 12px 40px rgba(16,24,40,.18)';
       var h=document.createElement('div'); h.style.cssText="font:600 17px 'Kanit',sans-serif;margin-bottom:8px"; h.textContent=title||'';
-      var p=document.createElement('div'); p.style.cssText="font:400 14px/1.65 'Sarabun',sans-serif;white-space:pre-line;color:#c7d2dd;margin-bottom:12px"; p.textContent=detail||'';
+      var p=document.createElement('div'); p.style.cssText="font:400 14px/1.65 'Sarabun',sans-serif;white-space:pre-line;color:#465262;margin-bottom:12px"; p.textContent=detail||'';
       var inp=document.createElement('input'); inp.type='text'; inp.value=(defVal==null?'':String(defVal));
-      inp.style.cssText="width:100%;padding:12px;border:1px solid #2b3645;border-radius:10px;background:#12181f;color:#f2ede3;font:400 15px 'Sarabun',sans-serif;margin-bottom:14px";
+      inp.style.cssText="width:100%;padding:12px;border:1px solid #e2e7ee;border-radius:10px;background:#f6f8fa;color:#1b2430;font:400 15px 'Sarabun',sans-serif;margin-bottom:14px";
       var row=document.createElement('div'); row.style.cssText='display:flex;gap:10px';
       var ok=document.createElement('button'); ok.textContent='บันทึก'; ok.setAttribute('data-noguard','1');
       ok.style.cssText="flex:1;padding:13px;border:0;border-radius:10px;background:#ff8a3d;color:#12181f;font:600 15px 'Kanit',sans-serif";
       var no=document.createElement('button'); no.textContent='ยกเลิก'; no.setAttribute('data-noguard','1');
-      no.style.cssText="flex:1;padding:13px;border:1px solid #2b3645;border-radius:10px;background:#212b37;color:#f2ede3;font:600 15px 'Kanit',sans-serif";
+      no.style.cssText="flex:1;padding:13px;border:1px solid #e2e7ee;border-radius:10px;background:#f1f4f8;color:#1b2430;font:600 15px 'Kanit',sans-serif";
       function done(v){ try{ document.body.removeChild(ov); }catch(e){} res(v); }
       ok.onclick=function(){ done(inp.value); }; no.onclick=function(){ done(null); };
       inp.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); done(inp.value); } };
@@ -1010,11 +1375,13 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     const names=allFiberNames(); const known=new Set(stock.map(s=>s.name));
     names.forEach(n=>{ if(!known.has(n)) stock.push({name:n,received:0,used:0,stock:0}); });
     stock.sort((a,b)=>a.name.localeCompare(b.name,'th'));
+    const _atLine=fiberAtLine();
     $('fiberCards').innerHTML = stock.length ? stock.map(s=>{
-      const th=+S.fiberTh[s.name]||0, low=th>0&&s.stock<th;
+      const th=+S.fiberTh[s.name]||0, low=th>0&&s.stock<th, al=_atLine[s.name]||0;
       return '<div class="scard'+(low?' lowstock':'')+'" data-fibercard="'+esc(s.name)+'" style="cursor:pointer;"><div class="nm">'+esc(s.name)+(low?' <span class="bdg bad">ใกล้หมด</span>':'')+'</div>'+
-        '<div class="n">'+s.stock+' <span style="font-size:13px;color:#ffffff;">กก.</span></div>'+
-        '<div class="l">รับเข้า '+s.received+' กก. · เบิกใช้ '+s.used+' กก.'+(th>0?' · เตือนต่ำกว่า '+th:'')+' · แตะดูล็อต+จำนวนก้อน ▾</div></div>';
+        '<div class="n">'+s.stock+' <span style="font-size:13px;color:var(--dim);">กก.</span></div>'+
+        (al>0?'<div class="l" style="color:var(--text);">+ ที่ไลน์อีก <b>'+al+' กก.</b> (เบิกไปแล้ว ยังไม่ได้ป้อน) · รวมทั้งหมด '+r3(s.stock+al)+' กก.</div>':'')+
+        '<div class="l">ในคลัง · รับเข้า '+s.received+' กก. · เบิกไปไลน์ '+s.used+' กก.'+(th>0?' · เตือนต่ำกว่า '+th:'')+' · แตะดูล็อต+จำนวนก้อน ▾</div></div>';
     }).join('') : '<div class="empty">ยังไม่มีข้อมูล</div>';
     $('fiberCards').querySelectorAll('[data-fibercard]').forEach(c=>c.onclick=()=>{
       fiberLotFilter=c.dataset.fibercard; rFiber();
@@ -1097,12 +1464,12 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     });
     $('tFiberLots').querySelectorAll('[data-baletick]').forEach(b=>b.onclick=async()=>{
       const [name,lotNo]=b.dataset.baletick.split('|');
-      S.baleUsage.push({fiberName:name,lotNo:+lotNo,count:1,time:localISO()});
+      S.baleUsage.push({id:uid(),fiberName:name,lotNo:+lotNo,count:1,time:localISO()});
       await saveFiber(); rFiber(); toast('ติ๊กออก 1 ก้อนแล้ว');
     });
     $('tFiberLots').querySelectorAll('[data-baleundo]').forEach(b=>b.onclick=async()=>{
       const [name,lotNo]=b.dataset.baleundo.split('|');
-      S.baleUsage.push({fiberName:name,lotNo:+lotNo,count:-1,time:localISO()});
+      S.baleUsage.push({id:uid(),fiberName:name,lotNo:+lotNo,count:-1,time:localISO()});
       await saveFiber(); rFiber(); toast('เอากลับมา 1 ก้อนแล้ว (แก้ติ๊กพลาด)');
     });
     $('tFiberLots').querySelectorAll('[data-fladj]').forEach(b=>b.onclick=async()=>{
@@ -1316,7 +1683,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         .filter(b=>b.fabricType===r.fabricType).reduce((a,b)=>a+Math.max(0,b.readyBalance),0);
       return '<div class="scard'+(r.avail<=2?' lowstock':'')+'" data-fabcard="'+esc(r.fabricType)+'" style="cursor:pointer;">'+
       '<div class="nm">'+esc(r.fabricType)+'</div>'+
-      '<div class="n">'+r.avail+' <span style="font-size:13px;color:#ffffff;">ม้วน</span></div>'+
+      '<div class="n">'+r.avail+' <span style="font-size:13px;color:var(--dim);">ม้วน</span></div>'+
       '<div class="l">ถุงบรรจุผ้าพร้อมเบิก '+ready+' ชิ้น · แตะดูถุงทั้งหมด ▾</div></div>';
     }).join('') :'<div class="empty">ยังไม่มีข้อมูลม้วนผ้า</div>';
     $('rollCards').querySelectorAll('[data-fabcard]').forEach(c=>c.onclick=()=>{
@@ -1528,7 +1895,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       const th=+S.prodTypeTh[t]||0, low=th>0&&total<th;
       return '<div class="scard'+(low?' lowstock':'')+'" data-prodtypecard="'+esc(t)+'" style="cursor:pointer; display:inline-block; margin-right:8px;">'+
         '<div class="nm">'+esc(t)+(low?' <span class="bdg bad">ใกล้หมด</span>':'')+'</div>'+
-        '<div class="n">'+total+' <span style="font-size:13px;color:#ffffff;">ชิ้น</span></div>'+
+        '<div class="n">'+total+' <span style="font-size:13px;color:var(--dim);">ชิ้น</span></div>'+
         '<div class="l">'+(th>0?'เตือนต่ำกว่า '+th+' · ':'')+'แตะดูรายละเอียด ▾</div></div>';
     }).join(''):'<div class="empty">ยังไม่มีการระบุประเภทสินค้า</div>';
     $('prodTypeCards').querySelectorAll('[data-prodtypecard]').forEach(c=>c.onclick=()=>{
@@ -1763,6 +2130,12 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       (b.sizeFinished&&b.sizeFinished!==b.size?' · เคยลงไซซ์สำเร็จไว้ '+esc(b.sizeFinished):'')+
       '<br><span style="color:var(--muted)">เว้นว่าง = ไซซ์เท่าเดิม</span>';
     if(fin && !fin.value && b.sizeFinished && b.sizeFinished!==b.size) fin.value=b.sizeFinished;
+    /* ถุงนี้ยังไม่เคยลงไซซ์สำเร็จ — เติมไซซ์สำเร็จของถุงก่อนหน้าที่ผ้า+ไซซ์ตัดเดียวกันให้ ปลอกแบบเดียวกันจะได้ใช้ชื่อไซซ์เดียวกันตอนเบิก */
+    if(fin && !fin.value && !b.sizeFinished){
+      const sib=S.cutBatches.filter(x=>x.id!==b.id && x.fabricType===b.fabricType && x.size===b.size && x.sizeFinished)
+        .sort((x,y)=>String(x.time).localeCompare(String(y.time))).pop();
+      if(sib){ fin.value=sib.sizeFinished; hint.innerHTML+='<br><span style="color:var(--accent2)">เติมไซซ์สำเร็จ '+esc(sib.sizeFinished)+' ให้ตามถุง #'+sib.batchNo+' (ผ้า+ไซซ์ตัดเดียวกัน)</span>'; }
+    }
   }
   if($('retBatchSel')) $('retBatchSel').addEventListener('change',updateRetSizeHint);
   $('retFreeFabSel').onchange=function(){ const v=this.value,t=$('retFreeFabName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} };
@@ -1911,7 +2284,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     function bagCardHTML(v, kind, badge){
       return '<div class="scard'+(v.remainingKg<5?' lowstock':'')+'" data-bagcard="'+kind+'|'+esc(v.name)+'" style="cursor:pointer;">'+
         '<div class="nm">'+esc(v.name)+' '+badge+'</div>'+
-        '<div class="n">'+v.remainingKg+' <span style="font-size:13px;color:#ffffff;">กก.</span></div>'+
+        '<div class="n">'+v.remainingKg+' <span style="font-size:13px;color:var(--dim);">กก.</span></div>'+
         '<div class="l">≈ '+v.remainingPieces+' ใบ · '+v.sackCount+' กระสอบ (รับเข้ารวม '+v.receivedKg+' กก.)<br>'+
         wpbLine(v)+(v.sizes.length?' · ไซซ์ '+esc(v.sizes.join(', ')):'')+'<br>แตะดูรายกระสอบ ▾</div></div>';
     }
@@ -2108,12 +2481,12 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
     let cardsHtml=stock.length?stock.map(s=>{ const o=orderById(s.orderId);
       return '<div class="scard" data-fincard="'+esc(s.orderId)+'" style="cursor:pointer;"><div class="nm">'+esc(orderLabel(s.orderId))+(o?' <span class="bdg ok">'+esc(o.productType||'ใย')+'</span>':'')+'</div>'+
-      '<div class="n">'+s.stock+' <span style="font-size:13px;color:#ffffff;">แพ็ค</span></div><div class="l">ผลิตได้ '+s.produced+' · ส่งออกแล้ว '+s.shipped+' แพ็ค'+
+      '<div class="n"'+(s.stock<0?' style="color:var(--red)"':'')+'>'+s.stock+' <span style="font-size:13px;color:var(--dim);">แพ็ค</span>'+(s.stock<0?' <span class="bdg bad">ติดลบ — ส่งเกินที่ผลิต</span>':'')+'</div><div class="l">ผลิตได้ '+s.produced+' · ส่งออกแล้ว '+s.shipped+' แพ็ค'+
       (s.adjusted?' · ปรับยอด '+(s.adjusted>0?'+':'')+s.adjusted+' แพ็ค':'')+' · แตะดูรายละเอียด ▾</div>'+
       '<button class="ed" style="margin-top:6px;" data-finadj="'+s.orderId+'">ปรับยอดคงเหลือ</button></div>'; }).join(''):'';
     cardsHtml += freeStock.length?freeStock.map(s=>
       '<div class="scard"><div class="nm">'+esc(s.freeLabel)+' <span class="bdg warn">ไม่มีออเดอร์</span></div>'+
-      '<div class="n">'+s.stock+' <span style="font-size:13px;color:#ffffff;">แพ็ค</span></div><div class="l">ลงยอดอิสระ (ยังไม่มีออเดอร์ในแอพผลิต)</div>'+
+      '<div class="n">'+s.stock+' <span style="font-size:13px;color:var(--dim);">แพ็ค</span></div><div class="l">ลงยอดอิสระ (ยังไม่มีออเดอร์ในแอพผลิต)</div>'+
       '<button class="ed" style="margin-top:6px;" data-finfreeadj="'+esc(s.freeLabel)+'">ปรับยอดคงเหลือ</button></div>'
     ).join(''):'';
     $('finCards').innerHTML=cardsHtml||'<div class="empty">ยังไม่มีข้อมูล</div>';
@@ -2268,9 +2641,16 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       await saveFin(); rShip(); toast('ลบแล้ว');
     });
   }
-  $('btnAddDpItem').onclick=()=>{
+  $('btnAddDpItem').onclick=async()=>{
     const oid=$('dpOrdSel').value, qty=+$('dpQty').value, pickedDate=$('dpDateSel').value;
     if(!oid||!qty){ toast('เลือกออเดอร์และกรอกจำนวน'); return; }
+    /* ห้ามส่งเกินของที่มี — ส่งเกินแล้วสต๊อกติดลบ ยอดรวมจะผิดทั้งระบบ */
+    const _have=((CALC.finStock(producedByOrder(),S.shipments,S.finAdjustments).find(x=>x.orderId===oid))||{stock:0}).stock
+      - dpItems.filter(x=>x.orderId===oid).reduce((s,x)=>s+x.qty,0);
+    if(qty>_have){
+      await info('ส่งเกินของที่มีในสต๊อกไม่ได้', orderLabel(oid)+'\nในสต๊อกมี '+Math.max(0,_have)+' แพ็ค แต่กรอกไว้ '+qty+' แพ็ค\n\nถ้าของมีอยู่จริงแต่ยังไม่ได้ลงระบบ ให้ไปกด "ปรับยอดคงเหลือ" ที่แท็บสินค้าก่อน แล้วค่อยกลับมาเพิ่มลงเที่ยวรถ');
+      return;
+    }
     const alreadyInThisTrip=dpItems.filter(x=>x.orderId===oid && x.pickedDate===pickedDate).reduce((s,x)=>s+x.qty,0);
     let orderLines, priorShipped;
     if(pickedDate){
@@ -2281,7 +2661,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       priorShipped=S.shipments.filter(s=>s.orderId===oid).reduce((s,x)=>s+(+x.qty||0),0)+alreadyInThisTrip;
     }
     const ref=CALC.fifoLotRef(orderLines, priorShipped, qty);
-    if(ref.short>0 && !window.confirm('สต๊อก'+(pickedDate?'วันที่ '+pickedDate+' ':'')+'ของออเดอร์นี้ไม่พอ ขาดอยู่ '+ref.short+' แพ็ค ยืนยันจะเพิ่มลงเที่ยวรถหรือไม่?')) return;
+    if(ref.short>0 && !await ask('ของที่ผลิต'+(pickedDate?'วันที่ '+pickedDate:'')+'ไม่พอให้อ้างอิงลำดับแพ็ค', 'ขาดอยู่ '+ref.short+' แพ็ค (ส่วนนี้มาจากยอดยกมา/ปรับยอด จะไม่มีเลขลำดับแพ็คในบิล)\n\nยืนยันจะเพิ่มลงเที่ยวรถหรือไม่?')) return;
     dpItems.push({ orderId:oid, qty, ref, checkedSeqs:[], pickedDate });
     $('dpQty').value=''; rShip(); toast('เพิ่มลงเที่ยวรถแล้ว — เช็คลิสต์ลำดับก่อนขึ้นรถด้วย');
   };
@@ -2350,12 +2730,19 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     const rollsByType=allFabricTypes().map(t=>CALC.availableRolls(S.fabricReceipts,S.cuts,t).length);
 
     $('sumStats').innerHTML=
-      '<div class="stat"><div class="v">'+r3(rawS.reduce((s,x)=>s+x.stock,0))+'</div><div class="l">ใยคงเหลือรวม (กก.)</div></div>'+
+      '<div class="stat"><div class="v">'+r3(rawS.reduce((s,x)=>s+x.stock,0))+'</div><div class="l">ใยคงเหลือในคลัง (กก.)</div></div>'+
+      '<div class="stat"><div class="v">'+r3(Object.values(fiberAtLine()).reduce((s,x)=>s+x,0))+'</div><div class="l">ใยที่ไลน์ — เบิกแล้วยังไม่ป้อน (กก.)</div></div>'+
       '<div class="stat"><div class="v">'+rollsByType.reduce((s,x)=>s+x,0)+'</div><div class="l">ม้วนผ้ายังไม่ตัด</div></div>'+
-      '<div class="stat"><div class="v">'+pipe.reduce((s,x)=>s+Math.max(0,x.readyStock),0)+'</div><div class="l">ผ้าเย็บพร้อมผลิต (ชิ้น)</div></div>'+
-      '<div class="stat"><div class="v">'+zipS.reduce((s,x)=>s+x.remainingKg,0)+'</div><div class="l">ถุงซิลคงเหลือรวม (กก.)</div></div>'+
-      '<div class="stat"><div class="v">'+packS.reduce((s,x)=>s+x.remainingKg,0)+'</div><div class="l">ถุงแพ็คคงเหลือรวม (กก.)</div></div>'+
-      '<div class="stat"><div class="v">'+r2(finS.reduce((s,x)=>s+x.stock,0)+CALC.freeFinStock(S.finAdjustments).reduce((s,x)=>s+(+x.stock||0),0))+'</div><div class="l">สินค้าสำเร็จรูปคงเหลือ (แพ็ค)</div></div>';
+      '<div class="stat"><div class="v">'+pipe.reduce((s,x)=>s+Math.max(0,x.readyStock),0)+'</div><div class="l">ปลอกพร้อมผลิตในคลัง (ชิ้น)</div></div>'+
+      '<div class="stat"><div class="v">'+casesAtLine()+'</div><div class="l">ปลอกที่ไลน์ — เบิกแล้วยังไม่ใช้ (ชิ้น)</div></div>'+
+      '<div class="stat"><div class="v">'+zipS.reduce((s,x)=>s+x.remainingKg,0)+'</div><div class="l">ถุงซิลในคลัง (กก.)'+(bagsAtLineKg('zip')?' · ที่ไลน์อีก '+bagsAtLineKg('zip')+' กก.':'')+'</div></div>'+
+      '<div class="stat"><div class="v">'+packS.reduce((s,x)=>s+x.remainingKg,0)+'</div><div class="l">ถุงแพ็คในคลัง (กก.)'+(bagsAtLineKg('pack')?' · ที่ไลน์อีก '+bagsAtLineKg('pack')+' กก.':'')+'</div></div>'+
+      (function(){
+        const all=finS.map(x=>x.stock).concat(CALC.freeFinStock(S.finAdjustments).map(x=>+x.stock||0));
+        const pos=r2(all.filter(v=>v>0).reduce((s,v)=>s+v,0)), neg=all.filter(v=>v<0);
+        return '<div class="stat'+(neg.length?' lowstock':'')+'"><div class="v">'+pos+'</div><div class="l">สินค้าสำเร็จรูปคงเหลือ (แพ็ค)'+
+          (neg.length?'<br><span class="bdg bad">'+neg.length+' ออเดอร์ติดลบ รวม '+r2(neg.reduce((s,v)=>s+v,0))+' แพ็ค — ส่งเกินที่ผลิต</span>':'')+'</div></div>';
+      })();
 
     const low=[];
     rawS.forEach(r=>{ const th=+S.fiberTh[r.name]||0; if(th>0&&r.stock<th) low.push({name:'ใย: '+r.name, stock:r.stock+' กก.', th:th+' กก.'}); });
@@ -2465,6 +2852,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   async function syncNow(force){
     if(syncBusy||!hasStore) return;
     if(!force && document.hidden) return;
+    /* ระหว่างยังบันทึกไม่เสร็จ อย่าโหลดทับ ไม่งั้นรายการที่เพิ่งกรอกจะหายจากหน้าจอ */
+    if(Object.keys(pending).length||Object.keys(inflight).some(k=>inflight[k])) return;
     syncBusy=true;
     try{
       const p=await rawGet('v3s_pulse'); const po=await rawGet('v3_pulse');
@@ -2475,13 +2864,18 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     }catch(e){ pollMs=Math.min(30000,pollMs*2); }
     syncBusy=false;
   }
+  function wpdRefreshAfterMerge(){
+    if(!wpdMergedAt) return; wpdMergedAt=0;
+    setTimeout(()=>toast('มีเครื่องอื่นบันทึกพร้อมกัน — รวมรายการให้แล้ว ไม่มีข้อมูลหาย'),2600);
+    lastPulse=null; syncNow(true);
+  }
   (function loop(){ setTimeout(()=>{ syncNow().then(loop); }, pollMs); })();
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ pollMs=3000; syncNow(true); } });
   $('saveState').onclick=()=>{ if(storeDown||Object.keys(pending).length){ Object.keys(pending).forEach(k=>flush(k)); toast('กำลังลองบันทึกใหม่…'); } };
 
   (async function init(){
     document.title='ระบบสต๊อกสินค้า — วินโพลีดีไซน์';
-    lastHash=await readAll();
+    lastHash=await wpdLoadFirst(readAll);
     if(!hasStore){ storeDown=true; setSaveState('bad','ไม่รองรับ'); } else setSaveState('ok');
     show('fiber');
   })();

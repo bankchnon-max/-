@@ -151,29 +151,65 @@
   #fr .sumline { font-size:12.5px; color:var(--dim); margin-top:8px; }
 </style>
 <style id="wpd-theme">
-  /* ===== ธีมสว่าง วินโพลีดีไซน์ — ใช้ชุดเดียวกันทั้ง 3 แอพ (แก้ที่ theme/theme-light.css แล้วรัน theme/apply.js) ===== */
+  /* ===== ธีมวินโพลีดีไซน์ — ใช้ชุดเดียวกันทั้ง 3 แอพ มีโหมดสว่าง/มืด (แก้ที่ theme/theme.css แล้วรัน theme/apply.js) ===== */
+  /* สีทั้งหมดอยู่ที่ตัวแปรชุดเดียว กล่องล็อกอิน/กล่องยืนยันที่อยู่นอกตัวแอพก็ใช้ตัวแปรชุดนี้ */
+  html {
+    --w-bg:#f2f4f7; --w-panel:#ffffff; --w-panel2:#f6f8fa; --w-input:#ffffff; --w-input-border:#d5dce6;
+    --w-border:#e2e7ee; --w-line:#edf0f4;
+    --w-text:#1b2430; --w-dim:#667385; --w-label:#465262; --w-muted:#8a95a5; --w-placeholder:#a3adba;
+    --w-accent:#ff8a3d; --w-accent2:#c4570c; --w-on-accent:#2a1403;
+    --w-green:#15864f; --w-red:#cf3e45; --w-yellow:#a86608; --w-blue:#2566b0;
+    --w-top:#ffffff; --w-nav:#ffffff; --w-nb:#7b8797; --w-chip:#eef1f5;
+    --w-tint-accent:#fff7f0; --w-tint-accent-bd:#fbd9bd; --w-tint-accent-strong:#fff1e6; --w-accent-muted:#7a6555;
+    --w-tint-ok:#e6f5ec; --w-tint-warn:#fff4df; --w-warn-text:#8a5300; --w-tint-warn-bd:#f5d9a4;
+    --w-tint-bad:#fdecec; --w-bad-text:#b3262e; --w-tint-bad-bd:#f4c1c4; --w-low-bg:#fff7f7; --w-low-bd:#f0a3a7;
+    --w-disabled:#e9edf2; --w-disabled-text:#9aa5b3; --w-row-hover:#fafbfc;
+    --w-ring-a:#ffffff; --w-ring-b:#f1f4f8; --w-ring-bd:#ffd9bd;
+    --w-shadow:0 1px 2px rgba(16,24,40,.05), 0 2px 8px rgba(16,24,40,.05); --w-top-shadow:0 1px 6px rgba(16,24,40,.06);
+    --w-overlay:rgba(20,28,38,.45); --w-box-shadow:0 12px 40px rgba(16,24,40,.18);
+    --w-toast-bg:#1b2430; --w-toast-fg:#ffffff; --w-gate:rgba(242,244,247,.97);
+  }
+  /* โหมดมืด — เทาเข้มนุ่มตา ไม่ใช่ดำสนิท */
+  html[data-wpd-theme="dark"] {
+    color-scheme:dark;
+    --w-bg:#12171d; --w-panel:#1a2028; --w-panel2:#212833; --w-input:#141a21; --w-input-border:#364252;
+    --w-border:#2a3340; --w-line:#252e39;
+    --w-text:#e6eaef; --w-dim:#9aa6b4; --w-label:#c0c9d3; --w-muted:#7d8a99; --w-placeholder:#6c7888;
+    --w-accent:#ff8a3d; --w-accent2:#ffa767; --w-on-accent:#2a1403;
+    --w-green:#4cc38a; --w-red:#f07077; --w-yellow:#e7b54a; --w-blue:#72aaf0;
+    --w-top:#1a2028; --w-nav:#1a2028; --w-nb:#8c98a7; --w-chip:#252d38;
+    --w-tint-accent:rgba(255,138,61,.10); --w-tint-accent-bd:rgba(255,138,61,.35); --w-tint-accent-strong:rgba(255,138,61,.16); --w-accent-muted:#c9b3a2;
+    --w-tint-ok:rgba(76,195,138,.14); --w-tint-warn:rgba(231,181,74,.14); --w-warn-text:#e7b54a; --w-tint-warn-bd:rgba(231,181,74,.35);
+    --w-tint-bad:rgba(240,112,119,.14); --w-bad-text:#f07077; --w-tint-bad-bd:rgba(240,112,119,.4); --w-low-bg:rgba(240,112,119,.08); --w-low-bd:rgba(240,112,119,.5);
+    --w-disabled:#262e38; --w-disabled-text:#6c7888; --w-row-hover:#1f2630;
+    --w-ring-a:#252d38; --w-ring-b:#1a2028; --w-ring-bd:rgba(255,138,61,.45);
+    --w-shadow:0 1px 2px rgba(0,0,0,.35); --w-top-shadow:0 1px 6px rgba(0,0,0,.35);
+    --w-overlay:rgba(0,0,0,.6); --w-box-shadow:0 12px 40px rgba(0,0,0,.5);
+    --w-toast-bg:#e6eaef; --w-toast-fg:#12171d; --w-gate:rgba(18,23,29,.97);
+  }
   #fr {
-    --bg:#f2f4f7; --panel:#ffffff; --panel2:#f6f8fa; --border:#e2e7ee;
-    --accent:#ff8a3d; --accent2:#c4570c; --text:#1b2430; --dim:#667385;
-    --green:#15864f; --red:#cf3e45; --yellow:#a86608; --blue:#2566b0;
-    --label:#465262; --line:#edf0f4; --shadow:0 1px 2px rgba(16,24,40,.05), 0 2px 8px rgba(16,24,40,.05);
+    --bg:var(--w-bg); --panel:var(--w-panel); --panel2:var(--w-panel2); --border:var(--w-border);
+    --accent:var(--w-accent); --accent2:var(--w-accent2); --text:var(--w-text); --dim:var(--w-dim);
+    --green:var(--w-green); --red:var(--w-red); --yellow:var(--w-yellow); --blue:var(--w-blue);
+    --label:var(--w-label); --line:var(--w-line); --shadow:var(--w-shadow); --muted:var(--w-muted);
     font-size:15px; line-height:1.55;
   }
-  body { background:#f2f4f7; margin:0; }
+  body { background:var(--w-bg); margin:0; }
 
   /* แถบบน */
-  #fr .topbar { background:#ffffff; border-bottom:1px solid var(--border); box-shadow:0 1px 6px rgba(16,24,40,.06); padding:14px 16px 12px; }
+  #fr .topbar { background:var(--w-top); border-bottom:1px solid var(--border); box-shadow:var(--w-top-shadow); padding:14px 16px 12px; }
   #fr .topbar h1 { font-size:19px; color:var(--text); }
   #fr .sub { font-size:13px; color:var(--dim); font-weight:400; }
   #fr .topbar .sumline { font-size:12.5px; }
-  #fr .chip { background:#fff7f0; border-color:#fbd9bd; font-size:14px; }
+  #fr .chip { background:var(--w-tint-accent); border-color:var(--w-tint-accent-bd); font-size:14px; }
   #fr .chip b { color:var(--accent2); }
-  #fr .banner.warn { background:#fff6e5; color:#8a5300; border-color:#f5d9a4; }
-  #fr .banner.late { background:#fdecec; color:#b3262e; border-color:#f4c1c4; }
+  #fr .banner.warn { background:var(--w-tint-warn); color:var(--w-warn-text); border-color:var(--w-tint-warn-bd); }
+  #fr .banner.late { background:var(--w-tint-bad); color:var(--w-bad-text); border-color:var(--w-tint-bad-bd); }
   #fr .savechip { font-size:12.5px; padding:5px 11px; border-radius:999px; }
-  #fr .savechip.ok { background:#e6f5ec; color:var(--green); }
-  #fr .savechip.saving { background:#eef1f5; color:var(--dim); }
-  #fr .savechip.bad { background:#fdecec; color:#b3262e; border-color:#f4c1c4; }
+  #fr .savechip.ok { background:var(--w-tint-ok); color:var(--green); }
+  #fr .savechip.saving { background:var(--w-chip); color:var(--dim); }
+  #fr .savechip.bad { background:var(--w-tint-bad); color:var(--w-bad-text); border-color:var(--w-tint-bad-bd); }
+  #fr .wpd-mode { margin-left:6px; background:var(--w-chip); color:var(--w-label); border:1px solid var(--w-border); cursor:pointer; }
 
   /* การ์ดและหัวข้อ */
   #fr .content { padding:14px 14px 20px; }
@@ -182,27 +218,27 @@
   #fr .card.need { border-color:var(--accent); box-shadow:0 0 0 2px rgba(255,138,61,.35); }
   #fr .sumline { font-size:13.5px; color:var(--dim); line-height:1.6; }
   #fr .hint { font-size:13px; }
-  #fr .empty { font-size:14px; color:#8a95a5; padding:18px 0; }
+  #fr .empty { font-size:14px; color:var(--w-muted); padding:18px 0; }
 
   /* ช่องกรอก */
   #fr label { font-size:13.5px; font-weight:500; color:var(--label); margin-top:12px; }
   #fr input, #fr select, #fr textarea {
-    background:#ffffff; border:1.5px solid #d5dce6; border-radius:10px; color:var(--text); font-size:15.5px; padding:11px 12px; }
-  #fr input::placeholder, #fr textarea::placeholder { color:#a3adba; }
+    background:var(--w-input); border:1.5px solid var(--w-input-border); border-radius:10px; color:var(--text); font-size:15.5px; padding:11px 12px; }
+  #fr input::placeholder, #fr textarea::placeholder { color:var(--w-placeholder); }
   #fr input:focus, #fr select:focus, #fr textarea:focus {
     outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(255,138,61,.2); }
   #fr input[type="checkbox"] { accent-color:var(--accent); }
   #fr details summary { color:var(--accent2); }
 
   /* ปุ่ม */
-  #fr button.btn { border-radius:12px; padding:12px 16px; font-size:15.5px; font-weight:600; color:#2a1403;
+  #fr button.btn { border-radius:12px; padding:12px 16px; font-size:15.5px; font-weight:600; color:var(--w-on-accent);
     box-shadow:0 1px 0 rgba(0,0,0,.04), 0 2px 6px rgba(255,138,61,.28); }
   #fr button.btn:active { transform:translateY(1px); }
-  #fr button.btn.sec { background:#ffffff; color:var(--text); border:1.5px solid #d5dce6; box-shadow:none; }
-  #fr button.btn.dg { background:#fff1f1; color:#b3262e; border:1.5px solid #f4c1c4; box-shadow:none; }
-  #fr button.btn.blue { background:#2566b0; color:#ffffff; box-shadow:none; }
+  #fr button.btn.sec { background:var(--w-panel); color:var(--text); border:1.5px solid var(--w-input-border); box-shadow:none; }
+  #fr button.btn.dg { background:var(--w-tint-bad); color:var(--w-bad-text); border:1.5px solid var(--w-tint-bad-bd); box-shadow:none; }
+  #fr button.btn.blue { background:var(--blue); color:#ffffff; box-shadow:none; }
   #fr button.btn.sm { padding:7px 12px; font-size:13.5px; border-radius:9px; }
-  #fr button.btn[disabled] { background:#e9edf2; color:#9aa5b3; box-shadow:none; }
+  #fr button.btn[disabled] { background:var(--w-disabled); color:var(--w-disabled-text); box-shadow:none; }
   #fr .x { color:var(--red); }
   #fr .ed { color:var(--blue); font-size:13.5px; }
 
@@ -210,15 +246,15 @@
   #fr table { font-size:14px; }
   #fr th { background:var(--panel2); color:var(--dim); font-size:12.5px; font-weight:500; padding:9px 10px; border-bottom:1px solid var(--border); }
   #fr td { padding:9px 10px; border-bottom:1px solid var(--line); }
-  #fr tr:hover td { background:#fafbfc; }
+  #fr tr:hover td { background:var(--w-row-hover); }
 
   /* ป้ายสถานะ */
   #fr .bdg { font-size:12px; padding:2px 9px; }
-  #fr .bdg.ok, #fr .st.active { background:#e6f5ec; color:var(--green); }
-  #fr .bdg.warn { background:#fff4df; color:var(--yellow); }
-  #fr .bdg.bad { background:#fdecec; color:#b3262e; }
+  #fr .bdg.ok, #fr .st.active { background:var(--w-tint-ok); color:var(--green); }
+  #fr .bdg.warn { background:var(--w-tint-warn); color:var(--yellow); }
+  #fr .bdg.bad { background:var(--w-tint-bad); color:var(--w-bad-text); }
   #fr .st { font-size:11.5px; }
-  #fr .st.pending, #fr .st.done { background:#eef1f5; color:var(--dim); }
+  #fr .st.pending, #fr .st.done { background:var(--w-chip); color:var(--dim); }
 
   /* ตัวเลขสรุป */
   #fr .stat, #fr .scard { background:var(--panel2); border:1px solid var(--border); border-radius:14px; }
@@ -226,43 +262,43 @@
   #fr .stat .l, #fr .scard .l { font-size:13px; color:var(--dim); }
   #fr .scard .nm { font-size:16px; font-weight:600; color:var(--text); }
   #fr .scard .n { font-size:26px; font-weight:600; color:var(--accent2); }
-  #fr .lowstock { border-color:#f0a3a7; box-shadow:0 0 0 1px #f0a3a7 inset; background:#fff7f7; }
+  #fr .lowstock { border-color:var(--w-low-bd); box-shadow:0 0 0 1px var(--w-low-bd) inset; background:var(--w-low-bg); }
   #fr .cartrow { background:var(--panel2); }
-  #fr .chkrow { background:#ffffff; border:1.5px solid #d5dce6; font-size:14px; padding:6px 10px; }
-  #fr .bigstd { background:#fff7f0; border:1.5px solid #fbd9bd; }
+  #fr .chkrow { background:var(--w-panel); border:1.5px solid var(--w-input-border); font-size:14px; padding:6px 10px; }
+  #fr .bigstd { background:var(--w-tint-accent); border:1.5px solid var(--w-tint-accent-bd); }
   #fr .bigstd .v { color:var(--accent2); font-size:32px; font-weight:600; }
-  #fr .bigstd .l, #fr .bigstd .brk { color:#7a6555; font-size:13px; }
+  #fr .bigstd .l, #fr .bigstd .brk { color:var(--w-accent-muted); font-size:13px; }
 
   /* ออเดอร์ (ระบบผลิต) */
-  #fr .ocard { background:#ffffff; border:1.5px solid var(--border); border-radius:14px; }
-  #fr .ocard.sel { background:#fff7f0; border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  #fr .ocard { background:var(--w-panel); border:1.5px solid var(--border); border-radius:14px; }
+  #fr .ocard.sel { background:var(--w-tint-accent); border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
   #fr .ocard .cust { font-size:16.5px; font-weight:600; color:var(--text); }
   #fr .ocard .code { color:var(--accent2); font-size:14px; }
   #fr .ocard .meta { font-size:13px; }
-  #fr .stab { background:#ffffff; border:1.5px solid #d5dce6; color:var(--label); font-size:14px; padding:7px 13px; border-radius:999px; }
-  #fr .stab.on { background:#fff1e6; color:var(--accent2); border-color:var(--accent); }
+  #fr .stab { background:var(--w-panel); border:1.5px solid var(--w-input-border); color:var(--label); font-size:14px; padding:7px 13px; border-radius:999px; }
+  #fr .stab.on { background:var(--w-tint-accent-strong); color:var(--accent2); border-color:var(--accent); }
 
   /* วงกลมกดนับ */
-  #fr .ring { background:radial-gradient(circle at 35% 30%,#ffffff,#f1f4f8 72%); border:6px solid #ffd9bd;
-    box-shadow:0 10px 24px rgba(255,138,61,.22), inset 0 0 0 2px #ffffff; }
+  #fr .ring { background:radial-gradient(circle at 35% 30%,var(--w-ring-a),var(--w-ring-b) 72%); border:6px solid var(--w-ring-bd);
+    box-shadow:0 10px 24px rgba(255,138,61,.22), inset 0 0 0 2px var(--w-ring-a); }
   #fr .ring .n { color:var(--accent2); }
   #fr .ring .l { color:var(--dim); font-size:13px; }
 
   /* เมนูล่าง */
-  #fr .nav { background:#ffffff; border-top:1px solid var(--border); box-shadow:0 -2px 10px rgba(16,24,40,.06);
+  #fr .nav { background:var(--w-nav); border-top:1px solid var(--border); box-shadow:var(--w-top-shadow);
     padding-bottom:env(safe-area-inset-bottom); }
-  #fr .nb { color:#7b8797; font-size:12px; font-weight:500; gap:2px; padding:9px 2px 8px; position:relative; min-width:0; white-space:nowrap; }
+  #fr .nb { color:var(--w-nb); font-size:12px; font-weight:500; gap:2px; padding:9px 2px 8px; position:relative; min-width:0; white-space:nowrap; }
   #fr .nb .ic { font-size:21px; filter:grayscale(.6); opacity:.75; }
   #fr .nb.on { color:var(--accent2); font-weight:600; }
   #fr .nb.on .ic { filter:none; opacity:1; }
   #fr .nb.on::before { content:''; position:absolute; top:0; left:22%; right:22%; height:3px; border-radius:0 0 3px 3px; background:var(--accent); }
 
   /* กล่องยืนยัน / แจ้งเตือน */
-  #fr .ov { background:rgba(20,28,38,.45); }
-  #fr .box { background:#ffffff; border:1px solid var(--border); box-shadow:0 12px 40px rgba(16,24,40,.18); }
+  #fr .ov { background:var(--w-overlay); }
+  #fr .box { background:var(--w-panel); border:1px solid var(--border); box-shadow:var(--w-box-shadow); }
   #fr .box h3 { font-size:17px; color:var(--text); }
   #fr .box p { font-size:14px; }
-  #fr .toast { background:#1b2430; color:#ffffff; border:none; font-size:14px; box-shadow:0 8px 24px rgba(16,24,40,.25); }
+  #fr .toast { background:var(--w-toast-bg); color:var(--w-toast-fg); border:none; font-size:14px; box-shadow:0 8px 24px rgba(16,24,40,.25); }
   #fr .flash { animation:fl 1.3s ease; }
 
   /* ช่องกรอกที่อยู่คู่กันให้ตรงแนวเดียวกัน แม้ชื่อช่องยาว 2 บรรทัด */
@@ -275,11 +311,75 @@
     #fr button.btn { min-height:48px; }
     #fr button.btn.sm { min-height:40px; }
   }
+  /* แท็บเล็ต (เช่น 8 นิ้วที่ติดไว้หน้าไลน์ มองจากระยะแขน) — ตัวหนังสือและปุ่มใหญ่กว่ามือถือ
+     ใช้กับจอกว้าง 600–1180 จุด หรือจอสัมผัสที่กว้างกว่านั้น คอมออฟฟิศที่ใช้เมาส์ไม่โดน */
+  @media (min-width:600px) and (max-width:1180px), (min-width:600px) and (pointer:coarse){
+    #fr { font-size:17px; }
+    #fr .topbar { position:static; }
+    #fr .topbar h1 { font-size:22px; }
+    #fr .sub, #fr .topbar .sumline { font-size:15px; }
+    #fr .chip { font-size:16px; }
+    #fr .savechip { font-size:14.5px; padding:6px 13px; }
+    #fr .card { padding:20px; }
+    #fr .card h3 { font-size:19px; }
+    #fr label { font-size:15.5px; }
+    #fr .sumline, #fr .hint, #fr .empty { font-size:15px; }
+    #fr input, #fr select, #fr textarea { font-size:18px; min-height:54px; padding:12px 14px; }
+    #fr input[type="checkbox"] { min-height:0; width:26px; height:26px; }
+    #fr button.btn { font-size:18px; min-height:56px; }
+    #fr button.btn.sm { font-size:15.5px; min-height:44px; padding:8px 14px; }
+    #fr .x, #fr .ed { font-size:17px; min-height:44px; min-width:44px; }
+    #fr table { font-size:15.5px; }
+    #fr th { font-size:14px; padding:10px 12px; }
+    #fr td { padding:10px 12px; }
+    #fr .bdg { font-size:13.5px; }
+    #fr .stat .v, #fr .scard .n { font-size:32px; }
+    #fr .stat .l, #fr .scard .l { font-size:15px; }
+    #fr .scard .nm, #fr .ocard .cust { font-size:19px; }
+    #fr .ocard .code { font-size:16px; }
+    #fr .ocard .meta { font-size:15px; }
+    #fr .stab { font-size:16px; padding:9px 15px; }
+    #fr .bigstd .v { font-size:42px; }
+    #fr .bigstd .l, #fr .bigstd .brk { font-size:15.5px; }
+    #fr .ring { width:220px; height:220px; }
+    #fr .ring .n { font-size:66px; }
+    #fr .ring .l { font-size:15px; }
+    #fr .nb { font-size:14.5px; padding:10px 2px 9px; }
+    #fr .nb .ic { font-size:26px; }
+    #fr .toast { font-size:16.5px; padding:13px 20px; }
+    #fr .box h3 { font-size:20px; }
+    #fr .box p { font-size:16px; }
+  }
   @media (max-width:360px){
     #fr .nb { font-size:11px; }
     #fr .nb .ic { font-size:19px; }
   }
 </style><!-- /wpd-theme -->
+<script id="wpd-mode">
+(function(){
+  var K='wpd_theme';
+  function pref(){ try{ return localStorage.getItem(K)||''; }catch(e){ return ''; } }
+  function dark(){ var v=pref(); return v==='dark' || (v!=='light' && !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches)); }
+  function apply(){
+    var d=dark(); document.documentElement.setAttribute('data-wpd-theme', d?'dark':'light');
+    var m=document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content', d?'#1a2028':'#ffffff');
+    var b=document.getElementById('wpdMode'); if(b) b.textContent=d?'☀ โหมดสว่าง':'🌙 โหมดมืด';
+  }
+  apply();
+  window.addEventListener('storage', function(e){ if(e.key===K) apply(); });
+  try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', apply); }catch(e){}
+  document.addEventListener('DOMContentLoaded', function(){
+    var chip=document.getElementById('saveState'); if(!chip || document.getElementById('wpdMode')) return;
+    var b=document.createElement('button'); b.type='button'; b.id='wpdMode'; b.className='savechip wpd-mode'; b.setAttribute('data-noguard','1');
+    b.onclick=function(){ try{ localStorage.setItem(K, dark()?'light':'dark'); }catch(e){} apply(); };
+    chip.parentNode.insertBefore(b, chip.nextSibling); apply();
+  });
+})();
+</script><!-- /wpd-mode -->
+
+
+
+
 
 
 
@@ -301,8 +401,8 @@
     </div>
     <div class="banner" id="banner"></div>
     <div class="savechip ok" id="saveState">บันทึกแล้ว ✓</div>
-    <div class="savechip" id="wakeChip" style="margin-left:6px; background:#eef1f5; color:var(--dim); cursor:pointer;">☀ กันจอดับ: ปิด</div>
-    <div class="savechip" id="roleChip" style="margin-left:6px; background:#eef1f5; color:var(--dim); cursor:pointer;">👤 พนักงาน</div>
+    <div class="savechip" id="wakeChip" style="margin-left:6px; background:var(--w-chip,#eef1f5); color:var(--dim); cursor:pointer;">☀ กันจอดับ: ปิด</div>
+    <div class="savechip" id="roleChip" style="margin-left:6px; background:var(--w-chip,#eef1f5); color:var(--dim); cursor:pointer;">👤 พนักงาน</div>
   </div>
 
   <div class="content">
@@ -881,23 +981,23 @@ function wpdShowLogin(errMsg){
   let setError;
   const promise = new Promise(function(resolve){
     const ov = document.createElement('div');
-    ov.style.cssText = 'position:fixed;inset:0;background:#f2f4f7;z-index:100000;display:flex;align-items:center;'+
+    ov.style.cssText = 'position:fixed;inset:0;background:var(--w-bg,#f2f4f7);z-index:100000;display:flex;align-items:center;'+
       'justify-content:center;padding:20px;font-family:Sarabun,sans-serif;';
     const bx = document.createElement('div');
-    bx.style.cssText = 'background:#ffffff;color:#1b2430;border:1px solid #e2e7ee;border-radius:16px;max-width:380px;'+
+    bx.style.cssText = 'background:var(--w-panel,#ffffff);color:var(--w-text,#1b2430);border:1px solid var(--w-border,#e2e7ee);border-radius:16px;max-width:380px;'+
       'width:100%;padding:24px;box-shadow:0 12px 40px rgba(16,24,40,.18);';
     bx.innerHTML =
       '<div style="font-size:34px;text-align:center;">🔒</div>'+
       '<h2 style="font:600 19px Kanit,sans-serif;margin:10px 0 4px;text-align:center;">เข้าสู่ระบบก่อนใช้งาน</h2>'+
-      '<div style="font:400 13px/1.6 Sarabun,sans-serif;color:#667385;text-align:center;margin-bottom:16px;">'+
+      '<div style="font:400 13px/1.6 Sarabun,sans-serif;color:var(--w-dim,#667385);text-align:center;margin-bottom:16px;">'+
       'กรอกครั้งเดียวต่อเครื่อง ระบบจำไว้ให้</div>'+
-      '<label style="font-size:14px;color:#465262;">อีเมล</label>'+
+      '<label style="font-size:14px;color:var(--w-label,#465262);">อีเมล</label>'+
       '<input id="wpdEmail" type="email" autocomplete="username" style="box-sizing:border-box;width:100%;padding:13px;margin:5px 0 12px;'+
-      'border:1px solid #e2e7ee;border-radius:10px;background:#f6f8fa;color:#1b2430;font:400 16px Sarabun,sans-serif;">'+
-      '<label style="font-size:14px;color:#465262;">รหัสผ่าน</label>'+
+      'border:1px solid var(--w-border,#e2e7ee);border-radius:10px;background:var(--w-input,#f6f8fa);color:var(--w-text,#1b2430);font:400 16px Sarabun,sans-serif;">'+
+      '<label style="font-size:14px;color:var(--w-label,#465262);">รหัสผ่าน</label>'+
       '<input id="wpdPass" type="password" autocomplete="current-password" style="box-sizing:border-box;width:100%;padding:13px;margin:5px 0 4px;'+
-      'border:1px solid #e2e7ee;border-radius:10px;background:#f6f8fa;color:#1b2430;font:400 16px Sarabun,sans-serif;">'+
-      '<div id="wpdErr" style="font:400 13px/1.55 Sarabun,sans-serif;color:#cf3e45;min-height:19px;margin:6px 0 10px;"></div>'+
+      'border:1px solid var(--w-border,#e2e7ee);border-radius:10px;background:var(--w-input,#f6f8fa);color:var(--w-text,#1b2430);font:400 16px Sarabun,sans-serif;">'+
+      '<div id="wpdErr" style="font:400 13px/1.55 Sarabun,sans-serif;color:var(--w-red,#cf3e45);min-height:19px;margin:6px 0 10px;"></div>'+
       '<button id="wpdGo" style="width:100%;padding:15px;border:0;border-radius:11px;background:#ff8a3d;color:#12181f;'+
       'font:600 16px Kanit,sans-serif;">เข้าสู่ระบบ</button>';
     ov.appendChild(bx); document.body.appendChild(ov);
@@ -984,11 +1084,11 @@ window.WPDAUTH = {
     window.storage = null;
     document.addEventListener('DOMContentLoaded', () => {
       const b = document.createElement('div');
-      b.style.cssText = 'position:fixed;inset:0;background:#f2f4f7;color:#1b2430;z-index:9999;'+
+      b.style.cssText = 'position:fixed;inset:0;background:var(--w-bg,#f2f4f7);color:var(--w-text,#1b2430);z-index:9999;'+
         'display:flex;align-items:center;justify-content:center;padding:24px;font-family:sans-serif;text-align:center;';
       b.innerHTML = '<div style="max-width:420px;"><div style="font-size:40px;">⚠️</div>'+
         '<h2 style="margin:12px 0 6px;">ยังไม่ได้ตั้งค่า Supabase</h2>'+
-        '<p style="color:#667385;line-height:1.6;">เปิดไฟล์นี้ด้วยโปรแกรมแก้ไขข้อความ แล้วใส่ SUPABASE_URL กับ '+
+        '<p style="color:var(--w-dim,#667385);line-height:1.6;">เปิดไฟล์นี้ด้วยโปรแกรมแก้ไขข้อความ แล้วใส่ SUPABASE_URL กับ '+
         'SUPABASE_ANON_KEY ที่ด้านบนสุดของโค้ด (ดูคู่มือติดตั้ง ขั้นตอนที่ 3-4)</p></div>';
       document.body.appendChild(b);
     });
@@ -1313,7 +1413,7 @@ window.WPDAUTH = {
     let g=document.getElementById('__wpdGate');
     if(!msg){ if(g) g.remove(); return; }
     if(!g){ g=document.createElement('div'); g.id='__wpdGate';
-      g.style.cssText='position:fixed;inset:0;z-index:99990;background:rgba(242,244,247,.97);color:#1b2430;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;font:500 15px/1.7 Sarabun,sans-serif;white-space:pre-line';
+      g.style.cssText='position:fixed;inset:0;z-index:99990;background:var(--w-gate,rgba(242,244,247,.97));color:var(--w-text,#1b2430);display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;font:500 15px/1.7 Sarabun,sans-serif;white-space:pre-line';
       document.body.appendChild(g); }
     g.textContent=msg;
   }
@@ -1457,18 +1557,18 @@ window.WPDAUTH = {
   function askText(title, detail, defVal){
     return new Promise(function(res){
       var ov=document.createElement('div');
-      ov.style.cssText='position:fixed;inset:0;background:rgba(20,28,38,.45);z-index:99998;display:flex;align-items:center;justify-content:center;padding:18px';
+      ov.style.cssText='position:fixed;inset:0;background:var(--w-overlay,rgba(20,28,38,.45));z-index:99998;display:flex;align-items:center;justify-content:center;padding:18px';
       var bx=document.createElement('div');
-      bx.style.cssText='background:#ffffff;color:#1b2430;border:1px solid #e2e7ee;border-radius:14px;max-width:430px;width:100%;padding:18px;box-shadow:0 12px 40px rgba(16,24,40,.18)';
+      bx.style.cssText='background:var(--w-panel,#ffffff);color:var(--w-text,#1b2430);border:1px solid var(--w-border,#e2e7ee);border-radius:14px;max-width:430px;width:100%;padding:18px;box-shadow:0 12px 40px rgba(16,24,40,.18)';
       var h=document.createElement('div'); h.style.cssText="font:600 17px 'Kanit',sans-serif;margin-bottom:8px"; h.textContent=title||'';
-      var p=document.createElement('div'); p.style.cssText="font:400 14px/1.65 'Sarabun',sans-serif;white-space:pre-line;color:#465262;margin-bottom:12px"; p.textContent=detail||'';
+      var p=document.createElement('div'); p.style.cssText="font:400 14px/1.65 'Sarabun',sans-serif;white-space:pre-line;color:var(--w-label,#465262);margin-bottom:12px"; p.textContent=detail||'';
       var inp=document.createElement('input'); inp.type='text'; inp.value=(defVal==null?'':String(defVal));
-      inp.style.cssText="width:100%;padding:13px;border:1px solid #e2e7ee;border-radius:10px;background:#f6f8fa;color:#1b2430;font:400 16px 'Sarabun',sans-serif;margin-bottom:14px";
+      inp.style.cssText="width:100%;padding:13px;border:1px solid var(--w-border,#e2e7ee);border-radius:10px;background:var(--w-input,#f6f8fa);color:var(--w-text,#1b2430);font:400 16px 'Sarabun',sans-serif;margin-bottom:14px";
       var row=document.createElement('div'); row.style.cssText='display:flex;gap:10px';
       var ok=document.createElement('button'); ok.textContent='บันทึก';
       ok.style.cssText="flex:1;padding:14px;border:0;border-radius:10px;background:#ff8a3d;color:#12181f;font:600 15px 'Kanit',sans-serif";
       var no=document.createElement('button'); no.textContent='ยกเลิก';
-      no.style.cssText="flex:1;padding:14px;border:1px solid #e2e7ee;border-radius:10px;background:#f1f4f8;color:#1b2430;font:600 15px 'Kanit',sans-serif";
+      no.style.cssText="flex:1;padding:14px;border:1px solid var(--w-border,#e2e7ee);border-radius:10px;background:var(--w-panel2,#f1f4f8);color:var(--w-text,#1b2430);font:600 15px 'Kanit',sans-serif";
       function done(v){ try{ document.body.removeChild(ov); }catch(e){} res(v); }
       ok.onclick=function(){ done(inp.value); }; no.onclick=function(){ done(null); };
       inp.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); done(inp.value); } };
@@ -1531,9 +1631,9 @@ window.WPDAUTH = {
   function paintRole(){
     paintNav();
     const c=$('roleChip'); if(!c) return;
-    if(!lockOn()){ c.style.background='#eef1f5'; c.style.color='var(--dim)'; c.textContent='👤 ยังไม่ได้ล็อก'; return; }
-    if(bossActive()){ c.style.background='#e6f5ec'; c.style.color='var(--green)'; c.textContent='🔓 หัวหน้า — แตะเพื่อล็อก'; }
-    else { c.style.background='#eef1f5'; c.style.color='var(--dim)'; c.textContent='🔒 พนักงาน — แตะถ้าเป็นหัวหน้า'; }
+    if(!lockOn()){ c.style.background='var(--w-chip,#eef1f5)'; c.style.color='var(--dim)'; c.textContent='👤 ยังไม่ได้ล็อก'; return; }
+    if(bossActive()){ c.style.background='var(--w-tint-ok,#e6f5ec)'; c.style.color='var(--green)'; c.textContent='🔓 หัวหน้า — แตะเพื่อล็อก'; }
+    else { c.style.background='var(--w-chip,#eef1f5)'; c.style.color='var(--dim)'; c.textContent='🔒 พนักงาน — แตะถ้าเป็นหัวหน้า'; }
   }
   function askPin(onOk){
     $('pinInput').value=''; $('pinWarn').innerHTML='';
@@ -3967,8 +4067,8 @@ window.WPDAUTH = {
   }
   function paintWake(ok){
     const c=$('wakeChip'); if(!c) return;
-    if(wakeOn){ c.style.background='#e6f5ec'; c.style.color='var(--green)'; c.textContent='☀ กันจอดับ: เปิด'; }
-    else { c.style.background='#eef1f5'; c.style.color='var(--dim)'; c.textContent='☀ กันจอดับ: ปิด'; }
+    if(wakeOn){ c.style.background='var(--w-tint-ok,#e6f5ec)'; c.style.color='var(--green)'; c.textContent='☀ กันจอดับ: เปิด'; }
+    else { c.style.background='var(--w-chip,#eef1f5)'; c.style.color='var(--dim)'; c.textContent='☀ กันจอดับ: ปิด'; }
   }
   $('wakeChip').onclick=async()=>{
     if(wakeOn){

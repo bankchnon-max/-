@@ -1,0 +1,32 @@
+{
+ "id": "/cost-app",
+ "name": "ต้นทุน & ตีราคา — วินโพลีดีไซน์",
+ "short_name": "ต้นทุน",
+ "start_url": "/cost-app",
+ "scope": "/",
+ "display": "standalone",
+ "orientation": "any",
+ "background_color": "#f2f4f7",
+ "theme_color": "#ff8a3d",
+ "lang": "th",
+ "icons": [
+  {
+   "src": "/icons/cost-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "/icons/cost-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "/icons/cost-maskable-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ]
+}

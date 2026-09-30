@@ -9,6 +9,12 @@
 <meta name="apple-mobile-web-app-title" content="แอพสต๊อก">
 <meta name="theme-color" content="#ffffff">
 <title>ระบบสต๊อกสินค้า — วินโพลีดีไซน์</title>
+<!-- wpd-pwa -->
+<link rel="manifest" href="/manifest-stock.webmanifest">
+<link rel="icon" type="image/png" href="/icons/stock-192.png">
+<link rel="apple-touch-icon" href="/icons/stock-192.png">
+<script>if("serviceWorker" in navigator && location.protocol==="https:") addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));</script>
+<!-- /wpd-pwa -->
 </head>
 <body>
 <style>
@@ -340,6 +346,10 @@
   });
 })();
 </script><!-- /wpd-mode -->
+
+
+
+
 
 
 

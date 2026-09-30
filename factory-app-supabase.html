@@ -9,6 +9,12 @@
 <meta name="apple-mobile-web-app-title" content="แอพผลิต">
 <meta name="theme-color" content="#ffffff">
 <title>ระบบรายงานการผลิต — วินโพลีดีไซน์</title>
+<!-- wpd-pwa -->
+<link rel="manifest" href="/manifest-factory.webmanifest">
+<link rel="icon" type="image/png" href="/icons/factory-192.png">
+<link rel="apple-touch-icon" href="/icons/factory-192.png">
+<script>if("serviceWorker" in navigator && location.protocol==="https:") addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));</script>
+<!-- /wpd-pwa -->
 </head>
 <body>
 <style>
@@ -376,6 +382,10 @@
   });
 })();
 </script><!-- /wpd-mode -->
+
+
+
+
 
 
 

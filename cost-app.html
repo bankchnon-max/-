@@ -833,21 +833,33 @@ window.WPDAUTH = {
       return { baht:0, src:'none' };
     },
 
-    /* ค่าผ้าต่อชิ้น = ราคาม้วน ÷ จำนวนชิ้นที่ตัดได้จากม้วนนั้นจริง */
+    /* พื้นที่ชิ้นผ้า (ตารางนิ้ว) จากไซซ์ตัด เช่น "18x54" — หน่วยนิ้ว เว้นแต่เขียน ซม. */
+    pieceArea(sizeStr){
+      const raw=String(sizeStr||''); const m=raw.match(/(\d+\.?\d*)\s*[xX×*]\s*(\d+\.?\d*)/);
+      if(!m) return 0; const k=/(ซม|เซน|\bcm\b)/i.test(raw)?2.54:1;
+      return (+m[1]/k)*(+m[2]/k);
+    },
+    /* ค่าผ้าต่อ 1 ใบ(ปลอก) = ราคาม้วน แบ่งตามพื้นที่ชิ้นที่ตัดจากม้วนนั้นจริง × จำนวนชิ้นต่อใบ
+       ม้วนเดียวตัดหลายไซซ์ ชิ้นใหญ่ (ปิกนิก 40x79) ต้องแพงกว่าชิ้นเล็ก (18x54) · ปิกนิก 2 ผืนประกบ = 2 ชิ้นต่อใบ
+       ไซซ์ไหนอ่านไม่ออก → แบ่งตามจำนวนชิ้นเหมือนเดิม */
     fabricBahtPerPiece(PRICE, cutBatches, batchId){
       const b=(cutBatches||[]).find(x=>x.id===batchId);
       if(!b) return { baht:0, src:'none', type:'' };
       const type=b.fabricType||'';
       const p=COST.fabricPricePerRoll(PRICE, type, b.rollNo);
       if(!p.baht) return { baht:0, src:'none', type:type };
-      let pieces=0;
+      let same=[b];
       if(b.rollNo!=null && b.rollNo!==''){
-        pieces=(cutBatches||[]).filter(x=>x.fabricType===type && String(x.rollNo)===String(b.rollNo))
-          .reduce((s,x)=>s+(+x.qtyCut||0),0);
+        same=(cutBatches||[]).filter(x=>x.fabricType===type && String(x.rollNo)===String(b.rollNo));
+        if(!same.some(x=>+x.qtyCut)) same=[b];
       }
-      if(!pieces) pieces=+b.qtyCut||0;
+      const pieces=same.reduce((s,x)=>s+(+x.qtyCut||0),0);
       if(!pieces) return { baht:0, src:'noCut', type:type };
-      return { baht:r4(p.baht/pieces), src:p.src, type:type, pieces:pieces, roll:p.baht };
+      const pp=+b.piecesPer||1;
+      const areaAll=same.reduce((s,x)=>s+(+x.qtyCut||0)*COST.pieceArea(x.size),0);
+      const byArea=same.every(x=>!(+x.qtyCut) || COST.pieceArea(x.size)>0) && areaAll>0;
+      const perPiece=byArea ? p.baht*COST.pieceArea(b.size)/areaAll : p.baht/pieces;
+      return { baht:r4(perPiece*pp), src:p.src, type:type, pieces:pieces, roll:p.baht, piecesPer:pp };
     },
 
     /* จำนวนถุงต่อกระสอบ (ปัดลง เหมือนแอพสต๊อก) */

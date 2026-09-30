@@ -456,7 +456,7 @@
             <input id="cutFreeFabName" list="dlCutFreeFab" placeholder="พิมพ์ชนิดผ้า" style="display:none;"><datalist id="dlCutFreeFab"></datalist></div>
           <div><label>ม้วนที่ (ถ้ารู้ — ไม่บังคับ)</label><input id="cutFreeRollNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ก็ได้"></div>
         </div>
-        <label>ตัดได้ไซซ์ไหนบ้าง — กี่ชิ้น (ไซซ์เป็น ซม. ถ้าเป็นนิ้วให้พิมพ์ต่อท้ายว่า นิ้ว)</label>
+        <label>ตัดได้ไซซ์ไหนบ้าง — กี่ชิ้น (ไซซ์เป็นนิ้ว กว้าง x ยาว)</label>
         <div id="cutRows"></div>
         <button class="btn sec sm" style="margin-top:8px;" id="btnAddCutRow">+ เพิ่มไซซ์</button><br>
         <label>เลขถุงเริ่มต้น (ถ้ามีเขียนไว้อยู่แล้ว — ใช้ตอนกรอกอิสระเท่านั้น)</label><input id="cutFreeBatchNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ">
@@ -490,7 +490,7 @@
             <input id="sewFreeFabName" list="dlSewFreeFab" placeholder="พิมพ์ชนิดผ้า" style="display:none;"><datalist id="dlSewFreeFab"></datalist></div>
         </div>
         <div id="sewFreeRowsWrap" style="display:none;">
-          <label>ไซซ์ (ซม.) — กี่ชิ้น (เพิ่มได้หลายไซซ์)</label>
+          <label>ไซซ์ (นิ้ว) — กี่ชิ้น (เพิ่มได้หลายไซซ์)</label>
           <div id="sewFreeRows"></div>
           <button class="btn sec sm" style="margin-top:6px;" id="btnAddSewFreeRow">+ เพิ่มไซซ์</button>
         </div>
@@ -525,7 +525,7 @@
             <input id="retFreeFabName" list="dlRetFreeFab" placeholder="พิมพ์ชนิดผ้า" style="display:none;"><datalist id="dlRetFreeFab"></datalist></div>
         </div>
         <div id="retFreeRowsWrap" style="display:none;">
-          <label>ไซซ์ (ซม.) — กี่ชิ้น (เพิ่มได้หลายไซซ์)</label>
+          <label>ไซซ์ (นิ้ว) — กี่ชิ้น (เพิ่มได้หลายไซซ์)</label>
           <div id="retFreeRows"></div>
           <button class="btn sec sm" style="margin-top:6px;" id="btnAddRetFreeRow">+ เพิ่มไซซ์</button>
         </div>
@@ -536,8 +536,10 @@
         <select id="retTypeSel"></select>
         <input id="retTypeName" list="dlProdType" placeholder="พิมพ์ประเภทใหม่" style="display:none;">
         <div class="rf" id="retQtyRow">
-          <div><label>รับมากี่ชิ้น</label><input id="retQty" type="number" inputmode="numeric"></div>
-          <div><label>ไซซ์สำเร็จหลังเย็บ (ซม.)</label><input id="retSizeFin" placeholder="เช่น 17.5x26">
+          <div><label>รับกลับมากี่ใบ</label><input id="retQty" type="number" inputmode="numeric"></div>
+          <div style="max-width:150px;"><label>ใช้ผ้ากี่ชิ้นต่อ 1 ใบ</label><input id="retPP" type="number" inputmode="numeric" min="1" value="1">
+            <div class="sumline" style="margin-top:3px;">ปิกนิก 2 ผืนประกบ = 2</div></div>
+          <div><label>ไซซ์สำเร็จหลังเย็บ (นิ้ว)</label><input id="retSizeFin" placeholder="เช่น 17.5x26">
             <div class="sumline" id="retSizeHint" style="margin-top:3px;"></div></div>
         </div>
         <label>ชื่อผู้เย็บ</label><select id="retNameSel"></select>
@@ -651,6 +653,30 @@
     <!-- 4. FINISHED GOODS -->
     <div class="panel" id="p-fin">
       <div class="card"><h3>สต๊อกสินค้าสำเร็จรูป</h3><div id="finCards"></div></div>
+      <div class="card" id="cardTrade">
+        <h3>🛒 สินค้าซื้อมาขาย (ไม่ได้ผลิต)</h3>
+        <p class="sumline">ซื้อมาแล้วขายต่อ — รับเข้าที่นี่ ส่งออกที่แท็บ "จัดส่ง" (ขึ้นเที่ยวรถเดียวกับสินค้าที่ผลิตได้) ยอดแยกจากสินค้าที่ผลิต ไม่ปนกัน</p>
+        <div id="tradeCards"></div>
+        <h3 style="margin-top:14px;">รับเข้า</h3>
+        <div class="rf">
+          <div><label>สินค้า</label><select id="trSel"></select>
+            <input id="trName" placeholder="พิมพ์ชื่อสินค้าใหม่ เช่น ผ้าห่มนาโน" style="display:none;"></div>
+          <div style="max-width:150px;"><label>หน่วยนับ</label><input id="trUnit" list="dlTrUnit" placeholder="เช่น ชิ้น ลัง">
+            <datalist id="dlTrUnit"><option value="ชิ้น"><option value="แพ็ค"><option value="ลัง"><option value="โหล"><option value="ใบ"><option value="ผืน"><option value="กก."></datalist></div>
+        </div>
+        <div class="rf">
+          <div><label>จำนวนที่รับเข้า</label><input id="trQty" type="number" inputmode="decimal"></div>
+          <div><label>ราคาทุนต่อหน่วย (บาท — ถ้ารู้)</label><input id="trCost" type="number" inputmode="decimal" placeholder="ไม่บังคับ"></div>
+        </div>
+        <div class="rf">
+          <div><label>ซื้อจาก</label><input id="trSupplier" list="dlTrSup" placeholder="ไม่บังคับ"><datalist id="dlTrSup"></datalist></div>
+          <div><label>เลขบิล/อ้างอิง</label><input id="trRef" placeholder="ไม่บังคับ"></div>
+        </div>
+        <label>วันที่รับ</label><input id="trDate" type="date">
+        <label>หมายเหตุ</label><input id="trNote">
+        <button class="btn w" id="btnTrIn">บันทึกรับเข้าสินค้าซื้อมาขาย</button>
+        <div class="scr" style="margin-top:11px;"><table id="tTradeHist"></table></div>
+      </div>
       <div class="card">
         <h3>📋 ยอดยกมา (สินค้าสำเร็จรูป) — ลงของเดิมที่มีอยู่แล้ว</h3>
         <label style="display:flex; align-items:center; gap:8px; margin-top:0;">
@@ -694,6 +720,16 @@
           <div><label>จำนวน (แพ็ค)</label><input id="dpQty" type="number" inputmode="numeric"></div>
         </div>
         <button class="btn sec w" id="btnAddDpItem">+ เพิ่มลงเที่ยวรถ</button>
+        <div id="dpTradeBox" style="margin-top:14px; padding-top:10px; border-top:1px dashed var(--line);">
+          <h3 style="margin:0;">🛒 เพิ่มสินค้าซื้อมาขาย</h3>
+          <div class="rf">
+            <div><label>สินค้าซื้อมาขาย</label><select id="dpTrSel"></select></div>
+            <div style="max-width:150px;"><label id="dpTrQtyLabel">จำนวน</label><input id="dpTrQty" type="number" inputmode="decimal"></div>
+          </div>
+          <label>ส่งให้ลูกค้า</label><select id="dpTrCustSel"></select>
+          <input id="dpTrCust" placeholder="พิมพ์ชื่อลูกค้า" style="display:none;">
+          <button class="btn sec w" id="btnAddDpTrade">+ เพิ่มสินค้าซื้อมาขายลงเที่ยวรถ</button>
+        </div>
         <button class="btn w" id="btnSaveDelivery">บันทึกเที่ยวรถ &amp; ออกบิล</button>
       </div>
       <div class="card"><h3>ประวัติเที่ยวรถ</h3><div id="dpHistory"></div></div>
@@ -1027,25 +1063,32 @@ window.WPDAUTH = {
         retired: !!r.retired, widthIn:r.widthIn, lengthIn:r.lengthIn, remainLen };
       });
     },
-    // ---------- คำนวณจากหน้ากว้าง/ความยาวม้วนจริง (หน่วยนิ้ว) — ขนาดที่ตัด "18.5x28" ยังคงเป็น ซม. เหมือนเดิม ต้องแปลงเป็นนิ้วก่อนเทียบ ----------
+    // ---------- คำนวณจากหน้ากว้าง/ความยาวม้วนจริง (หน่วยนิ้ว) — ไซซ์ที่ตัด เช่น "18x54" ก็เป็นนิ้ว (หน้างานวัดเป็นนิ้วทั้งหมด) ----------
     CM_PER_IN: 2.54,
     parseSize(sizeStr){
       if(!sizeStr) return null;
       const raw=String(sizeStr);
       const m=raw.match(/(\d+\.?\d*)\s*[xX×*]\s*(\d+\.?\d*)/);
       if(!m) return null;
-      /* หน่วยเริ่มต้นคือ ซม. (เท่าข้อมูลเดิมทั้งหมด) — ถ้าเขียน " หรือ นิ้ว หรือ in ต่อท้าย จะถือเป็นนิ้ว */
-      const isInch=/("|”|นิ้ว|\bin\b|inch)/i.test(raw);
-      return { w:+m[1], h:+m[2], unit: isInch?'in':'cm' };
+      /* หน่วยเริ่มต้นคือนิ้ว (หน้างานวัดเป็นนิ้ว) — ถ้าเขียน ซม. หรือ cm ต่อท้าย จะถือเป็นเซนติเมตร */
+      const isCm=/(ซม|เซน|\bcm\b)/i.test(raw);
+      return { w:+m[1], h:+m[2], unit: isCm?'cm':'in' };
+    },
+    /* วางชิ้นผ้าบนม้วน: เลขแรก = ตามหน้ากว้าง เลขหลัง = ตามความยาวม้วน
+       ถ้าเลขแรกกว้างเกินหน้าผ้าแต่เลขหลังพอดี ให้หมุนวาง (เช่น 63x78 บนผ้าหน้า 70) — ถ้าหมุนแล้วยังไม่พอ fits=false */
+    pieceLayout(widthIn, sizeStr){
+      const dim=CALC.parseSize(sizeStr); if(!dim||!dim.w||!dim.h) return null;
+      const k=(dim.unit==='in')?1:CALC.CM_PER_IN;
+      let w=dim.w/k, h=dim.h/k, rotated=false;
+      if(widthIn && w>widthIn && h<=widthIn){ const t=w; w=h; h=t; rotated=true; }
+      const fits=!widthIn || w<=widthIn;
+      return { across:Math.max(1, widthIn?Math.floor(widthIn/w):1), along:h, rotated, fits, wIn:dim.w/k, hIn:dim.h/k };
     },
     rollRemainingLength(roll, cutBatchesFromRoll){
       let consumedIn=0;
       (cutBatchesFromRoll||[]).forEach(b=>{
-        const dim=CALC.parseSize(b.size); if(!dim||!dim.w) return;
-        const _k=(dim.unit==='in')?1:CALC.CM_PER_IN;
-        const pieceWIn=dim.w/_k, pieceHIn=dim.h/_k;
-        const piecesAcrossWidth=Math.max(1, Math.floor(roll.widthIn/pieceWIn));
-        consumedIn += Math.ceil(b.qtyCut/piecesAcrossWidth) * pieceHIn;
+        const L=CALC.pieceLayout(roll.widthIn, b.size); if(!L) return;
+        consumedIn += Math.ceil(b.qtyCut/L.across) * L.along;
       });
       return r2(Math.max(0, roll.lengthIn-consumedIn));
     },
@@ -1065,13 +1108,15 @@ window.WPDAUTH = {
       (fabricWithdraw||[]).forEach(w=>(w.picks||[]).forEach(p=>{ wdByBatch[p.batchId]=(wdByBatch[p.batchId]||0)+(+p.qty||0); }));
       return (cutBatches||[]).map(b=>{
         const sent=sentByBatch[b.id]||0, returned=retByBatch[b.id]||0, withdrawn=wdByBatch[b.id]||0;
+        /* ปลอกบางแบบใช้ผ้าหลายชิ้นต่อ 1 ใบ (ปิกนิก = 2 ผืนประกบกัน) — ส่งเย็บนับเป็นชิ้นผ้า รับกลับนับเป็นใบ */
+        const pp=+b.piecesPer||1;
         /* ของเก่า (ตัดก่อนเปลี่ยนระบบ และไม่เคยกรอกไซซ์สำเร็จ) = เลขที่ลงไว้คือไซซ์สำเร็จ ไซซ์ตัดไม่ทราบ */
         const cutKnown = !!b.sizeFinished || String(b.time||'') >= CUTSIZE_SINCE;
         return { batchId:b.id, batchNo:b.batchNo, fabricType:b.fabricType, size:b.size,
           cutSize:(cutKnown?b.size:null), cutKnown:cutKnown,
           sizeFinished:(b.sizeFinished||b.size), qtyCut:b.qtyCut, time:b.time, rollNo:b.rollNo,
-          sent, returned, withdrawn,
-          cutBalance: r2(b.qtyCut-sent), sewingBalance: r2(sent-returned), readyBalance: r2(returned-withdrawn) };
+          sent, returned, withdrawn, piecesPer:pp,
+          cutBalance: r2(b.qtyCut-sent), sewingBalance: r2(sent-returned*pp), readyBalance: r2(returned-withdrawn) };
       });
     },
     // สต๊อกพร้อมผลิต (นับจากรับกลับ หักเบิกไปแล้ว) แยกตามประเภทสินค้า+ชนิดผ้า+ไซซ์ — ผ้า/ไซซ์/ประเภทเดียวกันรวมเป็นก้อนเดียว
@@ -1110,7 +1155,8 @@ window.WPDAUTH = {
       const m={};
       (cutBatchStatusList||[]).forEach(b=>{
         const k=CALC.fkey(b.fabricType,b.size);
-        m[k]=m[k]||{fabricType:b.fabricType,size:b.size,cut:0,awaitingSewing:0,sent:0,atSewing:0,returned:0,used:0,readyStock:0};
+        m[k]=m[k]||{fabricType:b.fabricType,size:b.size,fins:[],cut:0,awaitingSewing:0,sent:0,atSewing:0,returned:0,used:0,readyStock:0};
+        if(b.cutKnown && b.sizeFinished && b.sizeFinished!==b.size && m[k].fins.indexOf(b.sizeFinished)<0) m[k].fins.push(b.sizeFinished);
         m[k].cut+=b.qtyCut; m[k].awaitingSewing+=b.cutBalance; m[k].sent+=b.sent; m[k].atSewing+=b.sewingBalance;
         m[k].returned+=b.returned; m[k].used+=b.withdrawn; m[k].readyStock+=b.readyBalance;
       });
@@ -1196,6 +1242,15 @@ window.WPDAUTH = {
       return n;
     },
     checklistComplete(item){ return (item.seqs||[]).length>0 && (item.checkedSeqs||[]).length===(item.seqs||[]).length; },
+    // ---------- สินค้าซื้อมาขาย: รับเข้า − ส่งออก ± ปรับยอด (แยกจากสินค้าที่ผลิต) ----------
+    tradeStock(items, tradeIn, tradeOut, tradeAdj){
+      const m={}; (items||[]).forEach(it=>{ m[it.id]={ itemId:it.id, name:it.name, unit:it.unit||'ชิ้น', received:0, shipped:0, adjusted:0, stock:0 }; });
+      const add=(id,k,q)=>{ if(m[id]) m[id][k]=r3(m[id][k]+(+q||0)); };
+      (tradeIn||[]).forEach(x=>add(x.itemId,'received',x.qty));
+      (tradeOut||[]).forEach(x=>add(x.itemId,'shipped',x.qty));
+      (tradeAdj||[]).forEach(x=>add(x.itemId,'adjusted',x.delta));
+      return Object.values(m).map(x=>Object.assign(x,{ stock:r3(x.received-x.shipped+x.adjusted) }));
+    },
     // ---------- ถังแก๊ส: นับเป็นชิ้นเรียงเลข เหมือนม้วนผ้า ----------
     nextGasNo(gasReceipts){ return (gasReceipts||[]).reduce((m,g)=>Math.max(m,g.gasNo||0),0) + 1; },
     gasStatus(gasReceipts, gasSwaps){
@@ -1210,7 +1265,8 @@ window.WPDAUTH = {
 
   /* ---------- STATE ---------- */
   let S = { fiberReceipts:[], fiberTh:{}, baleUsage:[], fabricReceipts:[], cuts:[], cutBatches:[], sewSent:[], sewReturns:[], waste:[], prodTypeTh:{},
-            sackReceipts:[], gasReceipts:[], shipments:[], deliveries:[], finAdjustments:[] };
+            sackReceipts:[], gasReceipts:[], shipments:[], deliveries:[], finAdjustments:[],
+            tradeItems:[], tradeIn:[], tradeOut:[], tradeAdj:[] };
   let PROD = { orders:[], wd:[], use:[], fabricWd:[], caseUse:[], bagWd:[], bagUse:[], gasSwaps:[], line:[] };
   let current='fiber', lastHash='';
 
@@ -1289,7 +1345,8 @@ window.WPDAUTH = {
     v3s_fabric: ()=>({receipts:S.fabricReceipts, cuts:S.cuts, cutBatches:S.cutBatches, sewSent:S.sewSent, sewReturns:S.sewReturns, waste:S.waste, prodTypeTh:S.prodTypeTh}),
     v3s_bag:    ()=>({receipts:S.sackReceipts}),
     v3s_gas:    ()=>({receipts:S.gasReceipts}),
-    v3s_fin:    ()=>({shipments:S.shipments, deliveries:S.deliveries, finAdjustments:S.finAdjustments})
+    v3s_fin:    ()=>({shipments:S.shipments, deliveries:S.deliveries, finAdjustments:S.finAdjustments,
+                      tradeItems:S.tradeItems, tradeIn:S.tradeIn, tradeOut:S.tradeOut, tradeAdj:S.tradeAdj})
   };
   function setSaveState(state,msg){
     const el=$('saveState'); if(!el) return;
@@ -1345,6 +1402,7 @@ window.WPDAUTH = {
     S.sackReceipts=Pb.receipts||[];
     S.gasReceipts=Pg.receipts||[];
     S.shipments=Pn.shipments||[]; S.deliveries=Pn.deliveries||[]; S.finAdjustments=Pn.finAdjustments||[];
+    S.tradeItems=Pn.tradeItems||[]; S.tradeIn=Pn.tradeIn||[]; S.tradeOut=Pn.tradeOut||[]; S.tradeAdj=Pn.tradeAdj||[];
     const A=parse(ord,{orders:[]}), B=parse(fd,{wd:[]}), C=parse(ln,{line:[]});
     PROD.orders=A.orders||[]; PROD.wd=B.wd||[]; PROD.use=B.use||[]; PROD.fabricWd=B.fabricWd||[]; PROD.caseUse=B.caseUse||[]; PROD.bagWd=B.bagWd||[]; PROD.bagUse=B.bagUse||[]; PROD.gasSwaps=B.gasSwaps||[]; PROD.line=C.line||[];
     wpdMarkLoaded({v3s_fiber:fi, v3s_fabric:fa, v3s_bag:bg, v3s_gas:gs, v3s_fin:fn});
@@ -1750,6 +1808,10 @@ window.WPDAUTH = {
   /* ---------- 2. FABRIC ---------- */
 
   /* ตัวคูณในไซซ์ใช้ตัว x ตัวเดียวทั้งระบบ พิมพ์ * หรือ × มาก็แปลงให้เอง จะได้ไม่มีไซซ์ซ้ำเพราะเขียนคนละแบบ */
+  /* ไซซ์ตัด → ไซซ์หลังเย็บ เช่น 18x54 → 17.5x26 */
+  function sizeCutFin(size, fins){
+    return esc(size)+((fins&&fins.length)?' <span style="color:var(--dim)">→</span> <b style="color:var(--accent2)">'+fins.map(esc).join(' / ')+'</b>':'');
+  }
   function normSize(v){
     /* แปลงเฉพาะตอนที่เป็นตัวคูณจริงๆ คือมีตัวเลขตามหลัง จะได้ไม่ไปยุ่งกับดอกจันที่ใช้ทำเครื่องหมายอย่างอื่น */
     return String(v==null?'':v).trim().replace(/\s*[*×✕Xx]\s*(?=\d)/g,'x');
@@ -1827,7 +1889,7 @@ window.WPDAUTH = {
     if(cutBar) cutBar.innerHTML = fabCardFilter ? filterBar('btnClearFab',fabCardFilter) : '';
     if($('btnClearFab')) $('btnClearFab').onclick=()=>{ fabCardFilter=null; rFabric(); };
     $('tCutStock').innerHTML=pipe.length?'<tr><th>ชนิดผ้า</th><th>ไซซ์</th><th>ตัดได้</th><th>รอส่งเย็บ</th><th>อยู่ที่ช่างเย็บ</th><th>รับกลับแล้ว</th><th>เบิกไปผลิตแล้ว</th><th>พร้อมผลิต คงเหลือ</th></tr>'+
-      pipe.map(s=>'<tr><td>'+esc(s.fabricType)+'</td><td>'+esc(s.size)+'</td><td>'+s.cut+'</td><td>'+s.awaitingSewing+'</td><td>'+s.atSewing+'</td><td>'+s.returned+
+      pipe.map(s=>'<tr><td>'+esc(s.fabricType)+'</td><td>'+sizeCutFin(s.size,s.fins)+'</td><td>'+s.cut+'</td><td>'+s.awaitingSewing+'</td><td>'+s.atSewing+'</td><td>'+s.returned+
         '</td><td>'+s.used+'</td><td><b style="color:'+(s.readyStock<10?'var(--red)':'var(--accent2)')+'">'+s.readyStock+'</b></td></tr>').join('')
       :'<tr><td class="empty">'+(fabCardFilter?'ผ้าชนิดนี้ยังไม่มีการตัด':'ยังไม่มีการตัดผ้า')+'</td></tr>';
     /* ถุงบรรจุผ้ารายใบ — ไว้ดูว่าถุงไหนพร้อมเบิกบ้าง */
@@ -1843,7 +1905,7 @@ window.WPDAUTH = {
             '<td>'+(b.cutKnown?esc(b.cutSize):'<span style="color:var(--dim)">— ของเก่า</span>')+'</td>'+
             '<td>'+(!b.cutKnown?esc(b.sizeFinished)
                    :(b.sizeFinished!==b.cutSize?'<b style="color:var(--accent2)">'+esc(b.sizeFinished)+'</b>'
-                                               :'<span style="color:var(--dim)">เท่าไซซ์ตัด</span>'))+'</td>'+
+                                               :'<span style="color:var(--dim)">'+(b.returned>0?'เท่าไซซ์ตัด':'รอรับกลับ')+'</span>'))+'</td>'+
             '<td class="kn">'+thDate(b.time)+'</td><td>'+b.qtyCut+'</td><td>'+b.returned+'</td><td>'+b.withdrawn+'</td>'+
             '<td><b style="color:'+(b.readyBalance>0?'var(--accent2)':'var(--dim)')+'">'+b.readyBalance+'</b></td>'+
             '<td><button class="ed" data-btadj="'+b.batchId+'">ปรับยอดคงเหลือ</button> '+
@@ -1852,7 +1914,7 @@ window.WPDAUTH = {
     }
 
     $('tBatchStatus').innerHTML=batchStatus.length?'<tr><th>ถุง #</th><th>ชนิดผ้า</th><th>ไซซ์</th><th>ตัดวันที่</th><th>ตัดได้</th><th>รอส่งเย็บ</th><th>ที่ช่างเย็บ</th><th>รับกลับ</th><th>เบิกแล้ว</th><th>พร้อมผลิต</th><th></th></tr>'+
-      batchStatus.slice().sort((a,b)=>b.time<a.time?-1:1).map(b=>'<tr><td>#'+b.batchNo+'</td><td>'+esc(b.fabricType)+'</td><td>'+esc(b.size)+'</td><td class="kn">'+thDate(b.time)+'</td><td>'+b.qtyCut+
+      batchStatus.slice().sort((a,b)=>b.time<a.time?-1:1).map(b=>'<tr><td>#'+b.batchNo+'</td><td>'+esc(b.fabricType)+'</td><td>'+sizeCutFin(b.size,b.cutKnown&&b.sizeFinished!==b.size?[b.sizeFinished]:[])+'</td><td class="kn">'+thDate(b.time)+'</td><td>'+b.qtyCut+
         '</td><td>'+b.cutBalance+'</td><td>'+b.sewingBalance+'</td><td>'+b.returned+'</td><td>'+b.withdrawn+'</td><td><b style="color:'+(b.readyBalance>0?'var(--accent2)':'var(--dim)')+'">'+b.readyBalance+'</b></td>'+
         '<td><button class="ed" data-btadj="'+b.batchId+'">ปรับยอดคงเหลือ</button> <button class="x" data-btrm="'+b.batchId+'">✕</button></td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีการตัดผ้า</td></tr>';
@@ -1922,8 +1984,12 @@ window.WPDAUTH = {
       const fab=$(fabId).value, size=$(sizeId).value;
       const opts=batchStatus.filter(b=>b.fabricType===fab && b.size===size && b[balanceKey]>0);
       const _needPick = !fab || !size;
-      sel.innerHTML=opts.length?opts.map(b=>'<option value="'+b.batchId+'">ถุง #'+b.batchNo+' · '+esc(b.size||'')+
-        ' · ตัด '+thDate(b.time)+' (เหลือ'+labelSuffix+' '+b[balanceKey]+' ชิ้น)</option>').join('')
+      sel.innerHTML=opts.length?opts.map(b=>{
+        /* รอรับกลับ: ปลอกที่ใช้ผ้าหลายชิ้นต่อใบ บอกเป็นจำนวนใบที่ควรได้คืน */
+        const pp=(balanceKey==='sewingBalance')?guessPiecesPer(b.batchId, batchProdType(b.batchId)):1;
+        const bal=(pp>1)?(Math.floor(b[balanceKey]/pp)+' ใบ · ผ้า '+b[balanceKey]+' ชิ้น'):(b[balanceKey]+' ชิ้น');
+        return '<option value="'+b.batchId+'">ถุง #'+b.batchNo+' · '+esc(b.size||'')+
+        ' · ตัด '+thDate(b.time)+' (เหลือ'+labelSuffix+' '+bal+')</option>'; }).join('')
         :'<option value="">'+(_needPick?'— เลือกชนิดผ้าและไซซ์ก่อน —':'— ไม่มีถุงที่พร้อม'+labelSuffix+' —')+'</option>';
     }
     refreshBatchSel('sewBatchSel','sewFabSel','sewSizeSel','cutBalance','ส่ง');
@@ -2077,8 +2143,9 @@ window.WPDAUTH = {
     $('cutFreeModeRow').style.display=free?'flex':'none';
   };
   $('cutFreeFabSel').onchange=function(){ const v=this.value,t=$('cutFreeFabName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} };
-  ['sewFabSel','sewSizeSel'].forEach(id=>$(id).onchange=()=>rFabric());
-  ['retFabSel','retSizeSel'].forEach(id=>$(id).onchange=()=>rFabric());
+  /* เลือกผ้า+ไซซ์แล้ว ถุงแรกถูกเลือกให้เอง — เติมจำนวน/ไซซ์สำเร็จ/ผู้เย็บของถุงนั้นให้ทันที ไม่ต้องกดเลือกถุงซ้ำ */
+  ['sewFabSel','sewSizeSel'].forEach(id=>$(id).onchange=()=>{ rFabric(); $('sewBatchSel').dispatchEvent(new Event('change')); });
+  ['retFabSel','retSizeSel'].forEach(id=>$(id).onchange=()=>{ rFabric(); $('retBatchSel').dispatchEvent(new Event('change')); });
   $('sewBatchSel').onchange=function(){
     const opt=this.selectedOptions[0]; if(!opt) return;
     const m=/เหลือส่ง (\d+)/.exec(opt.textContent); if(m) $('sewQty').value=m[1];
@@ -2090,7 +2157,7 @@ window.WPDAUTH = {
 
   function addCutRow(size,qty){
     const d=document.createElement('div'); d.className='frow';
-    d.innerHTML='<input class="cs" placeholder="ไซซ์ที่ตัด (ซม.) เช่น 18x32" value="'+esc(size||'')+'">'+
+    d.innerHTML='<input class="cs" placeholder="ไซซ์ที่ตัด (นิ้ว) เช่น 18x54" value="'+esc(size||'')+'">'+
       '<input class="cq" type="number" inputmode="numeric" placeholder="ชิ้น" style="max-width:90px;" value="'+(qty==null?'':qty)+'">'+
       '<button class="x">✕</button>';
     d.querySelector('.x').onclick=()=>d.remove();
@@ -2112,6 +2179,24 @@ window.WPDAUTH = {
     if(!isFree && !rollNo){ toast('เลือกม้วนที่จะตัด — ถ้าไม่มีม้วนว่าง ต้องไปรับเข้าม้วนผ้าก่อน'); return; }
     const rows=Array.from(document.querySelectorAll('#cutRows .frow')).map(r=>({ size:normSize(r.querySelector('.cs').value), qty:+r.querySelector('.cq').value||0 })).filter(r=>r.size&&r.qty);
     if(!rows.length){ toast('กรอกไซซ์และจำนวนอย่างน้อย 1 แถว'); return; }
+    /* ตัดเกินกว่าที่ม้วนนี้ได้จริง (ดูจากหน้ากว้าง×ความยาวม้วน เป็นนิ้ว) — มักเป็นพิมพ์จำนวนผิด */
+    const roll=!isFree && (S.fabricReceipts||[]).find(r=>r.fabricType===fab && r.rollNo===rollNo);
+    if(roll && roll.widthIn && roll.lengthIn){
+      /* ชิ้นใหญ่กว่าหน้าผ้า (หมุนแล้วก็ไม่พอ) — เช่น ปิกนิก 5F 63x78 บนผ้าหน้า 59 */
+      const _wide=rows.filter(r=>{ const L=CALC.pieceLayout(roll.widthIn, r.size); return L && !L.fits; });
+      if(_wide.length && !await ask('ชิ้นผ้ากว้างกว่าหน้าผ้า','ม้วนที่ '+rollNo+' หน้ากว้าง '+roll.widthIn+' นิ้ว\n'+
+          _wide.map(r=>'ไซซ์ '+r.size+' กว้างกว่าหน้าผ้า (วางแนวไหนก็ไม่พอ)').join('\n')+
+          '\n\nเลือกม้วนถูกแน่ไหม? (ไซซ์เป็นนิ้ว กว้าง x ยาว)')) return;
+      const _rows=rows.map(r=>({size:r.size, qtyCut:r.qty}));
+      const _usedIn=r2(1e9-CALC.rollRemainingLength({widthIn:roll.widthIn, lengthIn:1e9}, _rows));
+      if(!_wide.length && _usedIn>roll.lengthIn){
+        const L=rows.length===1 ? CALC.pieceLayout(roll.widthIn, rows[0].size) : null;
+        const _max=L ? L.across*Math.floor(roll.lengthIn/L.along) : null;
+        if(!await ask('ตัดเกินความยาวม้วน?','ม้วนที่ '+rollNo+' กว้าง '+roll.widthIn+' × ยาว '+roll.lengthIn+' นิ้ว\n'+
+          'ที่กรอกไว้ต้องใช้ผ้ายาวประมาณ '+Math.round(_usedIn)+' นิ้ว'+(_max!=null?'\nไซซ์ '+rows[0].size+' ม้วนนี้ตัดได้ประมาณ '+_max+' ชิ้น'+(L.rotated?' (วางหมุนตามยาว)':''):'')+
+          '\n\nจำนวนหรือไซซ์ถูกต้องแน่ใช่ไหม? (ไซซ์เป็นนิ้ว กว้าง x ยาว)')) return;
+      }
+    }
     const t=localISO();
     const customStartBatchNo=isFree?$('cutFreeBatchNo').value.trim():'';
     // ใช้เลขถุงที่กำหนดเองได้เฉพาะตอนกรอกอิสระและมีแค่ 1 ไซซ์ (หลายไซซ์มีเลขคนละชุดกัน กำหนดเลขเดียวรวมกันไม่ได้)
@@ -2131,7 +2216,7 @@ window.WPDAUTH = {
   let lastSewFreeSize='';
   function addSewFreeRow(size,qty){
     const d=document.createElement('div'); d.className='frow';
-    d.innerHTML='<input class="sfs" placeholder="ไซซ์ (ซม.) เช่น 18.5x28" value="'+esc(size!=null?size:lastSewFreeSize)+'">'+
+    d.innerHTML='<input class="sfs" placeholder="ไซซ์ (นิ้ว) เช่น 17.5x26" value="'+esc(size!=null?size:lastSewFreeSize)+'">'+
       '<input class="sfq" type="number" inputmode="numeric" placeholder="ชิ้น" style="max-width:90px;" value="'+(qty==null?'':qty)+'">'+
       '<button class="x">✕</button>';
     d.querySelector('.x').onclick=()=>{ if($('sewFreeRows').children.length>1) d.remove(); };
@@ -2209,7 +2294,7 @@ window.WPDAUTH = {
   let lastRetFreeSize='';
   function addRetFreeRow(size,qty){
     const d=document.createElement('div'); d.className='frow';
-    d.innerHTML='<input class="rfs" placeholder="ไซซ์ (ซม.) เช่น 18.5x28" value="'+esc(size!=null?size:lastRetFreeSize)+'">'+
+    d.innerHTML='<input class="rfs" placeholder="ไซซ์ (นิ้ว) เช่น 17.5x26" value="'+esc(size!=null?size:lastRetFreeSize)+'">'+
       '<input class="rfq" type="number" inputmode="numeric" placeholder="ชิ้น" style="max-width:90px;" value="'+(qty==null?'':qty)+'">'+
       '<button class="x">✕</button>';
     d.querySelector('.x').onclick=()=>{ if($('retFreeRows').children.length>1) d.remove(); };
@@ -2227,29 +2312,89 @@ window.WPDAUTH = {
     $('retQtyRow').style.display=free?'none':'flex';
     if(free && !$('retFreeRows').children.length) addRetFreeRow();
   };
-  /* เลือกถุงแล้วบอกไซซ์ตัด และเติมไซซ์สำเร็จที่เคยกรอกไว้ให้ */
+  /* ใส่ค่าลง select ที่มีช่อง "+ พิมพ์ใหม่…" (ถ้าไม่มีในรายการ ให้เปิดช่องพิมพ์แล้วใส่ชื่อให้) */
+  function setPickOrNew(selId, inputId, v){
+    const sel=$(selId), inp=$(inputId); if(!sel||!v) return;
+    if([...sel.options].some(o=>o.value===v)){ sel.value=v; if(inp){ inp.style.display='none'; inp.value=v; } }
+    else { sel.value='__new__'; if(inp){ inp.style.display='block'; inp.value=v; } }
+  }
+  /* เลือกถุงแล้วบอกไซซ์ตัด และเติมไซซ์สำเร็จที่เคยกรอกไว้ให้
+     ถุงไหนส่งไปให้ใคร เป็นสินค้าอะไร — เติมตามตอนส่งเย็บ ถุงเบอร์ไหนไป ก็รับกลับเข้าถุงเบอร์นั้น */
+  let retFillFor=null, retAutoFin='', retAutoNote='', retAutoPP='1';
+  /* ประเภทสินค้าของถุง (หมอนหนุน / ปิกนิก ...) ตามตอนส่งเย็บครั้งล่าสุด */
+  function batchProdType(batchId){
+    const s=(S.sewSent||[]).filter(x=>x.batchId===batchId && x.productType).sort((x,y)=>String(x.time).localeCompare(String(y.time))).pop();
+    return s ? s.productType : '';
+  }
+  /* ผ้ากี่ชิ้นต่อ 1 ใบ: ถุงนี้เคยลงไว้ > ถุงก่อนหน้าที่เป็นสินค้าเดียวกัน > ปิกนิก = 2 > 1 */
+  function guessPiecesPer(batchId, pt){
+    const b=S.cutBatches.find(x=>x.id===batchId)||{};
+    if(+b.piecesPer) return +b.piecesPer;
+    if(pt){
+      const sib=S.cutBatches.filter(x=>x.id!==batchId && +x.piecesPer && batchProdType(x.id)===pt)
+        .sort((x,y)=>String(x.time).localeCompare(String(y.time))).pop();
+      if(sib) return +sib.piecesPer;
+      if(/ปิกนิก/.test(pt)) return 2;
+    }
+    return 1;
+  }
+  function retFormType(){ return normSize($('retTypeSel').value==='__new__'?$('retTypeName').value:$('retTypeSel').value); }
+  /* เดาไซซ์หลังเย็บจากถุงก่อนๆ — ต้องเป็นสินค้าประเภทเดียวกัน (ปลอกหมอนกับปลอกปิกนิก ไซซ์ตัดเท่ากันก็เย็บออกมาไม่เท่ากัน) */
+  function guessFinished(b, pt, old){
+    if(b.sizeFinished && b.sizeFinished!==b.size) return { fin:b.sizeFinished, note:'' };
+    if(b.sizeFinished) return { fin:'', note:'' };
+    const byTime=(x,y)=>String(x.time).localeCompare(String(y.time));
+    const sameType=x=>!pt || batchProdType(x.id)===pt;
+    const ptTxt=pt?esc(pt)+' ':'';
+    let sib=S.cutBatches.filter(x=>x.id!==b.id && x.fabricType===b.fabricType && x.size===b.size && x.sizeFinished && sameType(x)).sort(byTime).pop();
+    if(sib) return { fin:sib.sizeFinished, note:'เติมไซซ์สำเร็จ '+esc(sib.sizeFinished)+' ให้ตาม'+ptTxt+'ถุง #'+sib.batchNo+' (ผ้า+ไซซ์ตัดเดียวกัน)' };
+    /* ผ้าคนละชนิดแต่สินค้า+ไซซ์ตัดเดียวกัน ปกติเย็บออกมาไซซ์เดียวกัน */
+    if(old) return { fin:'', note:'' };
+    sib=S.cutBatches.filter(x=>x.id!==b.id && x.size===b.size && x.sizeFinished && x.sizeFinished!==x.size && sameType(x)).sort(byTime).pop();
+    if(sib) return { fin:sib.sizeFinished, note:'เติมไซซ์สำเร็จ '+esc(sib.sizeFinished)+' ให้ตาม'+ptTxt+'ไซซ์ตัด '+esc(b.size)+' ที่เคยเย็บ ('+esc(sib.fabricType)+' ถุง #'+sib.batchNo+') — ถ้าไม่ใช่แก้ได้' };
+    return { fin:'', note:'' };
+  }
   function updateRetSizeHint(){
     const sel=$('retBatchSel'), hint=$('retSizeHint'), fin=$('retSizeFin');
     if(!sel||!hint) return;
     const b=S.cutBatches.find(x=>x.id===sel.value);
-    if(!b){ hint.textContent=''; return; }
+    if(!b){ hint.textContent=''; retFillFor=null; return; }
     const _old = !b.sizeFinished && String(b.time||'') < CUTSIZE_SINCE;
+    if(retFillFor!==b.id){
+      retFillFor=b.id; retAutoFin=''; retAutoNote=''; if(fin) fin.value=''; retAutoPP=$('retPP').value;
+      const sent=(S.sewSent||[]).filter(x=>x.batchId===b.id).sort((x,y)=>String(x.time).localeCompare(String(y.time))).pop();
+      if(sent){ setPickOrNew('retTypeSel','retTypeName',sent.productType); setPickOrNew('retNameSel','retName',sent.sewerName); }
+    }
+    /* ผ้ากี่ชิ้นต่อใบ — ถ้ายังไม่ได้แก้เอง เดาตามประเภทสินค้า แล้วคิดจำนวนใบที่รอรับให้ใหม่ */
+    if($('retPP').value===retAutoPP){
+      const pp=guessPiecesPer(b.id, retFormType());
+      if(String(pp)!==$('retPP').value){ $('retPP').value=pp; }
+      retAutoPP=String(pp); retFillQty();
+    }
+    /* ช่องไซซ์สำเร็จยังเป็นค่าที่แอพเติมให้ (ยังไม่ได้แก้เอง) — เปลี่ยนประเภทสินค้าแล้วเดาใหม่ */
+    if(fin && fin.value===retAutoFin){
+      const g=guessFinished(b, retFormType(), _old);
+      retAutoFin=g.fin; retAutoNote=g.note; fin.value=g.fin;
+    }
     hint.innerHTML=(_old?'ถุงเก่า — เลขที่ลงไว้คือไซซ์สำเร็จ <b style="color:var(--accent2)">'+esc(b.size)+'</b>'
                         :'ถุงนี้ตัดไว้ไซซ์ <b style="color:var(--accent2)">'+esc(b.size)+'</b>')+
       ' · ตัด '+thDate(b.time)+
       (b.sizeFinished&&b.sizeFinished!==b.size?' · เคยลงไซซ์สำเร็จไว้ '+esc(b.sizeFinished):'')+
-      '<br><span style="color:var(--muted)">เว้นว่าง = ไซซ์เท่าเดิม</span>';
-    if(fin && !fin.value && b.sizeFinished && b.sizeFinished!==b.size) fin.value=b.sizeFinished;
-    /* ถุงนี้ยังไม่เคยลงไซซ์สำเร็จ — เติมไซซ์สำเร็จของถุงก่อนหน้าที่ผ้า+ไซซ์ตัดเดียวกันให้ ปลอกแบบเดียวกันจะได้ใช้ชื่อไซซ์เดียวกันตอนเบิก */
-    if(fin && !fin.value && !b.sizeFinished){
-      const sib=S.cutBatches.filter(x=>x.id!==b.id && x.fabricType===b.fabricType && x.size===b.size && x.sizeFinished)
-        .sort((x,y)=>String(x.time).localeCompare(String(y.time))).pop();
-      if(sib){ fin.value=sib.sizeFinished; hint.innerHTML+='<br><span style="color:var(--accent2)">เติมไซซ์สำเร็จ '+esc(sib.sizeFinished)+' ให้ตามถุง #'+sib.batchNo+' (ผ้า+ไซซ์ตัดเดียวกัน)</span>'; }
-    }
+      (_old?'<br><span style="color:var(--muted)">เว้นว่าง = ไซซ์เท่าเดิม</span>'
+           :'<br><span style="color:var(--muted)">กรอกไซซ์หลังเย็บเป็นนิ้ว เช่น ปลอกหมอน ตัด 18x54 → ได้ 17.5x26</span>')+
+      (retAutoNote && fin && fin.value===retAutoFin?'<br><span style="color:var(--accent2)">'+retAutoNote+'</span>':'');
   }
   if($('retBatchSel')) $('retBatchSel').addEventListener('change',updateRetSizeHint);
+  /* จำนวนใบที่รอรับ = ชิ้นผ้าที่อยู่ที่ช่างเย็บ ÷ ชิ้นต่อใบ */
+  function retFillQty(){
+    const st=CALC.cutBatchStatus(S.cutBatches,S.sewSent,S.sewReturns,PROD.fabricWd).find(x=>x.batchId===$('retBatchSel').value);
+    if(!st) return; const pp=Math.max(1,+$('retPP').value||1);
+    $('retQty').value=Math.max(0,Math.floor(st.sewingBalance/pp));
+  }
+  $('retPP').addEventListener('input',retFillQty);
   $('retFreeFabSel').onchange=function(){ const v=this.value,t=$('retFreeFabName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} };
-  $('retTypeSel').onchange=function(){ const v=this.value,t=$('retTypeName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} };
+  $('retTypeSel').onchange=function(){ const v=this.value,t=$('retTypeName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} updateRetSizeHint(); };
+  $('retTypeName').addEventListener('input',updateRetSizeHint);
   $('btnRet').onclick=async()=>{
     const dateVal=$('retDate').value?$('retDate').value+'T'+localISO().slice(11):localISO();
     const productType=normSize($('retTypeSel').value==='__new__'?$('retTypeName').value:$('retTypeSel').value);
@@ -2287,22 +2432,32 @@ window.WPDAUTH = {
     if(!batchId){ toast('เลือกถุงตัดที่จะรับกลับก่อน'); return; }
     const batch=S.cutBatches.find(b=>b.id===batchId); if(!batch){ toast('ไม่พบถุงนี้'); return; }
     const status=CALC.cutBatchStatus(S.cutBatches,S.sewSent,S.sewReturns,PROD.fabricWd).find(b=>b.batchId===batchId);
-    if(qty>status.sewingBalance){
-      await info('รับกลับเกินจำนวนที่ส่งเย็บไม่ได้','ถุง #'+batch.batchNo+' ('+batch.fabricType+' '+batch.size+') อยู่ที่ช่างเย็บ '+status.sewingBalance+' ชิ้น แต่กรอกรับกลับ '+qty+' ชิ้น\n\nถ้าของเกินมาจริง ให้ติ๊ก "กรอกอิสระ" แล้วลงเป็นรายการแยก ระบบจะได้ไม่ติดลบ');
+    const pp=Math.max(1,Math.round(+$('retPP').value||1));
+    if(qty*pp>status.sewingBalance){
+      await info('รับกลับเกินจำนวนที่ส่งเย็บไม่ได้','ถุง #'+batch.batchNo+' ('+batch.fabricType+' '+batch.size+') อยู่ที่ช่างเย็บ '+status.sewingBalance+' ชิ้น แต่กรอกรับกลับ '+qty+' ใบ'+(pp>1?' × '+pp+' ชิ้น = '+(qty*pp)+' ชิ้น':'')+'\n\nถ้าของเกินมาจริง ให้ติ๊ก "กรอกอิสระ" แล้วลงเป็นรายการแยก ระบบจะได้ไม่ติดลบ');
       return;
     }
     const finRaw=$('retSizeFin')?normSize($('retSizeFin').value):'';
-    const sizeFin=finRaw||batch.size;
+    const sizeFin=finRaw||batch.sizeFinished||batch.size;
+    /* ถุงระบบใหม่ ไซซ์ที่ลงไว้คือไซซ์ตัด — เย็บแล้วไซซ์เปลี่ยน ถ้าลืมกรอก แอพผลิตจะเบิกเป็นไซซ์ตัดผิดๆ */
+    if(!finRaw && !batch.sizeFinished && status.cutKnown){
+      if(!await ask('ยังไม่ได้กรอกไซซ์หลังเย็บ','ถุง #'+batch.batchNo+' ตัดไว้ '+batch.size+' นิ้ว\nเย็บแล้วได้ไซซ์เท่าเดิม ('+batch.size+') จริงไหม?\n\nถ้าไม่ใช่ กดยกเลิก แล้วกรอกช่อง "ไซซ์สำเร็จหลังเย็บ" (เช่น 17.5x26)')) return;
+    }
     if(finRaw && finRaw!==batch.size && batch.sizeFinished && batch.sizeFinished!==finRaw){
       if(!await ask('ถุงนี้เคยลงไซซ์สำเร็จไว้แล้ว',
         'ถุง #'+batch.batchNo+' เคยลงไซซ์สำเร็จ "'+batch.sizeFinished+'"\nครั้งนี้กรอก "'+finRaw+'"\n\nยืนยันจะเปลี่ยนเป็นไซซ์ใหม่หรือไม่?')) return;
     }
-    if(finRaw && finRaw!==batch.size) batch.sizeFinished=finRaw;
+    /* ถุงระบบใหม่ เก็บไซซ์สำเร็จไว้ทุกครั้ง (แม้เท่าไซซ์ตัด) แอพผลิตจะได้ไม่ไปเดาจากถุงสินค้าอื่น */
+    if((+batch.piecesPer||1)!==pp && status.returned>0){
+      if(!await ask('เปลี่ยนจำนวนผ้าต่อใบ?','ถุง #'+batch.batchNo+' เคยรับกลับโดยนับ '+(+batch.piecesPer||1)+' ชิ้นต่อใบ\nครั้งนี้กรอก '+pp+' ชิ้นต่อใบ\n\nยอดที่ช่างเย็บของถุงนี้จะคิดใหม่ทั้งถุง ยืนยันไหม?')) return;
+    }
+    if(status.cutKnown) batch.sizeFinished=sizeFin; else if(finRaw && finRaw!==batch.size) batch.sizeFinished=finRaw;
+    if(pp>1 || batch.piecesPer) batch.piecesPer=pp;
     S.sewReturns.push({ id:uid(), time:dateVal, batchId, batchNo:batch.batchNo,
-      fabricType:batch.fabricType, size:batch.size, sizeFinished:sizeFin, productType, qty, sewerName, note:$('retNote').value.trim() });
-    await saveFabric(); $('retQty').value=''; $('retSizeFin').value=''; /* ชื่อผู้เย็บค้างไว้ */ $('retNote').value='';
+      fabricType:batch.fabricType, size:batch.size, sizeFinished:sizeFin, productType, qty, piecesPer:pp, sewerName, note:$('retNote').value.trim() });
+    await saveFabric(); $('retQty').value=''; $('retSizeFin').value=''; $('retPP').value='1'; retFillFor=null; retAutoFin=''; retAutoNote=''; retAutoPP='1'; /* ชื่อผู้เย็บค้างไว้ */ $('retNote').value='';
     // ประเภทสินค้าค้างไว้ จนกว่าจะเปลี่ยนเอง
-    rFabric(); toast('บันทึกรับกลับถุง #'+batch.batchNo+' แล้ว');
+    rFabric(); toast('บันทึกรับกลับถุง #'+batch.batchNo+' แล้ว — '+qty+' ใบ'+(pp>1?' (ผ้า '+(qty*pp)+' ชิ้น)':''));
   };
   $('btnProdTypeTh').onclick=async()=>{
     const t=$('prodTypeThSel').value; if(!t){ toast('เลือกประเภทสินค้าก่อน'); return; }
@@ -2600,6 +2755,7 @@ window.WPDAUTH = {
       '<button class="ed" style="margin-top:6px;" data-finfreeadj="'+esc(s.freeLabel)+'">ปรับยอดคงเหลือ</button></div>'
     ).join(''):'';
     $('finCards').innerHTML=cardsHtml||'<div class="empty">ยังไม่มีข้อมูล</div>';
+    rTrade();
 
     $('finCards').querySelectorAll('[data-fincard]').forEach(c=>c.onclick=(ev)=>{
       if(ev.target && ev.target.hasAttribute && (ev.target.hasAttribute('data-finadj')||ev.target.hasAttribute('data-finfreeadj'))) return;
@@ -2658,6 +2814,83 @@ window.WPDAUTH = {
       S.finAdjustments=S.finAdjustments.filter(x=>x.id!==b.dataset.finadjrm); await saveFin(); rFin(); toast('ลบแล้ว');
     });
   }
+  /* ---------- สินค้าซื้อมาขาย ---------- */
+  function tradeById(id){ return (S.tradeItems||[]).find(x=>x.id===id); }
+  function tradeStockNow(){ return CALC.tradeStock(S.tradeItems,S.tradeIn,S.tradeOut,S.tradeAdj); }
+  function rTrade(){
+    const st=tradeStockNow().sort((a,b)=>a.name.localeCompare(b.name,'th'));
+    $('tradeCards').innerHTML=st.length?st.map(x=>
+      '<div class="scard'+(x.stock<=0?' lowstock':'')+'"><div class="nm">'+esc(x.name)+' <span class="bdg warn">ซื้อมาขาย</span></div>'+
+      '<div class="n"'+(x.stock<0?' style="color:var(--red)"':'')+'>'+x.stock+' <span style="font-size:13px;color:var(--dim);">'+esc(x.unit)+'</span></div>'+
+      '<div class="l">รับเข้า '+x.received+' · ส่งออกแล้ว '+x.shipped+(x.adjusted?' · ปรับยอด '+(x.adjusted>0?'+':'')+x.adjusted:'')+'</div>'+
+      '<button class="ed" style="margin-top:6px;" data-tradj="'+x.itemId+'">ปรับยอดคงเหลือ</button></div>').join('')
+      :'<div class="empty">ยังไม่มีสินค้าซื้อมาขาย — รับเข้าครั้งแรกที่ฟอร์มด้านล่าง</div>';
+    $('tradeCards').querySelectorAll('[data-tradj]').forEach(btn=>btn.onclick=async()=>{
+      const x=st.find(y=>y.itemId===btn.dataset.tradj); if(!x) return;
+      const input=await askText2('ปรับยอด "'+x.name+'" เป็นเท่าไหร่ ('+x.unit+')\n\nตอนนี้เหลือ '+x.stock+' '+x.unit+' (รับเข้า '+x.received+' - ส่งออก '+x.shipped+')', x.stock);
+      const target=await readAdjNumber(input,{current:x.stock,unit:x.unit,what:'"'+x.name+'"'});
+      if(target===null) return;
+      const delta=r3(target-x.stock); if(delta===0){ toast('ยอดเท่าเดิม ไม่ต้องปรับ'); return; }
+      S.tradeAdj.push({ id:uid(), time:localISO(), itemId:x.itemId, delta, note:'ปรับยอดให้ตรงกับที่นับจริง' });
+      await saveFin(); rFin(); toast('ปรับยอด "'+x.name+'" เป็น '+target+' '+x.unit+' แล้ว');
+    });
+    const keep=$('trSel').value;
+    $('trSel').innerHTML='<option value="">— เลือกสินค้า —</option>'+
+      (S.tradeItems||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'th')).map(it=>'<option value="'+it.id+'">'+esc(it.name)+' ('+esc(it.unit||'ชิ้น')+')</option>').join('')+
+      '<option value="__new__">+ สินค้าใหม่…</option>';
+    if(keep && [...$('trSel').options].some(o=>o.value===keep)) $('trSel').value=keep;
+    $('dlTrSup').innerHTML=[...new Set((S.tradeIn||[]).map(x=>x.supplier).filter(Boolean))].map(v=>'<option value="'+esc(v)+'"></option>').join('');
+    if(!$('trDate').value) $('trDate').value=todayStr();
+    /* ประวัติ รับเข้า/ส่งออก ล่าสุด */
+    const ev=[].concat(
+      (S.tradeIn||[]).map(x=>({t:x.time, kind:'in', x})),
+      (S.tradeOut||[]).map(x=>({t:x.time, kind:'out', x})),
+      (S.tradeAdj||[]).map(x=>({t:x.time, kind:'adj', x}))).sort((a,b)=>String(b.t).localeCompare(String(a.t))).slice(0,60);
+    $('tTradeHist').innerHTML=ev.length?'<tr><th>วันที่</th><th>สินค้า</th><th>รายการ</th><th>จำนวน</th><th>รายละเอียด</th><th></th></tr>'+
+      ev.map(e=>{ const it=tradeById(e.x.itemId)||{name:'(ลบแล้ว)',unit:''}; const u=esc(it.unit||'');
+        if(e.kind==='in') return '<tr><td>'+ymd(e.t)+'</td><td>'+esc(it.name)+'</td><td><span class="bdg ok">รับเข้า</span></td><td>+'+e.x.qty+' '+u+'</td><td>'+
+          esc([e.x.supplier, e.x.refNo?'บิล '+e.x.refNo:'', e.x.costPerUnit?e.x.costPerUnit+' บาท/'+(it.unit||'หน่วย'):'', e.x.note].filter(Boolean).join(' · '))+
+          '</td><td><button class="x" data-trinrm="'+e.x.id+'">✕</button></td></tr>';
+        if(e.kind==='out') return '<tr><td>'+ymd(e.t)+'</td><td>'+esc(it.name)+'</td><td><span class="bdg warn">ส่งออก</span></td><td>−'+e.x.qty+' '+u+'</td><td>'+esc(e.x.customer||'')+' · เที่ยวรถ '+esc(e.x.note||'')+'</td><td></td></tr>';
+        return '<tr><td>'+ymd(e.t)+'</td><td>'+esc(it.name)+'</td><td>ปรับยอด</td><td>'+(e.x.delta>0?'+':'')+e.x.delta+' '+u+'</td><td>'+esc(e.x.note||'')+'</td><td><button class="x" data-tradjrm="'+e.x.id+'">✕</button></td></tr>';
+      }).join('')
+      :'<tr><td class="empty">ยังไม่มีการรับเข้า/ส่งออก</td></tr>';
+    $('tTradeHist').querySelectorAll('[data-trinrm]').forEach(b=>b.onclick=async()=>{
+      if(!await ask('ลบรายการรับเข้านี้?','ยอดคงเหลือจะลดลงตามจำนวนที่รับเข้าครั้งนี้')) return;
+      S.tradeIn=S.tradeIn.filter(x=>x.id!==b.dataset.trinrm); await saveFin(); rFin(); toast('ลบแล้ว');
+    });
+    $('tTradeHist').querySelectorAll('[data-tradjrm]').forEach(b=>b.onclick=async()=>{
+      if(!await ask('ลบรายการปรับยอดนี้?')) return;
+      S.tradeAdj=S.tradeAdj.filter(x=>x.id!==b.dataset.tradjrm); await saveFin(); rFin(); toast('ลบแล้ว');
+    });
+  }
+  $('trSel').onchange=function(){
+    const v=this.value, n=$('trName'), u=$('trUnit');
+    if(v==='__new__'){ n.style.display='block'; n.value=''; u.disabled=false; u.value=''; n.focus(); return; }
+    n.style.display='none';
+    const it=tradeById(v); u.value=it?(it.unit||'ชิ้น'):''; u.disabled=!!it;
+  };
+  $('btnTrIn').onclick=async()=>{
+    let itemId=$('trSel').value; const qty=+$('trQty').value;
+    if(!itemId){ toast('เลือกสินค้า หรือเลือก "+ สินค้าใหม่…"'); return; }
+    if(!(qty>0)){ toast('กรอกจำนวนที่รับเข้า'); return; }
+    if(itemId==='__new__'){
+      const name=$('trName').value.trim(), unit=$('trUnit').value.trim()||'ชิ้น';
+      if(!name){ toast('พิมพ์ชื่อสินค้าใหม่'); return; }
+      const dup=(S.tradeItems||[]).find(x=>x.name.replace(/\s+/g,'')===name.replace(/\s+/g,''));
+      if(dup){ itemId=dup.id; }
+      else { itemId=uid(); S.tradeItems.push({ id:itemId, name, unit, createdAt:localISO() }); }
+    }
+    const it=tradeById(itemId);
+    const dateVal=$('trDate').value?$('trDate').value+'T'+localISO().slice(11):localISO();
+    const cost=$('trCost').value===''?null:+$('trCost').value;
+    S.tradeIn.push({ id:uid(), time:dateVal, itemId, qty:r3(qty), costPerUnit:cost, supplier:$('trSupplier').value.trim(), refNo:$('trRef').value.trim(), note:$('trNote').value.trim() });
+    await saveFin();
+    $('trQty').value=''; $('trCost').value=''; $('trRef').value=''; $('trNote').value='';
+    $('trSel').value=itemId; $('trName').style.display='none';
+    rFin(); $('trSel').onchange.call($('trSel'));
+    toast('รับเข้า "'+it.name+'" '+qty+' '+(it.unit||'ชิ้น')+' แล้ว');
+  };
   $('finFreeMode').onchange=function(){
     const free=this.checked;
     $('finOrderModeRow').style.display=free?'none':'block';
@@ -2718,8 +2951,11 @@ window.WPDAUTH = {
       $('dpOrdSel').onchange=refreshDpDateOptions;
       refreshDpDateOptions();
     }
-    $('dpItems').innerHTML = dpItems.length ? dpItems.map((it,i)=>
-      '<div class="cartrow"><b class="kn" style="color:var(--accent2)">'+esc(orderLabel(it.orderId))+'</b> — '+it.qty+' แพ็ค'+
+    refreshDpTrade();
+    $('dpItems').innerHTML = dpItems.length ? dpItems.map((it,i)=> it.kind==='trade'
+      ? '<div class="cartrow"><b style="color:var(--accent2)">🛒 '+esc(it.name)+'</b> — '+it.qty+' '+esc(it.unit)+' → '+esc(it.customer)+
+        ' <span class="bdg warn">ซื้อมาขาย</span> <button class="x" data-rm="'+i+'">✕</button></div>'
+      : '<div class="cartrow"><b class="kn" style="color:var(--accent2)">'+esc(orderLabel(it.orderId))+'</b> — '+it.qty+' แพ็ค'+
       (it.ref.count?' <span class="bdg ok">'+(it.pickedDate?'วันที่เลือก':'FIFO อัตโนมัติ')+': ลำดับ '+it.ref.seqFrom+'-'+it.ref.seqTo+' ('+it.ref.dateFrom+(it.ref.dateFrom!==it.ref.dateTo?' ถึง '+it.ref.dateTo:'')+')</span>':'')+
       (it.ref.short?' <span class="bdg warn">ขาดสต๊อก '+it.ref.short+' แพ็ค</span>':'')+
       ' <button class="x" data-rm="'+i+'">✕</button>'+
@@ -2738,7 +2974,9 @@ window.WPDAUTH = {
       '<div class="card" style="background:var(--panel2); margin-bottom:8px;">'+
       '<div class="kn" style="font-size:14px;">'+d.date+' — '+esc(d.truck||'ไม่ระบุรถ')+'</div>'+
       '<table style="margin-top:6px;"><tr><th>ลูกค้า/ออเดอร์</th><th>จำนวน</th><th>อ้างอิงลำดับผลิต</th></tr>'+
-      d.items.map(it=>'<tr><td>'+esc(orderLabel(it.orderId))+'</td><td>'+it.qty+' แพ็ค</td><td>'+
+      d.items.map(it=>it.kind==='trade'
+        ? '<tr><td>'+esc(it.customer)+' — 🛒 '+esc(it.name)+'</td><td>'+it.qty+' '+esc(it.unit)+'</td><td>ซื้อมาขาย</td></tr>'
+        : '<tr><td>'+esc(orderLabel(it.orderId))+'</td><td>'+it.qty+' แพ็ค</td><td>'+
         (it.refSeqFrom!=null? it.refSeqFrom+'-'+it.refSeqTo+' ('+it.refDateFrom+')' : '—')+'</td></tr>').join('')+
       '</table><button class="btn sec sm" style="margin-top:8px;" data-print="'+d.id+'">🖨 พิมพ์บิลนี้อีกครั้ง</button> '+
       '<button class="btn dg sm" style="margin-top:8px;" data-delrm="'+d.id+'">✕ ลบเที่ยวรถนี้</button></div>'
@@ -2748,6 +2986,7 @@ window.WPDAUTH = {
       if(!await ask('ลบเที่ยวรถนี้?','สินค้าที่ส่งไปในเที่ยวนี้จะกลับเข้าสต๊อกสำเร็จรูปให้เอง')) return;
       S.deliveries=S.deliveries.filter(x=>x.id!==b.dataset.delrm);
       S.shipments=S.shipments.filter(x=>x.deliveryId!==b.dataset.delrm);
+      S.tradeOut=(S.tradeOut||[]).filter(x=>x.deliveryId!==b.dataset.delrm);
       await saveFin(); rShip(); toast('ลบแล้ว');
     });
   }
@@ -2756,12 +2995,12 @@ window.WPDAUTH = {
     if(!oid||!qty){ toast('เลือกออเดอร์และกรอกจำนวน'); return; }
     /* ห้ามส่งเกินของที่มี — ส่งเกินแล้วสต๊อกติดลบ ยอดรวมจะผิดทั้งระบบ */
     const _have=((CALC.finStock(producedByOrder(),S.shipments,S.finAdjustments).find(x=>x.orderId===oid))||{stock:0}).stock
-      - dpItems.filter(x=>x.orderId===oid).reduce((s,x)=>s+x.qty,0);
+      - dpItems.filter(x=>x.kind!=='trade' && x.orderId===oid).reduce((s,x)=>s+x.qty,0);
     if(qty>_have){
       await info('ส่งเกินของที่มีในสต๊อกไม่ได้', orderLabel(oid)+'\nในสต๊อกมี '+Math.max(0,_have)+' แพ็ค แต่กรอกไว้ '+qty+' แพ็ค\n\nถ้าของมีอยู่จริงแต่ยังไม่ได้ลงระบบ ให้ไปกด "ปรับยอดคงเหลือ" ที่แท็บสินค้าก่อน แล้วค่อยกลับมาเพิ่มลงเที่ยวรถ');
       return;
     }
-    const alreadyInThisTrip=dpItems.filter(x=>x.orderId===oid && x.pickedDate===pickedDate).reduce((s,x)=>s+x.qty,0);
+    const alreadyInThisTrip=dpItems.filter(x=>x.kind!=='trade' && x.orderId===oid && x.pickedDate===pickedDate).reduce((s,x)=>s+x.qty,0);
     let orderLines, priorShipped;
     if(pickedDate){
       orderLines=PROD.line.filter(l=>l.orderId===oid && l.time.slice(0,10)===pickedDate);
@@ -2775,14 +3014,48 @@ window.WPDAUTH = {
     dpItems.push({ orderId:oid, qty, ref, checkedSeqs:[], pickedDate });
     $('dpQty').value=''; rShip(); toast('เพิ่มลงเที่ยวรถแล้ว — เช็คลิสต์ลำดับก่อนขึ้นรถด้วย');
   };
+  /* ลูกค้าที่จะส่งสินค้าซื้อมาขายให้: ลูกค้าที่อยู่ในเที่ยวนี้ก่อน (ส่งพร้อมสินค้าเรา) แล้วตามด้วยลูกค้าทั้งหมด */
+  function refreshDpTrade(){
+    const st=tradeStockNow().filter(x=>x.stock>0).sort((a,b)=>a.name.localeCompare(b.name,'th'));
+    const keep=$('dpTrSel').value;
+    $('dpTrSel').innerHTML=st.length?'<option value="">— เลือกสินค้าซื้อมาขาย —</option>'+st.map(x=>'<option value="'+x.itemId+'">'+esc(x.name)+' (เหลือ '+x.stock+' '+esc(x.unit)+')</option>').join('')
+      :'<option value="">— ยังไม่มีสินค้าซื้อมาขายในสต๊อก —</option>';
+    if(keep && st.some(x=>x.itemId===keep)) $('dpTrSel').value=keep;
+    const it=tradeById($('dpTrSel').value); $('dpTrQtyLabel').textContent='จำนวน'+(it?' ('+(it.unit||'ชิ้น')+')':'');
+    const inTrip=[...new Set(dpItems.map(x=>x.kind==='trade'?x.customer:((orderById(x.orderId)||{}).customer)).filter(Boolean))];
+    const all=[...new Set(PROD.orders.map(o=>o.customer).concat((S.tradeOut||[]).map(x=>x.customer)).filter(Boolean))].filter(c=>!inTrip.includes(c)).sort((a,b)=>a.localeCompare(b,'th'));
+    const keepC=$('dpTrCustSel').value;
+    $('dpTrCustSel').innerHTML=(inTrip.length?'<optgroup label="ลูกค้าในเที่ยวนี้ (ส่งพร้อมสินค้าเรา)">'+inTrip.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('')+'</optgroup>':'<option value="">— เลือกลูกค้า —</option>')+
+      (all.length?'<optgroup label="ลูกค้าอื่น">'+all.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('')+'</optgroup>':'')+
+      '<option value="__new__">+ พิมพ์ชื่อลูกค้าใหม่…</option>';
+    if(keepC && [...$('dpTrCustSel').options].some(o=>o.value===keepC)) $('dpTrCustSel').value=keepC;
+    $('dpTrCust').style.display=$('dpTrCustSel').value==='__new__'?'block':'none';
+  }
+  $('dpTrSel').onchange=()=>{ const it=tradeById($('dpTrSel').value); $('dpTrQtyLabel').textContent='จำนวน'+(it?' ('+(it.unit||'ชิ้น')+')':''); };
+  $('dpTrCustSel').onchange=function(){ const t=$('dpTrCust'); if(this.value==='__new__'){ t.style.display='block'; t.value=''; t.focus(); } else t.style.display='none'; };
+  $('btnAddDpTrade').onclick=async()=>{
+    const itemId=$('dpTrSel').value, qty=+$('dpTrQty').value;
+    const customer=($('dpTrCustSel').value==='__new__'?$('dpTrCust').value:$('dpTrCustSel').value).trim();
+    if(!itemId){ toast('เลือกสินค้าซื้อมาขายก่อน'); return; }
+    if(!(qty>0)){ toast('กรอกจำนวน'); return; }
+    if(!customer){ toast('เลือกลูกค้าที่จะส่งให้'); return; }
+    const it=tradeById(itemId), x=tradeStockNow().find(y=>y.itemId===itemId)||{stock:0};
+    const have=r3(x.stock-dpItems.filter(y=>y.kind==='trade'&&y.itemId===itemId).reduce((s,y)=>s+y.qty,0));
+    if(qty>have){ await info('ส่งเกินของที่มีในสต๊อกไม่ได้', it.name+'\nในสต๊อกมี '+Math.max(0,have)+' '+(it.unit||'ชิ้น')+' แต่กรอกไว้ '+qty+'\n\nถ้าของมีจริงแต่ยังไม่ได้ลงรับเข้า ให้ไปลงรับเข้าที่แท็บสินค้าก่อน'); return; }
+    dpItems.push({ kind:'trade', itemId, name:it.name, unit:it.unit||'ชิ้น', qty:r3(qty), customer });
+    $('dpTrQty').value=''; rShip(); toast('เพิ่ม "'+it.name+'" '+qty+' '+(it.unit||'ชิ้น')+' → '+customer+' ลงเที่ยวรถแล้ว');
+  };
   $('btnSaveDelivery').onclick=async()=>{
     if(!dpItems.length){ toast('ยังไม่มีรายการในเที่ยวรถ'); return; }
-    const incomplete=dpItems.filter(it=>!CALC.checklistComplete(it));
+    const incomplete=dpItems.filter(it=>it.kind!=='trade' && !CALC.checklistComplete(it));
     if(incomplete.length && !window.confirm('มี '+incomplete.length+' รายการที่ยังเช็คลิสต์ไม่ครบ ยืนยันจะบันทึกเที่ยวรถนี้เลยหรือไม่?')) return;
     const delivery={ id:uid(), date:$('dpDate').value||todayStr(), truck:$('dpTruck').value.trim(), poNumber:$('dpPO').value.trim(), createdAt:localISO(),
-      items:dpItems.map(it=>({ orderId:it.orderId, qty:it.qty, refSeqFrom:it.ref.seqFrom, refSeqTo:it.ref.seqTo, refDateFrom:it.ref.dateFrom, refDateTo:it.ref.dateTo, seqs:it.ref.seqs||[], checkedSeqs:it.checkedSeqs||[] })) };
+      items:dpItems.map(it=>it.kind==='trade'
+        ? ({ kind:'trade', itemId:it.itemId, name:it.name, unit:it.unit, qty:it.qty, customer:it.customer })
+        : ({ orderId:it.orderId, qty:it.qty, refSeqFrom:it.ref.seqFrom, refSeqTo:it.ref.seqTo, refDateFrom:it.ref.dateFrom, refDateTo:it.ref.dateTo, seqs:it.ref.seqs||[], checkedSeqs:it.checkedSeqs||[] })) };
     S.deliveries.push(delivery);
-    dpItems.forEach(it=>{ S.shipments.push({ id:uid(), time:localISO(), orderId:it.orderId, qty:it.qty, to:delivery.truck, note:'เที่ยวรถ '+delivery.date, deliveryId:delivery.id }); });
+    dpItems.filter(it=>it.kind==='trade').forEach(it=>{ S.tradeOut.push({ id:uid(), time:localISO(), itemId:it.itemId, qty:it.qty, customer:it.customer, note:delivery.date+(delivery.truck?' '+delivery.truck:''), deliveryId:delivery.id }); });
+    dpItems.filter(it=>it.kind!=='trade').forEach(it=>{ S.shipments.push({ id:uid(), time:localISO(), orderId:it.orderId, qty:it.qty, to:delivery.truck, note:'เที่ยวรถ '+delivery.date, deliveryId:delivery.id }); });
     await saveFin();
     printDelivery(delivery);
     dpItems=[]; $('dpTruck').value=''; $('dpPO').value=''; $('dpOrdSel').dataset.init=''; rShip(); toast('บันทึกเที่ยวรถและออกบิลแล้ว');
@@ -2790,9 +3063,10 @@ window.WPDAUTH = {
   function printDelivery(d){
     if(!d) return;
     const byCustomer={};
-    d.items.forEach(it=>{ const o=orderById(it.orderId); const cust=o?o.customer:'(ไม่ทราบ)'; byCustomer[cust]=byCustomer[cust]||[]; byCustomer[cust].push(it); });
+    d.items.forEach(it=>{ const o=it.kind==='trade'?null:orderById(it.orderId); const cust=it.kind==='trade'?(it.customer||'(ไม่ทราบ)'):(o?o.customer:'(ไม่ทราบ)'); byCustomer[cust]=byCustomer[cust]||[]; byCustomer[cust].push(it); });
     let html='';
-    Object.entries(byCustomer).forEach(([cust,items],idx)=>{
+    Object.entries(byCustomer).forEach(([cust,allItems],idx)=>{
+      const items=allItems.filter(it=>it.kind!=='trade'), trade=allItems.filter(it=>it.kind==='trade');
       // รวมทุกรายการของลูกค้านี้เป็นแถวเดียวต่อเนื่อง: No.=ลำดับรันเฉยๆ, No.Pack=เลข seq จริงจากแอพผลิต, Date=วันที่ผลิตแพ็คนั้นจริง
       const rows=[];
       items.forEach(it=>{
@@ -2810,7 +3084,8 @@ window.WPDAUTH = {
         '<div class="billmeta"><div>ทะเบียนรถขนส่ง: '+esc(d.truck||'-')+'</div>'+
         '<div>เลข PO: '+esc(d.poNumber||'-')+'</div>'+
         '<div>ลูกค้า: '+esc(cust)+'</div>'+
-        '<div>รหัสงาน: '+esc([...new Set(rows.map(r=>r.code))].join(', '))+'</div></div>';
+        (rows.length?'<div>รหัสงาน: '+esc([...new Set(rows.map(r=>r.code))].join(', '))+'</div>':'')+'</div>';
+      if(rows.length){
       html+='<table class="billgrid"><tr><th>No.</th><th>No.Pack</th><th>Date</th></tr>';
       rows.forEach((r,i)=>{
         html+='<tr><td>'+(i+1)+'</td><td>'+esc(r.pack)+'</td><td>'+esc(r.date)+'</td></tr>';
@@ -2821,6 +3096,12 @@ window.WPDAUTH = {
       });
       html+='</table>';
       html+='<div class="billtotal">รวมทั้งสิ้น — จำนวนแพ็ค <b>'+totalPacks+'</b> แพ็ค &nbsp; จำนวนชิ้น <b>'+totalPieces+'</b> ชิ้น</div>';
+      }
+      /* สินค้าซื้อมาขายที่ส่งไปพร้อมกัน */
+      if(trade.length){
+        html+='<table class="billgrid" style="margin-top:10px;"><tr><th>No.</th><th>สินค้าอื่น (ซื้อมาขาย)</th><th>จำนวน</th></tr>'+
+          trade.map((it,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(it.name)+'</td><td>'+it.qty+' '+esc(it.unit||'')+'</td></tr>').join('')+'</table>';
+      }
       html+='</div>';
     });
     $('printBill').innerHTML=html;
@@ -2929,9 +3210,14 @@ window.WPDAUTH = {
     rows.push([]);
     rows.push(['[เที่ยวรถจัดส่ง]']); rows.push(['วันที่','รถ/คนขับ','เลข PO','ลูกค้า','รหัสงาน','จำนวน(แพ็ค)','อ้างอิงลำดับ']);
     S.deliveries.filter(d=>(!from||d.date>=from)&&(!to||d.date<=to)).forEach(d=>d.items.forEach(it=>{
+      if(it.kind==='trade'){ rows.push([d.date,d.truck||'',d.poNumber||'',it.customer||'','ซื้อมาขาย: '+it.name,it.qty+' '+(it.unit||''),'']); return; }
       const o=orderById(it.orderId);
       rows.push([d.date,d.truck||'',d.poNumber||'',o?o.customer:'',o?o.code:'',it.qty,it.refSeqFrom!=null?it.refSeqFrom+'-'+it.refSeqTo:'']);
     }));
+    rows.push([]);
+    rows.push(['[สินค้าซื้อมาขาย — รับเข้า]']); rows.push(['วันที่','สินค้า','จำนวน','หน่วย','ราคาทุน/หน่วย','ซื้อจาก','เลขบิล','หมายเหตุ']);
+    (S.tradeIn||[]).filter(x=>inRange(x,from,to)).forEach(x=>{ const it=tradeById(x.itemId)||{}; rows.push([ymd(x.time),it.name||'',x.qty,it.unit||'',x.costPerUnit==null?'':x.costPerUnit,x.supplier||'',x.refNo||'',x.note||'']); });
+    (S.tradeAdj||[]).filter(x=>inRange(x,from,to)).forEach(x=>{ const it=tradeById(x.itemId)||{}; rows.push([ymd(x.time),it.name||'',x.delta,it.unit||'','','','','ปรับยอด: '+(x.note||'')]); });
     rows.push([]);
     rows.push(['[ปรับยอดสินค้าสำเร็จรูป]']); rows.push(['วันที่','เวลา','ลูกค้า','รหัสงาน','ปรับ(แพ็ค)','หมายเหตุ']);
     S.finAdjustments.filter(x=>inRange(x,from,to)).forEach(a=>{
@@ -2952,6 +3238,7 @@ window.WPDAUTH = {
     if(!window.confirm('⚠ ยืนยันอีกครั้ง — การลบนี้กู้คืนไม่ได้\n\nพิมพ์ "ตกลง" เพื่อยืนยันการลบข้อมูลสต๊อกทั้งหมด')) return;
     S.fiberReceipts=[]; S.fiberTh={}; S.baleUsage=[]; S.fabricReceipts=[]; S.cuts=[]; S.cutBatches=[]; S.sewSent=[]; S.sewReturns=[]; S.waste=[]; S.prodTypeTh={};
     S.sackReceipts=[]; S.gasReceipts=[]; S.shipments=[]; S.deliveries=[]; S.finAdjustments=[];
+    S.tradeItems=[]; S.tradeIn=[]; S.tradeOut=[]; S.tradeAdj=[];
     await Promise.all([saveFiber(),saveFabric(),saveBag(),saveGas(),saveFin()]);
     renderPanel(); toast('ล้างข้อมูลสต๊อกทั้งหมดแล้ว');
   };

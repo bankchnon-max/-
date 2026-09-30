@@ -548,7 +548,7 @@
 
     <!-- 4. END OF LINE -->
     <div class="panel" id="p-line">
-      <div class="card">
+      <div class="card" id="cardGas">
         <h3>🔥 เปลี่ยนถังแก๊ส (โรง 1 — ใยแผ่น)</h3>
         <p class="sumline">ไม่ผูกกับออเดอร์ใดออเดอร์หนึ่ง เพราะแก๊สใช้ต่อเนื่องทั้งไลน์ — กดครั้งเดียวเปลี่ยน 2 ถังพร้อมกัน ระบบหยิบถังเก่าสุดที่เหลืออยู่ให้อัตโนมัติ พร้อมลงเวลาให้เอง</p>
         <div class="sumline" id="gasAvailInfo"></div>
@@ -618,7 +618,7 @@
         <button class="btn sec w" id="btnScrap">บันทึกของเสีย</button>
         <div class="scr" style="margin-top:11px;"><table id="tScrap"></table></div>
       </div>
-      <div class="card">
+      <div class="card" id="cardFabWd">
         <h3>🧷 เบิกถุงบรรจุผ้า</h3>
         <p class="sumline">พิมพ์จำนวนที่ต้องการ ระบบไล่หยิบจากถุงบรรจุผ้าเก่าสุดในแอพสต๊อกให้อัตโนมัติจนครบ<br>
         <span style="color:var(--muted)">ถุงจะขึ้นให้เบิกได้ก็ต่อเมื่อบันทึก "รับกลับจากช่างเย็บ" ในแอพสต๊อกแล้ว</span></p>
@@ -2547,11 +2547,13 @@ window.WPDAUTH = {
       : 'งานนี้ผลิตได้ '+a.produced+' · ส่งแล้ว '+a.shipped+' · เบิกไปแพ็คแล้ว '+a.packed+' → <b>เหลือ '+a.available+' แผ่น</b>';
   }
 
-  /* หักใยแผ่นตอนบันทึกแพ็ค — 1 แพ็ค = 1 แผ่น ใช้ที่เบิกมาก่อนก่อน */
+  /* ปิกนิก 1 ใบ ใช้ใยแผ่น 1 แผ่น — แพ็คละกี่ใบก็หักเท่านั้น (ตามจำนวนชิ้นต่อแพ็ค) */
+  function sheetsPerPack(o){ return Math.max(1, +((o&&o.spec)||{}).piecesPerPack||1); }
+  /* หักใยแผ่นตอนบันทึกแพ็ค ใช้ที่เบิกมาก่อนก่อน */
   function autoUseSheet(o, lineId){
     if(!isPicnic(o)) return null;
     S.sheetUse=S.sheetUse||[];
-    const need=1;
+    const need=sheetsPerPack(o);
     const q=CALC.sheetAtLine(S.sheetWd,S.sheetUse,o.id);
     if(!q.length) return { short:'ไม่มีใยแผ่นที่ไลน์ — ต้องกดเบิกก่อน' };
     let left=need;
@@ -2571,6 +2573,10 @@ window.WPDAUTH = {
   function rLine(force){
     const o=active(), t=todayStr();
     if((o?o.id:null)!==lastLineOrder){ lastLineOrder=o?o.id:null; specOpen=null; }
+    /* แสดงเฉพาะของที่งานนี้ใช้ กันกดผิด: หมอน/ปิกนิก ไม่ใช้แก๊ส · ใยแผ่นไม่ใช้ปลอกผ้า (ยังไม่เลือกออเดอร์ = ซ่อนเบิกปลอก) */
+    const _caseJob = !!o && (o.productType==='หมอน' || isPicnic(o));
+    if($('cardGas')) $('cardGas').style.display = _caseJob ? 'none' : '';
+    if($('cardFabWd')) $('cardFabWd').style.display = _caseJob ? '' : 'none';
     if($('fwFabSel')) refreshFwSelects();
     if($('bwKindSel')){ refreshBwSelects(); refreshBwSackOptions(); }
     if($('gasAvailInfo')) refreshGasUI();
@@ -3090,6 +3096,7 @@ window.WPDAUTH = {
     if(_cut && _cut.switched && _cut.switched.length) _tail+=' 🔄 '+_cut.switched.join(' · ');
     if(_cut && _cut.shorts && _cut.shorts.length) _tail+=' ⚠ '+_cut.shorts.join(' · ');
     if(_case) _tail+=(_case.short?' ⚠ '+_case.short:' · '+_case.msg);
+    if(_sheet) _tail+=(_sheet.short?' ⚠ '+_sheet.short:' · '+_sheet.msg);
     toast('แพ็คที่ '+seq+' · '+(act==null?std+' กก. (ตาม Std)':act+' กก.'+
       (st==='ok'?' ✓ ตรงสเปค':st==='over'?' ▲ เกิน '+r3(act-std):' ▼ ขาด '+r3(std-act)))+_tail);
   }
@@ -3370,9 +3377,10 @@ window.WPDAUTH = {
     if(!std){ toast('ตั้งค่าน้ำหนัก Standard ก่อน'); return; }
     if(isPicnic(o)){
       const left=CALC.sheetLineTotal(S.sheetWd,S.sheetUse,o.id);
-      if(left<1){
-        await info('ยังไม่มีใยแผ่นที่ไลน์',
-          'งานปิกนิกต้องใช้ใยแผ่น 1 แผ่นต่อ 1 ชิ้น แต่ที่ไลน์เหลือ '+left+' แผ่น\n\nกดเบิกใยแผ่นมาที่ไลน์ก่อน แล้วค่อยบันทึกแพ็ค');
+      const _need=sheetsPerPack(o);
+      if(left<_need){
+        await info('ใยแผ่นที่ไลน์ไม่พอ',
+          'งานปิกนิกใช้ใยแผ่น 1 แผ่นต่อ 1 ใบ — แพ็คนี้ต้องใช้ '+_need+' แผ่น แต่ที่ไลน์เหลือ '+left+' แผ่น\n\nกดเบิกใยแผ่นมาที่ไลน์ก่อน แล้วค่อยบันทึกแพ็ค');
         return;
       }
     }

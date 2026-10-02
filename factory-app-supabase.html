@@ -1796,6 +1796,14 @@ window.WPDAUTH = {
     return Object.values(map);
   }
 
+  /* น้ำหนักถุงใน Standard — ถุงซิล และ/หรือ ถุงแพ็ค (งานใยแผ่นใช้ถุงแพ็คอย่างเดียว) */
+  function bagSummary(sp){
+    sp=sp||{}; const parts=[];
+    const zipKg=CALC.zipKgPerPack(sp), packKg=CALC.packKgPerPack(sp);
+    if(zipKg>0) parts.push('ถุง'+(sp.packBagName?'ซิล ':' ')+(sp.bagName?esc(sp.bagName)+' ':'')+zipKg+' กก.');
+    if(packKg>0) parts.push('ถุงแพ็ค '+(sp.packBagName?esc(sp.packBagName)+' ':'')+packKg+' กก.');
+    return parts.length ? parts.join(' + ') : 'ถุง 0 กก.';
+  }
   function rSpecLib(){
     const lib=specLibrary().filter(s=>matchOrder(s,query));
     const el=$('specLib');
@@ -1813,7 +1821,7 @@ window.WPDAUTH = {
           (s.fibers.length?'สูตร: <span style="color:var(--accent2)">'+
             s.fibers.map(f=>esc(f.name)+' '+f.kg+'กก.').join(' · ')+'</span> (รวม '+CALC.recipeTotal(s.fibers)+' กก.)<br>':'ยังไม่มีสูตร<br>')+
           (std?'Standard '+std+' กก./แพ็ค — '+s.spec.weightPerPiece+' กก./ชิ้น × '+s.spec.piecesPerPack+
-            ' ชิ้น + ถุง '+(s.spec.bagName?esc(s.spec.bagName)+' ':'')+s.spec.bagWeight+' กก.':'ยังไม่ตั้ง Standard')+
+            ' ชิ้น + '+bagSummary(s.spec):'ยังไม่ตั้ง Standard')+
         '</div>'+
         '<div class="acts"><button class="btn sm" data-lib="'+i+'">เปิดออเดอร์ใหม่จากสเปคนี้</button></div></div>';
     }).join('')+'</div>';
@@ -2572,7 +2580,8 @@ window.WPDAUTH = {
 
   function rLine(force){
     const o=active(), t=todayStr();
-    if((o?o.id:null)!==lastLineOrder){ lastLineOrder=o?o.id:null; specOpen=null; }
+    if((o?o.id:null)!==lastLineOrder){ lastLineOrder=o?o.id:null; specOpen=null;
+      if(o && $('bwKindSel')) $('bwKindSel').value = ((o.productType||'ใย')==='ใย' || isPicnic(o)) ? 'pack' : 'zip'; }
     /* แสดงเฉพาะของที่งานนี้ใช้ กันกดผิด: หมอน/ปิกนิก ไม่ใช้แก๊ส · ใยแผ่นไม่ใช้ปลอกผ้า (ยังไม่เลือกออเดอร์ = ซ่อนเบิกปลอก) */
     const _caseJob = !!o && (o.productType==='หมอน' || isPicnic(o));
     if($('cardGas')) $('cardGas').style.display = _caseJob ? 'none' : '';
@@ -2591,8 +2600,7 @@ window.WPDAUTH = {
     const packs=o?S.line.filter(l=>l.orderId===o.id).length:0;
     $('stdBox').innerHTML = o
       ? (std? '<div class="v">'+std+' กก.</div><div class="l">น้ำหนัก Standard ต่อแพ็ค (ต้องคุมให้ได้)</div>'+
-          '<div class="brk">'+o.spec.weightPerPiece+' กก./ชิ้น × '+o.spec.piecesPerPack+' ชิ้น + ถุง '+
-          (o.spec.bagName?esc(o.spec.bagName)+' ':'')+o.spec.bagWeight+' กก.<br>'+
+          '<div class="brk">'+o.spec.weightPerPiece+' กก./ชิ้น × '+o.spec.piecesPerPack+' ชิ้น + '+bagSummary(o.spec)+'<br>'+
           bagStockLine(o.spec).replace('<br>','<br>')+          '<br>Standard เฉลี่ยต่อชิ้นรวมถุง '+CALC.stdPerPiece(o.spec)+' กก. · ผลิตแล้ว '+packs+
           (o.orderedPacks?' / '+o.orderedPacks:'')+' แพ็ค'+
           (function(){
@@ -2724,7 +2732,13 @@ window.WPDAUTH = {
     const isPillow = (o.productType==='หมอน' || _isPicnic);
     const zipNDefault = (sp.zipPerPack!=null&&sp.zipPerPack!=='') ? sp.zipPerPack
       : ((sp.bagPerPiece ? (+sp.piecesPerPack||0) : 1) + (sp.hasBag2 ? (sp.bagPerPiece ? (+sp.piecesPerPack||0) : 1) : 0)) || '';
-    const packNDefault = (sp.packPerPack!=null&&sp.packPerPack!=='') ? sp.packPerPack : ((+sp.packBagWeight||0)>0?1:1);
+    /* งานใยแผ่นใช้ถุงแพ็คอย่างเดียว — ที่ตั้งไว้แบบเก่า (ชื่อถุงอยู่ในช่องถุงซิล) ย้ายมาแสดงเป็นถุงแพ็ค */
+    const _legacyPack = !isPillow && !sp.packBagName && !!sp.bagName;
+    const packNameVal = _legacyPack ? sp.bagName : (sp.packBagName||'');
+    const packWVal = _legacyPack ? (sp.bagWeight||'') : (sp.packBagWeight||'');
+    const packLotVal = _legacyPack ? (sp.bagSackNo||'') : (sp.packBagLotRef||'');
+    const packNDefault = _legacyPack ? (CALC.zipPerPack(sp)||1)
+      : ((sp.packPerPack!=null&&sp.packPerPack!=='') ? sp.packPerPack : 1);
     const legacyBag2Note = (sp.hasBag2 && (sp.zipPerPack==null||sp.zipPerPack==='')) ?
       '<div class="sumline" style="margin-top:6px; color:var(--yellow);">ออเดอร์นี้ตั้งแบบเก่าไว้ (ถุงซิลใบที่ 2 '+(sp.bagWeight2||0)+' กก.) — ระบบรวมเป็น "จำนวนใบต่อแพ็ค" ให้แล้ว ตรวจตัวเลขอีกครั้งแล้วกดบันทึก</div>' : '';
 
@@ -2760,7 +2774,9 @@ window.WPDAUTH = {
         '<div class="sumline" style="margin-top:2px;">ผ้า + ใย = น้ำหนักหมอนต่อชิ้น — กรอกช่องไหนก็ได้ อีกช่องคิดให้เอง<br>'+
         '<span style="color:var(--dim)">ใช้แยกในหน้า <b>สรุป → สมดุลใย เข้า–ออก</b> ว่า "ใยออก" คือใยจริง ๆ กี่กิโล ไม่ปนน้ำหนักผ้า</span></div>'
       ) : '')+
-      bagBlockHTML('spBag','','zip',sp,isPillow,'ถุงซิล')+
+      (isPillow ? bagBlockHTML('spBag','','zip',sp,isPillow,'ถุงซิล')
+                : packBagHTML('ถุงแพ็คที่ใช้ห่อ (งานใยแผ่นไม่ใช้ถุงซิล)')+
+                  '<div class="sumline" style="margin-top:2px;">น้ำหนักถุงแพ็ค × จำนวนใบ ระบบบวกเข้า Standard ให้เอง · บันทึกแพ็คแล้วหักถุงจากกระสอบที่เบิกมาไว้ที่ไลน์</div>')+
       (isPillow ? (
         '<div class="rf"><div><label>ใช้ถุงซิลกี่ใบต่อ 1 แพ็ค</label>'+
         '<input id="spZipN" type="number" inputmode="numeric" min="0" step="1" value="'+zipNDefault+'" placeholder="เช่น 10"></div>'+
@@ -2768,16 +2784,7 @@ window.WPDAUTH = {
         '<div class="sumline" style="margin-top:2px;">น้ำหนักถุงซิลรวม = น้ำหนักต่อใบ × จำนวนใบต่อแพ็ค — ระบบบวกเข้า Standard ให้เอง</div>'+
         (legacyBag2Note||'')+
         (_isPicnic?'<div class="sumline" style="margin-top:14px; color:var(--accent2);">งานปิกนิก 1 แพ็ค = 1 ชิ้น — ใช้ใยแผ่น 1 แผ่น + ผ้า 1 ชิ้น + ถุงแพ็ค 1 ใบ<br>เลือกถุงแพ็ค<b>ไซซ์ให้ตรงกับขนาดใยแผ่น</b> (3F / 3.5F / 5F / 6F)</div>':'')+
-        '<div class="sumline" style="margin-top:14px; font-weight:600;">ถุงแพ็ค (ถุงใหญ่ห่อทั้งแพ็คอีกชั้น)</div>'+
-        '<div class="rf"><div><label>ใช้ถุงแพ็คอะไร</label>'+
-        '<input id="spPackBag" list="dlBagPack" value="'+esc(sp.packBagName||'')+'" placeholder="เช่น ถุงแพ็คใหญ่">'+
-        '<datalist id="dlBagPack">'+Object.keys(STOCKBAG.pack||{}).map(n=>'<option value="'+esc(n)+'">').join('')+'</datalist></div>'+
-        '<div><label>เบอร์กระสอบถุงแพ็ค (อ้างอิงจากสต๊อกจริง)</label>'+
-        '<select id="spPackBagLot"><option value="">— เลือกถุงก่อน —</option></select></div></div>'+
-        '<div class="rf"><div><label>น้ำหนักถุงแพ็คต่อใบ (กก.)</label>'+
-        '<input id="spPackW" type="number" inputmode="decimal" step="0.001" value="'+(sp.packBagWeight||'')+'" placeholder="เช่น 0.08"></div>'+
-        '<div><label>ใช้ถุงแพ็คกี่ใบต่อ 1 แพ็ค</label>'+
-        '<input id="spPackN" type="number" inputmode="numeric" min="0" step="1" value="'+packNDefault+'" placeholder="ปกติ 1"></div></div>'+
+        packBagHTML('ถุงแพ็ค (ถุงใหญ่ห่อทั้งแพ็คอีกชั้น)')+
         '<label style="display:flex; align-items:center; gap:8px; margin-top:12px;">'+
         '<input type="checkbox" id="spAutoCut" style="width:auto; margin:0;" '+(sp.autoCutBag===false?'':'checked')+'>'+
         '<span style="font-size:13px; color:var(--text);">บันทึกแพ็คแล้วหักถุงออกจากกระสอบที่แท็กไว้ให้อัตโนมัติ</span></label>'+
@@ -2795,6 +2802,21 @@ window.WPDAUTH = {
       '<div class="acts" style="margin-top:11px;"><button class="btn" id="spSave" style="flex:1;">บันทึกค่า Standard</button>'+
       (isSet?'<button class="btn sec sm" id="spCancel">ยกเลิก</button>':'')+'</div>';
 
+    function packBagHTML(title){
+      const packNames=Object.keys(STOCKBAG.pack||{}).sort();
+      const isNew=!!packNameVal && !packNames.includes(packNameVal);
+      return '<div class="sumline" style="margin-top:14px; font-weight:600;">'+esc(title)+'</div>'+
+        '<div class="rf"><div><label>ใช้ถุงแพ็คอะไร</label><select id="spPackBagSel">'+
+        '<option value="">— เลือกถุงแพ็ค —</option>'+packNames.map(n=>'<option value="'+esc(n)+'"'+(n===packNameVal?' selected':'')+'>'+esc(n)+'</option>').join('')+
+        '<option value="__new__"'+(isNew?' selected':'')+'>+ พิมพ์ชื่อใหม่…</option></select>'+
+        '<input id="spPackBag" value="'+esc(packNameVal)+'" placeholder="เช่น ถุงแพ็คใหญ่" style="'+(isNew?'':'display:none;')+' margin-top:6px;"></div>'+
+        '<div><label>เบอร์กระสอบถุงแพ็ค (อ้างอิงจากสต๊อกจริง)</label>'+
+        '<select id="spPackBagLot"><option value="">— เลือกถุงก่อน —</option></select></div></div>'+
+        '<div class="rf"><div><label>น้ำหนักถุงแพ็คต่อใบ (กก.)</label>'+
+        '<input id="spPackW" type="number" inputmode="decimal" step="0.001" value="'+packWVal+'" placeholder="เช่น 0.08"></div>'+
+        '<div><label>ใช้ถุงแพ็คกี่ใบต่อ 1 แพ็ค</label>'+
+        '<input id="spPackN" type="number" inputmode="numeric" min="0" step="1" value="'+packNDefault+'" placeholder="ปกติ 1"></div></div>';
+    }
     // สร้าง HTML ของ 1 บล็อกถุง (ชื่อ/ค้นหาจริงจากสต๊อก + ไซซ์ + น้ำหนักต่อใบ + เบอร์กระสอบ) ใช้ซ้ำได้ทั้งถุงใบที่ 1 และ 2
     function bagBlockHTML(prefix,suffix,kind,sp,isPillow,label){
       const nameVal = suffix==='2' ? (sp.bagName2||'') : (sp.bagName||'');
@@ -2854,7 +2876,7 @@ window.WPDAUTH = {
     }
     function refreshBagLotOptions(){ refreshBagLotOptionsFor('zip','spBag','spBagSack',sp.bagSackNo); }
     function refreshBag2LotOptions(){ if($('spBag2Sack')) refreshBagLotOptionsFor('zip','spBag2','spBag2Sack',sp.bagSackNo2); }
-    function refreshPackBagLotOptions(){ refreshBagLotOptionsFor('pack','spPackBag','spPackBagLot',sp.packBagLotRef); }
+    function refreshPackBagLotOptions(){ refreshBagLotOptionsFor('pack','spPackBag','spPackBagLot',packLotVal); }
     function wireAutoFill(){
       if($('spBagSel')) $('spBagSel').addEventListener('change',()=>setTimeout(()=>{
         refreshBagLotOptions(); fillFromStock('zip','spBag','spBagSize','spBagW','spBagSack'); },0));
@@ -2874,10 +2896,11 @@ window.WPDAUTH = {
         if(sel.value==='__new__'){ txt.style.display='block'; txt.value=''; txt.focus&&txt.focus(); }
         else { txt.style.display='none'; txt.value=sel.value; }
         if(prefix==='spBag') refreshBagLotOptions(); if(prefix==='spBag2') refreshBag2LotOptions();
+        if(prefix==='spPackBag'){ refreshPackBagLotOptions(); fillFromStock('pack','spPackBag',null,'spPackW','spPackBagLot'); prev(); }
       };
       txt.oninput=()=>{ formDirty=true; if(prefix==='spBag') refreshBagLotOptions(); if(prefix==='spBag2') refreshBag2LotOptions(); };
     }
-    wireBagNameSel('spBag'); wireBagNameSel('spBag2');
+    wireBagNameSel('spBag'); wireBagNameSel('spBag2'); wireBagNameSel('spPackBag');
     const prev=()=>{
       const s=isPillow ? {
         weightPerPiece:+$('spW').value||0, piecesPerPack:+$('spN').value||0,
@@ -2889,13 +2912,15 @@ window.WPDAUTH = {
         packPerPack:$('spPackN')?(+$('spPackN').value||0):0
       } : {
         weightPerPiece:+$('spW').value||0, piecesPerPack:+$('spN').value||0,
-        bagName:normSize($('spBag').value), bagWeight:+$('spBagW').value||0, zipPerPack:1
+        packBagName:$('spPackBag')?normSize($('spPackBag').value):'',
+        packBagWeight:$('spPackW')?(+$('spPackW').value||0):0,
+        packPerPack:$('spPackN')?(+$('spPackN').value||0):0
       };
       const t=CALC.stdPerPack(s);
       const zipKg=CALC.zipKgPerPack(s), packKg=CALC.packKgPerPack(s);
       $('spPreview').innerHTML=t
         ? '<div class="v">'+t+' กก.</div><div class="l">น้ำหนัก Standard ต่อแพ็ค (เฉลี่ยต่อชิ้น '+CALC.stdPerPiece(s)+' กก.)'+
-          '<br>หมอน: '+s.weightPerPiece+' กก./ชิ้น × '+s.piecesPerPack+' ชิ้น = '+r3(s.weightPerPiece*s.piecesPerPack)+' กก.'+
+          '<br>'+(isPillow?'หมอน':'ใย')+': '+s.weightPerPiece+' กก./ชิ้น × '+s.piecesPerPack+' ชิ้น = '+r3(s.weightPerPiece*s.piecesPerPack)+' กก.'+
           (isPillow && CALC.fabricKgPerPiece(s)>0
             ? '<br><span style="color:var(--dim)">— ผ้าปลอก '+CALC.fabricKgPerPiece(s)+' กก./ชิ้น = '+CALC.fabricKgPerPack(s)+
               ' กก. · ใย '+CALC.fiberKgPerPiece(s)+' กก./ชิ้น = '+CALC.fiberKgPerPack(s)+' กก.</span>'
@@ -2966,11 +2991,13 @@ window.WPDAUTH = {
       const w=+$('spW').value||0, n=+$('spN').value||0;
       if(!w||!n){ toast('กรอกน้ำหนักต่อชิ้นและจำนวนชิ้นต่อแพ็คก่อน'); return; }
       const _draft={ weightPerPiece:w, piecesPerPack:n,
-        bagName:normSize($('spBag').value), bagWeight:+$('spBagW').value||0,
-        zipPerPack: isPillow && $('spZipN') ? (+$('spZipN').value||0) : 1,
-        packBagName: isPillow && $('spPackBag') ? normSize($('spPackBag').value) : '',
-        packBagWeight: isPillow && $('spPackW') ? (+$('spPackW').value||0) : 0,
-        packPerPack: isPillow && $('spPackN') ? (+$('spPackN').value||0) : 0 };
+        bagName: isPillow && $('spBag') ? normSize($('spBag').value) : '', bagWeight: isPillow && $('spBagW') ? (+$('spBagW').value||0) : 0,
+        zipPerPack: isPillow && $('spZipN') ? (+$('spZipN').value||0) : 0,
+        packBagName: $('spPackBag') ? normSize($('spPackBag').value) : '',
+        packBagWeight: $('spPackW') ? (+$('spPackW').value||0) : 0,
+        packPerPack: $('spPackN') ? (+$('spPackN').value||0) : 0 };
+      /* เลือกถุงแพ็คแล้วแต่ไม่มีน้ำหนักต่อใบ = Standard ขาดน้ำหนักถุง */
+      if(_draft.packBagName && !_draft.packBagWeight && !await ask('ยังไม่ได้ใส่น้ำหนักถุงแพ็คต่อใบ','ถุง "'+_draft.packBagName+'" ยังไม่มีน้ำหนักต่อใบ — Standard จะไม่รวมน้ำหนักถุง และหักถุงจากสต๊อกไม่ได้ · ยืนยันจะบันทึกแบบนี้?')) return;
       const _ws=specWarnings(_draft);
       if(_ws.length && !await ask('ตัวเลขดูผิดปกติ — ตรวจอีกครั้งก่อนบันทึก',
         _ws.map(x=>'• '+x).join('\n')+'\n\nระบบจะหักถุงออกจากสต๊อกตามตัวเลขนี้ทุกแพ็ค ถ้าผิดสต๊อกจะเพี้ยนสะสม\n\nยืนยันว่าตัวเลขถูกต้องแล้ว?')) return;
@@ -2979,18 +3006,18 @@ window.WPDAUTH = {
                                                                             : r3(Math.max(0,w-_fabKg));
       o.spec={ weightPerPiece:w, piecesPerPack:n,
         fabricWeightPerPiece:_fabKg, fiberWeightPerPiece:_fibKg,
-        bagName:normSize($('spBag').value), bagWeight:+$('spBagW').value||0,
+        bagName:_draft.bagName, bagWeight:_draft.bagWeight,
         bagSize: isPillow && $('spBagSize') ? normSize($('spBagSize').value) : '',
         bagSackNo: isPillow && $('spBagSack') ? $('spBagSack').value : '',
-        zipPerPack: isPillow && $('spZipN') ? (+$('spZipN').value||0) : 1,
-        packBagWeight: isPillow && $('spPackW') ? (+$('spPackW').value||0) : 0,
-        packPerPack: isPillow && $('spPackN') ? (+$('spPackN').value||0) : 0,
+        zipPerPack:_draft.zipPerPack,
+        packBagWeight:_draft.packBagWeight,
+        packPerPack:_draft.packPerPack,
         autoCutBag: isPillow && $('spAutoCut') ? $('spAutoCut').checked : false,
         /* เลิกใช้แบบเก่าแล้ว แต่เก็บค่าเดิมไว้ไม่ให้ข้อมูลหาย */
         bagPerPiece:false, hasBag2:false,
         bagName2: sp.bagName2||'', bagWeight2: sp.bagWeight2||0, bagSize2: sp.bagSize2||'', bagSackNo2: sp.bagSackNo2||'',
-        packBagName: isPillow && $('spPackBag') ? normSize($('spPackBag').value) : '',
-        packBagLotRef: isPillow && $('spPackBagLot') ? $('spPackBagLot').value : '',
+        packBagName:_draft.packBagName,
+        packBagLotRef: $('spPackBagLot') ? $('spPackBagLot').value : '',
         fabricType: isPillow && $('spFabType') ? $('spFabType').value.trim() : '',
         fabricSize: isPillow && $('spFabSize') ? normSize($('spFabSize').value) : '',
         tolPct:+$('spTol').value||3 };

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="th" data-wfold-default="open">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -324,6 +324,17 @@
     #sk .nb { font-size:11px; }
     #sk .nb .ic { font-size:19px; }
   }
+
+  /* ---------- พับการ์ดข้อมูล (theme/fold.js) ---------- */
+  .card.wfold > h3 { cursor:pointer; user-select:none; display:flex; align-items:center; gap:8px; margin-bottom:0; }
+  .card.wfold > h3::before { content:'▾'; font-size:13px; color:var(--w-dim); flex:0 0 auto; }
+  .card.wfold.folded > h3::before { content:'▸'; }
+  .card.wfold:not(.folded) > h3 { margin-bottom:10px; }
+  .card.wfold.folded > :not(h3) { display:none !important; }
+  .wfold-n { margin-left:auto; font:500 12.5px 'Sarabun',sans-serif; color:var(--w-dim); background:var(--w-chip); padding:2px 10px; border-radius:99px; }
+  .wfold-n:empty { display:none; }
+  .wfold-sub { display:block; width:100%; margin-top:12px; padding:9px 12px; border:1px dashed var(--w-border); border-radius:10px;
+               background:transparent; color:var(--w-label); font:500 14px 'Sarabun',sans-serif; text-align:left; cursor:pointer; }
 </style><!-- /wpd-theme -->
 <script id="wpd-mode">
 (function(){
@@ -346,24 +357,84 @@
   });
 })();
 </script><!-- /wpd-mode -->
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+<script id="wpd-fold">
+/* พับการ์ดข้อมูล (ตาราง/ประวัติ) ไว้ก่อน แตะหัวข้อเพื่อเปิด — จำไว้ในเครื่องว่าเปิด/ปิดอันไหน
+   - การ์ดที่มีตารางแต่ไม่มีปุ่มบันทึกหลัก (.btn.w) → พับทั้งการ์ด หัวข้อบอกจำนวนรายการ
+   - การ์ดฟอร์มที่มีตารางประวัติต่อท้าย → พับเฉพาะตาราง ("ดูรายการที่บันทึกไว้")
+   - ไม่พับ: การ์ดที่ใส่ data-wfold="no"
+   ค่าเริ่มต้นของแต่ละแอพ: <html data-wfold-default="open"> = เปิดไว้ก่อน (แอพต้นทุน) */
+(function(){
+  var K = 'wpd_fold';
+  function load(){ try{ return JSON.parse(localStorage.getItem(K) || '{}'); }catch(e){ return {}; } }
+  function save(o){ try{ localStorage.setItem(K, JSON.stringify(o)); }catch(e){} }
+  function defOpen(){ return document.documentElement.getAttribute('data-wfold-default') === 'open'; }
+  function title(c){ var h = c.querySelector(':scope > h3'); return h ? (h.getAttribute('data-wt') || h.textContent).trim() : ''; }
+  function keyOf(c, extra){ var p = c.closest('.panel'); return (p ? p.id : '') + '|' + title(c) + (extra || ''); }
+  function count(el){ var n = 0; el.querySelectorAll('table').forEach(function(t){ var r = t.querySelectorAll('tr').length - 1; if(t.querySelector('td.empty')) r = 0; n += Math.max(0, r); }); return n; }
+  function mainBtn(c){ var b = c.querySelectorAll('.btn.w'); return b.length ? b[b.length - 1] : null; }
+  function wholeCard(c){
+    var h = c.querySelector(':scope > h3'); if(!h) return;
+    c.__wf = 1; c.classList.add('wfold');
+    h.setAttribute('data-wt', h.textContent.trim());
+    var tag = document.createElement('span'); tag.className = 'wfold-n'; h.appendChild(tag);
+    var st = load(), k = keyOf(c);
+    c.classList.toggle('folded', (k in st) ? st[k] : !defOpen());
+    h.addEventListener('click', function(e){
+      if(e.target.closest('button,a,input,select')) return;
+      var f = !c.classList.contains('folded'); c.classList.toggle('folded', f);
+      var o = load(); o[keyOf(c)] = f; save(o);
+    });
+    var upd = function(){ var n = count(c), t = n ? n + ' รายการ' : ''; if(tag.textContent !== t) tag.textContent = t; };
+    upd(); new MutationObserver(upd).observe(c, { childList:true, subtree:true });
+  }
+  function subLists(c, all){
+    var last = mainBtn(c); if(!last && !all) return;
+    c.querySelectorAll('.scr').forEach(function(sc, i){
+      if(sc.__wsf || !sc.querySelector('table')) return;
+      if(!all && !(last.compareDocumentPosition(sc) & Node.DOCUMENT_POSITION_FOLLOWING)) return;
+      sc.__wsf = 1;
+      var t = document.createElement('button'); t.type = 'button'; t.className = 'wfold-sub'; t.setAttribute('data-noguard', '1');
+      sc.parentNode.insertBefore(t, sc);
+      var k = keyOf(c, '#' + i), st = load();
+      var folded = (k in st) ? st[k] : !defOpen();
+      var paint = function(){ var n = count(sc); sc.style.display = folded ? 'none' : '';
+        var txt = folded ? '▸ ดูรายการที่บันทึกไว้' + (n ? ' (' + n + ')' : '') : '▾ ซ่อนรายการ'; if(t.textContent !== txt) t.textContent = txt; };
+      t.onclick = function(){ folded = !folded; var o = load(); o[k] = folded; save(o); paint(); };
+      paint(); new MutationObserver(paint).observe(sc, { childList:true, subtree:true });
+    });
+  }
+  /* ตามหัวข้อการ์ด: KEEP = ต้องเห็นตลอด · SUB = การ์ดเห็นตลอด พับแค่ตารางประวัติข้างใน
+     FORCE = ตั้งค่า/ใช้นานๆ ครั้ง พับทั้งการ์ดแม้มีปุ่ม (ยกเว้นแอพที่เปิดไว้ก่อน เช่นแอพต้นทุน) */
+  var KEEP = /ใกล้หมด|สูตรของออเดอร์/;
+  var SUB = /ก้อนใยที่กำลังใช้อยู่/;
+  var FORCE = /ตั้งจุดเตือน|ตั้งค่า \/ ปรับสูตร|โซนอันตราย|ติดตั้งเป็นแอพ|สิทธิ์การเข้าใช้|เกณฑ์ไล่สี|พื้นที่เก็บข้อมูล|ยอดยกมา|ออกไฟล์ข้อมูล/;
+  function mode(c){
+    var m = c.getAttribute('data-wfold'); if(m) return m;
+    var t = title(c);
+    if(KEEP.test(t)) return 'no';
+    if(SUB.test(t)) return 'sub';
+    if(!defOpen() && FORCE.test(t)) return 'yes';
+    return '';
+  }
+  function scan(){
+    document.querySelectorAll('.panel .card').forEach(function(c){
+      if(c.__wf) return;
+      var m = mode(c);
+      if(m === 'no') return;
+      if(m === 'yes'){ if(c.querySelector(':scope > h3')) wholeCard(c); return; }
+      if(!c.querySelector('table')) return;
+      if(m === 'sub' || mainBtn(c)) subLists(c, m === 'sub');
+      else if(c.querySelector(':scope > h3')) wholeCard(c);
+    });
+  }
+  document.addEventListener('DOMContentLoaded', function(){ scan(); setInterval(scan, 2500); });
+})();
+</script><!-- /wpd-fold -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- ฟอนต์โหลดเบื้องหลัง ไม่ให้หน้าค้างรอเน็ต (เปิดด้วยฟอนต์เครื่องก่อน แล้วสลับเอง) -->
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet"></noscript>
 
 <div id="sk">
   <div class="topbar">

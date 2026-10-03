@@ -360,6 +360,17 @@
     #fr .nb { font-size:11px; }
     #fr .nb .ic { font-size:19px; }
   }
+
+  /* ---------- พับการ์ดข้อมูล (theme/fold.js) ---------- */
+  .card.wfold > h3 { cursor:pointer; user-select:none; display:flex; align-items:center; gap:8px; margin-bottom:0; }
+  .card.wfold > h3::before { content:'▾'; font-size:13px; color:var(--w-dim); flex:0 0 auto; }
+  .card.wfold.folded > h3::before { content:'▸'; }
+  .card.wfold:not(.folded) > h3 { margin-bottom:10px; }
+  .card.wfold.folded > :not(h3) { display:none !important; }
+  .wfold-n { margin-left:auto; font:500 12.5px 'Sarabun',sans-serif; color:var(--w-dim); background:var(--w-chip); padding:2px 10px; border-radius:99px; }
+  .wfold-n:empty { display:none; }
+  .wfold-sub { display:block; width:100%; margin-top:12px; padding:9px 12px; border:1px dashed var(--w-border); border-radius:10px;
+               background:transparent; color:var(--w-label); font:500 14px 'Sarabun',sans-serif; text-align:left; cursor:pointer; }
 </style><!-- /wpd-theme -->
 <script id="wpd-mode">
 (function(){
@@ -382,28 +393,84 @@
   });
 })();
 </script><!-- /wpd-mode -->
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+<script id="wpd-fold">
+/* พับการ์ดข้อมูล (ตาราง/ประวัติ) ไว้ก่อน แตะหัวข้อเพื่อเปิด — จำไว้ในเครื่องว่าเปิด/ปิดอันไหน
+   - การ์ดที่มีตารางแต่ไม่มีปุ่มบันทึกหลัก (.btn.w) → พับทั้งการ์ด หัวข้อบอกจำนวนรายการ
+   - การ์ดฟอร์มที่มีตารางประวัติต่อท้าย → พับเฉพาะตาราง ("ดูรายการที่บันทึกไว้")
+   - ไม่พับ: การ์ดที่ใส่ data-wfold="no"
+   ค่าเริ่มต้นของแต่ละแอพ: <html data-wfold-default="open"> = เปิดไว้ก่อน (แอพต้นทุน) */
+(function(){
+  var K = 'wpd_fold';
+  function load(){ try{ return JSON.parse(localStorage.getItem(K) || '{}'); }catch(e){ return {}; } }
+  function save(o){ try{ localStorage.setItem(K, JSON.stringify(o)); }catch(e){} }
+  function defOpen(){ return document.documentElement.getAttribute('data-wfold-default') === 'open'; }
+  function title(c){ var h = c.querySelector(':scope > h3'); return h ? (h.getAttribute('data-wt') || h.textContent).trim() : ''; }
+  function keyOf(c, extra){ var p = c.closest('.panel'); return (p ? p.id : '') + '|' + title(c) + (extra || ''); }
+  function count(el){ var n = 0; el.querySelectorAll('table').forEach(function(t){ var r = t.querySelectorAll('tr').length - 1; if(t.querySelector('td.empty')) r = 0; n += Math.max(0, r); }); return n; }
+  function mainBtn(c){ var b = c.querySelectorAll('.btn.w'); return b.length ? b[b.length - 1] : null; }
+  function wholeCard(c){
+    var h = c.querySelector(':scope > h3'); if(!h) return;
+    c.__wf = 1; c.classList.add('wfold');
+    h.setAttribute('data-wt', h.textContent.trim());
+    var tag = document.createElement('span'); tag.className = 'wfold-n'; h.appendChild(tag);
+    var st = load(), k = keyOf(c);
+    c.classList.toggle('folded', (k in st) ? st[k] : !defOpen());
+    h.addEventListener('click', function(e){
+      if(e.target.closest('button,a,input,select')) return;
+      var f = !c.classList.contains('folded'); c.classList.toggle('folded', f);
+      var o = load(); o[keyOf(c)] = f; save(o);
+    });
+    var upd = function(){ var n = count(c), t = n ? n + ' รายการ' : ''; if(tag.textContent !== t) tag.textContent = t; };
+    upd(); new MutationObserver(upd).observe(c, { childList:true, subtree:true });
+  }
+  function subLists(c, all){
+    var last = mainBtn(c); if(!last && !all) return;
+    c.querySelectorAll('.scr').forEach(function(sc, i){
+      if(sc.__wsf || !sc.querySelector('table')) return;
+      if(!all && !(last.compareDocumentPosition(sc) & Node.DOCUMENT_POSITION_FOLLOWING)) return;
+      sc.__wsf = 1;
+      var t = document.createElement('button'); t.type = 'button'; t.className = 'wfold-sub'; t.setAttribute('data-noguard', '1');
+      sc.parentNode.insertBefore(t, sc);
+      var k = keyOf(c, '#' + i), st = load();
+      var folded = (k in st) ? st[k] : !defOpen();
+      var paint = function(){ var n = count(sc); sc.style.display = folded ? 'none' : '';
+        var txt = folded ? '▸ ดูรายการที่บันทึกไว้' + (n ? ' (' + n + ')' : '') : '▾ ซ่อนรายการ'; if(t.textContent !== txt) t.textContent = txt; };
+      t.onclick = function(){ folded = !folded; var o = load(); o[k] = folded; save(o); paint(); };
+      paint(); new MutationObserver(paint).observe(sc, { childList:true, subtree:true });
+    });
+  }
+  /* ตามหัวข้อการ์ด: KEEP = ต้องเห็นตลอด · SUB = การ์ดเห็นตลอด พับแค่ตารางประวัติข้างใน
+     FORCE = ตั้งค่า/ใช้นานๆ ครั้ง พับทั้งการ์ดแม้มีปุ่ม (ยกเว้นแอพที่เปิดไว้ก่อน เช่นแอพต้นทุน) */
+  var KEEP = /ใกล้หมด|สูตรของออเดอร์/;
+  var SUB = /ก้อนใยที่กำลังใช้อยู่/;
+  var FORCE = /ตั้งจุดเตือน|ตั้งค่า \/ ปรับสูตร|โซนอันตราย|ติดตั้งเป็นแอพ|สิทธิ์การเข้าใช้|เกณฑ์ไล่สี|พื้นที่เก็บข้อมูล|ยอดยกมา|ออกไฟล์ข้อมูล/;
+  function mode(c){
+    var m = c.getAttribute('data-wfold'); if(m) return m;
+    var t = title(c);
+    if(KEEP.test(t)) return 'no';
+    if(SUB.test(t)) return 'sub';
+    if(!defOpen() && FORCE.test(t)) return 'yes';
+    return '';
+  }
+  function scan(){
+    document.querySelectorAll('.panel .card').forEach(function(c){
+      if(c.__wf) return;
+      var m = mode(c);
+      if(m === 'no') return;
+      if(m === 'yes'){ if(c.querySelector(':scope > h3')) wholeCard(c); return; }
+      if(!c.querySelector('table')) return;
+      if(m === 'sub' || mainBtn(c)) subLists(c, m === 'sub');
+      else if(c.querySelector(':scope > h3')) wholeCard(c);
+    });
+  }
+  document.addEventListener('DOMContentLoaded', function(){ scan(); setInterval(scan, 2500); });
+})();
+</script><!-- /wpd-fold -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- ฟอนต์โหลดเบื้องหลัง ไม่ให้หน้าค้างรอเน็ต (เปิดด้วยฟอนต์เครื่องก่อน แล้วสลับเอง) -->
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet"></noscript>
 
 <div id="fr">
   <div class="topbar">
@@ -466,6 +533,16 @@
         <div class="sumline" id="feedOrderNote" style="margin-top:6px;"></div>
       </div>
       <div class="card">
+        <div class="ctrwrap">
+          <div class="ring" id="ring">
+            <div class="n" id="ringN">0</div>
+            <div class="l">รอบป้อนใยวันนี้ — แตะเพื่อ +1</div>
+          </div>
+          <div class="hint" id="feedHint">แตะทุกครั้งที่ป้อนใยครบ 1 สูตร ระบบบันทึกเวลาให้อัตโนมัติ</div>
+          <button class="btn sec" id="btnUndoFeed" style="margin-top:11px;">↩ ลบรายการล่าสุด (กดผิด)</button>
+        </div>
+      </div>
+      <div class="card">
         <h3>สูตรของออเดอร์ที่กำลังทำงาน</h3>
         <div id="feedInfo"></div>
       </div>
@@ -478,16 +555,6 @@
           <input type="checkbox" id="autoCutFiber" style="width:auto; margin:0;" checked>
           <span style="font-size:13px;">หักใยออกจากสต๊อกให้อัตโนมัติทุกครั้งที่แตะ +1 รอบ</span>
         </label>
-      </div>
-      <div class="card">
-        <div class="ctrwrap">
-          <div class="ring" id="ring">
-            <div class="n" id="ringN">0</div>
-            <div class="l">รอบป้อนใยวันนี้ — แตะเพื่อ +1</div>
-          </div>
-          <div class="hint" id="feedHint">แตะทุกครั้งที่ป้อนใยครบ 1 สูตร ระบบบันทึกเวลาให้อัตโนมัติ</div>
-          <button class="btn sec" id="btnUndoFeed" style="margin-top:11px;">↩ ลบรายการล่าสุด (กดผิด)</button>
-        </div>
       </div>
       <div class="card">
         <h3>รายการป้อนใยวันนี้</h3>
@@ -552,26 +619,6 @@
 
     <!-- 4. END OF LINE -->
     <div class="panel" id="p-line">
-      <div class="card" id="cardGas">
-        <h3>🔥 เปลี่ยนถังแก๊ส (โรง 1 — ใยแผ่น)</h3>
-        <p class="sumline">ไม่ผูกกับออเดอร์ใดออเดอร์หนึ่ง เพราะแก๊สใช้ต่อเนื่องทั้งไลน์ — กดครั้งเดียวเปลี่ยน 2 ถังพร้อมกัน ระบบหยิบถังเก่าสุดที่เหลืออยู่ให้อัตโนมัติ พร้อมลงเวลาให้เอง</p>
-        <div class="sumline" id="gasAvailInfo"></div>
-        <button class="btn w" id="btnGasSwap">🔥 เปลี่ยนถังใหม่ 2 ใบ</button>
-        <div class="scr" style="margin-top:11px;"><table id="tGasSwap"></table></div>
-      </div>
-      <div class="card" id="cardSheet" style="display:none;">
-        <h3>🧺 เบิกใยแผ่นมาแพ็ค (งานปิกนิก)</h3>
-        <p class="sumline">งานนี้ไม่ได้ผลิตใยใหม่ — ยกใยแผ่นที่ผลิตเสร็จแล้วมาแพ็ค
-          เบิกแล้วยอดสินค้าใยแผ่นในแอพสต๊อกจะลดทันที ไม่ต้องไปปรับยอดเอง</p>
-        <div class="sumline" id="sheetLineInfo"></div>
-        <div class="rf" style="margin-top:8px;">
-          <div><label>เอาใยแผ่นจากงานไหน</label><select id="swSrc"></select></div>
-          <div><label>เบิกกี่แผ่น</label><input id="swQty" type="number" inputmode="numeric" placeholder="เช่น 50"></div>
-        </div>
-        <div class="sumline" id="swPreview"></div>
-        <button class="btn w" id="btnSheetWd">🧺 เบิกใยแผ่นมาที่ไลน์</button>
-        <div class="scr" style="margin-top:11px;"><table id="tSheetWd"></table></div>
-      </div>
       <div class="card" id="cardSpec">
         <div id="specForm"></div>
       </div>
@@ -598,22 +645,18 @@
         <button class="bigbtn pause" id="btnBreak"><span class="ic">⏸</span><span class="tx">พักงาน</span></button>
         <button class="bigbtn stop" id="btnFinish"><span class="ic">🏁</span><span class="tx">จบงาน</span></button>
       </div>
-      <div class="card">
-        <h3>รายงานการผลิต</h3>
-        <div class="scr"><table id="tLine"></table></div>
-      </div>
-      <div class="card">
-        <h3>ชั่งเศษ / ของเสีย (ชั่งรวมเป็นครั้งๆ)</h3>
-        <div class="rf">
-          <div><label>น้ำหนักเศษ (กก.)</label><input id="scKg" type="number" inputmode="decimal" step="0.01"></div>
-          <div><label>หมายเหตุ</label><input id="scNote" placeholder="เศษตัดขอบ"></div>
+      <div class="card" id="cardSheet" style="display:none;">
+        <h3>🧺 เบิกใยแผ่นมาแพ็ค (งานปิกนิก)</h3>
+        <p class="sumline">งานนี้ไม่ได้ผลิตใยใหม่ — ยกใยแผ่นที่ผลิตเสร็จแล้วมาแพ็ค
+          เบิกแล้วยอดสินค้าใยแผ่นในแอพสต๊อกจะลดทันที ไม่ต้องไปปรับยอดเอง</p>
+        <div class="sumline" id="sheetLineInfo"></div>
+        <div class="rf" style="margin-top:8px;">
+          <div><label>เอาใยแผ่นจากงานไหน</label><select id="swSrc"></select></div>
+          <div><label>เบิกกี่แผ่น</label><input id="swQty" type="number" inputmode="numeric" placeholder="เช่น 50"></div>
         </div>
-        <div class="rf" id="scPillowRow" style="display:none;">
-          <div><label>จำนวนหมอนเสีย (ชิ้น)</label><input id="scPieces" type="number" inputmode="numeric"></div>
-          <div><label>สาเหตุ</label><input id="scReason" placeholder="เช่น เย็บไม่แน่น, ผ้าเปื้อน"></div>
-        </div>
-        <button class="btn sec w" id="btnScrap">บันทึกของเสีย</button>
-        <div class="scr" style="margin-top:11px;"><table id="tScrap"></table></div>
+        <div class="sumline" id="swPreview"></div>
+        <button class="btn w" id="btnSheetWd">🧺 เบิกใยแผ่นมาที่ไลน์</button>
+        <div class="scr" style="margin-top:11px;"><table id="tSheetWd"></table></div>
       </div>
       <div class="card" id="cardFabWd">
         <h3>🧷 เบิกถุงบรรจุผ้า</h3>
@@ -646,6 +689,30 @@
         <div class="sumline" id="bwPreview" style="margin-top:8px;"></div>
         <button class="btn w" id="btnBagWd">ยืนยันเบิกทั้งหมด</button>
         <div class="scr" style="margin-top:11px;"><table id="tBagWdHist"></table></div>
+      </div>
+      <div class="card" id="cardGas">
+        <h3>🔥 เปลี่ยนถังแก๊ส (โรง 1 — ใยแผ่น)</h3>
+        <p class="sumline">ไม่ผูกกับออเดอร์ใดออเดอร์หนึ่ง เพราะแก๊สใช้ต่อเนื่องทั้งไลน์ — กดครั้งเดียวเปลี่ยน 2 ถังพร้อมกัน ระบบหยิบถังเก่าสุดที่เหลืออยู่ให้อัตโนมัติ พร้อมลงเวลาให้เอง</p>
+        <div class="sumline" id="gasAvailInfo"></div>
+        <button class="btn w" id="btnGasSwap">🔥 เปลี่ยนถังใหม่ 2 ใบ</button>
+        <div class="scr" style="margin-top:11px;"><table id="tGasSwap"></table></div>
+      </div>
+      <div class="card">
+        <h3>ชั่งเศษ / ของเสีย (ชั่งรวมเป็นครั้งๆ)</h3>
+        <div class="rf">
+          <div><label>น้ำหนักเศษ (กก.)</label><input id="scKg" type="number" inputmode="decimal" step="0.01"></div>
+          <div><label>หมายเหตุ</label><input id="scNote" placeholder="เศษตัดขอบ"></div>
+        </div>
+        <div class="rf" id="scPillowRow" style="display:none;">
+          <div><label>จำนวนหมอนเสีย (ชิ้น)</label><input id="scPieces" type="number" inputmode="numeric"></div>
+          <div><label>สาเหตุ</label><input id="scReason" placeholder="เช่น เย็บไม่แน่น, ผ้าเปื้อน"></div>
+        </div>
+        <button class="btn sec w" id="btnScrap">บันทึกของเสีย</button>
+        <div class="scr" style="margin-top:11px;"><table id="tScrap"></table></div>
+      </div>
+      <div class="card">
+        <h3>รายงานการผลิต</h3>
+        <div class="scr"><table id="tLine"></table></div>
       </div>
     </div>
 
@@ -2831,18 +2898,9 @@ window.WPDAUTH = {
 
     if(!open){
       f.innerHTML='<div class="rf" style="align-items:center;">'+
-        '<div><h3 style="margin:0;">น้ำหนัก Standard ที่ตั้งไว้</h3>'+
-        '<div class="sumline" style="margin-top:3px;"><b style="color:var(--accent2)">'+CALC.stdPerPack(sp)+' กก./แพ็ค</b>'+
-        ' — '+sp.weightPerPiece+' กก./ชิ้น × '+sp.piecesPerPack+' ชิ้น'+
-        (CALC.zipKgPerPack(sp)?'<br>'+(isPillow?'ถุงซิล':'ถุง')+': '+(sp.bagName?esc(sp.bagName)+' ':'')+(sp.bagSize?'('+esc(sp.bagSize)+') ':'')+
-          sp.bagWeight+' กก./ใบ × '+CALC.zipPerPack(sp)+' ใบ = '+CALC.zipKgPerPack(sp)+' กก.'+
-          (sp.bagSackNo?' — เบอร์กระสอบ #'+esc(sp.bagSackNo):''):'')+
-        (CALC.packKgPerPack(sp)?'<br>ถุงแพ็ค: '+(sp.packBagName?esc(sp.packBagName)+' ':'')+
-          sp.packBagWeight+' กก./ใบ × '+CALC.packBagPerPack(sp)+' ใบ = '+CALC.packKgPerPack(sp)+' กก.'+
-          (sp.packBagLotRef?' — เบอร์กระสอบ #'+esc(sp.packBagLotRef):''):
-          (sp.packBagName?'<br>ถุงแพ็ค: '+esc(sp.packBagName):''))+
-        bagStockLine(sp)+
-        (isPillow&&sp.fabricType?'<br>ผ้า: '+esc(sp.fabricType)+' ไซซ์ '+esc(sp.fabricSize||'-'):'')+'</div></div>'+
+        '<div><h3 style="margin:0;">Standard <b style="color:var(--accent2)">'+CALC.stdPerPack(sp)+' กก./แพ็ค</b></h3>'+
+        '<div class="sumline" style="margin-top:3px;">'+sp.weightPerPiece+' กก./ชิ้น × '+sp.piecesPerPack+' ชิ้น + '+bagSummary(sp)+
+          (isPillow&&sp.fabricType?' · ผ้า '+esc(sp.fabricType)+' '+esc(sp.fabricSize||''):'')+'</div></div>'+
         '<button class="btn sec sm" id="spEdit" style="flex:0 0 auto;">แก้ไข</button></div>';
       $('spEdit').onclick=()=>{ specOpen=true; buildSpecForm(); flash('cardSpec'); };
       return;

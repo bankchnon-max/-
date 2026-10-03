@@ -519,7 +519,8 @@
             <option value="หมอนข้าง">หมอนข้าง</option>
             <option value="ปิกนิก">ปิกนิก (แพ็คใยแผ่นที่ผลิตไว้)</option>
             <option value="อื่นๆ">อื่นๆ</option>
-          </select></div>
+          </select>
+          <div id="nPicRow" style="display:none;"><label>ไซซ์ปิกนิก</label><select id="nPicSize"><option value="3F">3F (40x79)</option><option value="3.5F">3.5F (46x79)</option><option value="5F">5F (63x78)</option><option value="6F">6F (76x83)</option><option value="">อื่นๆ / ไม่ระบุ</option></select></div></div>
           <div><label>จำนวนที่ลูกค้าสั่ง (แพ็ค)</label><input id="nPacks" type="number" inputmode="numeric" placeholder="500"></div>
         </div>
         <label>ทำถึงเวลา (เตือนก่อน 5 นาที)</label><input id="nDue" type="datetime-local">
@@ -924,6 +925,7 @@
       <label>ชื่อลูกค้า</label><input id="edCust">
       <label>รหัส/สเปคงาน</label><input id="edCode">
       <label>ประเภทสินค้า</label><select id="edCat"></select>
+      <div id="edPicRow" style="display:none;"><label>ไซซ์ปิกนิก</label><select id="edPicSize"><option value="3F">3F (40x79)</option><option value="3.5F">3.5F (46x79)</option><option value="5F">5F (63x78)</option><option value="6F">6F (76x83)</option><option value="">อื่นๆ / ไม่ระบุ</option></select></div>
       <div id="edCatNote" style="font-size:11.5px;color:var(--dim);margin-top:3px;"></div>
       <label>จำนวนที่สั่ง (แพ็ค)</label><input id="edPacks" type="number" inputmode="numeric">
       <label>ทำถึงเวลา</label><input id="edDue" type="datetime-local">
@@ -1819,7 +1821,7 @@ window.WPDAUTH = {
       return '<div class="ocard '+(on?'sel':'')+' '+(done?'fin':'')+'">'+
         '<span class="st '+(done?'done':on?'active':'pending')+'">'+(done?'เสร็จแล้ว':on?'กำลังทำ':'รอคิว')+'</span>'+
         '<div class="cust" data-sel="'+o.id+'">'+esc(o.customer)+'</div>'+
-        '<div class="code" data-sel="'+o.id+'">'+esc(o.code)+' <span class="bdg ok">'+esc(prodCat(o))+'</span></div>'+
+        '<div class="code" data-sel="'+o.id+'">'+esc(o.code)+' <span class="bdg ok">'+esc(catLabel(o))+'</span></div>'+
         '<div class="meta">สั่ง '+(o.orderedPacks||0)+' แพ็ค · ผลิตแล้ว '+packs+' แพ็ค'+
           (o.orderedPacks?' ('+Math.round(packs/o.orderedPacks*100)+'%)':'')+'<br>'+
           'Standard '+(stdP?stdP+' กก./แพ็ค':'ยังไม่ตั้งค่า')+'<br>'+
@@ -1865,7 +1867,7 @@ window.WPDAUTH = {
       const key=o.customer+'||'+o.code;
       const hasData=(o.fibers||[]).length || CALC.stdPerPack(o.spec)>0;
       if(!hasData) return;
-      map[key]={ customer:o.customer, code:o.code, fibers:o.fibers||[], productType:o.productType||'ใย', category:prodCat(o),
+      map[key]={ customer:o.customer, code:o.code, fibers:o.fibers||[], productType:o.productType||'ใย', category:prodCat(o), picnicSize:picnicSize(o)||null,
         recipeTargetKg:o.recipeTargetKg||0, spec:o.spec||{}, lastUsed:o.createdAt||'' };
     });
     return Object.values(map);
@@ -1903,7 +1905,7 @@ window.WPDAUTH = {
     el.querySelectorAll('[data-lib]').forEach(b=>b.onclick=()=>{
       const s=lib[+b.dataset.lib];
       $('nCust').value=s.customer; $('nCode').value=s.code;
-      if(s.productType||s.category) $('nType').value=prodCat(s);
+      if(s.productType||s.category){ $('nType').value=prodCat(s); if($('nPicSize')) $('nPicSize').value=picnicSize(s)||''; syncPicRow('nType','nPicRow'); }
       $('nPacks').value=''; $('nDue').value='';
       checkMatch(); flash('nMatch');
       toast('ดึงสเปค '+s.customer+' มาแล้ว — ใส่จำนวนแพ็คแล้วกดเพิ่มออเดอร์');
@@ -1938,7 +1940,7 @@ window.WPDAUTH = {
     if(!c||!k){ toast('กรอกชื่อลูกค้าและรหัสงาน'); return; }
     const s=findSpec(c,k);
     S.orders.push({ id:uid(), customer:c, code:k, orderedPacks:+$('nPacks').value||0,
-      productType:catBase($('nType').value||'ใยแผ่น'), category:$('nType').value||'ใยแผ่น', recipeVer:1, recipeLog:[],
+      productType:catBase($('nType').value||'ใยแผ่น'), category:$('nType').value||'ใยแผ่น', picnicSize:$('nType').value==='ปิกนิก'?($('nPicSize').value||null):null, recipeVer:1, recipeLog:[],
       fibers: s ? s.fibers.map(f=>({name:f.name,kg:f.kg})) : [],
       recipeTargetKg: s ? (s.recipeTargetKg||0) : 0,
       spec: s ? Object.assign({},s.spec) : {weightPerPiece:0,piecesPerPack:0,bagName:'',bagWeight:0,tolPct:3},
@@ -1962,6 +1964,16 @@ window.WPDAUTH = {
     if(t==='หมอน') return /ข้าง/.test(c)?'หมอนข้าง':'หมอนหนุน';
     return t==='ปิกนิก'?'ปิกนิก':'อื่นๆ';
   }
+  /* ไซซ์ปิกนิก: ตั้งไว้ที่ออเดอร์ · ออเดอร์เก่าดูจากรหัสงาน (เช่น "ปิกนิก 5F") หรือไซซ์ปลอกใน Standard */
+  const PICNIC_BY_CASE={'40x79':'3F','46x79':'3.5F','63x78':'5F','76x83':'6F'};
+  function picnicSize(o){
+    if(!o || prodCat(o)!=='ปิกนิก') return '';
+    if(o.picnicSize) return o.picnicSize;
+    const m=/(\d+(?:\.\d+)?)\s*F(?![a-z])/i.exec(String(o.code||'')); if(m) return m[1]+'F';
+    return PICNIC_BY_CASE[String((o.spec||{}).fabricSize||'').replace(/\s/g,'').toLowerCase()]||'';
+  }
+  function catLabel(o){ const c=prodCat(o), z=picnicSize(o); return z?c+' '+z:c; }
+  function syncPicRow(sel,row){ const e=$(row); if(e) e.style.display=$(sel).value==='ปิกนิก'?'':'none'; }
   /* ---------- 1b. AUTOCOMPLETE ---------- */
   function rDatalists(){
     const cs=new Set(), ks=new Set();
@@ -1974,17 +1986,19 @@ window.WPDAUTH = {
     $('edCust').value=o.customer; $('edCode').value=o.code;
     const _made=S.line.some(l=>l.orderId===id), _base=o.productType||'ใย';
     $('edCat').innerHTML=PROD_CATS.filter(p=>!_made || p[1]===_base).map(p=>'<option value="'+esc(p[0])+'">'+esc(p[0])+'</option>').join('');
-    $('edCat').value=prodCat(o);
+    $('edCat').value=prodCat(o); $('edPicSize').value=picnicSize(o)||''; syncPicRow('edCat','edPicRow');
     $('edCatNote').textContent=_made?'ผลิตไปแล้ว — เปลี่ยนได้เฉพาะประเภทในกลุ่มเดียวกัน ('+_base+')':'';
     $('edPacks').value=o.orderedPacks||''; $('edDue').value=o.due?o.due.slice(0,16):'';
     openOv('ovEdit');
   }
   $('edCancel').onclick=()=>closeOv('ovEdit');
+  $('edCat').addEventListener('change',()=>syncPicRow('edCat','edPicRow'));
+  $('nType').addEventListener('change',()=>syncPicRow('nType','nPicRow'));
   $('edSave').onclick=async()=>{
     const o=orderById(editId); if(!o) return;
     o.customer=$('edCust').value.trim()||o.customer;
     o.code=$('edCode').value.trim()||o.code;
-    if($('edCat').value){ o.category=$('edCat').value; o.productType=catBase(o.category); }
+    if($('edCat').value){ o.category=$('edCat').value; o.productType=catBase(o.category); o.picnicSize=o.category==='ปิกนิก'?($('edPicSize').value||null):null; }
     o.orderedPacks=+$('edPacks').value||0;
     o.due=$('edDue').value?$('edDue').value+':00':null;
     await saveOrders(); closeOv('ovEdit'); rTop(); rOrders(); toast('บันทึกแล้ว');
@@ -2779,7 +2793,7 @@ window.WPDAUTH = {
     rCarry(o);
     $('lineInfo').innerHTML=o
       ? '<div class="sumline">ออเดอร์: <b style="color:var(--accent2)" class="kn">'+esc(o.customer)+' — '+esc(o.code)+
-        '</b> <span class="bdg ok">'+esc(prodCat(o))+'</span></div>'
+        '</b> <span class="bdg ok">'+esc(catLabel(o))+'</span></div>'
       : '<div class="empty">ยังไม่ได้เลือกออเดอร์</div>';
     paintBreak(); checkIdle();
 
@@ -4125,7 +4139,7 @@ window.WPDAUTH = {
   function buildCSV(R){
     const nm=id=>{ const o=orderById(id); return o?o.customer:'(ลบแล้ว)'; };
     const cd=id=>{ const o=orderById(id); return o?o.code:''; };
-    const tp=id=>{ const o=orderById(id); return o?prodCat(o):''; };
+    const tp=id=>{ const o=orderById(id); return o?catLabel(o):''; };
     const rows=[];
     rows.push(['รายงานการผลิต','ช่วง',R.from,'ถึง',R.to,'ออกเมื่อ',localISO().replace('T',' ')]);
     rows.push([]);
@@ -4162,7 +4176,7 @@ window.WPDAUTH = {
     rows.push(['[ออเดอร์และสเปค — ใช้กู้คืนข้อมูลได้]']);
     rows.push(['ลูกค้า','รหัสงาน','ประเภท','สั่ง(แพ็ค)','สถานะ','สูตร (ชื่อ:กก.[เบอร์แท็ก])','ครบสูตร(กก.)','เวอร์ชันสูตร',
       'น้ำหนัก/ชิ้น','ชิ้น/แพ็ค','ชนิดถุง','น้ำหนักถุง','ถุงต่อชิ้น','ถุงแพ็คแยก','ชนิดผ้า','ไซซ์ผ้า','Std/แพ็ค','คลาดเคลื่อน(%)','กำหนดส่ง','เริ่ม','จบ']);
-    S.orders.forEach(o=>rows.push([o.customer,o.code,prodCat(o),o.orderedPacks||'',o.status||'',
+    S.orders.forEach(o=>rows.push([o.customer,o.code,catLabel(o),o.orderedPacks||'',o.status||'',
       (o.fibers||[]).map(f=>f.name+':'+f.kg+(f.tagNo?'['+f.tagNo+']':'')).join(' + '),o.recipeTargetKg||'',o.recipeVer||1,
       (o.spec||{}).weightPerPiece||'',(o.spec||{}).piecesPerPack||'',(o.spec||{}).bagName||'',
       (o.spec||{}).bagWeight||'',(o.spec||{}).bagPerPiece?'ใช่':'',(o.spec||{}).packBagName||'',
@@ -4191,7 +4205,7 @@ window.WPDAUTH = {
       const sl=S.scrap.filter(x=>x.orderId===id&&inRange(x,R));
       const std=r3(ll.reduce((s,x)=>s+(+x.stdPerPack||0),0));
       const act=r3(ll.reduce((s,x)=>s+((x.actualWeight!=null?+x.actualWeight:+x.stdPerPack)||0),0));
-      rows.push([o?o.customer:'(ลบแล้ว)',o?o.code:'',o?prodCat(o):'',o?o.orderedPacks||'':'',ll.length,
+      rows.push([o?o.customer:'(ลบแล้ว)',o?o.code:'',o?catLabel(o):'',o?o.orderedPacks||'':'',ll.length,
         std,act,r3(act-std),fl.length,CALC.usageTotal(fl,o),
         r2(wl.reduce((s,x)=>s+(+x.kg||0),0)),r2(sl.reduce((s,x)=>s+(+x.kg||0),0)),
         o&&o.startedAt?o.startedAt.replace('T',' '):'',o&&o.finishedAt?o.finishedAt.replace('T',' '):'']);

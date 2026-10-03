@@ -513,8 +513,10 @@
         <div class="sumline" id="nMatch"></div>
         <div class="rf">
           <div><label>ประเภทสินค้า</label><select id="nType">
-            <option value="ใย">ใย (แผ่น/ม้วน)</option>
-            <option value="หมอน">หมอน</option>
+            <option value="ใยแผ่น">ใยแผ่น</option>
+            <option value="ใยปั่น/ใยสาง">ใยปั่น / ใยสาง</option>
+            <option value="หมอนหนุน">หมอนหนุน</option>
+            <option value="หมอนข้าง">หมอนข้าง</option>
             <option value="ปิกนิก">ปิกนิก (แพ็คใยแผ่นที่ผลิตไว้)</option>
             <option value="อื่นๆ">อื่นๆ</option>
           </select></div>
@@ -921,6 +923,8 @@
       <h3>แก้ไขออเดอร์</h3>
       <label>ชื่อลูกค้า</label><input id="edCust">
       <label>รหัส/สเปคงาน</label><input id="edCode">
+      <label>ประเภทสินค้า</label><select id="edCat"></select>
+      <div id="edCatNote" style="font-size:11.5px;color:var(--dim);margin-top:3px;"></div>
       <label>จำนวนที่สั่ง (แพ็ค)</label><input id="edPacks" type="number" inputmode="numeric">
       <label>ทำถึงเวลา</label><input id="edDue" type="datetime-local">
       <div class="ba" style="margin-top:12px;">
@@ -1815,7 +1819,7 @@ window.WPDAUTH = {
       return '<div class="ocard '+(on?'sel':'')+' '+(done?'fin':'')+'">'+
         '<span class="st '+(done?'done':on?'active':'pending')+'">'+(done?'เสร็จแล้ว':on?'กำลังทำ':'รอคิว')+'</span>'+
         '<div class="cust" data-sel="'+o.id+'">'+esc(o.customer)+'</div>'+
-        '<div class="code" data-sel="'+o.id+'">'+esc(o.code)+' <span class="bdg ok">'+esc(o.productType||'ใย')+'</span></div>'+
+        '<div class="code" data-sel="'+o.id+'">'+esc(o.code)+' <span class="bdg ok">'+esc(prodCat(o))+'</span></div>'+
         '<div class="meta">สั่ง '+(o.orderedPacks||0)+' แพ็ค · ผลิตแล้ว '+packs+' แพ็ค'+
           (o.orderedPacks?' ('+Math.round(packs/o.orderedPacks*100)+'%)':'')+'<br>'+
           'Standard '+(stdP?stdP+' กก./แพ็ค':'ยังไม่ตั้งค่า')+'<br>'+
@@ -1861,7 +1865,7 @@ window.WPDAUTH = {
       const key=o.customer+'||'+o.code;
       const hasData=(o.fibers||[]).length || CALC.stdPerPack(o.spec)>0;
       if(!hasData) return;
-      map[key]={ customer:o.customer, code:o.code, fibers:o.fibers||[], productType:o.productType||'ใย',
+      map[key]={ customer:o.customer, code:o.code, fibers:o.fibers||[], productType:o.productType||'ใย', category:prodCat(o),
         recipeTargetKg:o.recipeTargetKg||0, spec:o.spec||{}, lastUsed:o.createdAt||'' };
     });
     return Object.values(map);
@@ -1899,7 +1903,7 @@ window.WPDAUTH = {
     el.querySelectorAll('[data-lib]').forEach(b=>b.onclick=()=>{
       const s=lib[+b.dataset.lib];
       $('nCust').value=s.customer; $('nCode').value=s.code;
-      if(s.productType) $('nType').value=s.productType;
+      if(s.productType||s.category) $('nType').value=prodCat(s);
       $('nPacks').value=''; $('nDue').value='';
       checkMatch(); flash('nMatch');
       toast('ดึงสเปค '+s.customer+' มาแล้ว — ใส่จำนวนแพ็คแล้วกดเพิ่มออเดอร์');
@@ -1934,7 +1938,7 @@ window.WPDAUTH = {
     if(!c||!k){ toast('กรอกชื่อลูกค้าและรหัสงาน'); return; }
     const s=findSpec(c,k);
     S.orders.push({ id:uid(), customer:c, code:k, orderedPacks:+$('nPacks').value||0,
-      productType:$('nType').value||'ใย', recipeVer:1, recipeLog:[],
+      productType:catBase($('nType').value||'ใยแผ่น'), category:$('nType').value||'ใยแผ่น', recipeVer:1, recipeLog:[],
       fibers: s ? s.fibers.map(f=>({name:f.name,kg:f.kg})) : [],
       recipeTargetKg: s ? (s.recipeTargetKg||0) : 0,
       spec: s ? Object.assign({},s.spec) : {weightPerPiece:0,piecesPerPack:0,bagName:'',bagWeight:0,tolPct:3},
@@ -1946,6 +1950,18 @@ window.WPDAUTH = {
     toast(s ? 'เพิ่มออเดอร์ พร้อมสูตรและ Standard เดิมแล้ว' : 'เพิ่มออเดอร์แล้ว — อย่าลืมตั้งสูตรและ Standard');
   };
 
+  /* ---------- ประเภทสินค้า: ประเภทย่อยที่เห็น → ประเภทหลักที่คุมการทำงาน (ซ่อนแก๊ส/เบิกผ้า/ถุง) ---------- */
+  const PROD_CATS=[['ใยแผ่น','ใย'],['ใยปั่น/ใยสาง','ใย'],['หมอนหนุน','หมอน'],['หมอนข้าง','หมอน'],['ปิกนิก','ปิกนิก'],['อื่นๆ','อื่นๆ']];
+  function catBase(c){ const x=PROD_CATS.find(p=>p[0]===c); return x?x[1]:'อื่นๆ'; }
+  /* ออเดอร์เก่าที่ยังไม่มีประเภทย่อย: เดาจากประเภทหลัก + รหัสงาน */
+  function prodCat(o){
+    if(!o) return '';
+    if(o.category && PROD_CATS.some(p=>p[0]===o.category)) return o.category;
+    const t=o.productType||'ใย', c=String(o.code||'');
+    if(t==='ใย') return /ใยสาง|ใยปั่น|สาง|ปั่น/.test(c)?'ใยปั่น/ใยสาง':'ใยแผ่น';
+    if(t==='หมอน') return /ข้าง/.test(c)?'หมอนข้าง':'หมอนหนุน';
+    return t==='ปิกนิก'?'ปิกนิก':'อื่นๆ';
+  }
   /* ---------- 1b. AUTOCOMPLETE ---------- */
   function rDatalists(){
     const cs=new Set(), ks=new Set();
@@ -1956,6 +1972,10 @@ window.WPDAUTH = {
   let editId=null;
   function openEdit(id){ const o=orderById(id); if(!o) return; editId=id;
     $('edCust').value=o.customer; $('edCode').value=o.code;
+    const _made=S.line.some(l=>l.orderId===id), _base=o.productType||'ใย';
+    $('edCat').innerHTML=PROD_CATS.filter(p=>!_made || p[1]===_base).map(p=>'<option value="'+esc(p[0])+'">'+esc(p[0])+'</option>').join('');
+    $('edCat').value=prodCat(o);
+    $('edCatNote').textContent=_made?'ผลิตไปแล้ว — เปลี่ยนได้เฉพาะประเภทในกลุ่มเดียวกัน ('+_base+')':'';
     $('edPacks').value=o.orderedPacks||''; $('edDue').value=o.due?o.due.slice(0,16):'';
     openOv('ovEdit');
   }
@@ -1964,6 +1984,7 @@ window.WPDAUTH = {
     const o=orderById(editId); if(!o) return;
     o.customer=$('edCust').value.trim()||o.customer;
     o.code=$('edCode').value.trim()||o.code;
+    if($('edCat').value){ o.category=$('edCat').value; o.productType=catBase(o.category); }
     o.orderedPacks=+$('edPacks').value||0;
     o.due=$('edDue').value?$('edDue').value+':00':null;
     await saveOrders(); closeOv('ovEdit'); rTop(); rOrders(); toast('บันทึกแล้ว');
@@ -2747,7 +2768,9 @@ window.WPDAUTH = {
       if(o && $('bwKindSel')) $('bwKindSel').value = ((o.productType||'ใย')==='ใย' || isPicnic(o)) ? 'pack' : 'zip'; }
     /* แสดงเฉพาะของที่งานนี้ใช้ กันกดผิด: หมอน/ปิกนิก ไม่ใช้แก๊ส · ใยแผ่นไม่ใช้ปลอกผ้า (ยังไม่เลือกออเดอร์ = ซ่อนเบิกปลอก) */
     const _caseJob = !!o && (o.productType==='หมอน' || isPicnic(o));
-    if($('cardGas')) $('cardGas').style.display = _caseJob ? 'none' : '';
+    /* ใยปั่น/ใยสาง ก็ไม่ใช้แก๊ส */
+    const _noGas = _caseJob || (!!o && prodCat(o)==='ใยปั่น/ใยสาง');
+    if($('cardGas')) $('cardGas').style.display = _noGas ? 'none' : '';
     if($('cardFabWd')) $('cardFabWd').style.display = _caseJob ? '' : 'none';
     if($('fwFabSel')) refreshFwSelects();
     if($('bwKindSel')){ refreshBwSelects(); refreshBwSackOptions(); }
@@ -2756,7 +2779,7 @@ window.WPDAUTH = {
     rCarry(o);
     $('lineInfo').innerHTML=o
       ? '<div class="sumline">ออเดอร์: <b style="color:var(--accent2)" class="kn">'+esc(o.customer)+' — '+esc(o.code)+
-        '</b> <span class="bdg ok">'+esc(o.productType||'ใย')+'</span></div>'
+        '</b> <span class="bdg ok">'+esc(prodCat(o))+'</span></div>'
       : '<div class="empty">ยังไม่ได้เลือกออเดอร์</div>';
     paintBreak(); checkIdle();
 
@@ -4102,7 +4125,7 @@ window.WPDAUTH = {
   function buildCSV(R){
     const nm=id=>{ const o=orderById(id); return o?o.customer:'(ลบแล้ว)'; };
     const cd=id=>{ const o=orderById(id); return o?o.code:''; };
-    const tp=id=>{ const o=orderById(id); return o?(o.productType||'ใย'):''; };
+    const tp=id=>{ const o=orderById(id); return o?prodCat(o):''; };
     const rows=[];
     rows.push(['รายงานการผลิต','ช่วง',R.from,'ถึง',R.to,'ออกเมื่อ',localISO().replace('T',' ')]);
     rows.push([]);
@@ -4139,7 +4162,7 @@ window.WPDAUTH = {
     rows.push(['[ออเดอร์และสเปค — ใช้กู้คืนข้อมูลได้]']);
     rows.push(['ลูกค้า','รหัสงาน','ประเภท','สั่ง(แพ็ค)','สถานะ','สูตร (ชื่อ:กก.[เบอร์แท็ก])','ครบสูตร(กก.)','เวอร์ชันสูตร',
       'น้ำหนัก/ชิ้น','ชิ้น/แพ็ค','ชนิดถุง','น้ำหนักถุง','ถุงต่อชิ้น','ถุงแพ็คแยก','ชนิดผ้า','ไซซ์ผ้า','Std/แพ็ค','คลาดเคลื่อน(%)','กำหนดส่ง','เริ่ม','จบ']);
-    S.orders.forEach(o=>rows.push([o.customer,o.code,o.productType||'ใย',o.orderedPacks||'',o.status||'',
+    S.orders.forEach(o=>rows.push([o.customer,o.code,prodCat(o),o.orderedPacks||'',o.status||'',
       (o.fibers||[]).map(f=>f.name+':'+f.kg+(f.tagNo?'['+f.tagNo+']':'')).join(' + '),o.recipeTargetKg||'',o.recipeVer||1,
       (o.spec||{}).weightPerPiece||'',(o.spec||{}).piecesPerPack||'',(o.spec||{}).bagName||'',
       (o.spec||{}).bagWeight||'',(o.spec||{}).bagPerPiece?'ใช่':'',(o.spec||{}).packBagName||'',
@@ -4168,7 +4191,7 @@ window.WPDAUTH = {
       const sl=S.scrap.filter(x=>x.orderId===id&&inRange(x,R));
       const std=r3(ll.reduce((s,x)=>s+(+x.stdPerPack||0),0));
       const act=r3(ll.reduce((s,x)=>s+((x.actualWeight!=null?+x.actualWeight:+x.stdPerPack)||0),0));
-      rows.push([o?o.customer:'(ลบแล้ว)',o?o.code:'',o?(o.productType||'ใย'):'',o?o.orderedPacks||'':'',ll.length,
+      rows.push([o?o.customer:'(ลบแล้ว)',o?o.code:'',o?prodCat(o):'',o?o.orderedPacks||'':'',ll.length,
         std,act,r3(act-std),fl.length,CALC.usageTotal(fl,o),
         r2(wl.reduce((s,x)=>s+(+x.kg||0),0)),r2(sl.reduce((s,x)=>s+(+x.kg||0),0)),
         o&&o.startedAt?o.startedAt.replace('T',' '):'',o&&o.finishedAt?o.finishedAt.replace('T',' '):'']);

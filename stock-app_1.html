@@ -811,8 +811,14 @@
         </div>
         <label id="finFreeLotLabel" style="display:none;">เลขอ้างอิง/ล็อต (ถ้ามีเขียนไว้อยู่แล้ว)</label>
         <input id="finFreeLot" placeholder="ไม่บังคับ ไว้ตามรอยย้อนหลัง" style="display:none;">
-        <label id="obFinQtyLabel">จำนวนแพ็คที่มีอยู่จริงตอนนี้</label><input id="obFinQty" type="number" inputmode="numeric">
-        <label id="finFreeDateLabel" style="display:none;">วันที่มีของอยู่แล้ว</label><input id="finFreeDate" type="date" style="display:none;">
+        <div class="rf">
+          <div><label>แพ็คละกี่ชิ้น</label><input id="obFinPP" type="number" inputmode="numeric" placeholder="เช่น 4"></div>
+          <div><label>ผลิตวันไหน</label><input id="finFreeDate" type="date"></div>
+        </div>
+        <label>เบอร์แพ็คที่มีอยู่</label><input id="obFinNos" placeholder="เช่น 1-50 หรือ 1,2,5-10">
+        <div style="font-size:11.5px;color:var(--dim);margin-top:3px;">ไม่รู้เบอร์ เว้นว่างได้ (บิลจะไม่มีเบอร์แพ็คของส่วนนี้) · ผลิตคนละวัน ให้บันทึกแยกทีละวัน</div>
+        <label id="obFinQtyLabel">มีอยู่กี่แพ็ค</label><input id="obFinQty" type="number" inputmode="numeric" placeholder="ใส่เบอร์แพ็คแล้ว ระบบนับให้เอง">
+        <div class="sumline" id="obFinPreview" style="margin-top:4px;"></div>
         <button class="btn sec w" id="btnObFin">บันทึกยอดยกมา</button>
       </div>
       <div class="card"><h3>ประวัติผลิตเข้าสต๊อก (จากระบบผลิต)</h3><div id="finBar"></div><div class="scr"><table id="tFinIn"></table></div></div>
@@ -1335,16 +1341,19 @@ window.WPDAUTH = {
     finStock(producedByOrder, shipments, adjustments){
       const m={};
       Object.entries(producedByOrder||{}).forEach(([id,qty])=>{ m[id]=m[id]||{produced:0,shipped:0,adjusted:0}; m[id].produced=qty; });
-      (shipments||[]).forEach(s=>{ m[s.orderId]=m[s.orderId]||{produced:0,shipped:0,adjusted:0}; m[s.orderId].shipped=r2(m[s.orderId].shipped+(+s.qty||0)); });
+      (shipments||[]).filter(s=>s.orderId).forEach(s=>{ m[s.orderId]=m[s.orderId]||{produced:0,shipped:0,adjusted:0}; m[s.orderId].shipped=r2(m[s.orderId].shipped+(+s.qty||0)); });
       (adjustments||[]).filter(a=>a.orderId).forEach(a=>{ m[a.orderId]=m[a.orderId]||{produced:0,shipped:0,adjusted:0}; m[a.orderId].adjusted=r2(m[a.orderId].adjusted+(+a.delta||0)); });
       return Object.entries(m).map(([orderId,v])=>({ orderId, produced:v.produced, shipped:v.shipped, adjusted:v.adjusted, stock:r2(v.produced-v.shipped+v.adjusted) }));
     },
     // สินค้าที่ยังไม่มีออเดอร์จริงในแอพผลิต — ลงยอดยกมาอิสระด้วยชื่อลูกค้า+รหัสของตัวเอง ไม่ผูกกับ orderId เลย
-    freeFinStock(adjustments){
+    freeFinStock(adjustments, shipments){
       const m={};
       (adjustments||[]).filter(a=>!a.orderId && a.freeLabel).forEach(a=>{
-        m[a.freeLabel]=m[a.freeLabel]||{freeLabel:a.freeLabel, stock:0};
+        m[a.freeLabel]=m[a.freeLabel]||{freeLabel:a.freeLabel, stock:0, shipped:0};
         m[a.freeLabel].stock=r2(m[a.freeLabel].stock+(+a.delta||0));
+      });
+      (shipments||[]).filter(x=>!x.orderId && x.freeLabel && m[x.freeLabel]).forEach(x=>{
+        m[x.freeLabel].stock=r2(m[x.freeLabel].stock-(+x.qty||0)); m[x.freeLabel].shipped=r2(m[x.freeLabel].shipped+(+x.qty||0));
       });
       return Object.values(m);
     },
@@ -3098,7 +3107,7 @@ window.WPDAUTH = {
     const produced=producedByOrder();
     const stock=CALC.finStock(produced, S.shipments, S.finAdjustments);
     stock.sort((a,b)=>orderLabel(a.orderId).localeCompare(orderLabel(b.orderId),'th'));
-    const freeStock=CALC.freeFinStock(S.finAdjustments);
+    const freeStock=CALC.freeFinStock(S.finAdjustments,S.shipments);
     freeStock.sort((a,b)=>a.freeLabel.localeCompare(b.freeLabel,'th'));
 
     let cardsHtml=stock.length?stock.map(s=>{ const o=orderById(s.orderId);
@@ -3108,7 +3117,7 @@ window.WPDAUTH = {
       '<button class="ed" style="margin-top:6px;" data-finadj="'+s.orderId+'">ปรับยอดคงเหลือ</button></div>'; }).join(''):'';
     cardsHtml += freeStock.length?freeStock.map(s=>
       '<div class="scard"><div class="nm">'+esc(s.freeLabel)+' <span class="bdg warn">ไม่มีออเดอร์</span></div>'+
-      '<div class="n">'+s.stock+' <span style="font-size:13px;color:var(--dim);">แพ็ค</span></div><div class="l">ลงยอดอิสระ (ยังไม่มีออเดอร์ในแอพผลิต)</div>'+
+      '<div class="n">'+s.stock+' <span style="font-size:13px;color:var(--dim);">แพ็ค</span></div><div class="l">ยอดยกมา (ยังไม่มีออเดอร์ในแอพผลิต)'+(s.shipped?' · ส่งออกแล้ว '+s.shipped+' แพ็ค':'')+'</div>'+
       '<button class="ed" style="margin-top:6px;" data-finfreeadj="'+esc(s.freeLabel)+'">ปรับยอดคงเหลือ</button></div>'
     ).join(''):'';
     $('finCards').innerHTML=cardsHtml||'<div class="empty">ยังไม่มีข้อมูล</div>';
@@ -3147,7 +3156,6 @@ window.WPDAUTH = {
     $('obFinSel').innerHTML='<option value="">— เลือกออเดอร์ —</option>'+PROD.orders.slice().sort((a,b)=>orderLabel(a.id).localeCompare(orderLabel(b.id),'th')).map(o=>'<option value="'+o.id+'">'+esc(orderLabel(o.id))+'</option>').join('');
     if(PROD.orders.some(o=>o.id===keepObFin)) $('obFinSel').value=keepObFin;
 
-    if(!$('finFreeDate').value) $('finFreeDate').value=todayStr();
     const freeCustomers=[...new Set(S.finAdjustments.filter(a=>a.freeLabel).map(a=>a.freeLabel.split(' — ')[0]))].sort();
     const keepFreeCust=$('finFreeCustSel').value;
     $('finFreeCustSel').innerHTML='<option value="">— เลือกลูกค้า —</option>'+freeCustomers.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('')+'<option value="__new__">+ พิมพ์ชื่อใหม่…</option>';
@@ -3163,7 +3171,7 @@ window.WPDAUTH = {
 
     const adjRows=S.finAdjustments.slice().reverse().slice(0,50);
     $('tFinAdj').innerHTML=adjRows.length?'<tr><th>เวลา</th><th>สินค้า</th><th>ปรับ</th><th>หมายเหตุ</th><th></th></tr>'+
-      adjRows.map(a=>'<tr><td>'+ymd(a.time)+' '+hhmm(a.time)+'</td><td>'+esc(a.freeLabel||orderLabel(a.orderId))+(a.freeLabel?' <span class="bdg warn" style="font-size:10px;">ไม่มีออเดอร์</span>':'')+'</td><td>'+(a.delta>0?'+':'')+a.delta+' แพ็ค</td><td>'+esc(a.note||'')+
+      adjRows.map(a=>'<tr><td>'+ymd(a.time)+' '+hhmm(a.time)+'</td><td>'+esc(a.freeLabel||orderLabel(a.orderId))+(a.freeLabel?' <span class="bdg warn" style="font-size:10px;">ไม่มีออเดอร์</span>':'')+'</td><td>'+(a.delta>0?'+':'')+a.delta+' แพ็ค</td><td>'+esc(a.note||'')+((a.packNos||[]).length||a.prodDate||a.piecesPerPack?'<div style="font-size:11.5px;color:var(--dim)">'+esc(adjDetail(a))+'</div>':'')+
         '</td><td><button class="x" data-finadjrm="'+a.id+'">✕</button></td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีการปรับยอด</td></tr>';
     $('tFinAdj').querySelectorAll('[data-finadjrm]').forEach(b=>b.onclick=async()=>{
@@ -3254,56 +3262,142 @@ window.WPDAUTH = {
     $('finFreeModeRow').style.display=free?'flex':'none';
     $('finFreeLotLabel').style.display=free?'block':'none';
     $('finFreeLot').style.display=free?'block':'none';
-    $('finFreeDateLabel').style.display=free?'block':'none';
-    $('finFreeDate').style.display=free?'block':'none';
   };
   $('finFreeCustSel').onchange=function(){ const v=this.value,t=$('finFreeCustName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} };
+  /* ยอดในระบบตอนนี้ ของออเดอร์/สินค้าอิสระที่เลือกอยู่ในฟอร์ม */
+  function obFinCurrent(){
+    if($('finFreeMode').checked){
+      const cust=($('finFreeCustSel').value==='__new__'?$('finFreeCustName').value:$('finFreeCustSel').value).trim(), code=$('finFreeCode').value.trim();
+      if(!cust||!code) return null;
+      const lb=cust+' — '+code, cur=CALC.freeFinStock(S.finAdjustments,S.shipments).find(x=>x.freeLabel===lb);
+      return { label:lb, stock:cur?cur.stock:0 };
+    }
+    const oid=$('obFinSel').value; if(!oid) return null;
+    const cur=CALC.finStock(producedByOrder(), S.shipments, S.finAdjustments).find(x=>x.orderId===oid);
+    return { label:orderLabel(oid), stock:cur?cur.stock:0 };
+  }
+  function obFinPreview(){
+    const el=$('obFinPreview'); if(!el) return;
+    const c=obFinCurrent(), raw=$('obFinQty').value.trim(), n=+raw;
+    if(!c){ el.textContent=''; return; }
+    const pn=parsePackNos($('obFinNos').value);
+    el.innerHTML='ในระบบตอนนี้มี <b>'+c.stock+'</b> แพ็ค'+(raw!==''&&n>0?' → หลังบันทึกจะเป็น <b style="color:var(--accent2)">'+r2(c.stock+n)+'</b> แพ็ค (+'+n+')':'')+
+      (pn.err?'<br><span style="color:var(--red)">เบอร์แพ็คอ่านไม่ออกตรง "'+esc(pn.err)+'"</span>':pn.nos.length?'<br>เบอร์ '+esc(packNosText(pn.nos))+' = '+pn.nos.length+' แพ็ค'+(pn.dup?' (ตัดเบอร์ที่ใส่ซ้ำออก '+pn.dup+')':''):'');
+  }
+  ['obFinSel','obFinQty','obFinNos','finFreeCustSel','finFreeCustName','finFreeCode','finFreeMode'].forEach(id=>{ const e=$(id); if(e){ e.addEventListener('input',obFinPreview); e.addEventListener('change',obFinPreview); } });
+  /* ใส่เบอร์แพ็คแล้ว นับจำนวนแพ็คให้เอง */
+  $('obFinNos').addEventListener('input',()=>{ const p=parsePackNos($('obFinNos').value); if(!p.err && p.nos.length){ $('obFinQty').value=p.nos.length; obFinPreview(); } });
+  /* เลือกออเดอร์ → แพ็คละกี่ชิ้น ตามสเปคออเดอร์ (แก้ได้) */
+  $('obFinSel').addEventListener('change',()=>{ const o=orderById($('obFinSel').value), pp=$('obFinPP');
+    if(o && o.spec && +o.spec.piecesPerPack && (!pp.value || pp.dataset.auto==='1')){ pp.value=+o.spec.piecesPerPack; pp.dataset.auto='1'; } });
+  $('obFinPP').addEventListener('input',()=>{ $('obFinPP').dataset.auto=''; });
   $('btnObFin').onclick=async()=>{
-    const target=+$('obFinQty').value;
-    if(isNaN(target)){ toast('กรอกจำนวนแพ็ค'); return; }
+    const raw=$('obFinQty').value.trim(), target=+raw;
+    const pn=parsePackNos($('obFinNos').value), pp=+$('obFinPP').value, prodDate=$('finFreeDate').value;
+    const c=obFinCurrent();
+    if(!c){ toast($('finFreeMode').checked?'กรอกลูกค้าและรหัส/ชื่อสินค้า':'เลือกออเดอร์ก่อน'); return; }
+    if(pn.err){ await info('เบอร์แพ็คอ่านไม่ออก','ตรงนี้: "'+pn.err+'"\n\nใส่แบบนี้: 1-50 หรือ 1,2,5-10'); return; }
+    if(raw===''||isNaN(target)||target<=0){ toast('กรอกว่ามีอยู่กี่แพ็ค (มากกว่า 0)'); return; }
+    if(target!==Math.round(target)){ toast('จำนวนแพ็คต้องเป็นจำนวนเต็ม'); return; }
+    if(pn.nos.length && pn.nos.length!==target){ await info('เบอร์แพ็คกับจำนวนแพ็คไม่ตรงกัน','เบอร์ '+packNosText(pn.nos)+' นับได้ '+pn.nos.length+' แพ็ค\nแต่ช่อง "มีอยู่กี่แพ็ค" ใส่ไว้ '+target+' แพ็ค\n\nแก้ให้ตรงกันก่อน'); return; }
+    if(!(pp>0)){ toast('กรอกแพ็คละกี่ชิ้น'); return; }
+    if(!prodDate){ toast('เลือกวันที่ผลิต (จำไม่ได้ ใส่วันโดยประมาณ)'); return; }
+    if(prodDate>todayStr()){ toast('วันที่ผลิตเลยวันนี้ไปแล้ว'); return; }
+    /* เบอร์ซ้ำกับแพ็คยกมาของสินค้าเดียวกันที่ยังไม่ได้ส่ง */
+    if(pn.nos.length){
+      const src=$('finFreeMode').checked?{freeLabel:c.label}:{orderId:$('obFinSel').value};
+      const dup=packPool(src).filter(p=>p.bf && pn.nos.includes(+p.no));
+      if(dup.length && !await ask('มีเบอร์แพ็คนี้อยู่ในสต๊อกแล้ว '+dup.length+' แพ็ค','เบอร์ '+packNosText(dup.map(p=>+p.no))+' (ผลิต '+[...new Set(dup.map(p=>thDate(p.date)))].join(', ')+')\n\nถ้าเป็นคนละแพ็คจริง (ผลิตคนละวัน) กดยืนยันได้เลย')) return;
+    }
+    const extra={ piecesPerPack:pp, packNos:pn.nos, prodDate };
+    const noteX='';
     if($('finFreeMode').checked){
       const cust=($('finFreeCustSel').value==='__new__'?$('finFreeCustName').value:$('finFreeCustSel').value).trim();
       const code=$('finFreeCode').value.trim();
       if(!cust||!code){ toast('กรอกลูกค้าและรหัส/ชื่อสินค้า'); return; }
       const freeLabel=cust+' — '+code;
       const refNo=$('finFreeLot').value.trim();
-      const cur=CALC.freeFinStock(S.finAdjustments).find(x=>x.freeLabel===freeLabel);
+      const cur=CALC.freeFinStock(S.finAdjustments,S.shipments).find(x=>x.freeLabel===freeLabel);
       const curStock=cur?cur.stock:0;
-      const delta=r2(target-curStock);
-      if(delta===0){ toast('ยอดเท่าเดิม ไม่ต้องปรับ'); return; }
-      const dateVal=$('finFreeDate').value?$('finFreeDate').value+'T'+localISO().slice(11):localISO();
-      S.finAdjustments.push({ id:uid(), time:dateVal, orderId:null, freeLabel, refNo, delta, note:'ยอดยกมา'+(refNo?' — เลขอ้างอิง '+refNo:'') });
-      await saveFin(); $('obFinQty').value=''; $('finFreeCode').value=''; $('finFreeLot').value='';
+      const delta=r2(target);
+      S.finAdjustments.push(Object.assign({ id:uid(), time:localISO(), orderId:null, freeLabel, freeCust:cust, freeCode:code, refNo, delta, note:'ยอดยกมา'+(refNo?' — เลขอ้างอิง '+refNo:'')+noteX }, extra));
+      await saveFin(); $('obFinQty').value=''; $('obFinNos').value=''; $('finFreeLot').value='';
       // ลูกค้าที่เลือกไว้ค้างต่อเนื่อง จนกว่าจะเปลี่ยนเอง
-      rFin(); toast('บันทึกยอดยกมาเป็น '+target+' แพ็ค แล้ว — '+freeLabel);
+      rFin(); obFinPreview(); toast('เพิ่มยอดยกมา '+target+' แพ็ค — '+freeLabel+' ตอนนี้มี '+r2(curStock+delta)+' แพ็ค');
       return;
     }
     const orderId=$('obFinSel').value;
     if(!orderId){ toast('เลือกออเดอร์ก่อน'); return; }
-    if(isNaN(target)){ toast('กรอกจำนวนแพ็ค'); return; }
     const stock=CALC.finStock(producedByOrder(), S.shipments, S.finAdjustments);
     const cur=stock.find(x=>x.orderId===orderId);
     const curStock=cur?cur.stock:0;
-    const delta=r2(target-curStock);
-    if(delta===0){ toast('ยอดเท่าเดิม ไม่ต้องปรับ'); return; }
-    S.finAdjustments.push({ id:uid(), time:localISO(), orderId, delta, note:'ยอดยกมา' });
-    await saveFin(); $('obFinQty').value='';
+    const delta=r2(target);
+    S.finAdjustments.push(Object.assign({ id:uid(), time:localISO(), orderId, delta, note:'ยอดยกมา'+noteX }, extra));
+    await saveFin(); $('obFinQty').value=''; $('obFinNos').value='';
     // ออเดอร์ที่เลือกไว้ค้างไว้ จนกว่าจะเปลี่ยนเอง
-    rFin(); toast('บันทึกยอดยกมาเป็น '+target+' แพ็ค แล้ว');
+    rFin(); obFinPreview(); toast('เพิ่มยอดยกมา '+target+' แพ็ค — ตอนนี้มี '+r2(curStock+delta)+' แพ็ค');
   };
 
+  /* "1-50" / "1,2,5-10" → [1..50] */
+  function parsePackNos(t){
+    t=String(t||'').replace(/\s+/g,'').replace(/[–—~]/g,'-');
+    if(!t) return { nos:[] };
+    const out=[];
+    for(const part of t.split(/[,，、]/)){
+      if(!part) continue;
+      const m=part.match(/^(\d+)(?:-(\d+))?$/); if(!m) return { nos:[], err:part };
+      let a=+m[1], b=m[2]!=null?+m[2]:a; if(b<a){ const x=a; a=b; b=x; }
+      if(b-a>5000) return { nos:[], err:part };
+      for(let i=a;i<=b;i++) out.push(i);
+    }
+    const u=[...new Set(out)];
+    return { nos:u, dup:out.length-u.length };
+  }
+  function adjDetail(a){ return [a.packNos&&a.packNos.length?'เบอร์ '+packNosText(a.packNos):'',a.prodDate?'ผลิต '+thDate(a.prodDate):'',a.piecesPerPack?'แพ็คละ '+a.piecesPerPack+' ชิ้น':''].filter(Boolean).join(' · '); }
+  /* [1,2,3,5] → "1-3, 5" */
+  function packNosText(nos){
+    const a=[...new Set((nos||[]).map(Number))].sort((x,y)=>x-y), out=[];
+    for(let i=0;i<a.length;i++){ let j=i; while(j+1<a.length && a[j+1]===a[j]+1) j++; out.push(j>i?a[i]+'-'+a[j]:''+a[i]); i=j; }
+    return out.join(', ');
+  }
+  /* สินค้าที่ส่ง: ออเดอร์ หรือ ยอดยกมาที่ยังไม่มีออเดอร์ (ค่าใน dpOrdSel = "F:"+ชื่อ) */
+  function srcOf(v){ return v && v.indexOf('F:')===0 ? { freeLabel:v.slice(2) } : { orderId:v }; }
+  function sameSrc(x,src){ return src.orderId ? x.orderId===src.orderId : (!x.orderId && x.freeLabel===src.freeLabel); }
+  function srcLabel(x){ return x.orderId ? orderLabel(x.orderId) : (x.freeLabel||'(ไม่ทราบ)'); }
+  function freeParts(label){ const a=S.finAdjustments.find(x=>!x.orderId && x.freeLabel===label && x.freeCust); if(a) return { customer:a.freeCust, code:a.freeCode||'' };
+    const i=String(label).indexOf(' — '); return i<0?{ customer:label, code:'' }:{ customer:label.slice(0,i), code:label.slice(i+3) }; }
+  function srcPP(src){ const o=src.orderId?orderById(src.orderId):null; if(o&&o.spec&&+o.spec.piecesPerPack) return +o.spec.piecesPerPack;
+    const a=S.finAdjustments.filter(x=>sameSrc(x,src) && +x.piecesPerPack).pop(); return a?+a.piecesPerPack:0; }
+  /* แพ็คที่ยังไม่ได้ส่ง (มีเบอร์): ผลิตจากไลน์ + ยอดยกมาที่ลงเบอร์ไว้ เรียงวันผลิตเก่าก่อน (FIFO)
+     key: แพ็คจากไลน์ = เลขลำดับ (เหมือนบิลเดิม), แพ็คยกมา = "b"+id รายการยกมา+"#"+เบอร์ (เบอร์ซ้ำกับไลน์ได้ ไม่ปนกัน) */
+  function packPool(src, extraTaken){
+    const opp=srcPP(src), pool=[];
+    if(src.orderId) PROD.line.filter(l=>l.orderId===src.orderId).forEach(l=>pool.push({ k:l.seq, no:l.seq, date:ymd(l.time), t:l.time, pp:opp }));
+    S.finAdjustments.filter(a=>sameSrc(a,src) && (a.packNos||[]).length).forEach(a=>{ const d=a.prodDate||ymd(a.time);
+      a.packNos.forEach(n=>pool.push({ k:'b'+a.id+'#'+n, no:n, date:d, t:d+'T00:00:00', pp:+a.piecesPerPack||opp, bf:1 })); });
+    const taken=new Set(extraTaken||[]);
+    S.deliveries.forEach(d=>d.items.forEach(it=>{ if(it.kind!=='trade' && sameSrc(it,src)) (it.seqs||[]).forEach(k=>taken.add(k)); }));
+    return pool.filter(p=>!taken.has(p.k)).sort((a,b)=>a.t<b.t?-1:a.t>b.t?1:(+a.no||0)-(+b.no||0));
+  }
+  /* "เบอร์ 1-50 (5/1/2569) · 51-60 (2/10/2569)" */
+  function packsText(packs){
+    const g=[]; (packs||[]).forEach(p=>{ const last=g[g.length-1]; if(last && last.date===p.date && !!last.bf===!!p.bf) last.nos.push(p.no); else g.push({ date:p.date, bf:p.bf, nos:[p.no] }); });
+    return g.map(x=>packNosText(x.nos)+' ('+(x.bf?'ยกมา ':'')+thDate(x.date)+')').join(' · ');
+  }
   /* ---------- 5. DISPATCH ---------- */
   let dpItems=[];
   function refreshDpDateOptions(){
-    const oid=$('dpOrdSel').value;
-    const dates=[...new Set(PROD.line.filter(l=>l.orderId===oid).map(l=>l.time.slice(0,10)))].sort();
-    $('dpDateSel').innerHTML='<option value="">— อัตโนมัติ (FIFO) —</option>'+dates.map(d=>'<option value="'+d+'">'+d+'</option>').join('');
+    const v=$('dpOrdSel').value; if(!v){ $('dpDateSel').innerHTML='<option value="">— อัตโนมัติ (FIFO) —</option>'; return; }
+    const dates=[...new Set(packPool(srcOf(v)).map(p=>p.date))].sort();
+    $('dpDateSel').innerHTML='<option value="">— อัตโนมัติ (FIFO) —</option>'+dates.map(d=>'<option value="'+d+'">'+thDate(d)+'</option>').join('');
   }
   function rShip(){
     if(!$('dpDate').value) $('dpDate').value=todayStr();
     if(!$('dpOrdSel').dataset.init){
       const stock=CALC.finStock(producedByOrder(),S.shipments,S.finAdjustments);
-      $('dpOrdSel').innerHTML=stock.filter(s=>s.stock>0).map(s=>'<option value="'+s.orderId+'">'+esc(orderLabel(s.orderId))+' (เหลือ '+s.stock+' แพ็ค)</option>').join('');
+      const free=CALC.freeFinStock(S.finAdjustments,S.shipments).filter(s=>s.stock>0).sort((a,b)=>a.freeLabel.localeCompare(b.freeLabel,'th'));
+      $('dpOrdSel').innerHTML=stock.filter(s=>s.stock>0).map(s=>'<option value="'+s.orderId+'">'+esc(orderLabel(s.orderId))+' (เหลือ '+s.stock+' แพ็ค)</option>').join('')+
+        (free.length?'<optgroup label="ยอดยกมา (ยังไม่มีออเดอร์)">'+free.map(s=>'<option value="F:'+esc(s.freeLabel)+'">'+esc(s.freeLabel)+' (เหลือ '+s.stock+' แพ็ค)</option>').join('')+'</optgroup>':'');
       $('dpOrdSel').dataset.init='1';
       $('dpOrdSel').onchange=refreshDpDateOptions;
       refreshDpDateOptions();
@@ -3312,16 +3406,16 @@ window.WPDAUTH = {
     $('dpItems').innerHTML = dpItems.length ? dpItems.map((it,i)=> it.kind==='trade'
       ? '<div class="cartrow"><b style="color:var(--accent2)">🛒 '+esc(it.name)+'</b> — '+it.qty+' '+esc(it.unit)+' → '+esc(it.customer)+
         ' <span class="bdg warn">ซื้อมาขาย</span> <button class="x" data-rm="'+i+'">✕</button></div>'
-      : '<div class="cartrow"><b class="kn" style="color:var(--accent2)">'+esc(orderLabel(it.orderId))+'</b> — '+it.qty+' แพ็ค'+
-      (it.ref.count?' <span class="bdg ok">'+(it.pickedDate?'วันที่เลือก':'FIFO อัตโนมัติ')+': ลำดับ '+it.ref.seqFrom+'-'+it.ref.seqTo+' ('+it.ref.dateFrom+(it.ref.dateFrom!==it.ref.dateTo?' ถึง '+it.ref.dateTo:'')+')</span>':'')+
-      (it.ref.short?' <span class="bdg warn">ขาดสต๊อก '+it.ref.short+' แพ็ค</span>':'')+
+      : '<div class="cartrow"><b class="kn" style="color:var(--accent2)">'+esc(srcLabel(it))+'</b> — '+it.qty+' แพ็ค'+
+      (it.ref.count?' <span class="bdg ok">'+(it.pickedDate?'วันที่เลือก':'FIFO อัตโนมัติ')+': เบอร์ '+esc(packsText(it.ref.packs))+'</span>':'')+
+      (it.ref.short?' <span class="bdg warn">ไม่มีเบอร์แพ็ค '+it.ref.short+' แพ็ค</span>':'')+
       ' <button class="x" data-rm="'+i+'">✕</button>'+
-      '<div style="margin-top:6px;">'+(it.ref.seqs||[]).map(sq=>'<label class="chkrow"><input type="checkbox" data-chk="'+i+'|'+sq+'" '+((it.checkedSeqs||[]).includes(sq)?'checked':'')+'> ลำดับ '+sq+'</label>').join('')+'</div>'+
+      '<div style="margin-top:6px;">'+(it.ref.packs||[]).map((p,j)=>'<label class="chkrow"><input type="checkbox" data-chk="'+i+'|'+j+'" '+((it.checkedSeqs||[]).includes(p.k)?'checked':'')+'> เบอร์ '+esc(p.no)+(p.bf?' <small style="color:var(--dim)">ยกมา</small>':'')+'</label>').join('')+'</div>'+
       '</div>').join('')
       : '<div class="empty">ยังไม่มีรายการในเที่ยวนี้</div>';
     $('dpItems').querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{ dpItems.splice(+b.dataset.rm,1); rShip(); });
     $('dpItems').querySelectorAll('[data-chk]').forEach(b=>b.onclick=()=>{
-      const [idx,sq]=b.dataset.chk.split('|'); const it=dpItems[+idx]; const sqn=+sq;
+      const [idx,j]=b.dataset.chk.split('|'); const it=dpItems[+idx]; const sqn=it.ref.packs[+j].k;
       it.checkedSeqs=it.checkedSeqs||[];
       if(b.checked){ if(!it.checkedSeqs.includes(sqn)) it.checkedSeqs.push(sqn); }
       else { it.checkedSeqs=it.checkedSeqs.filter(x=>x!==sqn); }
@@ -3333,8 +3427,8 @@ window.WPDAUTH = {
       '<table style="margin-top:6px;"><tr><th>ลูกค้า/ออเดอร์</th><th>จำนวน</th><th>อ้างอิงลำดับผลิต</th></tr>'+
       d.items.map(it=>it.kind==='trade'
         ? '<tr><td>'+esc(it.customer)+' — 🛒 '+esc(it.name)+'</td><td>'+it.qty+' '+esc(it.unit)+'</td><td>ซื้อมาขาย</td></tr>'
-        : '<tr><td>'+esc(orderLabel(it.orderId))+'</td><td>'+it.qty+' แพ็ค</td><td>'+
-        (it.refSeqFrom!=null? it.refSeqFrom+'-'+it.refSeqTo+' ('+it.refDateFrom+')' : '—')+'</td></tr>').join('')+
+        : '<tr><td>'+esc(srcLabel(it))+'</td><td>'+it.qty+' แพ็ค</td><td>'+
+        (it.packs&&it.packs.length? esc(packsText(it.packs)) : it.refSeqFrom!=null? it.refSeqFrom+'-'+it.refSeqTo+' ('+it.refDateFrom+')' : '—')+'</td></tr>').join('')+
       '</table><button class="btn sec sm" style="margin-top:8px;" data-print="'+d.id+'">🖨 พิมพ์บิลนี้อีกครั้ง</button> '+
       '<button class="btn dg sm" style="margin-top:8px;" data-delrm="'+d.id+'">✕ ลบเที่ยวรถนี้</button></div>'
     ).join('') : '<div class="empty">ยังไม่มีเที่ยวรถ</div>';
@@ -3348,27 +3442,29 @@ window.WPDAUTH = {
     });
   }
   $('btnAddDpItem').onclick=async()=>{
-    const oid=$('dpOrdSel').value, qty=+$('dpQty').value, pickedDate=$('dpDateSel').value;
-    if(!oid||!qty){ toast('เลือกออเดอร์และกรอกจำนวน'); return; }
+    const v=$('dpOrdSel').value, qty=+$('dpQty').value, pickedDate=$('dpDateSel').value;
+    if(!v||!qty){ toast('เลือกสินค้าและกรอกจำนวน'); return; }
+    if(qty!==Math.round(qty)||qty<0){ toast('จำนวนแพ็คต้องเป็นจำนวนเต็ม'); return; }
+    const src=srcOf(v), lb=srcLabel(src);
     /* ห้ามส่งเกินของที่มี — ส่งเกินแล้วสต๊อกติดลบ ยอดรวมจะผิดทั้งระบบ */
-    const _have=((CALC.finStock(producedByOrder(),S.shipments,S.finAdjustments).find(x=>x.orderId===oid))||{stock:0}).stock
-      - dpItems.filter(x=>x.kind!=='trade' && x.orderId===oid).reduce((s,x)=>s+x.qty,0);
+    const _st=src.orderId?CALC.finStock(producedByOrder(),S.shipments,S.finAdjustments).find(x=>x.orderId===src.orderId):CALC.freeFinStock(S.finAdjustments,S.shipments).find(x=>x.freeLabel===src.freeLabel);
+    const inTrip=dpItems.filter(x=>x.kind!=='trade' && sameSrc(x,src));
+    const _have=(_st||{stock:0}).stock - inTrip.reduce((s,x)=>s+x.qty,0);
     if(qty>_have){
-      await info('ส่งเกินของที่มีในสต๊อกไม่ได้', orderLabel(oid)+'\nในสต๊อกมี '+Math.max(0,_have)+' แพ็ค แต่กรอกไว้ '+qty+' แพ็ค\n\nถ้าของมีอยู่จริงแต่ยังไม่ได้ลงระบบ ให้ไปกด "ปรับยอดคงเหลือ" ที่แท็บสินค้าก่อน แล้วค่อยกลับมาเพิ่มลงเที่ยวรถ');
+      await info('ส่งเกินของที่มีในสต๊อกไม่ได้', lb+'\nในสต๊อกมี '+Math.max(0,_have)+' แพ็ค แต่กรอกไว้ '+qty+' แพ็ค\n\nถ้าของมีอยู่จริงแต่ยังไม่ได้ลงระบบ ให้ลง "ยอดยกมา" หรือกด "ปรับยอดคงเหลือ" ที่แท็บสินค้าก่อน แล้วค่อยกลับมาเพิ่มลงเที่ยวรถ');
       return;
     }
-    const alreadyInThisTrip=dpItems.filter(x=>x.kind!=='trade' && x.orderId===oid && x.pickedDate===pickedDate).reduce((s,x)=>s+x.qty,0);
-    let orderLines, priorShipped;
-    if(pickedDate){
-      orderLines=PROD.line.filter(l=>l.orderId===oid && l.time.slice(0,10)===pickedDate);
-      priorShipped=CALC.shippedCountForDate(S.deliveries,oid,pickedDate)+alreadyInThisTrip;
-    } else {
-      orderLines=PROD.line.filter(l=>l.orderId===oid);
-      priorShipped=S.shipments.filter(s=>s.orderId===oid).reduce((s,x)=>s+(+x.qty||0),0)+alreadyInThisTrip;
-    }
-    const ref=CALC.fifoLotRef(orderLines, priorShipped, qty);
-    if(ref.short>0 && !await ask('ของที่ผลิต'+(pickedDate?'วันที่ '+pickedDate:'')+'ไม่พอให้อ้างอิงลำดับแพ็ค', 'ขาดอยู่ '+ref.short+' แพ็ค (ส่วนนี้มาจากยอดยกมา/ปรับยอด จะไม่มีเลขลำดับแพ็คในบิล)\n\nยืนยันจะเพิ่มลงเที่ยวรถหรือไม่?')) return;
-    dpItems.push({ orderId:oid, qty, ref, checkedSeqs:[], pickedDate });
+    /* ดึงแพ็คที่มีเบอร์ เก่าก่อน (FIFO) — ข้ามแพ็คที่ส่งไปแล้ว/อยู่ในเที่ยวนี้แล้ว */
+    let pool=packPool(src, [].concat(...inTrip.map(x=>x.ref.seqs||[])));
+    if(pickedDate) pool=pool.filter(p=>p.date===pickedDate);
+    const packs=pool.slice(0,qty).map(p=>({ k:p.k, no:p.no, date:p.date, pp:p.pp, bf:p.bf?1:0 }));
+    const nums=packs.map(p=>+p.no).filter(n=>!isNaN(n)), ds=packs.map(p=>p.date).sort();
+    const ref={ packs, seqs:packs.map(p=>p.k), count:packs.length, short:Math.max(0,qty-packs.length),
+      seqFrom:nums.length?Math.min(...nums):null, seqTo:nums.length?Math.max(...nums):null, dateFrom:ds[0]||null, dateTo:ds[ds.length-1]||null };
+    if(ref.short>0 && !await ask('แพ็คที่มีเบอร์'+(pickedDate?' (ผลิตวันที่ '+thDate(pickedDate)+')':'')+' ไม่พอ', 'ขาดอยู่ '+ref.short+' แพ็ค (ส่วนนี้มาจากยอดยกมาที่ไม่ได้ลงเบอร์/ปรับยอด จะไม่มีเบอร์แพ็คในบิล)\n\nยืนยันจะเพิ่มลงเที่ยวรถหรือไม่?')) return;
+    const fp=src.freeLabel?freeParts(src.freeLabel):null;
+    dpItems.push(Object.assign({ orderId:src.orderId||null, qty, ref, checkedSeqs:[], pickedDate, pp:srcPP(src) },
+      fp?{ freeLabel:src.freeLabel, customer:fp.customer, code:fp.code }:{}));
     $('dpQty').value=''; rShip(); toast('เพิ่มลงเที่ยวรถแล้ว — เช็คลิสต์ลำดับก่อนขึ้นรถด้วย');
   };
   /* ลูกค้าที่จะส่งสินค้าซื้อมาขายให้: ลูกค้าที่อยู่ในเที่ยวนี้ก่อน (ส่งพร้อมสินค้าเรา) แล้วตามด้วยลูกค้าทั้งหมด */
@@ -3379,7 +3475,7 @@ window.WPDAUTH = {
       :'<option value="">— ยังไม่มีสินค้าซื้อมาขายในสต๊อก —</option>';
     if(keep && st.some(x=>x.itemId===keep)) $('dpTrSel').value=keep;
     const it=tradeById($('dpTrSel').value); $('dpTrQtyLabel').textContent='จำนวน'+(it?' ('+(it.unit||'ชิ้น')+')':'');
-    const inTrip=[...new Set(dpItems.map(x=>x.kind==='trade'?x.customer:((orderById(x.orderId)||{}).customer)).filter(Boolean))];
+    const inTrip=[...new Set(dpItems.map(x=>x.kind==='trade'||!x.orderId?x.customer:((orderById(x.orderId)||{}).customer)).filter(Boolean))];
     const all=[...new Set(PROD.orders.map(o=>o.customer).concat((S.tradeOut||[]).map(x=>x.customer)).filter(Boolean))].filter(c=>!inTrip.includes(c)).sort((a,b)=>a.localeCompare(b,'th'));
     const keepC=$('dpTrCustSel').value;
     $('dpTrCustSel').innerHTML=(inTrip.length?'<optgroup label="ลูกค้าในเที่ยวนี้ (ส่งพร้อมสินค้าเรา)">'+inTrip.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('')+'</optgroup>':'<option value="">— เลือกลูกค้า —</option>')+
@@ -3409,10 +3505,12 @@ window.WPDAUTH = {
     const delivery={ id:uid(), date:$('dpDate').value||todayStr(), truck:$('dpTruck').value.trim(), poNumber:$('dpPO').value.trim(), createdAt:localISO(),
       items:dpItems.map(it=>it.kind==='trade'
         ? ({ kind:'trade', itemId:it.itemId, name:it.name, unit:it.unit, qty:it.qty, customer:it.customer })
-        : ({ orderId:it.orderId, qty:it.qty, refSeqFrom:it.ref.seqFrom, refSeqTo:it.ref.seqTo, refDateFrom:it.ref.dateFrom, refDateTo:it.ref.dateTo, seqs:it.ref.seqs||[], checkedSeqs:it.checkedSeqs||[] })) };
+        : Object.assign({ orderId:it.orderId||null, qty:it.qty, refSeqFrom:it.ref.seqFrom, refSeqTo:it.ref.seqTo, refDateFrom:it.ref.dateFrom, refDateTo:it.ref.dateTo, seqs:it.ref.seqs||[], checkedSeqs:it.checkedSeqs||[],
+            packs:(it.ref.packs||[]).map(p=>({ no:p.no, date:p.date, pp:p.pp, bf:p.bf })), pp:it.pp||0 },
+            it.freeLabel?{ freeLabel:it.freeLabel, customer:it.customer, code:it.code }:{})) };
     S.deliveries.push(delivery);
     dpItems.filter(it=>it.kind==='trade').forEach(it=>{ S.tradeOut.push({ id:uid(), time:localISO(), itemId:it.itemId, qty:it.qty, customer:it.customer, note:delivery.date+(delivery.truck?' '+delivery.truck:''), deliveryId:delivery.id }); });
-    dpItems.filter(it=>it.kind!=='trade').forEach(it=>{ S.shipments.push({ id:uid(), time:localISO(), orderId:it.orderId, qty:it.qty, to:delivery.truck, note:'เที่ยวรถ '+delivery.date, deliveryId:delivery.id }); });
+    dpItems.filter(it=>it.kind!=='trade').forEach(it=>{ S.shipments.push(Object.assign({ id:uid(), time:localISO(), orderId:it.orderId||null, qty:it.qty, to:delivery.truck, note:'เที่ยวรถ '+delivery.date, deliveryId:delivery.id }, it.freeLabel?{ freeLabel:it.freeLabel }:{})); });
     await saveFin();
     printDelivery(delivery);
     dpItems=[]; $('dpTruck').value=''; $('dpPO').value=''; $('dpOrdSel').dataset.init=''; rShip(); toast('บันทึกเที่ยวรถและออกบิลแล้ว');
@@ -3420,14 +3518,20 @@ window.WPDAUTH = {
   function printDelivery(d){
     if(!d) return;
     const byCustomer={};
-    d.items.forEach(it=>{ const o=it.kind==='trade'?null:orderById(it.orderId); const cust=it.kind==='trade'?(it.customer||'(ไม่ทราบ)'):(o?o.customer:'(ไม่ทราบ)'); byCustomer[cust]=byCustomer[cust]||[]; byCustomer[cust].push(it); });
+    d.items.forEach(it=>{ const o=it.kind==='trade'||!it.orderId?null:orderById(it.orderId); const cust=it.kind==='trade'||!it.orderId?(it.customer||'(ไม่ทราบ)'):(o?o.customer:'(ไม่ทราบ)'); byCustomer[cust]=byCustomer[cust]||[]; byCustomer[cust].push(it); });
     let html='';
     Object.entries(byCustomer).forEach(([cust,allItems],idx)=>{
       const items=allItems.filter(it=>it.kind!=='trade'), trade=allItems.filter(it=>it.kind==='trade');
       // รวมทุกรายการของลูกค้านี้เป็นแถวเดียวต่อเนื่อง: No.=ลำดับรันเฉยๆ, No.Pack=เลข seq จริงจากแอพผลิต, Date=วันที่ผลิตแพ็คนั้นจริง
       const rows=[];
       items.forEach(it=>{
-        const o=orderById(it.orderId);
+        const o=it.orderId?orderById(it.orderId):null, code=o?o.code:(it.code||it.freeLabel||'-'), opp=(o&&o.spec&&+o.spec.piecesPerPack)||+it.pp||0;
+        /* รายการแบบใหม่: แพ็คที่มีเบอร์ (ทั้งผลิตและยกมา) + ส่วนที่ไม่มีเบอร์ */
+        if(it.packs){
+          it.packs.forEach(p=>rows.push({ pack:p.no, date:p.date||'', pieces:+p.pp||opp, code }));
+          for(let k=it.packs.length;k<it.qty;k++) rows.push({ pack:'', date:'', pieces:opp, code });
+          return;
+        }
         (it.seqs&&it.seqs.length?it.seqs:new Array(it.qty).fill(null)).forEach(sq=>{
           const line=sq!=null?PROD.line.find(l=>l.orderId===it.orderId&&l.seq===sq):null;
           rows.push({ pack:sq!=null?sq:'', date:line?ymd(line.time):'', pieces:(o&&o.spec&&o.spec.piecesPerPack)||0, code:o?o.code:'-' });
@@ -3486,7 +3590,7 @@ window.WPDAUTH = {
       '<div class="stat"><div class="v">'+zipS.reduce((s,x)=>s+x.remainingKg,0)+'</div><div class="l">ถุงซิลในคลัง (กก.)'+(bagsAtLineKg('zip')?' · ที่ไลน์อีก '+bagsAtLineKg('zip')+' กก.':'')+'</div></div>'+
       '<div class="stat"><div class="v">'+packS.reduce((s,x)=>s+x.remainingKg,0)+'</div><div class="l">ถุงแพ็คในคลัง (กก.)'+(bagsAtLineKg('pack')?' · ที่ไลน์อีก '+bagsAtLineKg('pack')+' กก.':'')+'</div></div>'+
       (function(){
-        const all=finS.map(x=>x.stock).concat(CALC.freeFinStock(S.finAdjustments).map(x=>+x.stock||0));
+        const all=finS.map(x=>x.stock).concat(CALC.freeFinStock(S.finAdjustments,S.shipments).map(x=>+x.stock||0));
         const pos=r2(all.filter(v=>v>0).reduce((s,v)=>s+v,0)), neg=all.filter(v=>v<0);
         return '<div class="stat'+(neg.length?' lowstock':'')+'"><div class="v">'+pos+'</div><div class="l">สินค้าสำเร็จรูปคงเหลือ (แพ็ค)'+
           (neg.length?'<br><span class="bdg bad">'+neg.length+' ออเดอร์ติดลบ รวม '+r2(neg.reduce((s,v)=>s+v,0))+' แพ็ค — ส่งเกินที่ผลิต</span>':'')+'</div></div>';
@@ -3568,8 +3672,8 @@ window.WPDAUTH = {
     rows.push(['[เที่ยวรถจัดส่ง]']); rows.push(['วันที่','รถ/คนขับ','เลข PO','ลูกค้า','รหัสงาน','จำนวน(แพ็ค)','อ้างอิงลำดับ']);
     S.deliveries.filter(d=>(!from||d.date>=from)&&(!to||d.date<=to)).forEach(d=>d.items.forEach(it=>{
       if(it.kind==='trade'){ rows.push([d.date,d.truck||'',d.poNumber||'',it.customer||'','ซื้อมาขาย: '+it.name,it.qty+' '+(it.unit||''),'']); return; }
-      const o=orderById(it.orderId);
-      rows.push([d.date,d.truck||'',d.poNumber||'',o?o.customer:'',o?o.code:'',it.qty,it.refSeqFrom!=null?it.refSeqFrom+'-'+it.refSeqTo:'']);
+      const o=it.orderId?orderById(it.orderId):null;
+      rows.push([d.date,d.truck||'',d.poNumber||'',o?o.customer:(it.customer||''),o?o.code:(it.code||it.freeLabel||''),it.qty,it.packs&&it.packs.length?packsText(it.packs):it.refSeqFrom!=null?it.refSeqFrom+'-'+it.refSeqTo:'']);
     }));
     rows.push([]);
     rows.push(['[สินค้าซื้อมาขาย — รับเข้า]']); rows.push(['วันที่','สินค้า','จำนวน','หน่วย','ราคาทุน/หน่วย','ซื้อจาก','เลขบิล','หมายเหตุ']);
@@ -3578,9 +3682,9 @@ window.WPDAUTH = {
     rows.push([]);
     rows.push(['[ปรับยอดสินค้าสำเร็จรูป]']); rows.push(['วันที่','เวลา','ลูกค้า','รหัสงาน','ปรับ(แพ็ค)','หมายเหตุ']);
     S.finAdjustments.filter(x=>inRange(x,from,to)).forEach(a=>{
-      if(a.freeLabel){ rows.push([ymd(a.time),hhmm(a.time),a.freeLabel,'(ไม่มีออเดอร์)',a.delta,a.note||'']); return; }
+      if(a.freeLabel){ rows.push([ymd(a.time),hhmm(a.time),a.freeCust||a.freeLabel,a.freeCode||'(ไม่มีออเดอร์)',a.delta,[a.note||'',adjDetail(a)].filter(Boolean).join(' · ')]); return; }
       const o=orderById(a.orderId);
-      rows.push([ymd(a.time),hhmm(a.time),o?o.customer:'',o?o.code:'',a.delta,a.note||'']);
+      rows.push([ymd(a.time),hhmm(a.time),o?o.customer:'',o?o.code:'',a.delta,[a.note||'',adjDetail(a)].filter(Boolean).join(' · ')]);
     });
     return toCSV(rows);
   }

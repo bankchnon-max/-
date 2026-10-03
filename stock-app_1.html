@@ -623,7 +623,7 @@
         <button class="btn w" id="btnSew">บันทึกส่งเย็บ</button>
         <label class="oldtoggle"><input type="checkbox" id="sewFreeMode"> ลงของเก่าที่อยู่ที่ช่างอยู่แล้ว (ยอดยกมา — ใช้ครั้งแรกเท่านั้น)</label>
       </div>
-      <div class="card" data-step="sew"><h3>ประวัติส่งเย็บ</h3><div class="scr"><table id="tSewHist"></table></div></div>
+      <div class="card" data-step="sew"><h3>ประวัติส่งเย็บ</h3><button class="btn dg sm" id="btnSewDelSel" style="display:none;margin-bottom:6px;"></button><div class="scr"><table id="tSewHist"></table></div></div>
 
       <!-- ④ รับกลับ -->
       <div class="card" data-step="ret">
@@ -665,7 +665,7 @@
         <button class="btn w" id="btnRet">บันทึกรับกลับ</button>
         <label class="oldtoggle"><input type="checkbox" id="retFreeMode"> ลงปลอกเก่าที่มีอยู่แล้ว (ยอดยกมา — ใช้ครั้งแรกเท่านั้น)</label>
       </div>
-      <div class="card" data-step="ret"><h3>ประวัติรับกลับ</h3><div class="scr"><table id="tRetHist"></table></div></div>
+      <div class="card" data-step="ret"><h3>ประวัติรับกลับ</h3><button class="btn dg sm" id="btnRetDelSel" style="display:none;margin-bottom:6px;"></button><div class="scr"><table id="tRetHist"></table></div></div>
 
       <!-- ⑤ สต๊อก / ประวัติ -->
       <div class="card" data-step="stock">
@@ -2218,14 +2218,42 @@ window.WPDAUTH = {
     let sewRows=S.sewSent.slice(), retRows=S.sewReturns.slice();
     if(prodTypeFilter){ sewRows=sewRows.filter(s=>s.productType===prodTypeFilter); retRows=retRows.filter(s=>s.productType===prodTypeFilter); }
 
-    $('tSewHist').innerHTML=sewRows.length?'<tr><th>เวลา</th><th>ถุง #</th><th>ชนิดผ้า</th><th>ไซซ์</th><th>ประเภทสินค้า</th><th>จำนวน</th><th>ผู้เย็บ</th><th>หมายเหตุ</th><th></th></tr>'+
-      sewRows.slice().reverse().map(s=>'<tr><td>'+ymd(s.time)+' '+hhmm(s.time)+'</td><td>'+(s.batchId?'<a class="lnk" data-bagopen="'+s.batchId+'">#'+(s.batchNo||'—')+'</a>':'#'+(s.batchNo||'—'))+'</td><td><a class="lnk" data-fabopen="'+esc(s.fabricType)+'">'+esc(s.fabricType)+'</a></td><td>'+esc(s.size)+'</td><td>'+esc(s.productType||'—')+'</td><td>'+s.qty+'</td><td>'+esc(s.sewerName||'—')+'</td><td>'+esc(s.note||'')+'</td><td><button class="x" data-ss="'+s.id+'">✕</button></td></tr>').join('')
+    $('tSewHist').innerHTML=sewRows.length?'<tr><th><input type="checkbox" data-ssall="1" style="width:auto;margin:0 6px 0 0;vertical-align:middle;"></th><th>เวลา</th><th>ถุง #</th><th>ชนิดผ้า</th><th>ไซซ์</th><th>ประเภทสินค้า</th><th>จำนวน</th><th>ผู้เย็บ</th><th>หมายเหตุ</th></tr>'+
+      sewRows.slice().reverse().map(s=>'<tr><td style="white-space:nowrap"><input type="checkbox" data-sssel="'+s.id+'" style="width:auto;margin:0 6px 0 0;vertical-align:middle;">'+(s.batchId?'<button class="ed" data-ssed="'+s.batchId+'|'+s.id+'">แก้</button> ':'')+'<button class="x" data-ss="'+s.id+'">✕</button></td><td>'+ymd(s.time)+' '+hhmm(s.time)+'</td><td>'+(s.batchId?'<a class="lnk" data-bagopen="'+s.batchId+'">#'+(s.batchNo||'—')+'</a>':'#'+(s.batchNo||'—'))+'</td><td><a class="lnk" data-fabopen="'+esc(s.fabricType)+'">'+esc(s.fabricType)+'</a></td><td>'+esc(s.size)+'</td><td>'+esc(s.productType||'—')+'</td><td>'+s.qty+'</td><td>'+esc(s.sewerName||'—')+'</td><td>'+esc(s.note||'')+'</td></tr>').join('')
       :'<tr><td class="empty">'+(prodTypeFilter?'ประเภทนี้ยังไม่มีรายการ':'ยังไม่มีการส่งเย็บ')+'</td></tr>';
+    /* "แก้" ในตาราง → เปิดหน้าต่างของถุงนั้นพร้อมฟอร์มแก้รายการนั้นเลย */
+    const _openEdit=(kind,v)=>{ const [bid,id]=v.split('|'); openBag(bid); const bt=S.cutBatches.find(x=>x.id===bid); if(bt) editBagRow(bt, kind+'|'+id); };
+    $('tSewHist').querySelectorAll('[data-ssed]').forEach(b=>b.onclick=()=>_openEdit('sent',b.dataset.ssed));
     $('tSewHist').querySelectorAll('[data-ss]').forEach(b=>b.onclick=async()=>{ if(!await ask('ลบรายการส่งเย็บนี้? (ยอดที่ถุงจะกลับมาเป็นรอส่งใหม่)'))return; S.sewSent=S.sewSent.filter(x=>x.id!==b.dataset.ss); await saveFabric(); rFabric(); toast('ลบแล้ว'); });
 
-    $('tRetHist').innerHTML=retRows.length?'<tr><th>วันที่</th><th>ถุง #</th><th>ชนิดผ้า</th><th>ไซซ์</th><th>ประเภทสินค้า</th><th>รับมา</th><th>ผู้เย็บ</th><th>หมายเหตุ</th><th></th></tr>'+
-      retRows.slice().reverse().map(s=>'<tr><td>'+ymd(s.time)+'</td><td>'+(s.batchId?'<a class="lnk" data-bagopen="'+s.batchId+'">#'+(s.batchNo||'—')+'</a>':'#'+(s.batchNo||'—'))+'</td><td><a class="lnk" data-fabopen="'+esc(s.fabricType)+'">'+esc(s.fabricType)+'</a></td><td>'+esc(s.size)+'</td><td>'+esc(s.productType||'—')+'</td><td>'+s.qty+'</td><td>'+esc(s.sewerName||'—')+'</td><td>'+esc(s.note||'')+'</td><td><button class="x" data-sr="'+s.id+'">✕</button></td></tr>').join('')
+    $('tRetHist').innerHTML=retRows.length?'<tr><th><input type="checkbox" data-srall="1" style="width:auto;margin:0 6px 0 0;vertical-align:middle;"></th><th>วันที่</th><th>ถุง #</th><th>ชนิดผ้า</th><th>ไซซ์</th><th>ประเภทสินค้า</th><th>รับมา</th><th>ผู้เย็บ</th><th>หมายเหตุ</th></tr>'+
+      retRows.slice().reverse().map(s=>'<tr><td style="white-space:nowrap"><input type="checkbox" data-srsel="'+s.id+'" style="width:auto;margin:0 6px 0 0;vertical-align:middle;">'+(s.batchId?'<button class="ed" data-sred="'+s.batchId+'|'+s.id+'">แก้</button> ':'')+'<button class="x" data-sr="'+s.id+'">✕</button></td><td>'+ymd(s.time)+'</td><td>'+(s.batchId?'<a class="lnk" data-bagopen="'+s.batchId+'">#'+(s.batchNo||'—')+'</a>':'#'+(s.batchNo||'—'))+'</td><td><a class="lnk" data-fabopen="'+esc(s.fabricType)+'">'+esc(s.fabricType)+'</a></td><td>'+esc(s.size)+'</td><td>'+esc(s.productType||'—')+'</td><td>'+s.qty+'</td><td>'+esc(s.sewerName||'—')+'</td><td>'+esc(s.note||'')+'</td></tr>').join('')
       :'<tr><td class="empty">'+(prodTypeFilter?'ประเภทนี้ยังไม่มีรายการ':'ยังไม่มีการรับกลับ')+'</td></tr>';
+    $('tRetHist').querySelectorAll('[data-sred]').forEach(b=>b.onclick=()=>_openEdit('ret',b.dataset.sred));
+    /* ลบหลายรายการ: ติ๊กแล้วกด "ลบที่เลือก" */
+    const _multiDel=(tbl,btnId,selAttr,allAttr,kind)=>{
+      const t=$(tbl), btn=$(btnId); if(!t||!btn) return;
+      const picked=()=>[...t.querySelectorAll('input[data-'+selAttr+']:checked')].map(i=>i.getAttribute('data-'+selAttr));
+      const upd=()=>{ const n=picked().length; btn.style.display=n?'':'none'; btn.textContent='✕ ลบที่เลือก ('+n+' รายการ)'; };
+      t.querySelectorAll('input[data-'+selAttr+']').forEach(i=>i.onchange=upd);
+      const all=t.querySelector('input[data-'+allAttr+']'); if(all) all.onchange=()=>{ t.querySelectorAll('input[data-'+selAttr+']').forEach(i=>i.checked=all.checked); upd(); };
+      upd();
+      btn.onclick=async()=>{
+        const ids=new Set(picked()); if(!ids.size) return;
+        const arr=kind==='sent'?S.sewSent:S.sewReturns, rows=arr.filter(x=>ids.has(x.id));
+        const bags=[...new Set(rows.map(r=>'#'+(r.batchNo||'—')))].join(', ');
+        const tot=rows.reduce((a,r)=>a+(+r.qty||0),0);
+        if(kind==='sent'){
+          const withRet=rows.filter(r=>(S.sewReturns||[]).some(x=>x.batchId===r.batchId));
+          if(withRet.length && !await ask('บางถุงรับกลับไปแล้ว','ถุง '+[...new Set(withRet.map(r=>'#'+r.batchNo))].join(', ')+' มีรายการรับกลับแล้ว — ลบส่งเย็บไป ยอดที่ช่างอาจติดลบ\nถ้ารับกลับผิดด้วย ให้ลบรายการรับกลับก่อน\n\nยืนยันจะลบต่อหรือไม่?')) return;
+        }
+        if(!await ask('ลบ '+rows.length+' รายการ'+(kind==='sent'?'ส่งเย็บ':'รับกลับ')+'?','ถุง '+bags+' · รวม '+tot+(kind==='sent'?' ชิ้น':' ใบ')+'\n'+(kind==='sent'?'ยอดที่ถุงจะกลับมาเป็นรอส่งใหม่':'ปลอกพร้อมผลิตจะลดลงตามยอดนี้')+'\n\nกู้คืนไม่ได้')) return;
+        if(kind==='sent') S.sewSent=S.sewSent.filter(x=>!ids.has(x.id)); else S.sewReturns=S.sewReturns.filter(x=>!ids.has(x.id));
+        await saveFabric(); rFabric(); toast('ลบแล้ว '+rows.length+' รายการ');
+      };
+    };
+    _multiDel('tSewHist','btnSewDelSel','sssel','ssall','sent');
+    _multiDel('tRetHist','btnRetDelSel','srsel','srall','ret');
     $('tRetHist').querySelectorAll('[data-sr]').forEach(b=>b.onclick=async()=>{ if(!await ask('ลบรายการรับกลับนี้? (ของพร้อมผลิตจะลดลงตามยอดนี้)'))return; S.sewReturns=S.sewReturns.filter(x=>x.id!==b.dataset.sr); await saveFabric(); rFabric(); toast('ลบแล้ว'); });
 
     $('tFabWdHist').innerHTML=PROD.fabricWd.length?'<tr><th>เวลา</th><th>ชนิดผ้า</th><th>ไซซ์</th><th>จำนวน</th><th>หยิบจากถุง</th></tr>'+
@@ -2360,8 +2388,14 @@ window.WPDAUTH = {
           (k==='ret'?inp('fePP','ผ้ากี่ชิ้นต่อ 1 ใบ',r.piecesPer||b.piecesPer||1,'number',' inputmode="numeric" min="1"'):'')+'</div>'+
         '<div class="rf">'+inp('feSewer','ช่างเย็บ',r.sewerName||'','',' list="dlSewerName"')+inp('feType','สินค้า',r.productType||'','',' list="dlProdType"')+'</div>'+
         (k==='ret'?'<div class="rf">'+inp('feFin','ไซซ์หลังเย็บ (นิ้ว)',r.sizeFinished||b.sizeFinished||b.size,'')+'</div>':'')+
-        '<div class="rf">'+inp('feNote','หมายเหตุ',r.note||'','')+'</div>'+
-        '<div class="acts"><button class="btn" id="feSave">บันทึก</button><button class="btn sec" id="feCancel">ยกเลิก</button></div></div>';
+        '<div class="rf">'+(k==='sent'?inp('feTime','เวลาที่ส่ง',String(r.time||'').slice(0,16),'datetime-local'):inp('feTime','วันที่รับกลับ',String(r.time||'').slice(0,10),'date'))+inp('feNote','หมายเหตุ',r.note||'','')+'</div>'+
+        '<div class="acts"><button class="btn" id="feSave">บันทึก</button><button class="btn sec" id="feCancel">ยกเลิก</button><button class="btn dg" id="feDel">✕ ลบรายการนี้</button></div></div>';
+      $('feDel').onclick=async()=>{
+        if(k==='sent' && (S.sewReturns||[]).some(x=>x.batchId===b.id) && !await ask('ถุงนี้รับกลับไปแล้วบางส่วน','ลบรายการส่งเย็บนี้แล้ว ยอดที่ช่างอาจติดลบ — ถ้ารับกลับผิดด้วย ให้ลบรายการรับกลับก่อน\n\nยืนยันจะลบหรือไม่?')) return;
+        if(!await ask(k==='sent'?'ลบรายการส่งเย็บนี้?':'ลบรายการรับกลับนี้?', (k==='sent'?'ส่งเย็บ ':'รับกลับ ')+r.qty+(k==='sent'?' ชิ้น':' ใบ')+' · '+thDate(r.time)+(r.sewerName?' · '+r.sewerName:'')+'\n'+(k==='sent'?'ยอดที่ถุงจะกลับมาเป็นรอส่งใหม่':'ปลอกพร้อมผลิตจะลดลงตามยอดนี้'))) return;
+        if(k==='sent') S.sewSent=S.sewSent.filter(x=>x.id!==id); else S.sewReturns=S.sewReturns.filter(x=>x.id!==id);
+        await fabSaved('ลบแล้ว');
+      };
       $('feSave').onclick=async()=>{
         const qty=+$('feQty').value; if(!(qty>0)){ toast('กรอกจำนวน'); return; }
         const others=arr.filter(x=>x.batchId===b.id && x.id!==id).reduce((a,x)=>a+(+x.qty||0)*(k==='ret'?(+x.piecesPer||1):1),0);
@@ -2372,6 +2406,10 @@ window.WPDAUTH = {
           const sentAll=(S.sewSent||[]).filter(x=>x.batchId===b.id).reduce((a,x)=>a+(+x.qty||0),0);
           if(others+qty*pp>sentAll){ await info('รับกลับเกินที่ส่งไม่ได้','ส่งเย็บไป '+sentAll+' ชิ้น แต่รับกลับรวมจะเป็น '+(others+qty*pp)+' ชิ้น'); return; }
         }
+        const _t=$('feTime').value;
+        if(_t){ const nt=k==='sent'?(_t.length===16?_t+':00':_t):(_t+(r.time&&String(r.time).length>10?String(r.time).slice(10):'T'+localISO().slice(11)));
+          if(nt.slice(0,10)>todayStr()){ toast('วันที่เลยวันนี้ไปแล้ว'); return; }
+          r.time=nt; }
         r.qty=qty; r.sewerName=$('feSewer').value.trim(); r.productType=normSize($('feType').value); r.note=$('feNote').value.trim();
         if(k==='ret'){ r.piecesPer=pp; const fin=normSize($('feFin').value)||b.size; r.sizeFinished=fin; b.sizeFinished=fin; if(pp>1||b.piecesPer) b.piecesPer=pp; }
         await fabSaved('แก้รายการแล้ว');

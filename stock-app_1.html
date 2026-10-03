@@ -96,6 +96,12 @@
   #sk .lowstock { border-color:var(--red); box-shadow:0 0 0 1px var(--red) inset; }
   #sk .frow { display:flex; gap:6px; margin-top:6px; align-items:center; }
   #sk .frow input { margin-top:0; }
+  #sk .nogrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(118px,1fr)); gap:6px; margin-top:8px; }
+  #sk .nogrid .ng { display:flex; align-items:center; gap:4px; margin:0; font-size:13px; color:var(--text); }
+  #sk .nogrid .ng span { min-width:34px; font-weight:600; }
+  #sk .nogrid .ng input { margin:0; padding:7px 6px; min-width:0; }
+  #sk .nogrid .ng input.edited { border-color:var(--accent2); }
+  #sk .nogrid .ng small { color:var(--dim); }
   #sk .x { background:none; border:none; color:var(--red); cursor:pointer; font-size:15px; padding:2px 6px; }
   #sk .ed { background:none; border:none; color:var(--blue); cursor:pointer; font-size:12px; padding:2px 6px; }
   #sk .cartrow { background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:10px; margin-top:8px; }
@@ -485,26 +491,19 @@
     <div class="panel" id="p-fiber">
       <div class="card"><h3>สต๊อกใย</h3><div id="fiberCards"></div></div>
       <div class="card">
-        <h3>รับเข้าใย — 1 ครั้ง = 1 ก้อน</h3>
+        <h3>รับเข้าใย — ก้อนเดียว หรือหลายก้อนในครั้งเดียว</h3>
         <p class="sumline" style="margin-top:-4px;">กรอกตามที่เขียนบนก้อน เช่น <b>เบอร์ 1 · 7D64HC · 265 กก. · 21/8/2569</b><br>
         <span style="color:var(--muted)">ใยชื่อเดียวกันแต่ละก้อนหนักไม่เท่ากันได้ ระบบแยกยอดให้ทีละก้อน</span></p>
         <div class="rf">
           <div><label>ชื่อใย</label><select id="rwSel"></select>
             <input id="rwName" list="dlRwFiber" placeholder="พิมพ์ชื่อใย" style="display:none;"><datalist id="dlRwFiber"></datalist></div>
-          <div><label>น้ำหนักก้อนนี้ (กก.)</label><input id="rwKg" type="number" inputmode="decimal" step="0.01" placeholder="เช่น 265"></div>
+          <div><label>น้ำหนักต่อก้อน (กก.)</label><input id="rwKg" type="number" inputmode="decimal" step="0.01" placeholder="เช่น 265"></div>
         </div>
-        <label style="color:var(--accent2); font-weight:600;">★ เบอร์ก้อน — เลขที่เขียนไว้บนก้อนนี้</label>
-        <input id="rwLotNo" type="number" inputmode="numeric" placeholder="เช่น 7 — เลขที่เขียนบนก้อนจริง">
+        <label style="color:var(--accent2); font-weight:600;">★ เบอร์ก้อน — เลขที่เขียนไว้บนก้อน</label>
+        <input id="rwLotNo" autocomplete="off" placeholder="เช่น 7 · หลายก้อน: 1-10 หรือ 1,3,5-8">
+        <div style="font-size:11.5px;color:var(--dim);margin-top:3px;">ใยชื่อเดียวกัน รับวันเดียวกัน ใส่หลายเบอร์ได้ในครั้งเดียว — ก้อนหนักไม่เท่ากัน แก้น้ำหนักรายก้อนในตารางด้านล่าง</div>
         <div class="sumline" id="rwLotPreview"></div>
-        <details style="margin-top:10px;" id="rwBulkBox"><summary style="cursor:pointer; font-size:14px; color:var(--accent2); font-weight:600;">➕ รับหลายก้อนรวดเดียว — น้ำหนักเท่ากันทุกก้อน</summary>
-          <div class="sumline" style="margin-top:6px;">ใช้ตอนรับใยมาทีเดียวหลายก้อน น้ำหนักก้อนละเท่ากัน — ระบบจะ<b style="color:var(--accent2)">สร้างแยกทีละก้อนพร้อมเบอร์ของตัวเอง</b> จะได้เบิกใช้ทีละก้อนได้ตามปกติ</div>
-          <div class="rf" style="margin-top:8px;">
-            <div><label>รับกี่ก้อน</label><input id="rwBulkN" type="number" inputmode="numeric" min="2" placeholder="เช่น 10"></div>
-            <div><label>เบอร์ก้อนเริ่มต้น</label><input id="rwBulkStart" type="number" inputmode="numeric" placeholder="เว้นว่าง = ใช้เบอร์ด้านบน / ต่อจากเบอร์ล่าสุด"></div>
-          </div>
-          <div class="sumline" id="rwBulkPreview" style="margin-top:6px;"></div>
-          <button class="btn w" id="btnRwBulk" style="margin-top:8px;">➕ รับเข้าหลายก้อนรวดเดียว</button>
-        </details>
+        <div id="rwGrid"></div>
         <div class="rf">
           <div><label>ผู้ขาย</label><input id="rwSupplier"></div>
           <div><label>หมายเหตุ</label><input id="rwNote"></div>
@@ -557,8 +556,8 @@
         <div class="sumline" id="fabRecPreview"></div>
         <label>วันที่รับเข้า</label><input id="fabRecDate" type="date">
         <label>หมายเหตุ</label><input id="fabRecNote">
-        <details class="oldentry"><summary>ม้วนมีเลขเขียนไว้อยู่แล้ว?</summary>
-          <label>เลขม้วนเริ่มต้น</label><input id="fabRecRollNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ">
+        <details class="oldentry"><summary>ม้วนมีเลขเขียนไว้อยู่แล้ว? (ใส่หลายเลขได้)</summary>
+          <label>เลขม้วน</label><input id="fabRecRollNo" autocomplete="off" placeholder="เช่น 5 (เริ่มที่ 5) · 1-10 · 1,3,7 — ไม่ใส่ = เรียงเลขให้">
         </details>
         <button class="btn w" id="btnFabRec">บันทึกรับม้วนเข้า</button>
       </div>
@@ -568,7 +567,7 @@
       <!-- ② ตัดใส่ถุง -->
       <div class="card" data-step="cut">
         <h3>② ตัดผ้าใส่ถุง</h3>
-        <p class="sumline" style="margin-top:-4px;">ตัดได้ไซซ์ละ 1 ถุง ระบบออกเลขถุงให้ — <b>เขียนเลขถุงบนถุงจริง</b> ถุงนี้จะเดินทางไปช่างเย็บและกลับมาด้วยเลขเดิม</p>
+        <p class="sumline" style="margin-top:-4px;">ไซซ์เดียวกันหลายถุง ใส่ "กี่ถุง" ได้เลย ระบบออกเลขให้ทีละถุง — <b>เขียนเลขถุงบนถุงจริง</b> ถุงนี้จะเดินทางไปช่างเย็บและกลับมาด้วยเลขเดิม</p>
         <div class="rf" id="cutBatchModeRow">
           <div><label>ชนิดผ้า</label><select id="cutFabSel"></select></div>
           <div><label>ม้วนที่ตัด</label><select id="cutRollSel"></select></div>
@@ -578,7 +577,7 @@
             <input id="cutFreeFabName" list="dlCutFreeFab" placeholder="พิมพ์ชนิดผ้า" style="display:none;"><datalist id="dlCutFreeFab"></datalist></div>
           <div><label>ม้วนที่ (ถ้ารู้ — ไม่บังคับ)</label><input id="cutFreeRollNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ก็ได้"></div>
         </div>
-        <label>ตัดได้ไซซ์ไหน — กี่ชิ้น (นิ้ว กว้าง x ยาว)</label>
+        <label>ตัดได้ไซซ์ไหน — ถุงละกี่ชิ้น — กี่ถุง (นิ้ว กว้าง x ยาว)</label>
         <div id="cutRows"></div>
         <button class="btn sec sm" style="margin-top:8px;" id="btnAddCutRow">+ เพิ่มไซซ์</button>
         <div id="cutFreeBatchRow" style="display:none;"><label>เลขถุงเริ่มต้น (ถ้ามีเขียนไว้อยู่แล้ว)</label><input id="cutFreeBatchNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ"></div>
@@ -736,12 +735,17 @@
         </div>
         <div class="rf">
           <div><label>ไซซ์ถุง</label><input id="bagSize" placeholder="เช่น 40x70"></div>
-          <div><label>น้ำหนักกระสอบ (กก.)</label><input id="bagSackKg" type="number" inputmode="decimal" step="0.1" value="25"></div>
+          <div><label>น้ำหนักต่อกระสอบ (กก.)</label><input id="bagSackKg" type="number" inputmode="decimal" step="0.1" value="25"></div>
         </div>
         <label>น้ำหนักต่อใบ (กก.) — ใช้แปลงเป็นจำนวนใบให้อัตโนมัติ</label>
         <input id="bagWeightPer" type="number" inputmode="decimal" step="0.001" placeholder="เช่น 0.05">
-        <label>เลขกระสอบ (ถ้ามีเขียนไว้อยู่แล้ว)</label><input id="bagSackNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ">
+        <div class="rf">
+          <div><label>เลขกระสอบ (ถ้ามีเขียนไว้)</label><input id="bagSackNo" autocomplete="off" placeholder="เช่น 3 · 1-5 · 1,4,6"></div>
+          <div style="max-width:130px;"><label>รับกี่กระสอบ</label><input id="bagSackCount" type="number" inputmode="numeric" value="1" min="1"></div>
+        </div>
+        <div style="font-size:11.5px;color:var(--dim);margin-top:3px;">ถุงชื่อเดียวกัน รับวันเดียวกัน ลงหลายกระสอบได้ในครั้งเดียว — กระสอบหนักไม่เท่ากัน แก้รายกระสอบในตารางด้านล่าง</div>
         <div class="sumline" id="bagSackPreview"></div>
+        <div id="bagGrid"></div>
         <label>วันที่รับเข้า</label><input id="bagDate" type="date">
         <label>หมายเหตุ</label><input id="bagNote">
         <button class="btn w" id="btnBag">บันทึกรับเข้ากระสอบ</button>
@@ -1803,107 +1807,91 @@ window.WPDAUTH = {
       useRows.map(w=>'<tr><td>'+ymd(w.time)+' '+hhmm(w.time)+'</td><td>'+esc(orderLabel(w.orderId))+'</td><td>'+esc(w.fiberName)+'</td><td>'+esc(w.seq||'—')+'</td><td>'+esc(w.lot||'—')+'</td><td>'+w.kg+'</td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีการเบิกใย</td></tr>';
   }
-  function updateRwLotPreview(){
+  /* ---------- ลงหลายเบอร์ในรอบเดียว: ตารางน้ำหนักรายเบอร์ (ค่าเริ่มต้น = ช่องรวม แก้รายเบอร์ได้) ---------- */
+  function noGrid(boxId, nos, def, unit, step){
+    const box=$(boxId); if(!box) return;
+    box._v=box._v||{};
+    if(nos.length<2){ box.innerHTML=''; return; }
+    box.innerHTML='<div class="nogrid">'+nos.map(n=>{ const ed=box._v[n]!=null&&box._v[n]!=='', v=ed?box._v[n]:def;
+      return '<label class="ng"><span>#'+n+'</span><input type="number" inputmode="decimal" step="'+(step||'0.01')+'" data-no="'+n+'" value="'+(v==null?'':esc(String(v)))+'"'+(ed?' class="edited"':'')+'><small>'+unit+'</small></label>'; }).join('')+'</div>';
+    box.querySelectorAll('input[data-no]').forEach(i=>i.oninput=()=>{ box._v[i.dataset.no]=i.value; i.classList.toggle('edited', i.value!==''); box.dispatchEvent(new Event('gridchange')); });
+  }
+  function noGridVal(boxId, n, def){ const b=$(boxId), v=b&&b._v?b._v[n]:null; return v!=null&&v!==''?+v:+def; }
+  function noGridReset(boxId){ const b=$(boxId); if(b){ b._v={}; b.innerHTML=''; } }
+  /* เบอร์ที่จะได้: ใส่หลายเบอร์ = ตามนั้น · เบอร์เดียว+จำนวน = เรียงต่อจากเบอร์นั้น · ว่าง = ต่อจากเบอร์ล่าสุด */
+  function noPlan(raw, count, next){
+    const p=parsePackNos(raw); if(p.err) return { err:p.err, nos:[] };
+    count=Math.max(1, Math.round(+count||1));
+    if(p.nos.length>1) return { nos:p.nos, listed:true, dup:p.dup };
+    const start=p.nos.length?p.nos[0]:next, nos=[]; for(let i=0;i<count;i++) nos.push(start+i);
+    return { nos, auto:!p.nos.length };
+  }
+  function updateRwLotPreview(skipGrid){
     const n=($('rwSel').value==='__new__')?$('rwName').value.trim():$('rwSel').value;
     const _typed=($('rwLotNo')?$('rwLotNo').value.trim():'');
     const _kg=$('rwKg')?($('rwKg').value.trim()):'';
     const _next=n?CALC.nextFiberLot(S.fiberReceipts,n):'';
-    updateRwBulkPreview();
-    if(!n){ $('rwLotPreview').innerHTML=''; return; }
+    if(!n){ $('rwLotPreview').innerHTML=''; noGrid('rwGrid',[],'','กก.'); return; }
     if(_typed){
-      const _dup=S.fiberReceipts.some(r=>r.fiberName===n && String(r.lotNo)===String(+_typed));
-      $('rwLotPreview').innerHTML='จะบันทึกเป็น <b style="color:var(--accent2)">เบอร์ '+esc(_typed)+'</b> · '+esc(n)+
-        (_kg?' · '+esc(_kg)+' กก.':'')+' · 1 ก้อน'+
-        (_dup?'<br><span class="bdg warn">เบอร์นี้มีอยู่แล้วในระบบ</span>':'');
+      const p=parsePackNos(_typed);
+      if(p.err){ $('rwLotPreview').innerHTML='<span style="color:var(--red)">เบอร์อ่านไม่ออกตรง "'+esc(p.err)+'" — ใส่แบบ 7 หรือ 1-10 หรือ 1,3,5-8</span>'; noGrid('rwGrid',[],'','กก.'); return; }
+      const have=new Set(S.fiberReceipts.filter(r=>r.fiberName===n).map(r=>String(r.lotNo)));
+      const dup=p.nos.filter(x=>have.has(String(x)));
+      const tot=r3(p.nos.reduce((a,no)=>a+(p.nos.length>1?noGridVal('rwGrid',no,_kg):+_kg||0),0));
+      $('rwLotPreview').innerHTML='จะบันทึก <b style="color:var(--accent2)">'+(p.nos.length>1?p.nos.length+' ก้อน — เบอร์ '+esc(packNosText(p.nos)):'เบอร์ '+p.nos[0])+'</b> · '+esc(n)+
+        (tot?' · '+(p.nos.length>1?'รวม ':'')+tot+' กก.':'')+(p.nos.length>1?' · แยกเป็นรายก้อน เบิกทีละก้อนได้':'')+
+        (dup.length?'<br><span class="bdg warn">เบอร์ '+esc(packNosText(dup))+' มีอยู่แล้วในระบบ</span>':'');
+      if(skipGrid!==true) noGrid('rwGrid', p.nos, _kg, 'กก.');
     } else {
       $('rwLotPreview').innerHTML='<span class="bdg warn">ยังไม่ได้กรอกเบอร์ก้อน</span> ระบบจะตั้งเบอร์ให้เองเป็น <b>'+_next+
         '</b> — <span style="color:var(--yellow)">ซึ่งไม่ใช่เลขที่เขียนบนก้อน</span>';
+      noGrid('rwGrid',[],'','กก.');
     }
   }
   $('rwSel').onchange=function(){ const v=this.value,t=$('rwName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} updateRwLotPreview(); };
   $('rwName').oninput=updateRwLotPreview;
   ['rwLotNo','rwKg'].forEach(id=>{ if($(id)) $(id).oninput=updateRwLotPreview; });
+  $('rwGrid').addEventListener('gridchange', ()=>updateRwLotPreview(true));
   $('btnRw').onclick=async()=>{
     const n=($('rwSel').value==='__new__'?$('rwName').value:$('rwSel').value).trim(), kg=+$('rwKg').value;
-    if(!n||!kg){ toast('กรอกชื่อใยและน้ำหนัก'); return; }
-    const customLot=$('rwLotNo').value.trim();
+    if(!n){ toast('กรอกชื่อใย'); return; }
+    const customLot=$('rwLotNo').value.trim(), pn=parsePackNos(customLot);
+    if(pn.err){ await info('เบอร์ก้อนอ่านไม่ออก','ตรงนี้: "'+pn.err+'"\n\nก้อนเดียวใส่ 7 · หลายก้อนใส่ 1-10 หรือ 1,3,5-8'); return; }
+    if(pn.nos.length>200){ toast('รับทีเดียวเกิน 200 ก้อนไม่ได้'); return; }
+    const multi=pn.nos.length>1;
+    const nos=customLot?pn.nos:[CALC.nextFiberLot(S.fiberReceipts,n)];
+    const kgs=nos.map(no=>multi?noGridVal('rwGrid',no,kg):kg);
+    if(kgs.some(x=>!(x>0))){ toast(multi?'กรอกน้ำหนักให้ครบทุกก้อน (ช่องน้ำหนักต่อก้อน หรือในตาราง)':'กรอกชื่อใยและน้ำหนัก'); return; }
     if(!customLot){
-      const _auto=CALC.nextFiberLot(S.fiberReceipts,n);
+      const _auto=nos[0];
       if(!await ask('ยังไม่ได้กรอกเบอร์ก้อน',
         'ระบบจะตั้งเบอร์ให้เองเป็น "เบอร์ '+_auto+'" ซึ่งไม่ใช่เลขที่เขียนบนก้อนจริง'+
         '\n\nยืนยันจะให้ระบบออกเบอร์ '+_auto+' ให้หรือไม่?')) return;
     }
-    const lotNo=customLot?+customLot:CALC.nextFiberLot(S.fiberReceipts,n);
-    if(customLot && S.fiberReceipts.some(r=>r.fiberName===n && String(r.lotNo)===String(lotNo))){
-      if(!await ask('เบอร์ก้อน '+lotNo+' ของ '+n+' มีอยู่แล้ว','เคยรับเข้าเมื่อ '+S.fiberReceipts.filter(r=>r.fiberName===n && String(r.lotNo)===String(lotNo)).map(r=>thDate(r.time)).join(', ')+'\n\nถ้าเป็นก้อนใหม่ที่เข้าคนละวัน กดยืนยันได้เลย — ระบบแยกให้ตาม "ชื่อ + เบอร์ + วันที่รับเข้า" ตอนเบิกจะเห็นวันที่รับให้เลือกถูกก้อน\n\nยืนยันจะรับเข้าเบอร์นี้หรือไม่?')) return;
+    const dup=customLot?nos.filter(no=>S.fiberReceipts.some(r=>r.fiberName===n && String(r.lotNo)===String(no))):[];
+    if(dup.length){
+      const when=[...new Set(S.fiberReceipts.filter(r=>r.fiberName===n && dup.some(d=>String(d)===String(r.lotNo))).map(r=>thDate(r.time)))].join(', ');
+      if(!await ask('เบอร์ก้อน '+packNosText(dup)+' ของ '+n+' มีอยู่แล้ว','เคยรับเข้าเมื่อ '+when+'\n\nถ้าเป็นก้อนใหม่ที่เข้าคนละวัน กดยืนยันได้เลย — ระบบแยกให้ตาม "ชื่อ + เบอร์ + วันที่รับเข้า" ตอนเบิกจะเห็นวันที่รับให้เลือกถูกก้อน\n\nยืนยันจะรับเข้าเบอร์นี้หรือไม่?')) return;
     }
     const dateVal=$('rwDate').value?$('rwDate').value+'T'+localISO().slice(11):localISO();
-    const baleCount=null;   /* เลิกใช้ "จำนวนก้อนรวมกัน" แล้ว — รับหลายก้อนใช้ปุ่มรับรวดเดียวที่แยกเบอร์ให้ */
-    const _w=[];
-    if(kg>20000) _w.push('รับเข้า '+kg+' กก. ในครั้งเดียว ดูเยอะผิดปกติ');
-    if(kg<1) _w.push('รับเข้าแค่ '+kg+' กก. ดูน้อยผิดปกติ');
+    const _w=new Set();
     const _ref=lastOf(S.fiberReceipts,r=>r.fiberName===n,'kg');
-    if(_ref>0 && (kg>_ref*10||kg<_ref/10))
-      _w.push('ครั้งก่อนใย "'+n+'" รับเข้า '+_ref+' กก. แต่ครั้งนี้กรอก '+kg+' กก.');
-    if(baleCount && kg/baleCount>500) _w.push('เฉลี่ยก้อนละ '+Math.round(kg/baleCount)+' กก. ดูหนักผิดปกติ');
-    if(!await confirmOdd(_w)) return;
-    S.fiberReceipts.push({id:uid(),time:dateVal,fiberName:n,lotNo,kg,baleCount,supplier:$('rwSupplier').value.trim(),note:$('rwNote').value.trim()});
-    await saveFiber();
-    ['rwSupplier','rwNote','rwKg','rwLotNo','rwBulkN','rwBulkStart'].forEach(id=>{ if($(id)) $(id).value=''; });
-    // ชื่อใยที่เลือกไว้ค้างต่อเนื่อง จนกว่าจะเปลี่ยนเอง (มักรับเข้าใยตัวเดิมหลายรอบติดกัน)
-    rFiber(); toast('บันทึกรับเข้าใยแล้ว — '+n+' เบอร์ '+lotNo+' · '+kg+' กก.');
-  };
-  /* ---------- รับหลายก้อนรวดเดียว — แยกเบอร์ให้ทีละก้อน ---------- */
-  function rwBulkPlan(){
-    const n=($('rwSel').value==='__new__'?$('rwName').value:$('rwSel').value).trim();
-    const kg=+$('rwKg').value||0;
-    const count=+($('rwBulkN')?$('rwBulkN').value:0)||0;
-    if(!n || !kg || count<2) return null;
-    const startRaw=($('rwBulkStart')?$('rwBulkStart').value.trim():'') || ($('rwLotNo')?$('rwLotNo').value.trim():'');
-    const start = startRaw!=='' ? +startRaw : CALC.nextFiberLot(S.fiberReceipts,n);
-    if(isNaN(start)||start<0) return null;
-    const nos=[]; for(let i=0;i<count;i++) nos.push(start+i);
-    const have=new Set(S.fiberReceipts.filter(r=>r.fiberName===n).map(r=>String(r.lotNo)));
-    const dup=nos.filter(x=>have.has(String(x)));
-    return { name:n, kg, count, start, nos, dup, total:r3(kg*count) };
-  }
-  function updateRwBulkPreview(){
-    const box=$('rwBulkPreview'); if(!box) return;
-    const p=rwBulkPlan();
-    if(!p){ box.innerHTML='<span style="color:var(--muted)">กรอกชื่อใย · น้ำหนักต่อก้อน · จำนวนก้อน (อย่างน้อย 2) แล้วจะสรุปให้ดูก่อนบันทึก</span>'; return; }
-    const show = p.nos.length<=12 ? p.nos.join(', ') : (p.nos.slice(0,5).join(', ')+' … '+p.nos.slice(-2).join(', '));
-    box.innerHTML='จะสร้าง <b style="color:var(--accent2)">'+p.count+' ก้อนแยกกัน</b> — เบอร์ <b>'+show+'</b>'+
-      '<br>ก้อนละ '+p.kg+' กก. · รวม <b>'+p.total+' กก.</b> · เบิกใช้ทีละก้อนได้ตามปกติ'+
-      (p.dup.length?'<br><span class="bdg warn">เบอร์ '+p.dup.join(', ')+' มีอยู่แล้ว</span> ระบบจะถามยืนยันก่อน':'');
-  }
-  ['rwBulkN','rwBulkStart'].forEach(id=>{ if($(id)) $(id).oninput=updateRwBulkPreview; });
-  if($('btnRwBulk')) $('btnRwBulk').onclick=async()=>{
-    const p=rwBulkPlan();
-    if(!p){ toast('กรอกชื่อใย น้ำหนักต่อก้อน และจำนวนก้อน (อย่างน้อย 2) ก่อน'); return; }
-    if(p.count>200){ toast('รับทีเดียวเกิน 200 ก้อนไม่ได้'); return; }
-    const _w=[];
-    if(p.kg>20000) _w.push('ก้อนละ '+p.kg+' กก. ดูเยอะผิดปกติ');
-    if(p.kg<1) _w.push('ก้อนละแค่ '+p.kg+' กก. ดูน้อยผิดปกติ');
-    const _ref=lastOf(S.fiberReceipts,r=>r.fiberName===p.name,'kg');
-    if(_ref>0 && (p.kg>_ref*10||p.kg<_ref/10))
-      _w.push('ครั้งก่อนใย "'+p.name+'" รับเข้า '+_ref+' กก./ก้อน แต่ครั้งนี้กรอก '+p.kg+' กก./ก้อน');
-    if(!await confirmOdd(_w)) return;
-    if(p.dup.length){
-      if(!await ask('มีเบอร์ที่ซ้ำกับของเดิม',
-        'เบอร์ '+p.dup.join(', ')+' ของ "'+p.name+'" มีอยู่แล้วในระบบ\n\nถ้าเบอร์บนก้อนซ้ำกันจริง กดยืนยันได้เลย (ระบบแยกยอดให้ทีละก้อน)\nถ้าไม่ใช่ ให้กดยกเลิกแล้วเปลี่ยน "เบอร์ก้อนเริ่มต้น"\n\nยืนยันจะสร้างทั้ง '+p.count+' ก้อนหรือไม่?')) return;
-    } else {
-      if(!await ask('รับเข้า '+p.count+' ก้อนรวดเดียว?',
-        'ใย: '+p.name+'\nเบอร์: '+p.nos[0]+' – '+p.nos[p.nos.length-1]+'\nก้อนละ: '+p.kg+' กก.\nรวม: '+p.total+' กก.\n\nระบบจะสร้างแยกเป็น '+p.count+' รายการ เบิกใช้ทีละก้อนได้')) return;
-    }
-    const dateVal=$('rwDate').value?$('rwDate').value+'T'+localISO().slice(11):localISO();
-    const sup=$('rwSupplier').value.trim(), note=$('rwNote').value.trim();
-    p.nos.forEach(no=>{
-      S.fiberReceipts.push({id:uid(),time:dateVal,fiberName:p.name,lotNo:no,kg:p.kg,baleCount:null,supplier:sup,note:note});
+    nos.forEach((no,i)=>{ const k=kgs[i], pre=multi?'ก้อน #'+no+' ':'';
+      if(k>20000) _w.add(pre+'รับเข้า '+k+' กก. ในครั้งเดียว ดูเยอะผิดปกติ');
+      if(k<1) _w.add(pre+'รับเข้าแค่ '+k+' กก. ดูน้อยผิดปกติ');
+      if(_ref>0 && (k>_ref*10||k<_ref/10)) _w.add(pre+'ครั้งก่อนใย "'+n+'" รับเข้า '+_ref+' กก./ก้อน แต่ครั้งนี้กรอก '+k+' กก.');
     });
+    if(!await confirmOdd([..._w])) return;
+    const total=r3(kgs.reduce((a,b)=>a+b,0));
+    if(multi && !dup.length && !await ask('รับเข้า '+nos.length+' ก้อนรวดเดียว?','ใย: '+n+'\nเบอร์: '+packNosText(nos)+'\nรวม: '+total+' กก.'+([...new Set(kgs)].length===1?' (ก้อนละ '+kgs[0]+' กก.)':'')+'\nวันที่รับ: '+thDate(dateVal)+'\n\nระบบจะสร้างแยกเป็น '+nos.length+' รายการ เบิกใช้ทีละก้อนได้')) return;
+    const sup=$('rwSupplier').value.trim(), note=$('rwNote').value.trim();
+    nos.forEach((no,i)=>S.fiberReceipts.push({id:uid(),time:dateVal,fiberName:n,lotNo:no,kg:kgs[i],baleCount:null,supplier:sup,note}));
     await saveFiber();
-    ['rwKg','rwLotNo','rwBulkN','rwBulkStart'].forEach(id=>{ if($(id)) $(id).value=''; });
+    ['rwSupplier','rwNote','rwKg','rwLotNo'].forEach(id=>{ if($(id)) $(id).value=''; });
+    noGridReset('rwGrid');
+    // ชื่อใยที่เลือกไว้ค้างต่อเนื่อง จนกว่าจะเปลี่ยนเอง (มักรับเข้าใยตัวเดิมหลายรอบติดกัน)
     rFiber(); updateRwLotPreview();
-    toast('รับเข้า '+p.count+' ก้อนแล้ว — '+p.name+' เบอร์ '+p.nos[0]+'–'+p.nos[p.nos.length-1]+' ก้อนละ '+p.kg+' กก. (รวม '+p.total+' กก.)');
+    toast(multi?'รับเข้า '+nos.length+' ก้อนแล้ว — '+n+' เบอร์ '+packNosText(nos)+' รวม '+total+' กก.':'บันทึกรับเข้าใยแล้ว — '+n+' เบอร์ '+nos[0]+' · '+kgs[0]+' กก.');
   };
 
   $('btnTh').onclick=async()=>{ const n=$('thSel').value; if(!n){toast('เลือกใยก่อน');return;} S.fiberTh[n]=+$('thKg').value||0; await saveFiber(); $('thKg').value=''; rFiber(); toast('ตั้งจุดเตือนแล้ว'); };
@@ -2239,31 +2227,47 @@ window.WPDAUTH = {
         '</td><td>'+(w.picks||[]).map(p=>'#'+p.batchNo+':'+p.qty).join(', ')+'</td><td>'+esc(w.note||'')+'</td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีการเบิก</td></tr>';
   }
-  function updateFabRecPreview(){
+  function fabRecPlan(){
     const n=($('fabRecSel').value==='__new__')?$('fabRecName').value.trim():$('fabRecSel').value;
-    $('fabRecPreview').textContent = n ? 'ม้วนจะได้เลขเริ่มจาก: ม้วนที่ '+CALC.nextRollNo(S.fabricReceipts,n)+' เป็นต้นไป' : '';
+    if(!n) return null;
+    const raw=$('fabRecRollNo').value.trim(), p=parsePackNos(raw), cnt=+$('fabRecRolls').value||0;
+    if(p.err) return { n, err:p.err, nos:[] };
+    if(p.nos.length>1) return { n, nos:p.nos, listed:true, mismatch:cnt && cnt!==p.nos.length ? cnt : 0 };
+    const pl=noPlan(raw, cnt||1, CALC.nextRollNo(S.fabricReceipts,n));
+    return { n, nos:cnt?pl.nos:[], start:pl.nos[0], auto:pl.auto };
+  }
+  function updateFabRecPreview(){
+    const p=fabRecPlan(), el=$('fabRecPreview');
+    if(!p){ el.textContent=''; return; }
+    if(p.err){ el.innerHTML='<span style="color:var(--red)">เลขม้วนอ่านไม่ออกตรง "'+esc(p.err)+'"</span>'; return; }
+    const have=new Set(S.fabricReceipts.filter(r=>r.fabricType===p.n).map(r=>r.rollNo)), dup=p.nos.filter(x=>have.has(x));
+    el.innerHTML=p.nos.length ? 'จะได้ <b style="color:var(--accent2)">'+p.nos.length+' ม้วน — เลข '+esc(packNosText(p.nos))+'</b>'+(p.mismatch?' <span class="bdg warn">ช่องจำนวนม้วนใส่ไว้ '+p.mismatch+'</span>':'')+
+        (dup.length?'<br><span class="bdg warn">เลข '+esc(packNosText(dup))+' มีอยู่แล้ว</span>':'')
+      : 'ม้วนจะได้เลขเริ่มจาก: ม้วนที่ '+p.start+' เป็นต้นไป';
   }
   $('fabRecSel').onchange=function(){ const v=this.value,t=$('fabRecName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} updateFabRecPreview(); };
   $('fabRecName').oninput=updateFabRecPreview;
+  $('fabRecRolls').addEventListener('input', updateFabRecPreview);
+  /* ใส่หลายเลขม้วน → นับจำนวนม้วนให้เอง */
+  $('fabRecRollNo').addEventListener('input', ()=>{ const p=parsePackNos($('fabRecRollNo').value); if(!p.err && p.nos.length>1) $('fabRecRolls').value=p.nos.length; updateFabRecPreview(); });
   $('btnFabRec').onclick=async()=>{
-    const n=($('fabRecSel').value==='__new__'?$('fabRecName').value:$('fabRecSel').value).trim();
-    const nRolls=+$('fabRecRolls').value;
-    if(!n||!nRolls){ toast('กรอกชนิดผ้าและจำนวนม้วน'); return; }
-    const customStart=$('fabRecRollNo').value.trim();
-    let start=customStart?+customStart:CALC.nextRollNo(S.fabricReceipts,n);
-    if(customStart){
-      const overlap=[]; for(let i=0;i<nRolls;i++){ if(S.fabricReceipts.some(r=>r.fabricType===n && r.rollNo===start+i)) overlap.push(start+i); }
-      if(overlap.length && !await ask('เลขม้วน #'+overlap.join(', #')+' ('+n+') มีอยู่แล้วในระบบ','ยืนยันจะสร้างม้วนใหม่เลขซ้ำกันหรือไม่? (แนะนำให้เว้นว่างให้ระบบเรียงเลขใหม่แทน)')) return;
+    const p=fabRecPlan();
+    if(!p||(!p.nos.length && !p.err)){ toast('กรอกชนิดผ้าและจำนวนม้วน'); return; }
+    if(p.err){ await info('เลขม้วนอ่านไม่ออก','ตรงนี้: "'+p.err+'"\n\nใส่แบบ 5 (เริ่มที่ 5) หรือ 1-10 หรือ 1,3,7'); return; }
+    if(p.mismatch){ await info('เลขม้วนกับจำนวนม้วนไม่ตรงกัน','เลข '+packNosText(p.nos)+' = '+p.nos.length+' ม้วน\nแต่ช่องจำนวนม้วนใส่ไว้ '+p.mismatch+' ม้วน\n\nแก้ให้ตรงกันก่อน'); return; }
+    if(p.nos.length>300){ toast('รับทีเดียวเกิน 300 ม้วนไม่ได้'); return; }
+    const n=p.n, nos=p.nos;
+    if(!p.auto){
+      const overlap=nos.filter(x=>S.fabricReceipts.some(r=>r.fabricType===n && r.rollNo===x));
+      if(overlap.length && !await ask('เลขม้วน '+packNosText(overlap)+' ('+n+') มีอยู่แล้วในระบบ','ถ้าเป็นม้วนใหม่ที่เข้าคนละวัน กดยืนยันได้เลย — ตอนตัดจะเห็นวันที่รับให้เลือกถูกม้วน\n\nยืนยันจะรับเข้าเลขนี้หรือไม่?')) return;
     }
     const dateVal=$('fabRecDate').value?$('fabRecDate').value+'T'+localISO().slice(11):localISO();
-    const widthIn=+$('fabRecWidth').value||null, lengthIn=+$('fabRecLength').value||null;
-    for(let i=0;i<nRolls;i++){
-      S.fabricReceipts.push({id:uid(),time:dateVal,fabricType:n,rollNo:start+i,widthIn,lengthIn,note:$('fabRecNote').value.trim()});
-    }
+    const widthIn=+$('fabRecWidth').value||null, lengthIn=+$('fabRecLength').value||null, note=$('fabRecNote').value.trim();
+    nos.forEach(no=>S.fabricReceipts.push({id:uid(),time:dateVal,fabricType:n,rollNo:no,widthIn,lengthIn,note}));
     await saveFabric();
     $('fabRecRolls').value=''; $('fabRecNote').value=''; $('fabRecRollNo').value='';
     // ชนิดผ้า+วันที่ค้างไว้ จนกว่าจะเปลี่ยนเอง (มักรับเข้าม้วนเดิมหลายรอบติดกัน)
-    rFabric(); toast('รับเข้า '+nRolls+' ม้วน — เลข '+start+' ถึง '+(start+nRolls-1));
+    rFabric(); updateFabRecPreview(); toast('รับเข้า '+nos.length+' ม้วน — เลข '+packNosText(nos));
   };
 
   function refreshCutRollOptions(){
@@ -2518,10 +2522,11 @@ window.WPDAUTH = {
     const m=/เหลือรับ (\d+)/.exec(opt.textContent); if(m) $('retQty').value=m[1];
   };
 
-  function addCutRow(size,qty){
+  function addCutRow(size,qty,bags){
     const d=document.createElement('div'); d.className='frow';
     d.innerHTML='<input class="cs" placeholder="ไซซ์ที่ตัด (นิ้ว) เช่น 18x54" value="'+esc(size||'')+'">'+
-      '<input class="cq" type="number" inputmode="numeric" placeholder="ชิ้น" style="max-width:90px;" value="'+(qty==null?'':qty)+'">'+
+      '<input class="cq" type="number" inputmode="numeric" placeholder="ชิ้น/ถุง" style="max-width:84px;" value="'+(qty==null?'':qty)+'">'+
+      '<input class="cb" type="number" inputmode="numeric" min="1" title="กี่ถุง" style="max-width:58px;" value="'+(bags||1)+'"><span style="font-size:12px;color:var(--dim);">ถุง</span>'+
       '<button class="x">✕</button>';
     d.querySelector('.x').onclick=()=>d.remove();
     $('cutRows').appendChild(d);
@@ -2541,7 +2546,10 @@ window.WPDAUTH = {
     const rollNo=isFree?(+$('cutFreeRollNo').value||null):(_roll?_roll.rollNo:null);
     if(!fab){ toast('เลือกชนิดผ้าก่อน'); return; }
     if(!isFree && !rollNo){ toast('เลือกม้วนที่จะตัด — ถ้าไม่มีม้วนว่าง ต้องไปรับเข้าม้วนผ้าก่อน'); return; }
-    const rows=Array.from(document.querySelectorAll('#cutRows .frow')).map(r=>({ size:normSize(r.querySelector('.cs').value), qty:+r.querySelector('.cq').value||0 })).filter(r=>r.size&&r.qty);
+    const rowsIn=Array.from(document.querySelectorAll('#cutRows .frow')).map(r=>({ size:normSize(r.querySelector('.cs').value), per:+r.querySelector('.cq').value||0, bags:Math.max(1,Math.round(+(r.querySelector('.cb')||{}).value||1)) })).filter(r=>r.size&&r.per);
+    if(rowsIn.some(r=>r.bags>100)){ toast('ไซซ์เดียวเกิน 100 ถุงในครั้งเดียวไม่ได้'); return; }
+    /* ยอดที่ตัดจากม้วน (รวมทุกถุง) — ใช้เช็คความยาวม้วน/เก็บประวัติการตัด */
+    const rows=rowsIn.map(r=>({ size:r.size, qty:r.per*r.bags }));
     if(!rows.length){ toast('กรอกไซซ์และจำนวนอย่างน้อย 1 แถว'); return; }
     /* ตัดเกินกว่าที่ม้วนนี้ได้จริง (ดูจากหน้ากว้าง×ความยาวม้วน เป็นนิ้ว) — มักเป็นพิมพ์จำนวนผิด */
     const roll=!isFree && _roll;
@@ -2565,13 +2573,19 @@ window.WPDAUTH = {
     const customStartBatchNo=isFree?$('cutFreeBatchNo').value.trim():'';
     // ใช้เลขถุงที่กำหนดเองได้เฉพาะตอนกรอกอิสระและมีแค่ 1 ไซซ์ (หลายไซซ์มีเลขคนละชุดกัน กำหนดเลขเดียวรวมกันไม่ได้)
     if(customStartBatchNo && rows.length>1) toast('มีหลายไซซ์ — ระบบจะเรียงเลขถุงอัตโนมัติให้ทุกไซซ์แทน (เลขที่กำหนดใช้ได้แค่ตอนมีไซซ์เดียว)');
+    const totBags=rowsIn.reduce((a,r)=>a+r.bags,0);
+    if(totBags>1 && rowsIn.some(r=>r.bags>1) && !await ask('ตัดได้ '+totBags+' ถุง?', rowsIn.map(r=>r.size+' — ถุงละ '+r.per+' ชิ้น × '+r.bags+' ถุง = '+(r.per*r.bags)+' ชิ้น').join('\n')+'\n\nระบบจะออกเลขให้ทีละถุง')) return;
     if(!isFree) S.cuts.push({ id:uid(), time:t, fabricType:fab, rollNo, rollId:_roll?_roll.id:null, rows, note:$('cutNote').value.trim() });
     const newBatchNos=[];
-    rows.forEach(row=>{
+    rowsIn.forEach(row=>{
       const useCustom = customStartBatchNo && rows.length===1;
-      const batchNo = useCustom ? +customStartBatchNo : CALC.nextCutBatchNo(S.cutBatches,fab,row.size);
-      S.cutBatches.push({ id:uid(), batchNo, fabricType:fab, size:row.size, qtyCut:row.qty, time:t, rollNo, rollId:_roll?_roll.id:null, note:isFree?'ยอดยกมา — ตัดอิสระ':$('cutNote').value.trim() });
-      newBatchNos.push(row.size+' → ถุง #'+batchNo);
+      const got=[];
+      for(let k=0;k<row.bags;k++){
+        const batchNo = useCustom ? +customStartBatchNo+k : CALC.nextCutBatchNo(S.cutBatches,fab,row.size);
+        S.cutBatches.push({ id:uid(), batchNo, fabricType:fab, size:row.size, qtyCut:row.per, time:t, rollNo, rollId:_roll?_roll.id:null, note:isFree?'ยอดยกมา — ตัดอิสระ':$('cutNote').value.trim() });
+        got.push(batchNo);
+      }
+      newBatchNos.push(row.size+' → ถุง #'+packNosText(got));
     });
     await saveFabric();
     $('cutRows').innerHTML=''; addCutRow(); $('cutNote').value=''; $('cutFreeBatchNo').value='';
@@ -3025,46 +3039,71 @@ window.WPDAUTH = {
         '</td><td>'+(w.picks||[]).map(p=>'#'+p.sackNo+':'+p.take+'กก.').join(', ')+'</td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีการเบิก</td></tr>';
   }
-  function updateBagSackPreview(){
+  function bagPlan(){
     const kind=$('bagKind').value;
-    const n=($('bagNameSel').value==='__new__')?$('bagNameNew').value.trim():$('bagNameSel').value;
-    $('bagSackPreview').textContent = n ? 'กระสอบถัดไปของ "'+n+'" จะเป็น: กระสอบ #'+CALC.nextSackNo(S.sackReceipts,kind,n) : '';
+    const n=normSize(($('bagNameSel').value==='__new__')?$('bagNameNew').value:$('bagNameSel').value);
+    if(!n) return null;
+    const raw=$('bagSackNo').value.trim(), cnt=+$('bagSackCount').value||1;
+    const p=parsePackNos(raw); if(p.err) return { kind, n, err:p.err, nos:[] };
+    if(p.nos.length>1) return { kind, n, nos:p.nos, listed:true, mismatch:cnt>1 && cnt!==p.nos.length ? cnt : 0 };
+    const pl=noPlan(raw, cnt, CALC.nextSackNo(S.sackReceipts,kind,n));
+    return { kind, n, nos:pl.nos, auto:pl.auto };
+  }
+  function updateBagSackPreview(skipGrid){
+    const p=bagPlan(), el=$('bagSackPreview');
+    if(!p){ el.textContent=''; noGrid('bagGrid',[],'','กก.'); return; }
+    if(p.err){ el.innerHTML='<span style="color:var(--red)">เลขกระสอบอ่านไม่ออกตรง "'+esc(p.err)+'"</span>'; noGrid('bagGrid',[],'','กก.'); return; }
+    const def=$('bagSackKg').value, have=new Set(S.sackReceipts.filter(x=>x.kind===p.kind&&x.name===p.n).map(x=>x.sackNo)), dup=p.auto?[]:p.nos.filter(x=>have.has(x));
+    const tot=r3(p.nos.reduce((a,no)=>a+(p.nos.length>1?noGridVal('bagGrid',no,def):+def||0),0));
+    el.innerHTML=(p.nos.length>1?'จะได้ <b style="color:var(--accent2)">'+p.nos.length+' กระสอบ — #'+esc(packNosText(p.nos))+'</b>'+(tot?' · รวม '+tot+' กก.':''):'กระสอบ'+(p.auto?'ถัดไป':'')+'ของ "'+esc(p.n)+'" จะเป็น: <b>กระสอบ #'+p.nos[0]+'</b>')+
+      (p.mismatch?' <span class="bdg warn">ช่องรับกี่กระสอบใส่ไว้ '+p.mismatch+'</span>':'')+
+      (dup.length?'<br><span class="bdg warn">เลข #'+esc(packNosText(dup))+' มีอยู่แล้ว</span>':'');
+    if(skipGrid!==true) noGrid('bagGrid', p.nos, def, 'กก.', '0.1');
   }
   $('bagKind').onchange=rBag;
   $('bagNameSel').onchange=function(){ const v=this.value,t=$('bagNameNew'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} updateBagSackPreview(); };
   $('bagNameNew').oninput=updateBagSackPreview;
+  ['bagSackKg','bagSackCount'].forEach(id=>$(id).addEventListener('input', updateBagSackPreview));
+  $('bagSackNo').addEventListener('input', ()=>{ const p=parsePackNos($('bagSackNo').value); if(!p.err && p.nos.length>1) $('bagSackCount').value=p.nos.length; updateBagSackPreview(); });
+  $('bagGrid').addEventListener('gridchange', ()=>updateBagSackPreview(true));
   $('btnBag').onclick=async()=>{
-    const kind=$('bagKind').value;
-    const n=normSize($('bagNameSel').value==='__new__'?$('bagNameNew').value:$('bagNameSel').value);
-    const sackWeightKg=+$('bagSackKg').value||25, weightPerBag=+$('bagWeightPer').value||0;
-    if(!n||!sackWeightKg){ toast('กรอกชื่อถุงและน้ำหนักกระสอบ'); return; }
-    const customSackNo=$('bagSackNo').value.trim();
-    const sackNo=customSackNo?+customSackNo:CALC.nextSackNo(S.sackReceipts,kind,n);
-    if(customSackNo && S.sackReceipts.some(s=>s.kind===kind && s.name===n && s.sackNo===sackNo)){
-      if(!await ask('เลขกระสอบ #'+sackNo+' ('+n+') มีอยู่แล้วในระบบ','ยืนยันจะสร้างกระสอบใหม่เลขซ้ำกันหรือไม่? (แนะนำให้เว้นว่างให้ระบบเรียงเลขใหม่แทน)')) return;
+    const p=bagPlan();
+    if(!p){ toast('กรอกชื่อถุงและน้ำหนักกระสอบ'); return; }
+    if(p.err){ await info('เลขกระสอบอ่านไม่ออก','ตรงนี้: "'+p.err+'"\n\nใส่แบบ 3 หรือ 1-5 หรือ 1,4,6'); return; }
+    if(p.mismatch){ await info('เลขกระสอบกับจำนวนไม่ตรงกัน','เลข #'+packNosText(p.nos)+' = '+p.nos.length+' กระสอบ\nแต่ช่องรับกี่กระสอบใส่ไว้ '+p.mismatch+'\n\nแก้ให้ตรงกันก่อน'); return; }
+    if(p.nos.length>200){ toast('รับทีเดียวเกิน 200 กระสอบไม่ได้'); return; }
+    const kind=p.kind, n=p.n, nos=p.nos, multi=nos.length>1;
+    const def=+$('bagSackKg').value||(multi?0:25), weightPerBag=+$('bagWeightPer').value||0;
+    const kgs=nos.map(no=>multi?noGridVal('bagGrid',no,def):def);
+    if(kgs.some(x=>!(x>0))){ toast(multi?'กรอกน้ำหนักให้ครบทุกกระสอบ':'กรอกชื่อถุงและน้ำหนักกระสอบ'); return; }
+    const dup=p.auto?[]:nos.filter(no=>S.sackReceipts.some(s=>s.kind===kind && s.name===n && s.sackNo===no));
+    if(dup.length){
+      if(!await ask('เลขกระสอบ #'+packNosText(dup)+' ('+n+') มีอยู่แล้วในระบบ','ถ้าเป็นกระสอบใหม่ที่เข้าคนละวัน กดยืนยันได้เลย — ตอนเบิกจะเห็นวันที่รับให้เลือกถูกกระสอบ\n\nยืนยันจะรับเข้าเลขนี้หรือไม่?')) return;
     }
-    const _w=[];
-    if(weightPerBag>0 && weightPerBag>=sackWeightKg) _w.push('น้ำหนักถุง 1 ใบ ('+weightPerBag+' กก.) มากกว่าหรือเท่ากับน้ำหนักทั้งกระสอบ ('+sackWeightKg+' กก.)');
-    if(weightPerBag>0 && weightPerBag>5) _w.push('ถุง 1 ใบหนัก '+weightPerBag+' กก. ดูผิดปกติ — เช็คจุดทศนิยมอีกที');
-    if(weightPerBag>0){
-      const pcs=CALC.sackPieces(sackWeightKg,weightPerBag);
-      if(pcs<3) _w.push('กระสอบนี้จะได้ถุงแค่ '+pcs+' ใบ ดูน้อยผิดปกติ');
-      if(pcs>200000) _w.push('กระสอบนี้จะได้ถุงถึง '+pcs+' ใบ ดูเยอะผิดปกติ');
-    }
-    if(sackWeightKg>200) _w.push('น้ำหนักกระสอบ '+sackWeightKg+' กก. ดูหนักผิดปกติ');
+    const _w=new Set();
     const _refW=lastOf(S.sackReceipts,x=>x.kind===kind&&x.name===n,'weightPerBag');
-    if(_refW>0 && weightPerBag>0 && (weightPerBag>_refW*3||weightPerBag<_refW/3))
-      _w.push('ครั้งก่อนถุง "'+n+'" บันทึกไว้ '+_refW+' กก./ใบ แต่ครั้งนี้กรอก '+weightPerBag+' กก./ใบ');
     const _refS=lastOf(S.sackReceipts,x=>x.kind===kind&&x.name===n,'sackWeightKg');
-    if(_refS>0 && (sackWeightKg>_refS*3||sackWeightKg<_refS/3))
-      _w.push('ครั้งก่อนกระสอบ "'+n+'" หนัก '+_refS+' กก. แต่ครั้งนี้กรอก '+sackWeightKg+' กก.');
-    if(!await confirmOdd(_w)) return;
+    if(weightPerBag>0 && weightPerBag>5) _w.add('ถุง 1 ใบหนัก '+weightPerBag+' กก. ดูผิดปกติ — เช็คจุดทศนิยมอีกที');
+    if(_refW>0 && weightPerBag>0 && (weightPerBag>_refW*3||weightPerBag<_refW/3))
+      _w.add('ครั้งก่อนถุง "'+n+'" บันทึกไว้ '+_refW+' กก./ใบ แต่ครั้งนี้กรอก '+weightPerBag+' กก./ใบ');
+    nos.forEach((no,i)=>{ const sk=kgs[i], pre=multi?'กระสอบ #'+no+' ':'กระสอบนี้';
+      if(weightPerBag>0 && weightPerBag>=sk) _w.add('น้ำหนักถุง 1 ใบ ('+weightPerBag+' กก.) มากกว่าหรือเท่ากับน้ำหนักทั้งกระสอบ ('+sk+' กก.)');
+      if(weightPerBag>0){ const pcs=CALC.sackPieces(sk,weightPerBag);
+        if(pcs<3) _w.add(pre+' จะได้ถุงแค่ '+pcs+' ใบ ดูน้อยผิดปกติ');
+        if(pcs>200000) _w.add(pre+' จะได้ถุงถึง '+pcs+' ใบ ดูเยอะผิดปกติ'); }
+      if(sk>200) _w.add((multi?pre:'')+'น้ำหนักกระสอบ '+sk+' กก. ดูหนักผิดปกติ');
+      if(_refS>0 && (sk>_refS*3||sk<_refS/3)) _w.add('ครั้งก่อนกระสอบ "'+n+'" หนัก '+_refS+' กก. แต่ครั้งนี้กรอก '+sk+' กก.'+(multi?' (#'+no+')':''));
+    });
+    if(!await confirmOdd([..._w])) return;
     const dateVal=$('bagDate').value?$('bagDate').value+'T'+localISO().slice(11):localISO();
-    S.sackReceipts.push({ id:uid(), time:dateVal, kind, name:n, size:normSize($('bagSize').value), sackNo, sackWeightKg, weightPerBag, note:$('bagNote').value.trim() });
-    await saveBag(); $('bagNote').value=''; $('bagSackNo').value='';
+    const total=r3(kgs.reduce((a,b)=>a+b,0));
+    if(multi && !dup.length && !await ask('รับเข้า '+nos.length+' กระสอบรวดเดียว?','ถุง: '+n+'\nเลขกระสอบ: #'+packNosText(nos)+'\nรวม: '+total+' กก.'+([...new Set(kgs)].length===1?' (กระสอบละ '+kgs[0]+' กก.)':'')+'\nวันที่รับ: '+thDate(dateVal))) return;
+    const size=normSize($('bagSize').value), note=$('bagNote').value.trim();
+    nos.forEach((no,i)=>S.sackReceipts.push({ id:uid(), time:dateVal, kind, name:n, size, sackNo:no, sackWeightKg:kgs[i], weightPerBag, note }));
+    await saveBag(); $('bagNote').value=''; $('bagSackNo').value=''; $('bagSackCount').value='1'; noGridReset('bagGrid');
     /* ไซซ์ถุง / น้ำหนักกระสอบ / น้ำหนักต่อใบ ค้างไว้ เพราะมักรับเข้าแบบเดิมซ้ำๆ */
     // ประเภท+ชื่อถุงค้างไว้ จนกว่าจะเปลี่ยนเอง (มักรับเข้ากระสอบเดิมหลายรอบติดกัน)
-    rBag(); toast('บันทึกรับเข้ากระสอบแล้ว — กระสอบ #'+sackNo);
+    rBag(); toast(multi?'รับเข้า '+nos.length+' กระสอบแล้ว — #'+packNosText(nos)+' รวม '+total+' กก.':'บันทึกรับเข้ากระสอบแล้ว — กระสอบ #'+nos[0]);
   };
 
   /* ---------- 3b. GAS ---------- */

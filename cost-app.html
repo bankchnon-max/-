@@ -943,6 +943,10 @@ window.WPDAUTH = {
       return r2(total/months.length);
     },
 
+    /* ชิ้นที่ผลิตเอง = ชิ้นในแพ็ค − แผ่นค้างจากงานก่อนที่เอามารวม + แผ่นที่เหลือไม่ครบแพ็คเก็บไว้รวมงานหน้า */
+    madePieces(lines, carry){
+      return (lines||[]).reduce((s,l)=>s+(+l.piecesPerPack||0)-(+l.carryIn||0),0) + (carry||[]).reduce((s,c)=>s+(+c.pieces||0),0);
+    },
     /* ชิ้นที่ผลิตได้จริงต่อชั่วโมง */
     piecesPerHour(rows, capMin){
       const h=COST.machineHours(rows,capMin);
@@ -988,7 +992,7 @@ window.WPDAUTH = {
       const S=ctx.S||{}, P=ctx.PROD||{}, K=ctx.KSET||{}, PRICE=ctx.PRICE||{};
       const inR=x=>{ const d=String(x.time||'').slice(0,10); return d>=from && d<=to; };
       const lines=(P.line||[]).filter(inR);
-      const packs=lines.length, pieces=lines.reduce((s,l)=>s+(+l.piecesPerPack||0),0);
+      const packs=lines.length, pieces=COST.madePieces(lines, (P.carry||[]).filter(inR));
       const hours=r2(COST.runDays(lines).reduce((s,d)=>s+d.hours,0));
       let fiber=0, fiberKg=0;
       (P.use||[]).filter(inR).forEach(u=>{ const kg=+u.kg||0; fiberKg+=kg; fiber+=kg*COST.fiberPricePerKg(PRICE,u.fiberName,u.lot).baht; });
@@ -1018,7 +1022,7 @@ window.WPDAUTH = {
       const order=(P.orders||[]).find(o=>o.id===orderId)||null;
       const lines=(P.line||[]).filter(l=>l.orderId===orderId);
       const packs=lines.length;
-      let pieces=lines.reduce((s,l)=>s+(+l.piecesPerPack||0),0);
+      let pieces=COST.madePieces(lines, (P.carry||[]).filter(c=>c.orderId===orderId));
       if(!pieces && order && order.spec) pieces=packs*(+order.spec.piecesPerPack||0);
       const hours=COST.machineHours(lines);
       const span=COST.runSpan(lines);
@@ -1189,7 +1193,7 @@ window.WPDAUTH = {
      STATE
      ═══════════════════════════════════════════════════════════════ */
   let S = { fiberReceipts:[], fabricReceipts:[], cutBatches:[], sackReceipts:[], gasReceipts:[] };
-  let PROD = { orders:[], wd:[], use:[], fabricWd:[], caseUse:[], bagWd:[], bagUse:[], gasSwaps:[], line:[], sheetWd:[], sheetUse:[] };
+  let PROD = { orders:[], wd:[], use:[], fabricWd:[], caseUse:[], bagWd:[], bagUse:[], gasSwaps:[], line:[], carry:[], sheetWd:[], sheetUse:[] };
   let KSET = { sewPerPiece:0, sewBySize:{}, laborDaily:0, laborHoursPerDay:8, laborPerPiece:0,
                elecPerHour:0, shipPerPack:0, fixed:[], hoursOverride:0, marginPct:20, vatPct:0 };
   let PRICE = { fiber:{}, fabric:{}, zip:{}, pack:{}, gas:0 };
@@ -1220,7 +1224,11 @@ window.WPDAUTH = {
         (arr||[]).forEach(x=>{ let k=(x.id!=null)?'i:'+x.id:'j:'+js(x); if(k[0]==='j'){ seen[k]=(seen[k]||0)+1; k+='#'+seen[k]; } m.set(k,x); });
         return m; };
       const B=keyed(base), L=keyed(local), R=keyed(server), out=[];
-      L.forEach((x,k)=>{ out.push(R.has(k) && B.has(k) ? wpdMerge3(B.get(k),x,R.get(k)) : x); });
+      L.forEach((x,k)=>{
+        if(R.has(k)) out.push(B.has(k) ? wpdMerge3(B.get(k),x,R.get(k)) : x);
+        /* ไม่มีในเซิร์ฟเวอร์: ถ้าเคยมีในฐานเดิมและเครื่องนี้ไม่ได้แก้ = เครื่องอื่นลบไปแล้ว ต้องลบตาม (ไม่งั้นแถวที่ลบจะกลับมาโผล่) */
+        else if(!B.has(k) || !same(x,B.get(k))) out.push(x);
+      });
       R.forEach((x,k)=>{ if(!L.has(k) && !B.has(k)) out.push(x); });
       return out;
     }
@@ -1282,9 +1290,12 @@ window.WPDAUTH = {
     try{
       if(!hasStore) throw new Error('no storage');
       wpdWriteSeq++;
-      const str=JSON.stringify(await wpdPrepareWrite(k,data));
+      const prepared=await wpdPrepareWrite(k,data);
+      const str=JSON.stringify(prepared);
       await window.storage.set(k,str,true);
-      SEEN[k]=str;
+      /* รวมข้อมูลจากเครื่องอื่นแล้ว: ฐานเทียบรอบหน้า = ของที่เครื่องนี้ส่ง (ในเครื่องยังไม่มีของเครื่องอื่นจนกว่าจะโหลดใหม่)
+         — บันทึกครั้งถัดไปจะรวมอีกรอบ ไม่ส่งข้อมูลที่ขาดของเครื่องอื่นขึ้นไปทับ */
+      SEEN[k]=(prepared===data)?str:JSON.stringify(data);
       inflight[k]=false; storeDown=false;
       await window.storage.set('v3k_pulse',Date.now()+'',true).catch(()=>{});
       if(Object.keys(pending).length) Object.keys(pending).forEach(kk=>flush(kk)); else { setSaveState('ok'); wpdRefreshAfterMerge(); }
@@ -1323,7 +1334,7 @@ window.WPDAUTH = {
     PROD.wd=B.wd||[]; PROD.use=B.use||[]; PROD.fabricWd=B.fabricWd||[]; PROD.caseUse=B.caseUse||[]; PROD.bagWd=B.bagWd||[];
     PROD.bagUse=B.bagUse||[]; PROD.gasSwaps=B.gasSwaps||[];
     PROD.sheetWd=B.sheetWd||[]; PROD.sheetUse=B.sheetUse||[];
-    PROD.line=C.line||[];
+    PROD.line=C.line||[]; PROD.carry=C.carry||[];
     const K=parse(st,null);
     if(K && typeof K==='object'){ KSET=Object.assign(KSET,K); KSET.sewBySize=K.sewBySize||{}; KSET.fixed=K.fixed||[]; }
     const P=parse(pr,null);

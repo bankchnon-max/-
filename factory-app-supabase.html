@@ -398,6 +398,10 @@
 
 
 
+
+
+
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
 
@@ -577,14 +581,6 @@
         <div class="bigstd" id="stdBox"></div>
         <div id="idleWarn"></div>
         <div class="rf">
-          <div><label>ลอตถุง / Bag Lot</label><input id="bagLot" placeholder="เช่น B-2409"></div>
-          <div><label>หมายเลขถุงที่</label><input id="bagNo" type="number" inputmode="numeric" placeholder="อัตโนมัติ"></div>
-        </div>
-        <div class="rf">
-          <div><label>ถุงวัตถุดิบเลขที่ (ที่ใช้ห่ออยู่ตอนนี้)</label><input id="bagUsedLot" placeholder="จดจากกล่องถุงจริง"></div>
-          <div><label>ขนาดถุง</label><input id="bagUsedSize" placeholder="เช่น 40x70"></div>
-        </div>
-        <div class="rf">
           <div><label>ชั่งจริง — ต่อชิ้น (กก.)</label><input id="actPc" type="number" inputmode="decimal" step="0.001" placeholder="สุ่มชั่ง 1 ชิ้น"></div>
           <div><label>ชั่งจริง — ต่อแพ็ค (กก.)</label><input id="actW" type="number" inputmode="decimal" step="0.001" placeholder="ทั้งแพ็ครวมถุง"></div>
         </div>
@@ -593,6 +589,7 @@
         <input id="lineNote" placeholder="เช่น ใยแน่นเกิน">
         <button class="btn w" id="btnPack">บันทึก 1 แพ็ค (น้ำหนักจริง)</button>
         <button class="btn sec w" id="btnPackStd">ตรงตาม Standard พอดี — ไม่ต้องชั่ง</button>
+        <div id="carryBox"></div>
         <div style="text-align:right; margin-top:9px;">
           <button class="btn sec sm" id="btnGapSet">⏱ ตั้งเวลาเตือนช่วงห่าง</button>
         </div>
@@ -1324,7 +1321,7 @@ window.WPDAUTH = {
     // ใยเข้า = ใยที่ป้อนเข้าไลน์ทั้งหมด (ตามสูตรที่ป้อนจริงแต่ละรอบ)
     // ใยออก  = ใยที่ออกมาเป็นสินค้า (น้ำหนักแพ็คจริง หักน้ำหนักถุงออก)
     /* deductedKg = ใยที่หักออกจากก้อนที่ไลน์จริง ๆ — ถ้าน้อยกว่าที่ป้อน แปลว่ามีรอบที่ป้อนตอนยังไม่ได้เบิกก้อน */
-    fiberBalance(packs, fedKg, scrapKg, withdrawnKg, deductedKg){
+    fiberBalance(packs, fedKg, scrapKg, withdrawnKg, deductedKg, carryOutKg){
       let fabAll=0, missing=0;      /* missing = แพ็คหมอนที่ยังไม่ได้กรอกน้ำหนักผ้า */
       const out = (packs||[]).reduce((s,p)=>{
         const w = (p.actualWeight!=null? +p.actualWeight : +p.stdPerPack)||0;
@@ -1335,8 +1332,8 @@ window.WPDAUTH = {
         const fabTotal = CALC.packFabricKg(p);
         fabAll += fabTotal;
         if((p.productType && p.productType!=='ใย') && !fabTotal) missing++;
-        return s + Math.max(0, w - bagTotal - fabTotal);
-      },0);
+        return s + Math.max(0, w - bagTotal - fabTotal - (+p.carryKg||0));
+      },0) + (+carryOutKg||0);
       const inn = r3(+fedKg||0);
       const scrap = r3(+scrapKg||0);
       const unaccounted = r3(inn - r3(out) - scrap);
@@ -1351,7 +1348,7 @@ window.WPDAUTH = {
   };
 
   /* ---------- STATE ---------- */
-  let S = { orders:[], activeId:null, activeFeedId:null, fiberMaster:[], feed:[], wd:[], use:[], fabricWd:[], bagWd:[], bagUse:[], gasSwaps:[], line:[], scrap:[], breaks:[], settings:{gapMin:20} };
+  let S = { orders:[], activeId:null, activeFeedId:null, fiberMaster:[], feed:[], wd:[], use:[], fabricWd:[], bagWd:[], bagUse:[], gasSwaps:[], line:[], scrap:[], breaks:[], carry:[], settings:{gapMin:20} };
   let officeView='feed', current='order', lastHash='', modalOpen=0, ordersSig='';
 
   /* ---------- STORAGE (4 keys, parallel) ---------- */
@@ -1391,7 +1388,11 @@ window.WPDAUTH = {
         (arr||[]).forEach(x=>{ let k=(x.id!=null)?'i:'+x.id:'j:'+js(x); if(k[0]==='j'){ seen[k]=(seen[k]||0)+1; k+='#'+seen[k]; } m.set(k,x); });
         return m; };
       const B=keyed(base), L=keyed(local), R=keyed(server), out=[];
-      L.forEach((x,k)=>{ out.push(R.has(k) && B.has(k) ? wpdMerge3(B.get(k),x,R.get(k)) : x); });
+      L.forEach((x,k)=>{
+        if(R.has(k)) out.push(B.has(k) ? wpdMerge3(B.get(k),x,R.get(k)) : x);
+        /* ไม่มีในเซิร์ฟเวอร์: ถ้าเคยมีในฐานเดิมและเครื่องนี้ไม่ได้แก้ = เครื่องอื่นลบไปแล้ว ต้องลบตาม (ไม่งั้นแถวที่ลบจะกลับมาโผล่) */
+        else if(!B.has(k) || !same(x,B.get(k))) out.push(x);
+      });
       R.forEach((x,k)=>{ if(!L.has(k) && !B.has(k)) out.push(x); });
       return out;
     }
@@ -1441,7 +1442,7 @@ window.WPDAUTH = {
     if(k==='v3_orders') return {orders:S.orders,activeId:S.activeId,activeFeedId:S.activeFeedId,fiberMaster:S.fiberMaster||[]};
     if(k==='v3_feed')   return {feed:S.feed,wd:S.wd,use:S.use,fabricWd:S.fabricWd,bagWd:S.bagWd,bagUse:S.bagUse,gasSwaps:S.gasSwaps,
                                 sheetWd:S.sheetWd||[],sheetUse:S.sheetUse||[],caseUse:S.caseUse||[]};
-    if(k==='v3_line')   return {line:S.line,scrap:S.scrap,breaks:S.breaks};
+    if(k==='v3_line')   return {line:S.line,scrap:S.scrap,breaks:S.breaks,carry:S.carry||[]};
     return S.settings;
   }
   function setSaveState(state,msg){
@@ -1463,9 +1464,12 @@ window.WPDAUTH = {
     try{
       if(!hasStore) throw new Error('no storage');
       wpdWriteSeq++;
-      const str=JSON.stringify(await wpdPrepareWrite(k,data));
+      const prepared=await wpdPrepareWrite(k,data);
+      const str=JSON.stringify(prepared);
       await window.storage.set(k,str,true);
-      SEEN[k]=str;
+      /* รวมข้อมูลจากเครื่องอื่นแล้ว: ฐานเทียบรอบหน้า = ของที่เครื่องนี้ส่ง (ในเครื่องยังไม่มีของเครื่องอื่นจนกว่าจะโหลดใหม่)
+         — บันทึกครั้งถัดไปจะรวมอีกรอบ ไม่ส่งข้อมูลที่ขาดของเครื่องอื่นขึ้นไปทับ */
+      SEEN[k]=(prepared===data)?str:JSON.stringify(data);
       inflight[k]=false; storeDown=false; lastErr='';
       myPulse=Date.now()+'-'+deviceId;
       lastPulse=myPulse;
@@ -1528,7 +1532,7 @@ window.WPDAUTH = {
         due:null,status:'pending',startedAt:null,finishedAt:null,createdAt:localISO() }];
       await saveOrders();
     }
-    S.feed=B.feed||[]; S.wd=B.wd||[]; S.use=B.use||[]; S.fabricWd=B.fabricWd||[]; S.bagWd=B.bagWd||[]; S.bagUse=B.bagUse||[]; S.gasSwaps=B.gasSwaps||[]; S.line=C.line||[]; S.scrap=C.scrap||[]; S.breaks=C.breaks||[];
+    S.feed=B.feed||[]; S.wd=B.wd||[]; S.use=B.use||[]; S.fabricWd=B.fabricWd||[]; S.bagWd=B.bagWd||[]; S.bagUse=B.bagUse||[]; S.gasSwaps=B.gasSwaps||[]; S.line=C.line||[]; S.scrap=C.scrap||[]; S.breaks=C.breaks||[]; S.carry=C.carry||[];
     S.sheetWd=B.sheetWd||[]; S.sheetUse=B.sheetUse||[]; S.caseUse=B.caseUse||[];
     if (D) S.settings=D;
     STOCKFIBER = {};
@@ -1965,8 +1969,31 @@ window.WPDAUTH = {
               (rounds>0?' · ใยที่ไลน์พอทำอีกราว <b>'+rounds+' รอบ</b>':'')+
               '<br><span style="color:var(--dim)">ในสต๊อกยังมี '+stock+' กก.</span>'+
             '</div></div>'+
-            '<button class="btn sm" data-wdgo="'+esc(f.name)+'" style="flex:0 0 auto;">➕ เบิกก้อนใหม่</button></div>';
+            '<div style="flex:0 0 auto; display:flex; flex-direction:column; gap:6px;">'+
+              (at?'<button class="btn sec sm" data-baleout="'+esc(f.name)+'">✓ ก้อนนี้หมดแล้ว · เปลี่ยนก้อนใหม่</button>':'')+
+              '<button class="btn sm" data-wdgo="'+esc(f.name)+'">➕ เบิกก้อนใหม่</button></div></div>';
         }).join('');
+        /* ก้อนหมดจริงก่อนที่ระบบคำนวณ (ใช้จริงมากกว่าสูตร) — ปิดก้อนนี้ ส่วนที่เหลือนับเป็นใยที่ใช้กับงานนี้ แล้วสลับไปก้อนที่เบิกรอไว้ */
+        bl.querySelectorAll('[data-baleout]').forEach(b=>b.onclick=async()=>{
+          const name=b.dataset.baleout, fo=activeFeed(), at=baleAtLine(name), next=baleWaiting(name)[0];
+          if(!fo){ toast('เลือกออเดอร์ที่กำลังป้อนใยก่อน'); return; }
+          if(!at){ toast('ไม่มีก้อน '+name+' ที่ไลน์'); return; }
+          if(!await ask('ก้อน '+at.no+' ('+name+') หมดแล้ว?',
+            'ระบบคำนวณตามสูตรว่าก้อนนี้ยังเหลือ '+at.remaining+' กก.\n'+
+            'ถ้าหมดจริงแล้ว ส่วนนี้จะนับเป็นใยที่ใช้ไปกับงาน "'+fo.code+'" (ใช้จริงมากกว่าสูตร)\n\n'+
+            (next?'แล้วเปลี่ยนไปใช้ก้อน '+next.no+' ('+next.remaining+' กก.) ที่เบิกรอไว้ทันที':'ยังไม่มีก้อนสำรองที่ไลน์ — กดยืนยันแล้วเบิกก้อนใหม่ต่อได้เลย'))) return;
+          const useId=uid(), t=localISO();
+          S.use=S.use||[];
+          S.use.push({ id:useId, time:t, orderId:fo.id, feedId:null, fiberName:name, wdId:at.wdId,
+            baleNo:String(at.no), lot:at.lot, kg:r3(at.remaining), closeout:true });
+          fo.lotLog=fo.lotLog||[];
+          fo.lotLog.push({ time:t, fiberName:name, from:String(at.no), to:next?String(next.no):'', closeKg:r3(at.remaining), useId,
+            toRemaining:next?r3(next.remaining):null, toKg:next?next.kg:null, toDate:next?thDate(next.time):'', orderId:fo.id });
+          await Promise.all([saveFeed(), saveOrders()]);
+          rFeed(true);
+          if(next) toast('ปิดก้อน '+at.no+' แล้ว (นับเพิ่ม '+r3(at.remaining)+' กก.) — เปลี่ยนเป็นก้อน '+next.no);
+          else { toast('ปิดก้อน '+at.no+' แล้ว — เบิกก้อนใหม่ได้เลย'); const g=document.querySelector('[data-wdgo="'+name+'"]'); if(g) g.click(); }
+        });
         bl.querySelectorAll('[data-wdgo]').forEach(b=>b.onclick=()=>{
           const name=b.dataset.wdgo;
           const sel=$('wdSel');
@@ -1989,11 +2016,19 @@ window.WPDAUTH = {
         ? '<tr><th>เวลา</th><th>ใย</th><th>ก้อนเดิม</th><th>เริ่มก้อนใหม่</th><th>รับเข้า</th><th>วันที่รับเข้า</th><th>เหลือในก้อนใหม่</th></tr>'+
           ll.map(x=>'<tr><td>'+(x.time||'').slice(0,16).replace('T',' ')+'</td><td>'+esc(x.fiberName)+'</td>'+
             '<td>'+(x.from?'เบอร์ '+esc(x.from)+' <span class="bdg warn">หมดแล้ว</span>':'<span style="color:var(--dim)">เริ่มใช้ครั้งแรก</span>')+'</td>'+
-            '<td class="kn" style="color:var(--accent2)">เบอร์ '+esc(x.to)+'</td>'+
+            '<td class="kn" style="color:var(--accent2)">'+(x.to?'เบอร์ '+esc(x.to):'<span style="color:var(--yellow)">รอเบิกก้อนใหม่</span>')+
+              (x.useId?' <span class="bdg warn">ปิดก้อนเอง +'+x.closeKg+' กก.</span> <button class="x" data-closeundo="'+esc(x.useId)+'" title="กดผิด — ยกเลิกการปิดก้อนนี้">✕</button>':'')+'</td>'+
             '<td>'+(x.toKg==null?'—':x.toKg+' กก.')+'</td>'+
             '<td>'+esc(x.toDate||'—')+'</td>'+
             '<td>'+(x.toRemaining==null?'—':x.toRemaining+' กก.')+'</td></tr>').join('')
         : '<tr><td class="empty">ยังไม่มีการเปลี่ยนก้อน</td></tr>';
+      $('tLotLog').querySelectorAll('[data-closeundo]').forEach(b=>b.onclick=async()=>{
+        const id=b.dataset.closeundo;
+        if(!await ask('ยกเลิกการปิดก้อนนี้?','ก้อนจะกลับมาใช้ต่อ และไม่นับส่วนที่เหลือเป็นใยที่ใช้แล้ว')) return;
+        S.use=(S.use||[]).filter(u=>u.id!==id);
+        (S.orders||[]).forEach(oo=>{ if(oo.lotLog) oo.lotLog=oo.lotLog.filter(x=>x.useId!==id); });
+        await Promise.all([saveFeed(), saveOrders()]); rFeed(true); toast('ยกเลิกการปิดก้อนแล้ว');
+      });
     }
     const logs=o?S.feed.filter(l=>l.orderId===o.id&&dayOf(l.time)===t):[];
     $('ringN').textContent=logs.length;
@@ -2578,6 +2613,57 @@ window.WPDAUTH = {
       : { msg:'ใยแผ่นที่ไลน์เหลือ '+rest+' แผ่น', remaining:rest };
   }
 
+  /* ---------- ใยแผ่นเหลือไม่ครบแพ็ค: เก็บไว้รวมงานหน้า (สินค้ารหัสเดียวกัน) ---------- */
+  const codeKey = c => String(c||'').replace(/[ ]+/g,'').toLowerCase();
+  function carryUsed(id){ return (S.line||[]).reduce((a,l)=>a+((l.carryFrom||[]).filter(x=>x.carryId===id).reduce((b,x)=>b+(+x.pieces||0),0)),0); }
+  function carryOpen(o){
+    if(!o) return [];
+    return (S.carry||[]).filter(c=>codeKey(c.code)===codeKey(o.code))
+      .map(c=>Object.assign({}, c, { left:(+c.pieces||0)-carryUsed(c.id) })).filter(c=>c.left>0)
+      .sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+  }
+  function rCarry(o){
+    const box=$('carryBox'); if(!box) return;
+    if(!o || (o.productType||'ใย')!=='ใย'){ box.innerHTML=''; return; }
+    const open=carryOpen(o), tot=open.reduce((a,c)=>a+c.left,0), per=+((o.spec||{}).piecesPerPack)||0;
+    const keepOn=$('carryUseOn')?$('carryUseOn').checked:false, keepN=$('carryUseN')?$('carryUseN').value:'';
+    const mine=(S.carry||[]).filter(c=>c.orderId===o.id).slice().reverse().slice(0,10);
+    box.innerHTML=
+      (tot>0 ? '<div class="banner" style="display:block; margin:10px 0 0; background:var(--w-tint-ok,#e6f5ec);">'+
+        '🧺 มีแผ่นค้างไม่ครบแพ็คที่เก็บไว้ <b>'+tot+' แผ่น</b> ('+open.map(c=>esc(c.customer||'')+' '+thDate(c.time)+' · '+c.left+' แผ่น').join(', ')+')'+
+        '<label style="display:flex; align-items:center; gap:8px; margin-top:8px;"><input type="checkbox" id="carryUseOn" style="width:auto; margin:0;"'+(keepOn?' checked':'')+'>'+
+        '<span>แพ็คถัดไปรวมแผ่นค้าง</span><input id="carryUseN" type="number" inputmode="numeric" min="1" style="max-width:80px;" value="'+(keepN||Math.min(tot,per||tot))+'"><span>แผ่น</span></label></div>' : '')+
+      '<details style="margin-top:12px;"'+(mine.length?' open':'')+'><summary style="cursor:pointer; font-weight:600;">ตัดไลน์แล้วมีแผ่นเหลือไม่ครบแพ็ค? — เก็บไว้รวมงานหน้า</summary>'+
+        '<div class="rf" style="align-items:flex-end;"><div><label>เหลือกี่แผ่น</label><input id="carryN" type="number" inputmode="numeric" min="1" placeholder="เช่น 2"></div>'+
+        '<div><button class="btn sec" id="btnCarry" style="margin-top:0;">🧺 เก็บไว้รวมงานหน้า</button></div></div>'+
+        '<div class="sumline">งานหน้าที่เป็นสินค้ารหัสเดียวกัน ("'+esc(o.code)+'") จะขึ้นให้เอามารวมแพ็คได้ — แผ่นพวกนี้นับเป็นของที่งานนี้ผลิต ไม่นับซ้ำ</div>'+
+        (mine.length?'<table style="margin-top:6px;"><tr><th>เวลา</th><th>เก็บไว้</th><th>เอาไปรวมแล้ว</th><th></th></tr>'+
+          mine.map(c=>{ const u=carryUsed(c.id); return '<tr><td>'+thDate(c.time)+' '+String(c.time).slice(11,16)+'</td><td>'+c.pieces+' แผ่น</td><td>'+u+' แผ่น</td><td>'+
+            (u?'':'<button class="x" data-carryrm="'+c.id+'">✕</button>')+'</td></tr>'; }).join('')+'</table>':'')+
+      '</details>';
+    if($('btnCarry')) $('btnCarry').onclick=async()=>{
+      const n=Math.round(+$('carryN').value||0);
+      if(n<=0){ toast('กรอกจำนวนแผ่นที่เหลือ'); return; }
+      if(per && n>=per && !await ask('เหลือ '+n+' แผ่น — ครบแพ็คแล้ว?','แพ็คนี้ใช้ '+per+' แผ่น ถ้าครบแพ็คแล้วให้บันทึกเป็นแพ็คปกติแทน'+NL+NL+'ยืนยันจะเก็บ '+n+' แผ่นไว้รวมงานหน้า?')) return;
+      S.carry=S.carry||[];
+      S.carry.push({ id:uid(), time:localISO(), orderId:o.id, code:o.code, customer:o.customer, pieces:n, kgEach:+((o.spec||{}).weightPerPiece)||0 });
+      await saveLine(); $('carryN').value=''; rLine(); toast('เก็บแผ่นค้าง '+n+' แผ่นไว้รวมงานหน้าแล้ว');
+    };
+    box.querySelectorAll('[data-carryrm]').forEach(b=>b.onclick=async()=>{
+      if(!await ask('ลบรายการแผ่นค้างนี้?')) return;
+      S.carry=(S.carry||[]).filter(c=>c.id!==b.dataset.carryrm); await saveLine(); rLine(); toast('ลบแล้ว');
+    });
+  }
+  /* ตอนบันทึกแพ็ค: ถ้าติ๊ก "รวมแผ่นค้าง" หักจากแผ่นค้างเก่าสุดก่อน */
+  function takeCarry(o){
+    if(!$('carryUseOn') || !$('carryUseOn').checked) return null;
+    let need=Math.round(+$('carryUseN').value||0); if(need<=0) return null;
+    const from=[]; let kg=0;
+    for(const c of carryOpen(o)){ if(need<=0) break; const t=Math.min(c.left,need); from.push({ carryId:c.id, pieces:t }); kg+=t*(+c.kgEach||0); need-=t; }
+    if(!from.length) return null;
+    $('carryUseOn').checked=false;
+    return { pieces:from.reduce((a,x)=>a+x.pieces,0), from, kg:r3(kg) };
+  }
   function rLine(force){
     const o=active(), t=todayStr();
     if((o?o.id:null)!==lastLineOrder){ lastLineOrder=o?o.id:null; specOpen=null;
@@ -2590,6 +2676,7 @@ window.WPDAUTH = {
     if($('bwKindSel')){ refreshBwSelects(); refreshBwSackOptions(); }
     if($('gasAvailInfo')) refreshGasUI();
     if($('cardSheet')) refreshSheetUI();
+    rCarry(o);
     $('lineInfo').innerHTML=o
       ? '<div class="sumline">ออเดอร์: <b style="color:var(--accent2)" class="kn">'+esc(o.customer)+' — '+esc(o.code)+
         '</b> <span class="bdg ok">'+esc(o.productType||'ใย')+'</span></div>'
@@ -2630,7 +2717,7 @@ window.WPDAUTH = {
     const T=$('tLine');
     const bands = (S.settings.diffBands && S.settings.diffBands.length) ? S.settings.diffBands : CALC.defaultDiffBands();
     T.innerHTML=rows.length
-      ? '<tr><th>ลำดับ</th><th>เวลาที่ผลิต</th><th>ถุงที่</th><th>ลอตถุง</th><th>Std/ชิ้น</th><th>จริง/ชิ้น</th><th>Std/แพ็ค</th><th>จริง/แพ็ค</th><th>ส่วนต่าง %</th><th>ผล</th><th>รวมจริงสะสม</th><th>รวม Std สะสม</th><th>หมายเหตุ</th><th></th></tr>'+
+      ? '<tr><th>ลำดับ</th><th>เวลาที่ผลิต</th><th>ถุงที่</th><th>กระสอบถุงที่ใช้</th><th>Std/ชิ้น</th><th>จริง/ชิ้น</th><th>Std/แพ็ค</th><th>จริง/แพ็ค</th><th>ส่วนต่าง %</th><th>ผล</th><th>รวมจริงสะสม</th><th>รวม Std สะสม</th><th>หมายเหตุ</th><th></th></tr>'+
         rows.slice().reverse().map(l=>{
           const diffPctPack = (l.actualWeight!=null && l.stdPerPack) ? r2((l.actualWeight-l.stdPerPack)/l.stdPerPack*100) : null;
           const bandPack = diffPctPack!=null ? CALC.diffColorBand(diffPctPack, bands) : null;
@@ -3092,10 +3179,11 @@ window.WPDAUTH = {
     let note=$('lineNote').value.trim();
     if(gapReason) note=(note?note+' | ':'')+'ห่าง '+gapMin+' นาที: '+gapReason;
     const _lineId=uid();
+    const _carry=((o.productType||'ใย')==='ใย')?takeCarry(o):null;
     S.line.push({ id:_lineId, seq:seq, time:localISO(), orderId:o.id,
       productType:o.productType||'ใย',
-      bagLot:$('bagLot').value.trim(), bagNo:+$('bagNo').value||nextBagNo(o.id),
-      bagUsedLot:$('bagUsedLot')?$('bagUsedLot').value.trim():'', bagUsedSize:$('bagUsedSize')?normSize($('bagUsedSize').value):'',
+      /* ถุง: ไม่ต้องกรอกที่ท้ายไลน์แล้ว — เลขถุงเรียงให้เอง ส่วนกระสอบ/ไซซ์ เติมจากถุงที่หักจริงด้านล่าง (ตาม Standard) */
+      bagLot:'', bagNo:nextBagNo(o.id), bagUsedLot:'', bagUsedSize:'',
       stdPerPiece:CALC.stdPerPiece(o.spec), stdPiece:+o.spec.weightPerPiece||0,
       piecesPerPack:+o.spec.piecesPerPack||0,
       bagWeight:+o.spec.bagWeight||0, bagPerPiece:!!o.spec.bagPerPiece, tolPct:+o.spec.tolPct||3,
@@ -3107,15 +3195,23 @@ window.WPDAUTH = {
       actualPiece:pc, diffPiece:pc==null?null:CALC.packDiff(pc,+o.spec.weightPerPiece||0),
       cumStd:r3(cumPrev+std), cumActual:r3(cumActPrev+(act==null?std:act)),
       note:note, gapMinutes:gapMin||null,
-      gapReason:gapReason||null, isDowntime:!!flagged });
+      gapReason:gapReason||null, isDowntime:!!flagged,
+      /* แพ็คนี้มีแผ่นค้างจากงานก่อนรวมอยู่ — ชิ้นที่งานนี้ผลิตเอง = ชิ้นต่อแพ็ค − แผ่นค้าง */
+      carryIn:_carry?_carry.pieces:0, carryFrom:_carry?_carry.from:[], carryKg:_carry?_carry.kg:0 });
     const _cut=autoCutBags(o,_lineId);
+    /* จดกระสอบ/ไซซ์ถุงที่หักจริงของแพ็คนี้ไว้ในรายการ (แทนช่องที่เคยให้กรอกเอง) */
+    { const _row=S.line.find(l=>l.id===_lineId), _bu=(S.bagUse||[]).filter(u=>u.lineId===_lineId);
+      if(_row && _bu.length){
+        const _st=sackStatusNow();
+        _row.bagLot=_bu.map(u=>(u.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+' #'+u.sackNo).join(', ');
+        _row.bagUsedSize=[...new Set(_bu.map(u=>{ const sk=_st.find(x=>x.kind===u.kind && x.name===u.name && String(x.sackNo)===String(u.sackNo)); return sk&&sk.size; }).filter(Boolean))].join(', ');
+      } }
     const _case=autoCutCases(o,+o.spec.piecesPerPack||0,{lineId:_lineId});
     const _sheet=autoUseSheet(o,_lineId);
     if(_sheet){ saveFeed(); }
     $('lineNote').value=''; $('actW').value=''; $('actPc').value=''; $('actHint').innerHTML='';
-    $('bagNo').value=''; lastPackAt=localISO(); idleNotified=false;
+    lastPackAt=localISO(); idleNotified=false;
     if(_cut||_case){ saveFeed(); }
-    // ถุงเลขที่/ขนาด ตั้งใจไม่ล้าง เพราะพนักงานมักใช้ถุงกล่องเดียวกันต่อเนื่องหลายแพ็ค — เปลี่ยนกล่องแล้วค่อยแก้เอง
     saveLine().then(()=>{ if(current==='line') rLine(); });
     const st=CALC.tolStatus(act,std,o.spec.tolPct);
     let _tail='';
@@ -3829,7 +3925,9 @@ window.WPDAUTH = {
     /* ใยที่หักออกจากก้อนที่ไลน์จริง ๆ ในช่วงเวลาที่ดูอยู่ */
     const feedIds=new Set(feed.map(f=>f.id));
     const dedKg=r3((S.use||[]).filter(u=>!u.pending && (!u.feedId || feedIds.has(u.feedId))).reduce((a,b)=>a+(+b.kg||0),0));
-    const bal=CALC.fiberBalance(line, fedKg, totScrap, wdKg, dedKg);
+    /* แผ่นค้างไม่ครบแพ็คที่เก็บไว้รวมงานหน้า = ใยที่ผลิตออกมาแล้วในช่วงนี้ */
+    const carryOutKg=r3((S.carry||[]).filter(x=>inRange(x,R)).reduce((a,c)=>a+(+c.pieces||0)*(+c.kgEach||0),0));
+    const bal=CALC.fiberBalance(line, fedKg, totScrap, wdKg, dedKg, carryOutKg);
     $('balStats').innerHTML=
       '<div class="stat"><div class="v">'+bal.inKg+'</div><div class="l">⬇ ใยเข้า — ป้อนเข้าไลน์ทั้งหมด (กก.)</div></div>'+
       '<div class="stat"><div class="v">'+bal.outKg+'</div><div class="l">⬆ ใยออก — ใยที่อยู่ในสินค้า หักผ้าและถุงแล้ว (กก.)</div></div>'+
@@ -4050,7 +4148,7 @@ window.WPDAUTH = {
       '\n\nแนะนำให้กด "ออกทั้งหมด" เก็บไฟล์ไว้ก่อน\n\nยืนยันครั้งที่ 1 — ต้องการลบจริงหรือไม่?')) return;
     if(!await ask('⚠ ยืนยันอีกครั้ง','การลบนี้กู้คืนไม่ได้ ยืนยันจะลบข้อมูลการผลิตทั้งหมดหรือไม่?')) return;
     S.orders=[]; S.activeId=null; S.activeFeedId=null; S.fiberMaster=[];
-    S.feed=[]; S.wd=[]; S.gasSwaps=[]; S.line=[]; S.scrap=[]; S.breaks=[];
+    S.feed=[]; S.wd=[]; S.gasSwaps=[]; S.line=[]; S.scrap=[]; S.breaks=[]; S.carry=[];
     await saveOrders(); await saveFeed(); await saveLine();
     rTop(); renderPanel(true); toast('ล้างข้อมูลการผลิตทั้งหมดแล้ว');
   };

@@ -119,6 +119,31 @@
     #sk .billsum td { background:#f5f5f5; font-weight:600; text-align:left; }
     #sk .billtotal { margin-top:8px; font-size:14px; text-align:right; }
   }
+
+  /* ---------- หน้าผ้า: เป็นขั้น ---------- */
+  #p-fabric .card[data-step]{ display:none; }
+  #p-fabric[data-fstep="roll"] .card[data-step="roll"], #p-fabric[data-fstep="cut"] .card[data-step="cut"],
+  #p-fabric[data-fstep="sew"] .card[data-step="sew"], #p-fabric[data-fstep="ret"] .card[data-step="ret"],
+  #p-fabric[data-fstep="stock"] .card[data-step="stock"]{ display:block; }
+  .fsteps{ display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-top:10px; }
+  .fstep{ display:flex; flex-direction:column; align-items:center; gap:3px; padding:10px 4px; border:1px solid var(--border); border-radius:12px;
+          background:var(--panel2); color:var(--text); font:inherit; cursor:pointer; min-height:74px; }
+  .fstep .fs-n{ font-size:18px; line-height:1; }
+  .fstep .fs-t{ font-weight:600; font-size:14px; text-align:center; }
+  .fstep .fs-v{ font-size:12px; color:var(--dim); text-align:center; }
+  .fstep.on{ border-color:var(--accent); background:var(--accent); color:#fff; }
+  .fstep.on .fs-v{ color:#fff; }
+  .fstep .fs-v b{ color:var(--accent2); } .fstep.on .fs-v b{ color:#fff; }
+  .bagpick{ display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 6px; }
+  .bagpick .bp{ display:flex; flex-direction:column; align-items:flex-start; padding:8px 12px; border:1px solid var(--border); border-radius:10px;
+                background:var(--panel2); color:var(--text); font:inherit; cursor:pointer; text-align:left; min-width:140px; }
+  .bagpick .bp b{ font-size:19px; } .bagpick .bp small{ font-size:12.5px; color:var(--dim); line-height:1.4; }
+  .bagpick .bp.on{ border-color:var(--accent); box-shadow:inset 0 0 0 2px var(--accent); }
+  .oldtoggle{ display:flex !important; align-items:center; gap:8px; margin-top:16px !important; padding-top:10px; border-top:1px dashed var(--border);
+              font-size:12.5px !important; color:var(--dim) !important; }
+  .oldtoggle input{ width:auto !important; margin:0 !important; }
+  details.oldentry summary{ cursor:pointer; color:var(--dim); font-size:13px; margin-top:12px; }
+  @media (max-width:560px){ .fstep .fs-t{ font-size:12px; } .fstep .fs-v{ font-size:11px; } }
 </style>
 <style id="wpd-theme">
   /* ===== ธีมวินโพลีดีไซน์ — ใช้ชุดเดียวกันทั้ง 3 แอพ มีโหมดสว่าง/มืด (แก้ที่ theme/theme.css แล้วรัน theme/apply.js) ===== */
@@ -421,10 +446,24 @@
     </div>
 
     <!-- 2. FABRIC -->
-    <div class="panel" id="p-fabric">
-      <div class="card"><h3>ม้วนผ้าที่ยังไม่ตัด</h3><div id="rollCards"></div></div>
-      <div class="card">
-        <h3>รับเข้าม้วนผ้า (ออกเลขให้แต่ละม้วนทันที)</h3>
+    <div class="panel" id="p-fabric" data-fstep="roll">
+      <!-- ผ้าเดินทางเป็นขั้น: แตะขั้นไหน เห็นเฉพาะงานของขั้นนั้น -->
+      <div class="card fabflow">
+        <div class="sumline" style="margin-top:0;">ผ้าเดินทาง: รับม้วน → ตัดใส่ถุง (เขียนเลขถุง) → ส่งช่างเย็บ → รับกลับเป็นปลอก → ท้ายไลน์เบิกไปใช้</div>
+        <div class="fsteps" id="fabSteps">
+          <button class="fstep" data-fstep="roll"><span class="fs-n">①</span><span class="fs-t">รับม้วน</span><span class="fs-v" id="fsRoll">–</span></button>
+          <button class="fstep" data-fstep="cut"><span class="fs-n">②</span><span class="fs-t">ตัดใส่ถุง</span><span class="fs-v" id="fsCut">–</span></button>
+          <button class="fstep" data-fstep="sew"><span class="fs-n">③</span><span class="fs-t">ส่งช่างเย็บ</span><span class="fs-v" id="fsSew">–</span></button>
+          <button class="fstep" data-fstep="ret"><span class="fs-n">④</span><span class="fs-t">รับกลับ</span><span class="fs-v" id="fsRet">–</span></button>
+          <button class="fstep" data-fstep="stock"><span class="fs-n">⑤</span><span class="fs-t">สต๊อก/ประวัติ</span><span class="fs-v" id="fsStock">–</span></button>
+        </div>
+      </div>
+
+      <!-- ① รับม้วน -->
+      <div class="card" data-step="roll"><h3>ม้วนผ้าที่ยังไม่ตัด</h3><div id="rollCards"></div></div>
+      <div class="card" data-step="roll">
+        <h3>① รับม้วนผ้าเข้า</h3>
+        <p class="sumline" style="margin-top:-4px;">ระบบออกเลขม้วนให้ — เขียนเลขนี้บนม้วนจริง</p>
         <div class="rf">
           <div><label>ชนิดผ้า</label><select id="fabRecSel"></select>
             <input id="fabRecName" list="dlFabric" placeholder="พิมพ์ชนิดผ้า" style="display:none;"><datalist id="dlFabric"></datalist></div>
@@ -434,57 +473,49 @@
           <div><label>หน้ากว้าง (นิ้ว — ถ้ารู้)</label><input id="fabRecWidth" type="number" inputmode="decimal" step="0.1" placeholder="เช่น 59"></div>
           <div><label>ความยาว/ม้วน (นิ้ว — ถ้ารู้)</label><input id="fabRecLength" type="number" inputmode="decimal" step="0.1" placeholder="เช่น 3937"></div>
         </div>
-        <p class="sumline">ใส่หน้ากว้าง+ความยาวไว้ จะช่วยให้รู้ว่าตัดแล้วเหลือกี่เมตร และคำนวณต้นทุนต่อชิ้นตามพื้นที่จริงในแอพต้นทุนได้แม่นขึ้น (ไม่ใส่ก็ใช้งานได้ปกติ)</p>
+        <p class="sumline">ใส่หน้ากว้าง+ความยาวไว้ จะรู้ว่าตัดแล้วผ้าเหลือเท่าไหร่ และต้นทุนต่อชิ้นแม่นขึ้น (ไม่ใส่ก็ใช้ได้)</p>
         <div class="sumline" id="fabRecPreview"></div>
-        <label>เลขม้วนเริ่มต้น (ถ้ามีเขียนไว้อยู่แล้ว)</label><input id="fabRecRollNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ">
         <label>วันที่รับเข้า</label><input id="fabRecDate" type="date">
         <label>หมายเหตุ</label><input id="fabRecNote">
-        <button class="btn w" id="btnFabRec">บันทึกรับเข้าม้วนผ้า</button>
+        <details class="oldentry"><summary>ม้วนมีเลขเขียนไว้อยู่แล้ว?</summary>
+          <label>เลขม้วนเริ่มต้น</label><input id="fabRecRollNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ">
+        </details>
+        <button class="btn w" id="btnFabRec">บันทึกรับม้วนเข้า</button>
       </div>
-      <div class="card">
-        <h3>บันทึกการตัดผ้า</h3>
-        <label style="display:flex; align-items:center; gap:8px; margin-top:0;">
-          <input type="checkbox" id="cutFreeMode" style="width:auto; margin:0;">
-          <span style="font-size:13px; color:var(--text);">กรอกอิสระ (ลงของเก่าที่ไม่มีม้วนอ้างอิง)</span>
-        </label>
+      <div class="card" data-step="roll"><h3>สถานะม้วนผ้าทั้งหมด</h3><div class="scr"><table id="tRollStatus"></table></div></div>
+
+      <!-- ② ตัดใส่ถุง -->
+      <div class="card" data-step="cut">
+        <h3>② ตัดผ้าใส่ถุง</h3>
+        <p class="sumline" style="margin-top:-4px;">ตัดได้ไซซ์ละ 1 ถุง ระบบออกเลขถุงให้ — <b>เขียนเลขถุงบนถุงจริง</b> ถุงนี้จะเดินทางไปช่างเย็บและกลับมาด้วยเลขเดิม</p>
         <div class="rf" id="cutBatchModeRow">
           <div><label>ชนิดผ้า</label><select id="cutFabSel"></select></div>
-          <div><label>ม้วนที่ (เลือกจากม้วนที่ยังไม่ถูกใช้)</label><select id="cutRollSel"></select></div>
+          <div><label>ม้วนที่ตัด</label><select id="cutRollSel"></select></div>
         </div>
         <div class="rf" id="cutFreeModeRow" style="display:none;">
           <div><label>ชนิดผ้า</label><select id="cutFreeFabSel"></select>
             <input id="cutFreeFabName" list="dlCutFreeFab" placeholder="พิมพ์ชนิดผ้า" style="display:none;"><datalist id="dlCutFreeFab"></datalist></div>
           <div><label>ม้วนที่ (ถ้ารู้ — ไม่บังคับ)</label><input id="cutFreeRollNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ก็ได้"></div>
         </div>
-        <label>ตัดได้ไซซ์ไหนบ้าง — กี่ชิ้น (ไซซ์เป็นนิ้ว กว้าง x ยาว)</label>
+        <label>ตัดได้ไซซ์ไหน — กี่ชิ้น (นิ้ว กว้าง x ยาว)</label>
         <div id="cutRows"></div>
-        <button class="btn sec sm" style="margin-top:8px;" id="btnAddCutRow">+ เพิ่มไซซ์</button><br>
-        <label>เลขถุงเริ่มต้น (ถ้ามีเขียนไว้อยู่แล้ว — ใช้ตอนกรอกอิสระเท่านั้น)</label><input id="cutFreeBatchNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ">
+        <button class="btn sec sm" style="margin-top:8px;" id="btnAddCutRow">+ เพิ่มไซซ์</button>
+        <div id="cutFreeBatchRow" style="display:none;"><label>เลขถุงเริ่มต้น (ถ้ามีเขียนไว้อยู่แล้ว)</label><input id="cutFreeBatchNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ"></div>
         <label>หมายเหตุ</label><input id="cutNote">
         <button class="btn w" id="btnCut">บันทึกการตัด</button>
+        <label class="oldtoggle"><input type="checkbox" id="cutFreeMode"> ลงของเก่าที่ไม่มีม้วนในระบบ (ยอดยกมา — ใช้ครั้งแรกเท่านั้น)</label>
       </div>
-      <div class="card">
-        <h3>สถานะม้วนผ้าทั้งหมด</h3>
-        <div class="scr"><table id="tRollStatus"></table></div>
-      </div>
-      <div class="card">
-        <h3>สต๊อกผ้า แยกตามชนิด+ไซซ์</h3>
-        <div id="cutStockBar"></div>
-        <div class="scr"><table id="tCutStock"></table></div>
-        <div class="sumline" style="margin-top:10px; font-weight:600;">ถุงบรรจุผ้ารายใบ</div>
-        <div class="scr"><table id="tCutBatchList"></table></div>
-      </div>
-      <div class="card">
-        <h3>ส่งเย็บ</h3>
-        <label style="display:flex; align-items:center; gap:8px; margin-top:0;">
-          <input type="checkbox" id="sewFreeMode" style="width:auto; margin:0;">
-          <span style="font-size:13px; color:var(--text);">กรอกอิสระ (ลงของเก่าที่ไม่มีถุงตัดอ้างอิง)</span>
-        </label>
+      <div class="card" data-step="cut"><h3>ประวัติการตัด</h3><div class="scr"><table id="tCutHist"></table></div></div>
+
+      <!-- ③ ส่งช่างเย็บ -->
+      <div class="card" data-step="sew">
+        <h3>③ ส่งให้ช่างเย็บ</h3>
+        <div id="sewPickWrap"><div class="sumline" style="margin-top:-4px;">แตะเลขถุงที่จะส่ง</div><div class="bagpick" id="sewPick"></div></div>
         <div class="rf" id="sewBatchModeRow">
           <div><label>ชนิดผ้า</label><select id="sewFabSel"></select></div>
           <div><label>ไซซ์</label><select id="sewSizeSel"></select></div>
         </div>
-        <label id="sewBatchSelLabel">เลือกถุงตัดที่จะส่ง</label><select id="sewBatchSel"></select>
+        <label id="sewBatchSelLabel">ถุงที่จะส่ง</label><select id="sewBatchSel"></select>
         <div class="rf" id="sewFreeModeRow" style="display:none;">
           <div><label>ชนิดผ้า</label><select id="sewFreeFabSel"></select>
             <input id="sewFreeFabName" list="dlSewFreeFab" placeholder="พิมพ์ชนิดผ้า" style="display:none;"><datalist id="dlSewFreeFab"></datalist></div>
@@ -497,29 +528,30 @@
         <div class="rf" id="sewFreeBatchRow" style="display:none;">
           <div><label>เลขถุงเริ่มต้น (ถ้ามีเขียนไว้อยู่แล้ว)</label><input id="sewFreeBatchNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ"></div>
         </div>
-        <label>ประเภทสินค้า (เช่น หมอนข้าง หมอนหนุน ปิกนิก)</label>
+        <div class="rf" id="sewQtyRow">
+          <div><label>จำนวนที่ส่ง (ชิ้น)</label><input id="sewQty" type="number" inputmode="numeric"></div>
+        </div>
+        <label>เย็บเป็นสินค้าอะไร (เช่น หมอนหนุน ปิกนิก)</label>
         <select id="sewTypeSel"></select>
         <input id="sewTypeName" list="dlProdType" placeholder="พิมพ์ประเภทใหม่" style="display:none;"><datalist id="dlProdType"></datalist>
-        <div class="rf" id="sewQtyRow">
-          <div><label>จำนวนที่ส่งเย็บ (ชิ้น)</label><input id="sewQty" type="number" inputmode="numeric"></div>
-        </div>
-        <label>ชื่อผู้เย็บ</label><select id="sewNameSel"></select>
+        <label>ช่างเย็บ</label><select id="sewNameSel"></select>
         <input id="sewName" list="dlSewerName" placeholder="พิมพ์ชื่อใหม่" style="display:none;"><datalist id="dlSewerName"></datalist>
         <label>เวลาที่ส่ง</label><input id="sewTime" type="datetime-local">
         <label>หมายเหตุ</label><input id="sewNote">
         <button class="btn w" id="btnSew">บันทึกส่งเย็บ</button>
+        <label class="oldtoggle"><input type="checkbox" id="sewFreeMode"> ลงของเก่าที่อยู่ที่ช่างอยู่แล้ว (ยอดยกมา — ใช้ครั้งแรกเท่านั้น)</label>
       </div>
-      <div class="card">
-        <h3>รับกลับจากเย็บ (กลับมาเป็นปลอก)</h3>
-        <label style="display:flex; align-items:center; gap:8px; margin-top:0;">
-          <input type="checkbox" id="retFreeMode" style="width:auto; margin:0;">
-          <span style="font-size:13px; color:var(--text);">กรอกอิสระ (ลงของเก่าที่ไม่มีถุงตัดอ้างอิง)</span>
-        </label>
+      <div class="card" data-step="sew"><h3>ประวัติส่งเย็บ</h3><div class="scr"><table id="tSewHist"></table></div></div>
+
+      <!-- ④ รับกลับ -->
+      <div class="card" data-step="ret">
+        <h3>④ รับปลอกกลับจากช่างเย็บ</h3>
+        <div id="retPickWrap"><div class="sumline" style="margin-top:-4px;">แตะเลขถุงที่ช่างส่งคืน — ถุงเบอร์ไหนไป รับกลับเข้าเบอร์นั้น</div><div class="bagpick" id="retPick"></div></div>
         <div class="rf" id="retBatchModeRow">
           <div><label>ชนิดผ้า</label><select id="retFabSel"></select></div>
-          <div><label>ไซซ์</label><select id="retSizeSel"></select></div>
+          <div><label>ไซซ์ที่ตัด</label><select id="retSizeSel"></select></div>
         </div>
-        <label id="retBatchSelLabel">เลือกถุงตัดที่จะรับกลับ</label><select id="retBatchSel"></select>
+        <label id="retBatchSelLabel">ถุงที่รับกลับ</label><select id="retBatchSel"></select>
         <div class="rf" id="retFreeModeRow" style="display:none;">
           <div><label>ชนิดผ้า</label><select id="retFreeFabSel"></select>
             <input id="retFreeFabName" list="dlRetFreeFab" placeholder="พิมพ์ชนิดผ้า" style="display:none;"><datalist id="dlRetFreeFab"></datalist></div>
@@ -532,28 +564,41 @@
         <div class="rf" id="retFreeBatchRow" style="display:none;">
           <div><label>เลขถุงเริ่มต้น (ถ้ามีเขียนไว้อยู่แล้ว)</label><input id="retFreeBatchNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ"></div>
         </div>
-        <label>ประเภทสินค้า (เช่น หมอนข้าง หมอนหนุน ปิกนิก)</label>
+        <label>เป็นสินค้าอะไร (เช่น หมอนหนุน ปิกนิก)</label>
         <select id="retTypeSel"></select>
         <input id="retTypeName" list="dlProdType" placeholder="พิมพ์ประเภทใหม่" style="display:none;">
         <div class="rf" id="retQtyRow">
           <div><label>รับกลับมากี่ใบ</label><input id="retQty" type="number" inputmode="numeric"></div>
           <div style="max-width:150px;"><label>ใช้ผ้ากี่ชิ้นต่อ 1 ใบ</label><input id="retPP" type="number" inputmode="numeric" min="1" value="1">
             <div class="sumline" style="margin-top:3px;">ปิกนิก 2 ผืนประกบ = 2</div></div>
-          <div><label>ไซซ์สำเร็จหลังเย็บ (นิ้ว)</label><input id="retSizeFin" placeholder="เช่น 17.5x26">
+          <div><label>ไซซ์หลังเย็บ (นิ้ว)</label><input id="retSizeFin" placeholder="เช่น 17.5x26">
             <div class="sumline" id="retSizeHint" style="margin-top:3px;"></div></div>
         </div>
-        <label>ชื่อผู้เย็บ</label><select id="retNameSel"></select>
+        <label>ช่างเย็บ</label><select id="retNameSel"></select>
         <input id="retName" list="dlSewerName" placeholder="พิมพ์ชื่อใหม่" style="display:none;">
         <label>วันที่รับกลับ</label><input id="retDate" type="date">
         <label>หมายเหตุ</label><input id="retNote">
-        <button class="btn w" id="btnRet">บันทึกรับกลับจากเย็บ</button>
+        <button class="btn w" id="btnRet">บันทึกรับกลับ</button>
+        <label class="oldtoggle"><input type="checkbox" id="retFreeMode"> ลงปลอกเก่าที่มีอยู่แล้ว (ยอดยกมา — ใช้ครั้งแรกเท่านั้น)</label>
       </div>
-      <div class="card">
-        <h3>สถานะถุงบรรจุผ้าทั้งหมด</h3>
-        <p class="sumline">การเบิกถุงไปผลิตทำที่แอพผลิต (หน้าท้ายไลน์ → เบิกถุงบรรจุผ้า) หน้านี้แสดงสถานะให้ดูอย่างเดียว</p>
-        <div class="scr"><table id="tBatchStatus"></table></div>
+      <div class="card" data-step="ret"><h3>ประวัติรับกลับ</h3><div class="scr"><table id="tRetHist"></table></div></div>
+
+      <!-- ⑤ สต๊อก / ประวัติ -->
+      <div class="card" data-step="stock">
+        <h3>ปลอกพร้อมผลิต — ตามสินค้า</h3>
+        <div class="sumline" id="prodTypeFilterBar"></div>
+        <div id="prodTypeCards"></div>
+        <div id="prodTypeDetail" style="margin-top:10px;"></div>
       </div>
-      <div class="card">
+      <div class="card" data-step="stock">
+        <h3>ผ้าทุกขั้น — แยกตามชนิด+ไซซ์</h3>
+        <div id="cutStockBar"></div>
+        <div class="scr"><table id="tCutStock"></table></div>
+        <div class="sumline" style="margin-top:10px; font-weight:600;">ถุงผ้ารายใบ (ตามเลขถุง)</div>
+        <div class="scr"><table id="tCutBatchList"></table></div>
+      </div>
+      <div class="card" data-step="stock"><h3>ท้ายไลน์เบิกปลอกไปใช้ (จากแอพผลิต)</h3><div class="scr"><table id="tFabWdHist"></table></div></div>
+      <div class="card" data-step="stock">
         <h3>บันทึกของเสีย (ผ้าเปื้อน ฯลฯ)</h3>
         <div class="rf">
           <div><label>ชนิดผ้า</label><select id="wasteFabSel"></select></div>
@@ -566,44 +611,36 @@
         <button class="btn sec w" id="btnWaste">บันทึกของเสีย</button>
         <div class="scr" style="margin-top:9px;"><table id="tWaste"></table></div>
       </div>
-      <div class="card"><h3>ประวัติการตัด</h3><div class="scr"><table id="tCutHist"></table></div></div>
-      <div class="card">
-        <h3>ตามประเภทสินค้า</h3>
-        <div class="sumline" id="prodTypeFilterBar"></div>
-        <div id="prodTypeCards"></div>
-        <div id="prodTypeDetail" style="margin-top:10px;"></div>
-        <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border);">
-          <label style="font-size:12px; color:var(--dim);">ตั้งจุดเตือนสต๊อกต่ำ (ต่อประเภทสินค้า)</label>
+      <div class="card" data-step="stock">
+        <details><summary style="cursor:pointer; font-weight:600;">⚙ ตั้งค่า / แก้ชื่อ (สำหรับหัวหน้า)</summary>
+          <label style="font-size:12px; color:var(--dim);">ตั้งจุดเตือนปลอกใกล้หมด (ต่อสินค้า)</label>
           <div class="rf">
             <div><select id="prodTypeThSel"></select></div>
             <div><input id="prodTypeThQty" type="number" inputmode="numeric" placeholder="เตือนเมื่อต่ำกว่า (ชิ้น)"></div>
           </div>
           <button class="btn sec sm" style="margin-top:6px;" id="btnProdTypeTh">บันทึกจุดเตือน</button>
           <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border);">
-            <label style="font-size:12px; color:var(--dim);">แก้ไขชื่อประเภทสินค้า (เปลี่ยนแล้วข้อมูลเก่าย้ายตามทั้งหมด)</label>
+            <label style="font-size:12px; color:var(--dim);">แก้ชื่อสินค้า (เปลี่ยนแล้วข้อมูลเก่าย้ายตามทั้งหมด)</label>
             <div class="rf">
               <div><select id="prodTypeRenameSel"></select></div>
               <div><button class="btn sec sm" id="btnProdTypeRename">✎ แก้ไขชื่อประเภท</button></div>
             </div>
-          </div>
-          <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border);">
-            <label style="font-size:12px; color:var(--dim);">แก้ไขชื่อชนิดผ้า — พิมพ์ผิดหรือมีชื่อซ้ำ แก้ให้เป็นชื่อเดียวกันได้</label>
+            <label style="font-size:12px; color:var(--dim); margin-top:10px;">แก้ชื่อชนิดผ้า — พิมพ์ผิดหรือมีชื่อซ้ำ แก้ให้เป็นชื่อเดียวกันได้</label>
             <div class="rf">
               <div><select id="fabTypeRenameSel"></select></div>
               <div><button class="btn sec sm" id="btnFabTypeRename">✎ แก้ไขชื่อผ้า</button></div>
             </div>
-            <label style="font-size:12px; color:var(--dim); margin-top:10px;">แก้ไขไซซ์ — เช่น 18x28 กับ 18*28 ให้รวมเป็นอันเดียว</label>
+            <label style="font-size:12px; color:var(--dim); margin-top:10px;">แก้ไซซ์ — เช่น 18x28 กับ 18*28 ให้รวมเป็นอันเดียว</label>
             <div class="rf">
               <div><select id="fabSizeRenameSel"></select></div>
               <div><button class="btn sec sm" id="btnFabSizeRename">✎ แก้ไขไซซ์</button></div>
             </div>
             <div class="sumline" id="fabDupWarn" style="margin-top:8px;"></div>
           </div>
-        </div>
+        </details>
       </div>
-      <div class="card"><h3>ประวัติส่งเย็บ</h3><div class="scr"><table id="tSewHist"></table></div></div>
-      <div class="card"><h3>ประวัติรับกลับจากเย็บ</h3><div class="scr"><table id="tRetHist"></table></div></div>
-      <div class="card"><h3>ประวัติเบิกถุงบรรจุผ้า (จากแอพผลิต)</h3><div class="scr"><table id="tFabWdHist"></table></div></div>
+      <!-- ตารางสถานะถุงแบบเดิม (ซ้ำกับ "ถุงผ้ารายใบ") — ซ่อนไว้ โค้ดยังวาดได้ -->
+      <div class="card" data-step="none" style="display:none;"><table id="tBatchStatus"></table></div>
     </div>
 
     <!-- 3. BAGS -->
@@ -1294,7 +1331,11 @@ window.WPDAUTH = {
         (arr||[]).forEach(x=>{ let k=(x.id!=null)?'i:'+x.id:'j:'+js(x); if(k[0]==='j'){ seen[k]=(seen[k]||0)+1; k+='#'+seen[k]; } m.set(k,x); });
         return m; };
       const B=keyed(base), L=keyed(local), R=keyed(server), out=[];
-      L.forEach((x,k)=>{ out.push(R.has(k) && B.has(k) ? wpdMerge3(B.get(k),x,R.get(k)) : x); });
+      L.forEach((x,k)=>{
+        if(R.has(k)) out.push(B.has(k) ? wpdMerge3(B.get(k),x,R.get(k)) : x);
+        /* ไม่มีในเซิร์ฟเวอร์: ถ้าเคยมีในฐานเดิมและเครื่องนี้ไม่ได้แก้ = เครื่องอื่นลบไปแล้ว ต้องลบตาม (ไม่งั้นแถวที่ลบจะกลับมาโผล่) */
+        else if(!B.has(k) || !same(x,B.get(k))) out.push(x);
+      });
       R.forEach((x,k)=>{ if(!L.has(k) && !B.has(k)) out.push(x); });
       return out;
     }
@@ -1364,9 +1405,12 @@ window.WPDAUTH = {
     try{
       if(!hasStore) throw new Error('no storage');
       wpdWriteSeq++;
-      const str=JSON.stringify(await wpdPrepareWrite(k,data));
+      const prepared=await wpdPrepareWrite(k,data);
+      const str=JSON.stringify(prepared);
       await window.storage.set(k,str,true);
-      SEEN[k]=str;
+      /* รวมข้อมูลจากเครื่องอื่นแล้ว: ฐานเทียบรอบหน้า = ของที่เครื่องนี้ส่ง (ในเครื่องยังไม่มีของเครื่องอื่นจนกว่าจะโหลดใหม่)
+         — บันทึกครั้งถัดไปจะรวมอีกรอบ ไม่ส่งข้อมูลที่ขาดของเครื่องอื่นขึ้นไปทับ */
+      SEEN[k]=(prepared===data)?str:JSON.stringify(data);
       inflight[k]=false; storeDown=false;
       await window.storage.set('v3s_pulse',Date.now()+'',true).catch(()=>{});
       if(Object.keys(pending).length) Object.keys(pending).forEach(kk=>flush(kk)); else { setSaveState('ok'); wpdRefreshAfterMerge(); }
@@ -1859,7 +1903,7 @@ window.WPDAUTH = {
       '<div class="l">ถุงบรรจุผ้าพร้อมเบิก '+ready+' ชิ้น · แตะดูถุงทั้งหมด ▾</div></div>';
     }).join('') :'<div class="empty">ยังไม่มีข้อมูลม้วนผ้า</div>';
     $('rollCards').querySelectorAll('[data-fabcard]').forEach(c=>c.onclick=()=>{
-      fabCardFilter=c.dataset.fabcard; rFabric();
+      fabCardFilter=c.dataset.fabcard; setFabStep('stock'); rFabric();
       const t=$('tCutStock'); if(t&&t.scrollIntoView) t.scrollIntoView({behavior:'smooth',block:'center'});
     });
 
@@ -1981,6 +2025,7 @@ window.WPDAUTH = {
 
     function refreshBatchSel(selId, fabId, sizeId, balanceKey, labelSuffix){
       const sel=$(selId); if(!sel) return;
+      const _keep=sel.value;
       const fab=$(fabId).value, size=$(sizeId).value;
       const opts=batchStatus.filter(b=>b.fabricType===fab && b.size===size && b[balanceKey]>0);
       const _needPick = !fab || !size;
@@ -1991,9 +2036,11 @@ window.WPDAUTH = {
         return '<option value="'+b.batchId+'">ถุง #'+b.batchNo+' · '+esc(b.size||'')+
         ' · ตัด '+thDate(b.time)+' (เหลือ'+labelSuffix+' '+bal+')</option>'; }).join('')
         :'<option value="">'+(_needPick?'— เลือกชนิดผ้าและไซซ์ก่อน —':'— ไม่มีถุงที่พร้อม'+labelSuffix+' —')+'</option>';
+      if(_keep && opts.some(b=>b.batchId===_keep)) sel.value=_keep;
     }
     refreshBatchSel('sewBatchSel','sewFabSel','sewSizeSel','cutBalance','ส่ง');
     refreshBatchSel('retBatchSel','retFabSel','retSizeSel','sewingBalance','รับ');
+    rFabSteps(batchStatus);
 
     $('tWaste').innerHTML=S.waste.length?'<tr><th>เวลา</th><th>ชนิดผ้า</th><th>หน่วย</th><th>จำนวน</th><th>สาเหตุ</th><th></th></tr>'+
       S.waste.slice().reverse().map(w=>'<tr><td>'+ymd(w.time)+'</td><td>'+esc(w.fabricType)+'</td><td>'+(w.unit==='roll'?'ม้วน':'ชิ้น')+'</td><td>'+w.qty+'</td><td>'+esc(w.reason||'')+'</td><td><button class="x" data-wd="'+w.id+'">✕</button></td></tr>').join('')
@@ -2137,8 +2184,48 @@ window.WPDAUTH = {
       :'<option value="">— ไม่มีม้วนว่างของชนิดนี้ —</option>';
   }
   $('cutFabSel').onchange=refreshCutRollOptions;
+  /* ---------- หน้าผ้าเป็นขั้น: ① รับม้วน ② ตัด ③ ส่งเย็บ ④ รับกลับ ⑤ สต๊อก ---------- */
+  function setFabStep(st){
+    const p=$('p-fabric'); if(!p) return;
+    p.dataset.fstep=st; try{ localStorage.setItem('wpd_fabstep', st); }catch(e){}
+    document.querySelectorAll('#fabSteps [data-fstep]').forEach(b=>b.classList.toggle('on', b.dataset.fstep===st));
+  }
+  document.querySelectorAll('#fabSteps [data-fstep]').forEach(b=>b.onclick=()=>{ setFabStep(b.dataset.fstep); const p=$('p-fabric'); if(p&&p.scrollIntoView) p.scrollIntoView({block:'start'}); });
+  (function(){ let st='roll'; try{ st=localStorage.getItem('wpd_fabstep')||'roll'; }catch(e){} setFabStep(st); })();
+  function rFabSteps(bs){
+    if(!$('fabSteps')) return;
+    const rolls=allFabricTypes().reduce((a,t)=>a+CALC.availableRolls(S.fabricReceipts,S.cuts,t).length,0);
+    const toSend=bs.filter(b=>b.cutBalance>0), atSewer=bs.filter(b=>b.sewingBalance>0);
+    const ready=r2(bs.reduce((a,b)=>a+Math.max(0,b.readyBalance),0));
+    $('fsRoll').innerHTML='มี <b>'+rolls+'</b> ม้วน';
+    $('fsCut').innerHTML='รอตัด <b>'+rolls+'</b> ม้วน';
+    $('fsSew').innerHTML='รอส่ง <b>'+toSend.length+'</b> ถุง';
+    $('fsRet').innerHTML='ที่ช่าง <b>'+atSewer.length+'</b> ถุง';
+    $('fsStock').innerHTML='พร้อมผลิต <b>'+ready+'</b>';
+    const lastSend=id=>(S.sewSent||[]).filter(x=>x.batchId===id).sort((x,y)=>String(x.time).localeCompare(String(y.time))).pop()||{};
+    const chip=(kind,b,sub)=>'<button class="bp'+($(kind+'BatchSel').value===b.batchId?' on':'')+'" data-pick="'+kind+'" data-bid="'+b.batchId+'">'+
+      '<b>ถุง #'+b.batchNo+'</b><small>'+esc(b.fabricType)+' · '+esc(b.size)+'<br>'+sub+'</small></button>';
+    const byName=(x,y)=>(x.fabricType+x.size).localeCompare(y.fabricType+y.size,'th')||(x.batchNo-y.batchNo);
+    $('sewPick').innerHTML=toSend.length ? toSend.slice().sort(byName).map(b=>chip('sew',b,b.cutBalance+' ชิ้น · ตัด '+thDate(b.time))).join('')
+      : '<div class="empty">ไม่มีถุงรอส่ง — ตัดผ้าก่อน (ขั้น ②)</div>';
+    $('retPick').innerHTML=atSewer.length ? atSewer.slice().sort(byName).map(b=>{ const ls=lastSend(b.batchId), pp=guessPiecesPer(b.batchId, ls.productType||'');
+        return chip('ret',b,esc(ls.sewerName||'ไม่ระบุช่าง')+' · '+(pp>1?Math.floor(b.sewingBalance/pp)+' ใบ':b.sewingBalance+' ชิ้น')+(ls.productType?' · '+esc(ls.productType):'')); }).join('')
+      : '<div class="empty">ไม่มีถุงอยู่ที่ช่างเย็บ</div>';
+    document.querySelectorAll('#sewPick [data-bid], #retPick [data-bid]').forEach(x=>x.onclick=()=>pickBag(x.dataset.pick, x.dataset.bid));
+  }
+  /* แตะเลขถุง = เลือกชนิดผ้า/ไซซ์/ถุงให้ครบในทีเดียว (แทนการเลือก 3 ช่อง) */
+  function pickBag(kind, id){
+    const b=CALC.cutBatchStatus(S.cutBatches,S.sewSent,S.sewReturns,PROD.fabricWd).find(x=>x.batchId===id); if(!b) return;
+    const fm=$(kind+'FreeMode'); if(fm && fm.checked){ fm.checked=false; fm.onchange&&fm.onchange.call(fm); }
+    $(kind+'FabSel').value=b.fabricType; rFabric();
+    $(kind+'SizeSel').value=b.size; rFabric();
+    const sel=$(kind+'BatchSel'); sel.value=id; sel.dispatchEvent(new Event('change'));
+    rFabric();
+    const q=$(kind==='sew'?'sewQty':'retQty'); if(q&&q.scrollIntoView) q.scrollIntoView({block:'center', behavior:'smooth'});
+  }
   $('cutFreeMode').onchange=function(){
     const free=this.checked;
+    if($('cutFreeBatchRow')) $('cutFreeBatchRow').style.display=free?'block':'none';
     $('cutBatchModeRow').style.display=free?'none':'flex';
     $('cutFreeModeRow').style.display=free?'flex':'none';
   };
@@ -2228,6 +2315,7 @@ window.WPDAUTH = {
   $('retNameSel').onchange=function(){ const v=this.value,t=$('retName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} };
   $('sewFreeMode').onchange=function(){
     const free=this.checked;
+    if($('sewPickWrap')) $('sewPickWrap').style.display=free?'none':'';
     $('sewBatchModeRow').style.display=free?'none':'flex';
     $('sewBatchSelLabel').style.display=free?'none':'block';
     $('sewBatchSel').style.display=free?'none':'block';
@@ -2303,6 +2391,7 @@ window.WPDAUTH = {
   $('btnAddRetFreeRow').onclick=()=>addRetFreeRow(lastSizeIn('retFreeRows'));
   $('retFreeMode').onchange=function(){
     const free=this.checked;
+    if($('retPickWrap')) $('retPickWrap').style.display=free?'none':'';
     $('retBatchModeRow').style.display=free?'none':'flex';
     $('retBatchSelLabel').style.display=free?'none':'block';
     $('retBatchSel').style.display=free?'none':'block';

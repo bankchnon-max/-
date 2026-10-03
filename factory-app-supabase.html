@@ -520,7 +520,7 @@
             <option value="ปิกนิก">ปิกนิก (แพ็คใยแผ่นที่ผลิตไว้)</option>
             <option value="อื่นๆ">อื่นๆ</option>
           </select>
-          <div id="nPicRow" style="display:none;"><label>ไซซ์ปิกนิก</label><select id="nPicSize"><option value="3F">3F (40x79)</option><option value="3.5F">3.5F (46x79)</option><option value="5F">5F (63x78)</option><option value="6F">6F (76x83)</option><option value="">อื่นๆ / ไม่ระบุ</option></select></div></div>
+          <div id="nPicRow" style="display:none;"><label>ไซซ์ปิกนิก</label><select id="nPicSize"><option value="3F">3F (36x75)</option><option value="3.5F">3.5F (42x75)</option><option value="5F">5F (59x75)</option><option value="6F">6F (72x78)</option><option value="">อื่นๆ / ไม่ระบุ</option></select></div></div>
           <div><label>จำนวนที่ลูกค้าสั่ง (แพ็ค)</label><input id="nPacks" type="number" inputmode="numeric" placeholder="500"></div>
         </div>
         <label>ทำถึงเวลา (เตือนก่อน 5 นาที)</label><input id="nDue" type="datetime-local">
@@ -925,7 +925,7 @@
       <label>ชื่อลูกค้า</label><input id="edCust">
       <label>รหัส/สเปคงาน</label><input id="edCode">
       <label>ประเภทสินค้า</label><select id="edCat"></select>
-      <div id="edPicRow" style="display:none;"><label>ไซซ์ปิกนิก</label><select id="edPicSize"><option value="3F">3F (40x79)</option><option value="3.5F">3.5F (46x79)</option><option value="5F">5F (63x78)</option><option value="6F">6F (76x83)</option><option value="">อื่นๆ / ไม่ระบุ</option></select></div>
+      <div id="edPicRow" style="display:none;"><label>ไซซ์ปิกนิก</label><select id="edPicSize"><option value="3F">3F (36x75)</option><option value="3.5F">3.5F (42x75)</option><option value="5F">5F (59x75)</option><option value="6F">6F (72x78)</option><option value="">อื่นๆ / ไม่ระบุ</option></select></div>
       <div id="edCatNote" style="font-size:11.5px;color:var(--dim);margin-top:3px;"></div>
       <label>จำนวนที่สั่ง (แพ็ค)</label><input id="edPacks" type="number" inputmode="numeric">
       <label>ทำถึงเวลา</label><input id="edDue" type="datetime-local">
@@ -1965,7 +1965,8 @@ window.WPDAUTH = {
     return t==='ปิกนิก'?'ปิกนิก':'อื่นๆ';
   }
   /* ไซซ์ปิกนิก: ตั้งไว้ที่ออเดอร์ · ออเดอร์เก่าดูจากรหัสงาน (เช่น "ปิกนิก 5F") หรือไซซ์ปลอกใน Standard */
-  const PICNIC_BY_CASE={'40x79':'3F','46x79':'3.5F','63x78':'5F','76x83':'6F'};
+  /* ไซซ์สำเร็จ (และไซซ์ผ้าที่ตัด) → ไซซ์ปิกนิก */
+  const PICNIC_BY_CASE={'36x75':'3F','42x75':'3.5F','59x75':'5F','72x78':'6F','40x79':'3F','46x79':'3.5F','63x78':'5F','76x83':'6F'};
   function picnicSize(o){
     if(!o || prodCat(o)!=='ปิกนิก') return '';
     if(o.picnicSize) return o.picnicSize;

@@ -3146,7 +3146,7 @@ window.WPDAUTH = {
   /* ---------- 4. FINISHED GOODS ---------- */
   /* ประเภทสินค้า: ตั้งที่ออเดอร์ (แอพผลิต) — ออเดอร์เก่าที่ยังไม่ตั้ง เดาจากประเภทหลัก+รหัสงาน */
   const PROD_CATS=['หมอนหนุน','หมอนข้าง','ใยแผ่น','ใยปั่น/ใยสาง','ปิกนิก','ผ้าห่ม','อื่นๆ'];
-  const PICNIC_SIZES=['3F','3.5F','5F','6F'], PICNIC_BY_CASE={'40x79':'3F','46x79':'3.5F','63x78':'5F','76x83':'6F'};
+  const PICNIC_SIZES=['3F','3.5F','5F','6F'], PICNIC_BY_CASE={'36x75':'3F','42x75':'3.5F','59x75':'5F','72x78':'6F','40x79':'3F','46x79':'3.5F','63x78':'5F','76x83':'6F'};
   function sizeFromText(t){ const m=/(\d+(?:\.\d+)?)\s*F(?![a-z])/i.exec(String(t||'')); return m?m[1]+'F':''; }
   /* ไซซ์ปิกนิก: ตั้งที่ออเดอร์ · ออเดอร์เก่าดูจากรหัสงาน หรือไซซ์ปลอกใน Standard */
   function picnicSize(o){ if(!o || prodCat(o)!=='ปิกนิก') return ''; if(o.picnicSize) return o.picnicSize;

@@ -145,6 +145,8 @@
                 background:var(--panel2); color:var(--text); font:inherit; cursor:pointer; text-align:left; min-width:140px; }
   .bagpick .bp b{ font-size:19px; } .bagpick .bp small{ font-size:12.5px; color:var(--dim); line-height:1.4; }
   .bagpick .bp.on{ border-color:var(--accent); box-shadow:inset 0 0 0 2px var(--accent); }
+  .bagpick .bp.del{ border-color:var(--red); box-shadow:inset 0 0 0 2px var(--red); opacity:.85; }
+  .bagdelbar{ display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 2px; }
   .oldtoggle{ display:flex !important; align-items:center; gap:8px; margin-top:16px !important; padding-top:10px; border-top:1px dashed var(--border);
               font-size:12.5px !important; color:var(--dim) !important; }
   .oldtoggle input{ width:auto !important; margin:0 !important; }
@@ -591,8 +593,8 @@
       <div class="card" data-step="sew">
         <h3>③ ส่งให้ช่างเย็บ</h3>
         <div id="sewPickWrap"><div class="sumline" style="margin-top:-4px;">แตะเลขถุงที่จะส่ง</div>
-          <button class="btn sec sm" id="sewMultiBtn" style="margin:4px 0 2px;">☑ ส่งหลายถุงพร้อมกัน</button>
-          <div class="bagpick" id="sewPick"></div><div id="sewMultiBox"></div></div>
+          <div class="bagdelbar"><button class="btn sec sm" id="sewMultiBtn">☑ ส่งหลายถุงพร้อมกัน</button><button class="btn sec sm" id="sewDelMode">🗑 ลบถุงที่ไม่มีอยู่จริงแล้ว</button></div>
+          <div class="bagpick" id="sewPick"></div><div id="sewMultiBox"></div><div id="sewDelBox"></div></div>
         <div class="rf" id="sewBatchModeRow">
           <div><label>ชนิดผ้า</label><select id="sewFabSel"></select></div>
           <div><label>ไซซ์</label><select id="sewSizeSel"></select></div>
@@ -629,8 +631,8 @@
       <div class="card" data-step="ret">
         <h3>④ รับปลอกกลับจากช่างเย็บ</h3>
         <div id="retPickWrap"><div class="sumline" style="margin-top:-4px;">แตะเลขถุงที่ช่างส่งคืน — ถุงเบอร์ไหนไป รับกลับเข้าเบอร์นั้น</div>
-          <button class="btn sec sm" id="retMultiBtn" style="margin:4px 0 2px;">☑ รับกลับหลายถุงพร้อมกัน</button>
-          <div class="bagpick" id="retPick"></div><div id="retMultiBox"></div></div>
+          <div class="bagdelbar"><button class="btn sec sm" id="retMultiBtn">☑ รับกลับหลายถุงพร้อมกัน</button><button class="btn sec sm" id="retDelMode">🗑 ลบถุงที่ไม่มีอยู่จริงแล้ว</button></div>
+          <div class="bagpick" id="retPick"></div><div id="retMultiBox"></div><div id="retDelBox"></div></div>
         <div class="rf" id="retBatchModeRow">
           <div><label>ชนิดผ้า</label><select id="retFabSel"></select></div>
           <div><label>ไซซ์ที่ตัด</label><select id="retSizeSel"></select></div>
@@ -2527,7 +2529,7 @@ window.WPDAUTH = {
     $('fsRet').innerHTML='ที่ช่าง <b>'+atSewer.length+'</b> ถุง';
     $('fsStock').innerHTML='พร้อมผลิต <b>'+ready+'</b>';
     const lastSend=id=>(S.sewSent||[]).filter(x=>x.batchId===id).sort((x,y)=>String(x.time).localeCompare(String(y.time))).pop()||{};
-    const chip=(kind,b,sub)=>'<button class="bp'+((MULTI&&MULTI[kind]?MULTI[kind].includes(b.batchId):$(kind+'BatchSel').value===b.batchId)?' on':'')+'" data-pick="'+kind+'" data-bid="'+b.batchId+'">'+
+    const chip=(kind,b,sub)=>'<button class="bp'+((BAGDEL&&BAGDEL[kind])?(BAGDEL[kind].includes(b.batchId)?' del':''):((MULTI&&MULTI[kind]?MULTI[kind].includes(b.batchId):$(kind+'BatchSel').value===b.batchId)?' on':''))+'" data-pick="'+kind+'" data-bid="'+b.batchId+'">'+
       '<b>ถุง #'+b.batchNo+'</b><small>'+esc(b.fabricType)+' · '+esc(b.size)+'<br>'+sub+'</small></button>';
     const byName=(x,y)=>(x.fabricType+x.size).localeCompare(y.fabricType+y.size,'th')||(x.batchNo-y.batchNo);
     $('sewPick').innerHTML=toSend.length ? toSend.slice().sort(byName).map(b=>chip('sew',b,b.cutBalance+' ชิ้น · ตัด '+thDate(b.time))).join('')
@@ -2572,7 +2574,39 @@ window.WPDAUTH = {
     };
   });
   $('retPP').addEventListener('input',()=>{ if(MULTI.ret) renderMulti('ret'); });
+  /* ---------- ลบถุงที่ไม่มีอยู่จริงแล้ว (เลือกหลายถุงได้ ไม่จำกัดไซซ์) ---------- */
+  var BAGDEL={ sew:null, ret:null };   /* var: ชิปถุงอาจวาดก่อนถึงบรรทัดนี้ */
+  const bagWdQty=id=>(PROD.fabricWd||[]).reduce((a,w)=>a+(w.picks||[]).filter(p=>p.batchId===id).reduce((x,p)=>x+(+p.qty||0),0),0);
+  function renderBagDel(kind){
+    const box=$(kind+'DelBox'), on=!!BAGDEL[kind];
+    $(kind+'DelMode').textContent=on?'✕ เลิกเลือกถุงที่จะลบ':'🗑 ลบถุงที่ไม่มีอยู่จริงแล้ว';
+    $(kind+'MultiBtn').style.display=on?'none':'';
+    if(!on){ box.innerHTML=''; return; }
+    const L=BAGDEL[kind], bt=id=>S.cutBatches.find(x=>x.id===id)||{};
+    box.innerHTML='<div class="sumline" style="margin-top:6px;color:var(--red);">แตะถุงที่ไม่มีอยู่จริงแล้ว (กรอบแดง) — เลือกได้หลายถุง</div>'+
+      (L.length?'<button class="btn dg w" id="'+kind+'DelGo" style="margin-top:6px;">✕ ลบถุงที่เลือกทิ้ง ('+L.length+' ถุง: '+L.map(id=>'#'+bt(id).batchNo+' '+bt(id).size).join(', ')+')</button>':'');
+    const go=$(kind+'DelGo'); if(!go) return;
+    go.onclick=async()=>{
+      const sel=L.map(bt).filter(x=>x.id);
+      const used=sel.filter(x=>bagWdQty(x.id)>0);
+      if(used.length){ await info('ถุงที่ท้ายไลน์เบิกไปแล้ว ลบไม่ได้', used.map(x=>'ถุง #'+x.batchNo+' ('+x.fabricType+' '+x.size+') เบิกไปแล้ว '+bagWdQty(x.id)+' ชิ้น').join('\n')+'\n\nเอาถุงนี้ออกจากที่เลือกก่อน — ถ้ายอดผิด ให้แตะเลขถุงในตารางประวัติแล้ว "แก้จำนวน" แทน'); return; }
+      const ids=new Set(sel.map(x=>x.id));
+      const nS=(S.sewSent||[]).filter(x=>ids.has(x.batchId)).length, nR=(S.sewReturns||[]).filter(x=>ids.has(x.batchId)).length;
+      if(!await ask('ลบถุง '+sel.length+' ถุงทิ้ง?', sel.map(x=>'#'+x.batchNo+' · '+x.fabricType+' '+x.size+' · ตัดได้ '+x.qtyCut+' ชิ้น').join('\n')+
+        ((nS||nR)?'\n\nจะลบรายการส่งเย็บ '+nS+' รายการ และรับกลับ '+nR+' รายการ ของถุงเหล่านี้ไปด้วย':'')+'\n\nกู้คืนไม่ได้')) return;
+      S.cutBatches=S.cutBatches.filter(x=>!ids.has(x.id)); S.sewSent=S.sewSent.filter(x=>!ids.has(x.batchId)); S.sewReturns=S.sewReturns.filter(x=>!ids.has(x.batchId));
+      BAGDEL[kind]=null; await saveFabric(); renderBagDel(kind); rFabric(); toast('ลบถุงแล้ว '+sel.length+' ถุง — #'+sel.map(x=>x.batchNo).join(', #'));
+    };
+  }
+  ['sew','ret'].forEach(kind=>{
+    $(kind+'DelMode').onclick=()=>{
+      BAGDEL[kind]=BAGDEL[kind]?null:[];
+      if(BAGDEL[kind] && MULTI[kind]){ MULTI[kind]=null; multiQty[kind]={}; renderMulti(kind); }
+      renderBagDel(kind); rFabric();
+    };
+  });
   function pickBag(kind, id){
+    if(BAGDEL[kind]){ const L=BAGDEL[kind], i=L.indexOf(id); if(i>=0) L.splice(i,1); else L.push(id); rFabric(); renderBagDel(kind); return; }
     const b=CALC.cutBatchStatus(S.cutBatches,S.sewSent,S.sewReturns,PROD.fabricWd).find(x=>x.batchId===id); if(!b) return;
     if(MULTI[kind]){
       const L=MULTI[kind], i=L.indexOf(id);

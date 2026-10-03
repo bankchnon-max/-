@@ -885,9 +885,12 @@ window.WPDAUTH = {
      ═══════════════════════════════════════════════════════════════ */
   const COST = {
     /* ราคาใย บาท/กก. — ถ้าใส่แยกไว้ทีละก้อนใช้ของก้อนนั้น ไม่งั้นใช้ราคามาตรฐาน */
-    fiberPricePerKg(PRICE, name, lot){
+    /* ราคาต่อก้อน: ใส่แยกตามรายการรับเข้า (เบอร์ซ้ำที่รับคนละวัน) ก่อน แล้วค่อยตามเบอร์ก้อน */
+    fiberPricePerKg(PRICE, name, lot, receiptId){
       const e=((PRICE||{}).fiber||{})[name];
       if(!e) return { baht:0, src:'none' };
+      const byRid=receiptId?(e.rids||{})[String(receiptId)]:null;
+      if(+byRid>0) return { baht:+byRid, src:'lot' };
       const byLot=(e.lots||{})[String(lot)];
       if(+byLot>0) return { baht:+byLot, src:'lot' };
       if(+e.std>0) return { baht:+e.std, src:'std' };
@@ -895,9 +898,11 @@ window.WPDAUTH = {
     },
 
     /* ราคาม้วนผ้า บาท/ม้วน */
-    fabricPricePerRoll(PRICE, type, rollNo){
+    fabricPricePerRoll(PRICE, type, rollNo, rollId){
       const e=((PRICE||{}).fabric||{})[type];
       if(!e) return { baht:0, src:'none' };
+      const byId=rollId?(e.rollIds||{})[String(rollId)]:null;
+      if(+byId>0) return { baht:+byId, src:'roll' };
       const byRoll=(e.rolls||{})[String(rollNo)];
       if(+byRoll>0) return { baht:+byRoll, src:'roll' };
       if(+e.std>0) return { baht:+e.std, src:'std' };
@@ -917,11 +922,11 @@ window.WPDAUTH = {
       const b=(cutBatches||[]).find(x=>x.id===batchId);
       if(!b) return { baht:0, src:'none', type:'' };
       const type=b.fabricType||'';
-      const p=COST.fabricPricePerRoll(PRICE, type, b.rollNo);
+      const p=COST.fabricPricePerRoll(PRICE, type, b.rollNo, b.rollId);
       if(!p.baht) return { baht:0, src:'none', type:type };
       let same=[b];
       if(b.rollNo!=null && b.rollNo!==''){
-        same=(cutBatches||[]).filter(x=>x.fabricType===type && String(x.rollNo)===String(b.rollNo));
+        same=(cutBatches||[]).filter(x=>b.rollId ? x.rollId===b.rollId : (x.fabricType===type && String(x.rollNo)===String(b.rollNo) && !x.rollId));
         if(!same.some(x=>+x.qtyCut)) same=[b];
       }
       const pieces=same.reduce((s,x)=>s+(+x.qtyCut||0),0);
@@ -1066,9 +1071,9 @@ window.WPDAUTH = {
       const packs=lines.length, pieces=COST.madePieces(lines, (P.carry||[]).filter(inR));
       const hours=r2(COST.runDays(lines).reduce((s,d)=>s+d.hours,0));
       let fiber=0, fiberKg=0;
-      (P.use||[]).filter(inR).forEach(u=>{ const kg=+u.kg||0; fiberKg+=kg; fiber+=kg*COST.fiberPricePerKg(PRICE,u.fiberName,u.lot).baht; });
+      (P.use||[]).filter(inR).forEach(u=>{ const kg=+u.kg||0; fiberKg+=kg; fiber+=kg*COST.fiberPricePerKg(PRICE,u.fiberName,u.lot,u.receiptId).baht; });
       const withUse=new Set((P.use||[]).map(u=>u.orderId));
-      (P.wd||[]).filter(w=>inR(w) && !withUse.has(w.orderId)).forEach(w=>{ const kg=+w.kg||0; fiberKg+=kg; fiber+=kg*COST.fiberPricePerKg(PRICE,w.fiberName,w.lot).baht; });
+      (P.wd||[]).filter(w=>inR(w) && !withUse.has(w.orderId)).forEach(w=>{ const kg=+w.kg||0; fiberKg+=kg; fiber+=kg*COST.fiberPricePerKg(PRICE,w.fiberName,w.lot,w.receiptId).baht; });
       let fab=0, sew=0;
       (P.orders||[]).forEach(o=>COST.caseRowsFor(P,o.id,inR).forEach(cu=>{
         const q=+cu.pieces||0; fab+=q*COST.fabricBahtPerPiece(PRICE,S.cutBatches,cu.batchId).baht;
@@ -1108,7 +1113,7 @@ window.WPDAUTH = {
       const byBale={};
       useRows.forEach(u=>{
         const kg=+u.kg||0; if(!kg) return;
-        const p=COST.fiberPricePerKg(PRICE, u.fiberName, u.lot);
+        const p=COST.fiberPricePerKg(PRICE, u.fiberName, u.lot, u.receiptId);
         fiberKg=r3(fiberKg+kg); fiberBaht=r2(fiberBaht+kg*p.baht);
         if(p.src==='none') miss.push('ใย "'+u.fiberName+'" ยังไม่ได้ใส่ราคา');
         if(u.pending) miss.push('ใย "'+u.fiberName+'" บางส่วนป้อนไปตอนยังไม่ได้เบิกก้อน — คิดราคามาตรฐานไว้ก่อน จนกว่าจะกดเบิกก้อน');
@@ -1494,11 +1499,14 @@ window.WPDAUTH = {
       const lots=S.fiberReceipts.filter(r=>r.fiberName===n)
         .sort((a,b)=>String(b.time).localeCompare(String(a.time)));
       const used=usedLots[n]||new Set();
+      const _dupLot={}; lots.forEach(l=>{ _dupLot[String(l.lotNo)]=(_dupLot[String(l.lotNo)]||0)+1; });
       const rows=lots.slice(0,60).map(l=>{
-        const isUsed=used.has(String(l.lotNo));
+        const isUsed=used.has(String(l.lotNo)), dup=_dupLot[String(l.lotNo)]>1;
         return '<div class="frow"><div style="flex:1;font-size:12.5px">เบอร์ '+esc(l.lotNo)+' · '+l.kg+' กก. · '+thDate(l.time)+
-          (isUsed?' <span class="bdg warn">เคยเบิกใช้</span>':'')+'</div>'+
-          '<div style="width:110px">'+priceInput('fiber|'+n+'|lot|'+l.lotNo, (e.lots||{})[String(l.lotNo)], 'ตามมาตรฐาน')+'</div></div>';
+          (isUsed?' <span class="bdg warn">เคยเบิกใช้</span>':'')+
+          (dup?' <span class="bdg warn">เบอร์ซ้ำ — คนละวัน</span>':'')+'</div>'+
+          '<div style="width:110px">'+(dup ? priceInput('fiber|'+n+'|rid|'+l.id, (e.rids||{})[String(l.id)]!=null?(e.rids||{})[String(l.id)]:(e.lots||{})[String(l.lotNo)], 'ตามมาตรฐาน')
+                                           : priceInput('fiber|'+n+'|lot|'+l.lotNo, (e.lots||{})[String(l.lotNo)], 'ตามมาตรฐาน'))+'</div></div>';
       }).join('');
       return '<div class="scard"><div class="nm">'+esc(n)+'</div>'+
         '<div class="frow" style="margin-top:6px;"><div style="flex:1;font-size:12.5px">ราคามาตรฐาน (บาท/กก.)</div>'+
@@ -1519,8 +1527,11 @@ window.WPDAUTH = {
       S.cutBatches.filter(b=>b.fabricType===n).forEach(b=>{ const k=String(b.rollNo); cutBy[k]=(cutBy[k]||0)+(+b.qtyCut||0); });
       const rows=rolls.slice(0,60).map(l=>
         '<div class="frow"><div style="flex:1;font-size:12.5px">ม้วน #'+esc(l.rollNo)+' · '+thDate(l.time)+
-        (cutBy[String(l.rollNo)]?' · ตัดได้ '+fmtInt(cutBy[String(l.rollNo)])+' ชิ้น':' <span class="bdg warn">ยังไม่ได้ตัด</span>')+'</div>'+
-        '<div style="width:110px">'+priceInput('fabric|'+n+'|roll|'+l.rollNo, (e.rolls||{})[String(l.rollNo)], 'ตามมาตรฐาน')+'</div></div>').join('');
+        (cutBy[String(l.rollNo)]?' · ตัดได้ '+fmtInt(cutBy[String(l.rollNo)])+' ชิ้น':' <span class="bdg warn">ยังไม่ได้ตัด</span>')+
+        (rolls.filter(x=>String(x.rollNo)===String(l.rollNo)).length>1?' <span class="bdg warn">เลขซ้ำ — คนละวัน</span>':'')+'</div>'+
+        '<div style="width:110px">'+(rolls.filter(x=>String(x.rollNo)===String(l.rollNo)).length>1
+          ? priceInput('fabric|'+n+'|rollid|'+l.id, (e.rollIds||{})[String(l.id)]!=null?(e.rollIds||{})[String(l.id)]:(e.rolls||{})[String(l.rollNo)], 'ตามมาตรฐาน')
+          : priceInput('fabric|'+n+'|roll|'+l.rollNo, (e.rolls||{})[String(l.rollNo)], 'ตามมาตรฐาน'))+'</div></div>').join('');
       const perPc=(()=>{ const b=S.cutBatches.filter(x=>x.fabricType===n)[0];
         if(!b) return null; const c=COST.fabricBahtPerPiece(PRICE,S.cutBatches,b.id); return c.baht?c:null; })();
       return '<div class="scard"><div class="nm">'+esc(n)+'</div>'+
@@ -1579,7 +1590,7 @@ window.WPDAUTH = {
       PRICE[grp][name]=PRICE[grp][name]||{};
       if(kind==='std'){ if(v>0) PRICE[grp][name].std=v; else delete PRICE[grp][name].std; }
       else {
-        const bucket = kind==='lot'?'lots':(kind==='roll'?'rolls':'sacks');
+        const bucket = kind==='lot'?'lots':kind==='rid'?'rids':kind==='roll'?'rolls':kind==='rollid'?'rollIds':'sacks';
         PRICE[grp][name][bucket]=PRICE[grp][name][bucket]||{};
         if(v>0) PRICE[grp][name][bucket][key]=v; else delete PRICE[grp][name][bucket][key];
       }

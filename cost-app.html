@@ -1179,10 +1179,12 @@ window.WPDAUTH = {
       if(laborTime) detail.push({cat:'ค่าแรง', what:'รายวัน', qty:hours+' ชม.', unit:r2(hrRate), baht:laborTime, src:'set'});
       if(laborPiece) detail.push({cat:'ค่าแรง', what:'รายชิ้น', qty:pieces+' ชิ้น', unit:+K.laborPerPiece||0, baht:laborPiece, src:'set'});
 
-      /* ---- แก๊ส: นับถังที่เปลี่ยนระหว่างช่วงเวลาของงานนี้ (ใยปั่น/ใยสาง ไม่ใช้แก๊ส ไม่คิด) ---- */
+      /* ---- แก๊ส: นับถังที่เปลี่ยนระหว่างช่วงเวลาของงานนี้ — เฉพาะงานที่ใช้แก๊ส (ใยแผ่น)
+              หมอน/ปิกนิก/ใยปั่น-ใยสาง ไม่ใช้แก๊ส ไม่คิด แม้เปลี่ยนถังที่ไลน์ใยแผ่นช่วงเดียวกัน ---- */
       let gasTanks=0, gasBaht=0;
       const _looseFiber=!!order && (order.productType||'ใย')==='ใย' && (order.category==='ใยปั่น/ใยสาง' || (!order.category && /ใยสาง|ใยปั่น|สาง|ปั่น/.test(String(order.code||''))));
-      if(order && order.startedAt && !_looseFiber){
+      const _noGasJob=_looseFiber || !!order && ['หมอน','ปิกนิก'].includes(order.productType||'');
+      if(order && order.startedAt && !_noGasJob){
         const from=String(order.startedAt), to=String(order.finishedAt||'9999');
         (P.gasSwaps||[]).forEach(g=>{
           const t=String(g.time||'');

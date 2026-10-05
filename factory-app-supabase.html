@@ -50,6 +50,10 @@
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
     border:2px solid transparent; transition:transform .07s; min-height:104px; }
   #fr .bigbtn:active { transform:scale(.96); }
+  #fr .pictap { width:100%; margin-top:12px; border-radius:16px; padding:22px 10px; min-height:110px; cursor:pointer;
+    font-family:'Kanit',sans-serif; font-weight:700; font-size:30px; color:#fff; background:var(--accent); border:none; }
+  #fr .pictap:active { transform:scale(.97); } #fr .pictap[disabled] { opacity:.5; }
+  #fr .pictap small { display:block; font-size:14px; font-weight:500; opacity:.9; margin-top:4px; }
   #fr .bigbtn .ic { font-size:30px; line-height:1; }
   #fr .bigbtn.pause { background:#f0b429; color:#241a02; border-color:#c8951a;
     box-shadow:0 5px 0 #b8860f, 0 8px 16px rgba(0,0,0,.35); }
@@ -625,6 +629,16 @@
       <div class="card" id="cardSpec">
         <div id="specForm"></div>
       </div>
+      <div class="card" id="cardPicTap" style="display:none;">
+        <h3>🧺 แพ็คปิกนิก — เลือกของที่ใช้ แล้วกด 1 ครั้ง = 1 แพ็ค</h3>
+        <div class="sumline" id="ptInfo"></div>
+        <label>ใยแผ่นที่ใช้ — จากงานไหน</label><select id="ptSheet"></select>
+        <label>ปลอก — ถุงที่หยิบมา</label><select id="ptCase"></select>
+        <label>ถุงแพ็ค — กระสอบที่หยิบมา</label><select id="ptSack"></select>
+        <button class="pictap" id="btnPicTap">＋1 แพ็ค<small id="ptBtnSub"></small></button>
+        <div class="sumline" id="ptToday" style="margin-top:8px;"></div>
+        <label class="oldtoggle"><input type="checkbox" id="ptDetail"> แสดงการเบิก/ชั่งแบบละเอียด (หน้าแบบเดิม)</label>
+      </div>
       <div class="card" id="cardRun">
         <h3>ท้ายไลน์ — ออเดอร์ที่กำลังทำงาน</h3>
         <div id="lineInfo"></div>
@@ -653,17 +667,19 @@
         <p class="sumline">งานนี้ไม่ได้ผลิตใยใหม่ — ยกใยแผ่นที่ผลิตเสร็จแล้วมาแพ็ค
           เบิกแล้วยอดสินค้าใยแผ่นในแอพสต๊อกจะลดทันที ไม่ต้องไปปรับยอดเอง</p>
         <div class="sumline" id="sheetLineInfo"></div>
-        <div class="rf" style="margin-top:8px;">
-          <div><label>เอาใยแผ่นจากงานไหน</label><select id="swSrc"></select></div>
-          <div><label>เบิกกี่แผ่น</label><input id="swQty" type="number" inputmode="numeric" placeholder="เช่น 50"></div>
+        <div class="rf" style="margin-top:8px; align-items:flex-end;">
+          <div><label>อยากได้กี่แผ่น (ไม่บังคับ — ไว้ให้ระบบติ๊กให้)</label><input id="swQty" type="number" inputmode="numeric" placeholder="เช่น 50"></div>
+          <div><button class="btn sec" id="btnSwAuto" style="margin-top:0;">✓ ติ๊กให้พอตามจำนวน</button></div>
         </div>
+        <div class="sumline" style="margin-top:10px; font-weight:600;">ติ๊กงานใยแผ่นที่หยิบมาใช้จริง — ใส่ได้ว่าเอามากี่แผ่นต่องาน</div>
+        <div id="swList" class="scr" style="max-height:320px;"></div>
         <div class="sumline" id="swPreview"></div>
-        <button class="btn w" id="btnSheetWd">🧺 เบิกใยแผ่นมาที่ไลน์</button>
+        <button class="btn w" id="btnSheetWd">🧺 ยืนยันเบิกใยแผ่นที่ติ๊กไว้</button>
         <div class="scr" style="margin-top:11px;"><table id="tSheetWd"></table></div>
       </div>
       <div class="card" id="cardFabWd">
         <h3>🧷 เบิกถุงบรรจุผ้า</h3>
-        <p class="sumline">พิมพ์จำนวนที่ต้องการ ระบบไล่หยิบจากถุงบรรจุผ้าเก่าสุดในแอพสต๊อกให้อัตโนมัติจนครบ<br>
+        <p class="sumline">ติ๊กถุงที่หยิบมาจริง และใส่ได้ว่าเอาไปกี่ชิ้นต่อถุง · ถ้าพิมพ์จำนวนที่อยากได้แล้วกด "ติ๊กให้พอ" ระบบติ๊กถุงเก่าสุดให้ก่อน แก้เองได้<br><br>
         <span style="color:var(--muted)">ถุงจะขึ้นให้เบิกได้ก็ต่อเมื่อบันทึก "รับกลับจากช่างเย็บ" ในแอพสต๊อกแล้ว</span></p>
         <div class="rf">
           <div><label>ชนิดผ้า</label><select id="fwFabSel"></select></div>
@@ -2276,28 +2292,33 @@ window.WPDAUTH = {
       refreshGasUI(); toast('ลบแล้ว');
     });
   }
-  ['swSrc','swQty'].forEach(id=>{ const e=$(id); if(e){ e.addEventListener('input',updateSwPreview); e.addEventListener('change',updateSwPreview); } });
+  ['swQty'].forEach(id=>{ const e=$(id); if(e){ e.addEventListener('input',updateSwPreview); e.addEventListener('change',updateSwPreview); } });
+  if($('btnSwAuto')) $('btnSwAuto').onclick=()=>{
+    const want=+$('swQty').value||0; if(!want){ toast('พิมพ์จำนวนที่อยากได้ก่อน'); return; }
+    const box=$('swList'); let left=want;
+    swRows().forEach(a=>{
+      const c=box.querySelector('[data-swb="'+CSS.escape(a.orderId)+'"]'), q=box.querySelector('[data-swq="'+CSS.escape(a.orderId)+'"]'); if(!c||!q) return;
+      if(left<=0){ c.checked=false; q.value=a.available; return; }
+      const take=r3(Math.min(a.available,left)); c.checked=true; q.value=take; left=r3(left-take);
+    });
+    updateSwPreview(); toast(left>0?('ติ๊กให้แล้ว แต่ยังขาดอีก '+left+' แผ่น'):'ติ๊กงานที่ผลิตก่อนให้พอแล้ว');
+  };
   if($('btnSheetWd')) $('btnSheetWd').onclick=async()=>{
     const o=active();
     if(!isPicnic(o)){ toast('งานนี้ไม่ใช่งานปิกนิก'); return; }
-    const src=$('swSrc').value, qty=+$('swQty').value||0;
-    if(!src){ toast('เลือกงานใยแผ่นที่จะเอามาแพ็คก่อน'); return; }
-    if(!qty||qty<=0){ toast('กรอกจำนวนแผ่นที่จะเบิก'); return; }
-    const a=sheetAvail().find(x=>x.orderId===src);
-    if(!a){ toast('ไม่พบงานใยแผ่นนั้น'); return; }
-    if(qty>a.available){
-      await info('เบิกเกินที่มีในสต๊อก',
-        a.customer+' — '+a.code+'\nเหลือให้เบิกได้ '+a.available+' แผ่น แต่กรอกไว้ '+qty+' แผ่น\n\nลดจำนวนลง หรือไปผลิตใยแผ่นเพิ่มก่อน');
-      return;
-    }
-    if(!await ask('เบิกใยแผ่น '+qty+' แผ่นมาที่ไลน์?',
-      'จาก: '+a.customer+' — '+a.code+'\nเบิก: '+qty+' แผ่น\nเหลือในสต๊อกหลังเบิก: '+r3(a.available-qty)+' แผ่น\n\nยอดสินค้าใยแผ่นในแอพสต๊อกจะลดทันที')) return;
+    const picks=swTicked();
+    if(!picks.length){ toast('ติ๊กงานใยแผ่นที่หยิบมาก่อน'); return; }
+    const over=picks.filter(p=>p.qty>p.max);
+    if(over.length){ await info('เบิกเกินที่มีในสต๊อก', over.map(p=>p.label+'\nเหลือให้เบิกได้ '+p.max+' แผ่น แต่กรอกไว้ '+p.qty+' แผ่น').join('\n\n')+'\n\nลดจำนวนลง หรือไปผลิตใยแผ่นเพิ่มก่อน'); return; }
+    const total=r3(picks.reduce((a,p)=>a+p.qty,0));
+    if(!await ask('เบิกใยแผ่น '+total+' แผ่นมาที่ไลน์?', picks.map(p=>'จาก '+p.label+': '+p.qty+' แผ่น (เหลือ '+r3(p.max-p.qty)+')').join('\n')+'\n\nยอดสินค้าใยแผ่นในแอพสต๊อกจะลดตามนี้ทันที')) return;
     S.sheetWd=S.sheetWd||[];
-    S.sheetWd.push({ id:uid(), time:localISO(), orderId:o.id, srcOrderId:src, qty:r3(qty) });
+    const t=localISO();
+    picks.forEach(p=>S.sheetWd.push({ id:uid(), time:t, orderId:o.id, srcOrderId:p.src, qty:p.qty }));
     await saveFeed();
-    $('swQty').value='';
+    $('swQty').value=''; const box=$('swList'); if(box) box.innerHTML='';
     refreshSheetUI();
-    toast('เบิกใยแผ่นมาที่ไลน์แล้ว '+qty+' แผ่น — ที่ไลน์เหลือ '+CALC.sheetLineTotal(S.sheetWd,S.sheetUse,o.id)+' แผ่น');
+    toast('เบิกใยแผ่นมาที่ไลน์แล้ว '+total+' แผ่น — ที่ไลน์เหลือ '+CALC.sheetLineTotal(S.sheetWd,S.sheetUse,o.id)+' แผ่น');
   };
 
   if($('btnGasSwap')) $('btnGasSwap').onclick=async()=>{
@@ -2667,11 +2688,7 @@ window.WPDAUTH = {
     if(!isPicnic(o)) return;
 
     const avail=sheetAvail().filter(x=>x.available>0.0000001);
-    const sel=$('swSrc'), prev=sel.value;
-    sel.innerHTML='<option value="">— เลือกงานใยแผ่นที่จะเอามาแพ็ค —</option>'+
-      avail.map(a=>'<option value="'+a.orderId+'">'+esc(a.customer+' — '+a.code)+' · เหลือ '+a.available+' แผ่น</option>').join('');
-    if(prev && avail.some(a=>a.orderId===prev)) sel.value=prev;
-
+    renderSwList(avail);
     const atLine=CALC.sheetAtLine(S.sheetWd,S.sheetUse,o.id);
     const total=CALC.sheetLineTotal(S.sheetWd,S.sheetUse,o.id);
     $('sheetLineInfo').innerHTML = total>0
@@ -2689,18 +2706,46 @@ window.WPDAUTH = {
       : '';
     updateSwPreview();
   }
+  /* รายการงานใยแผ่นให้ติ๊ก (เก่าสุดก่อน = งานที่ผลิตก่อน) — จำค่าที่ติ๊ก/พิมพ์ไว้ระหว่างวาดใหม่ */
+  function swRows(avail){
+    const first=id=>{ const l=(S.line||[]).filter(x=>x.orderId===id).map(x=>x.time).sort()[0]; return l||'9999'; };
+    return (avail||sheetAvail().filter(x=>x.available>0.0000001)).slice().sort((a,b)=>first(a.orderId).localeCompare(first(b.orderId)));
+  }
+  function renderSwList(avail){
+    const box=$('swList'); if(!box) return;
+    const rows=swRows(avail);
+    if(!rows.length){ box.innerHTML='<div class="empty" style="padding:8px;">ไม่มีใยแผ่นเหลือให้เบิก</div>'; updateSwPreview(); return; }
+    const prev={}, prevQ={};
+    box.querySelectorAll('[data-swb]').forEach(c=>{ prev[c.dataset.swb]=c.checked; });
+    box.querySelectorAll('[data-swq]').forEach(i=>{ prevQ[i.dataset.swq]=i.value; });
+    box.innerHTML='<table><tr><th style="width:34px;"></th><th>งานใยแผ่น</th><th>เหลือ</th><th>เอามากี่แผ่น</th></tr>'+
+      rows.map(a=>'<tr><td><input type="checkbox" data-swb="'+esc(a.orderId)+'" style="width:22px;height:22px;margin:0;"'+(prev[a.orderId]?' checked':'')+'></td>'+
+        '<td>'+esc(a.customer+' — '+a.code)+'</td><td><b style="color:var(--accent2)">'+a.available+'</b> แผ่น</td>'+
+        '<td><input type="number" inputmode="numeric" data-swq="'+esc(a.orderId)+'" value="'+(prevQ[a.orderId]!=null?esc(prevQ[a.orderId]):a.available)+'" style="max-width:96px;margin:0;"></td></tr>').join('')+'</table>';
+    box.querySelectorAll('[data-swb]').forEach(c=>c.onchange=updateSwPreview);
+    box.querySelectorAll('[data-swq]').forEach(i=>i.oninput=updateSwPreview);
+    updateSwPreview();
+  }
+  function swTicked(){
+    const box=$('swList'); if(!box) return [];
+    const rows=swRows(), out=[];
+    box.querySelectorAll('[data-swb]').forEach(c=>{
+      if(!c.checked) return;
+      const a=rows.find(x=>x.orderId===c.dataset.swb); if(!a) return;
+      const inp=box.querySelector('[data-swq="'+CSS.escape(c.dataset.swb)+'"]');
+      const q=r3(inp?(+inp.value||0):a.available);
+      if(q>0) out.push({ src:a.orderId, label:a.customer+' — '+a.code, qty:q, max:a.available });
+    });
+    return out;
+  }
   function updateSwPreview(){
     const el=$('swPreview'); if(!el) return;
-    const id=$('swSrc')?$('swSrc').value:'', q=+($('swQty')?$('swQty').value:0)||0;
-    if(!id){ el.innerHTML=''; return; }
-    const a=sheetAvail().find(x=>x.orderId===id);
-    if(!a){ el.innerHTML=''; return; }
-    el.innerHTML = q>0
-      ? (q>a.available
-          ? '<span class="bdg bad">เบิกเกินที่มี</span> งานนี้เหลือ '+a.available+' แผ่น แต่กรอก '+q+' แผ่น'
-          : 'จะเบิก <b style="color:var(--accent2)">'+q+' แผ่น</b> จาก '+esc(a.customer+' — '+a.code)+
-            ' · เหลือในสต๊อกอีก '+r3(a.available-q)+' แผ่น')
-      : 'งานนี้ผลิตได้ '+a.produced+' · ส่งแล้ว '+a.shipped+' · เบิกไปแพ็คแล้ว '+a.packed+' → <b>เหลือ '+a.available+' แผ่น</b>';
+    const picks=swTicked(), want=+($('swQty')?$('swQty').value:0)||0, total=r3(picks.reduce((a,p)=>a+p.qty,0));
+    const over=picks.filter(p=>p.qty>p.max);
+    if(!picks.length){ el.innerHTML=$('swList')&&$('swList').querySelector('[data-swb]')?'<span class="bdg warn">ยังไม่ได้ติ๊กงานไหนเลย</span>':''; return; }
+    el.innerHTML='ติ๊กไว้ '+picks.length+' งาน: '+picks.map(p=>esc(p.label)+' ('+p.qty+')').join(', ')+'<br>รวม <b style="color:var(--accent2)">'+total+' แผ่น</b>'+
+      (over.length?' <span class="bdg bad">เกินที่เหลือ: '+over.map(p=>esc(p.label)+' เหลือ '+p.max).join(', ')+'</span>':'')+
+      (want?(total>=want?' <span class="bdg ok">พอตามที่ต้องการ</span>':' <span class="bdg warn">ยังขาดอีก '+r3(want-total)+' แผ่น</span>'):'');
   }
 
   /* ปิกนิก 1 ใบ ใช้ใยแผ่น 1 แผ่น — แพ็คละกี่ใบก็หักเท่านั้น (ตามจำนวนชิ้นต่อแพ็ค) */
@@ -2792,6 +2837,7 @@ window.WPDAUTH = {
     if($('gasAvailInfo')) refreshGasUI();
     if($('cardSheet')) refreshSheetUI();
     rCarry(o);
+    refreshPicTap(o);
     $('lineInfo').innerHTML=o
       ? '<div class="sumline">ออเดอร์: <b style="color:var(--accent2)" class="kn">'+esc(o.customer)+' — '+esc(o.code)+
         '</b> <span class="bdg ok">'+esc(catLabel(o))+'</span></div>'
@@ -2955,11 +3001,11 @@ window.WPDAUTH = {
     }
 
     f.innerHTML='<h3>'+(isSet?'แก้ไขน้ำหนัก Standard':'① ตั้งค่าน้ำหนัก Standard ก่อนเริ่มบันทึก')+'</h3>'+
-      '<div class="rf"><div><label>'+(_isPicnic?'น้ำหนักปิกนิกต่อชิ้น (กก.) — ใยแผ่น + ผ้า':
+      '<div class="rf"><div><label>'+(_isPicnic?'น้ำหนักปิกนิกต่อชิ้น (กก.)':
         (isPillow?'น้ำหนักหมอนต่อชิ้น (กก.) — ผ้า + ใย':'น้ำหนักที่ต้องการต่อชิ้น (กก.)'))+'</label>'+
       '<input id="spW" type="number" inputmode="decimal" step="0.001" value="'+(sp.weightPerPiece||'')+'"></div>'+
       '<div><label>จำนวนชิ้นต่อแพ็ค</label><input id="spN" type="number" inputmode="numeric" value="'+(sp.piecesPerPack||'')+'"></div></div>'+
-      (isPillow ? (
+      (isPillow && !_isPicnic ? (
         '<div class="rf"><div><label>น้ำหนักผ้าปลอกเปล่า (กก./ชิ้น)</label>'+
         '<input id="spFabKg" type="number" inputmode="decimal" step="0.001" value="'+(sp.fabricWeightPerPiece||'')+'" placeholder="ชั่งปลอกที่ยังไม่ยัดใย"></div>'+
         '<div><label>น้ำหนักใยในหมอน 1 ใบ (กก.)</label>'+
@@ -2967,10 +3013,17 @@ window.WPDAUTH = {
         '<div class="sumline" style="margin-top:2px;">ผ้า + ใย = น้ำหนักหมอนต่อชิ้น — กรอกช่องไหนก็ได้ อีกช่องคิดให้เอง<br>'+
         '<span style="color:var(--dim)">ใช้แยกในหน้า <b>สรุป → สมดุลใย เข้า–ออก</b> ว่า "ใยออก" คือใยจริง ๆ กี่กิโล ไม่ปนน้ำหนักผ้า</span></div>'
       ) : '')+
-      (isPillow ? bagBlockHTML('spBag','','zip',sp,isPillow,'ถุงซิล')
+      (_isPicnic ? (
+        '<div class="rf" style="margin-top:9px;"><div><label>ผ้าปลอก</label>'+
+        '<input id="spFabType" list="dlFabType" value="'+esc(sp.fabricType||'')+'" placeholder="เช่น ผ้าปิกนิกลายดอก">'+
+        '<datalist id="dlFabType">'+STOCKFABRIC.types.map(n=>'<option value="'+esc(n)+'">').join('')+'</datalist></div>'+
+        '<div><label>ไซซ์ปลอก</label><input id="spFabSize" list="dlFabSize" value="'+esc(sp.fabricSize||'')+'" placeholder="เช่น 59x75">'+
+        '<datalist id="dlFabSize">'+[...new Set(fabBatchesNow().filter(b=>!sp.fabricType||b.fabricType===sp.fabricType).map(b=>b.size))].map(n=>'<option value="'+esc(n)+'">').join('')+'</datalist></div></div>'+
+        packBagHTML('ถุงแพ็ค')
+      ) : isPillow ? bagBlockHTML('spBag','','zip',sp,isPillow,'ถุงซิล')
                 : packBagHTML('ถุงแพ็คที่ใช้ห่อ (งานใยแผ่นไม่ใช้ถุงซิล)')+
                   '<div class="sumline" style="margin-top:2px;">น้ำหนักถุงแพ็ค × จำนวนใบ ระบบบวกเข้า Standard ให้เอง · บันทึกแพ็คแล้วหักถุงจากกระสอบที่เบิกมาไว้ที่ไลน์</div>')+
-      (isPillow ? (
+      (isPillow && !_isPicnic ? (
         '<div class="rf"><div><label>ใช้ถุงซิลกี่ใบต่อ 1 แพ็ค</label>'+
         '<input id="spZipN" type="number" inputmode="numeric" min="0" step="1" value="'+zipNDefault+'" placeholder="เช่น 10"></div>'+
         '<div></div></div>'+
@@ -2989,11 +3042,14 @@ window.WPDAUTH = {
         '<datalist id="dlFabSize">'+[...new Set(fabBatchesNow().filter(b=>!sp.fabricType||b.fabricType===sp.fabricType).map(b=>b.size))].map(n=>'<option value="'+esc(n)+'">').join('')+'</datalist></div></div>'+
         '<div class="sumline" style="margin-top:2px;">บันทึกแพ็คแล้ว ระบบหักปลอกออกจากถุงบรรจุผ้าที่เบิกมาไว้ที่ไลน์ให้เอง (ชิ้นต่อแพ็ค = ปลอกที่ใช้) — ต้องกด "เบิกถุงบรรจุผ้า" ด้านล่างก่อน</div>'
       ) : '') +
+      (_isPicnic ? '<input id="spTol" type="hidden" value="'+(sp.tolPct||3)+'">' :
       '<label>ยอมรับคลาดเคลื่อนได้ ± (%) — ใช้ตัดสินว่าน้ำหนักจริงตรงสเปคไหม</label>'+
-      '<input id="spTol" type="number" inputmode="decimal" step="0.1" value="'+(sp.tolPct||3)+'">'+
+      '<input id="spTol" type="number" inputmode="decimal" step="0.1" value="'+(sp.tolPct||3)+'">')+
       '<div class="bigstd" id="spPreview" style="margin-top:10px;"></div>'+
       '<div class="acts" style="margin-top:11px;"><button class="btn" id="spSave" style="flex:1;">บันทึกค่า Standard</button>'+
       (isSet?'<button class="btn sec sm" id="spCancel">ยกเลิก</button>':'')+'</div>';
+    /* ปิกนิก: เลือกกระสอบที่การ์ด "แพ็คปิกนิก" แทน ไม่ต้องตั้งเบอร์กระสอบใน Standard */
+    if(_isPicnic && $('spPackBagLot')){ const _c=$('spPackBagLot').closest('div'); if(_c) _c.style.display='none'; }
 
     function packBagHTML(title){
       const packNames=Object.keys(STOCKBAG.pack||{}).sort();
@@ -3099,7 +3155,7 @@ window.WPDAUTH = {
         weightPerPiece:+$('spW').value||0, piecesPerPack:+$('spN').value||0,
         fabricWeightPerPiece:$('spFabKg')?(+$('spFabKg').value||0):0,
         fiberWeightPerPiece:$('spFiberKg')&&$('spFiberKg').value!==''?(+$('spFiberKg').value||0):null,
-        bagName:normSize($('spBag').value), bagWeight:+$('spBagW').value||0, zipPerPack:+$('spZipN').value||0,
+        bagName:$('spBag')?normSize($('spBag').value):'', bagWeight:$('spBagW')?(+$('spBagW').value||0):0, zipPerPack:$('spZipN')?(+$('spZipN').value||0):0,
         packBagName:$('spPackBag')?normSize($('spPackBag').value):'',
         packBagWeight:$('spPackW')?(+$('spPackW').value||0):0,
         packPerPack:$('spPackN')?(+$('spPackN').value||0):0
@@ -3113,8 +3169,8 @@ window.WPDAUTH = {
       const zipKg=CALC.zipKgPerPack(s), packKg=CALC.packKgPerPack(s);
       $('spPreview').innerHTML=t
         ? '<div class="v">'+t+' กก.</div><div class="l">น้ำหนัก Standard ต่อแพ็ค (เฉลี่ยต่อชิ้น '+CALC.stdPerPiece(s)+' กก.)'+
-          '<br>'+(isPillow?'หมอน':'ใย')+': '+s.weightPerPiece+' กก./ชิ้น × '+s.piecesPerPack+' ชิ้น = '+r3(s.weightPerPiece*s.piecesPerPack)+' กก.'+
-          (isPillow && CALC.fabricKgPerPiece(s)>0
+          '<br>'+(_isPicnic?'ปิกนิก':isPillow?'หมอน':'ใย')+': '+s.weightPerPiece+' กก./ชิ้น × '+s.piecesPerPack+' ชิ้น = '+r3(s.weightPerPiece*s.piecesPerPack)+' กก.'+
+          (_isPicnic ? '' : isPillow && CALC.fabricKgPerPiece(s)>0
             ? '<br><span style="color:var(--dim)">— ผ้าปลอก '+CALC.fabricKgPerPiece(s)+' กก./ชิ้น = '+CALC.fabricKgPerPack(s)+
               ' กก. · ใย '+CALC.fiberKgPerPiece(s)+' กก./ชิ้น = '+CALC.fiberKgPerPack(s)+' กก.</span>'
             : (isPillow ? '<br><span style="color:var(--yellow)">— ยังไม่ได้กรอกน้ำหนักผ้าปลอก หน้าสรุปจะนับทั้งชิ้นเป็นใย</span>' : ''))+
@@ -3205,7 +3261,7 @@ window.WPDAUTH = {
         zipPerPack:_draft.zipPerPack,
         packBagWeight:_draft.packBagWeight,
         packPerPack:_draft.packPerPack,
-        autoCutBag: isPillow && $('spAutoCut') ? $('spAutoCut').checked : false,
+        autoCutBag: isPillow && $('spAutoCut') ? $('spAutoCut').checked : _isPicnic,
         /* เลิกใช้แบบเก่าแล้ว แต่เก็บค่าเดิมไว้ไม่ให้ข้อมูลหาย */
         bagPerPiece:false, hasBag2:false,
         bagName2: sp.bagName2||'', bagWeight2: sp.bagWeight2||0, bagSize2: sp.bagSize2||'', bagSackNo2: sp.bagSackNo2||'',
@@ -3494,6 +3550,86 @@ window.WPDAUTH = {
   function sackWaiting(kind,name){ return sackQueue(kind,name).filter(x=>x.remaining>0.0000001).slice(1); }
   function piecesOf(kg,w){ return (w>0)?Math.round(kg/w):0; }
   /* หักถุงออกจากกระสอบที่แท็กไว้ ทุกครั้งที่บันทึก 1 แพ็ค */
+  /* ---------- งานปิกนิก: หน้าเดียว กด 1 ครั้ง = 1 แพ็ค ---------- */
+  function picSel(o){ o.picSel=o.picSel||{}; return o.picSel; }
+  function picCaseBags(o){
+    const sp=o.spec||{}, want=normSize(sp.fabricSize||'');
+    return fabBatchesNow().filter(b=>b.fabricType===sp.fabricType && b.readyBalance>0 && (!want || normSize(b.size)===want || normSize(b.cutSize||'')===want))
+      .sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+  }
+  function picSacks(o){
+    const sp=o.spec||{};
+    return sp.packBagName ? sackStatusNow().filter(x=>x.kind==='pack' && x.name===sp.packBagName && x.remainingKg>0).sort((a,b)=>a.sackNo-b.sackNo) : [];
+  }
+  function picPackBagLeft(o){ const sp=o.spec||{}, w=+sp.packBagWeight||0; const kg=sackQueue('pack',sp.packBagName||'').reduce((a,x)=>a+Math.max(0,x.remaining),0); return w>0?Math.floor((kg+0.0000001)/w):0; }
+  function refreshPicTap(o){
+    const card=$('cardPicTap'); if(!card) return;
+    const pic=isPicnic(o), detail=$('ptDetail').checked;
+    card.style.display=pic?'':'none';
+    const bagCard=$('bwKindSel')?$('bwKindSel').closest('.card'):null;
+    if(pic && !detail){ ['cardRun','cardSheet','cardFabWd'].forEach(id=>{ if($(id)) $(id).style.display='none'; }); if(bagCard) bagCard.style.display='none'; }
+    else { if($('cardRun')) $('cardRun').style.display=''; if(bagCard) bagCard.style.display=''; }
+    if(!pic) return;
+    const sp=o.spec||{}, sel=picSel(o), n=sheetsPerPack(o), std=CALC.stdPerPack(sp);
+    const fill=(id,opts,keep,empty)=>{ const e=$(id); e.innerHTML=opts.length?opts.map(x=>'<option value="'+esc(x.v)+'">'+esc(x.t)+'</option>').join(''):'<option value="">'+esc(empty)+'</option>';
+      if(keep && opts.some(x=>x.v===keep)) e.value=keep; return e.value; };
+    const first=id=>{ const l=(S.line||[]).filter(x=>x.orderId===id).map(x=>x.time).sort()[0]; return l||'9999'; };
+    const sh=sheetAvail().filter(x=>x.available>0.0000001).sort((a,b)=>first(a.orderId).localeCompare(first(b.orderId)));
+    sel.sheet=fill('ptSheet', sh.map(a=>({ v:a.orderId, t:a.customer+' — '+a.code+' · เหลือ '+a.available+' แผ่น' })), sel.sheet, '— ไม่มีใยแผ่นเหลือให้เบิก —');
+    const cb=picCaseBags(o);
+    sel.caseBatch=fill('ptCase', cb.map(b=>({ v:b.batchId, t:'ถุง #'+b.batchNo+' · '+b.fabricType+' '+b.size+' · ตัด '+thDate(b.time)+' · พร้อม '+b.readyBalance+' ใบ' })), sel.caseBatch,
+      sp.fabricType?'— ไม่มีปลอก '+sp.fabricType+(sp.fabricSize?' '+sp.fabricSize:'')+' พร้อมเบิก —':'— ตั้งชนิดผ้า/ไซซ์ปลอกใน Standard ก่อน —');
+    const sk=picSacks(o);
+    sel.sackId=fill('ptSack', sk.map(x=>({ v:x.sackId, t:'กระสอบ #'+x.sackNo+' · '+x.weightPerBag+' กก./ใบ · เหลือ '+x.remainingPieces+' ใบ' })), sel.sackId,
+      sp.packBagName?'— ไม่มีกระสอบ '+sp.packBagName+' ในสต๊อก —':'— ตั้งถุงแพ็คใน Standard ก่อน —');
+    const atS=CALC.sheetLineTotal(S.sheetWd,S.sheetUse,o.id), atC=sp.fabricType?caseAtLine(o):null, atB=sp.packBagName?picPackBagLeft(o):null;
+    $('ptInfo').innerHTML=(std?'Standard แพ็คละ <b>'+n+' ใบ</b> · <b>'+std+' กก.</b>':'<span class="bdg bad">ยังไม่ได้ตั้ง Standard</span> ตั้งที่การ์ดด้านบนก่อน')+
+      '<br>ที่ไลน์ตอนนี้: ใยแผ่น <b>'+atS+'</b> แผ่น'+(atC!=null?' · ปลอก <b>'+atC+'</b> ใบ':'')+(atB!=null?' · ถุงแพ็ค <b>'+atB+'</b> ใบ':'')+
+      '<br><span style="color:var(--dim)">ที่ไลน์ไม่พอ ระบบเบิกจากที่เลือกไว้ให้เองตอนกด</span>';
+    const today=(S.line||[]).filter(l=>l.orderId===o.id && dayOf(l.time)===todayStr()).length, all=(S.line||[]).filter(l=>l.orderId===o.id).length;
+    $('ptBtnSub').textContent='วันนี้ '+today+' แพ็ค · รวม '+all+(o.orderedPacks?' / '+o.orderedPacks:'')+' แพ็ค';
+    $('ptToday').innerHTML='';
+  }
+  ['ptSheet','ptCase','ptSack'].forEach(id=>{ if($(id)) $(id).onchange=async()=>{ const o=active(); if(!o) return; const sel=picSel(o);
+    sel.sheet=$('ptSheet').value; sel.caseBatch=$('ptCase').value; sel.sackId=$('ptSack').value; await saveOrders(); refreshPicTap(o); }; });
+  if($('ptDetail')) $('ptDetail').onchange=()=>rLine();
+  if($('btnPicTap')) $('btnPicTap').onclick=async()=>{
+    const o=active(); if(!isPicnic(o)) return;
+    const sp=o.spec||{};
+    if(!CALC.stdPerPack(sp)){ toast('ตั้งค่าน้ำหนัก Standard ก่อน'); return; }
+    if(openBreak()){ endBreak(); }
+    const n=sheetsPerPack(o), add={ sheet:null, fab:null, bag:null };
+    /* 1) ใยแผ่น */
+    const atS=CALC.sheetLineTotal(S.sheetWd,S.sheetUse,o.id);
+    if(atS<n){
+      const src=$('ptSheet').value; if(!src){ await info('ยังไม่ได้เลือกใยแผ่น','เลือก "ใยแผ่นที่ใช้ — จากงานไหน" ก่อน'); return; }
+      const a=sheetAvail().find(x=>x.orderId===src), need=r3(n-atS);
+      if(!a || a.available<need){ await info('ใยแผ่นงานนี้ไม่พอ',(a?a.customer+' — '+a.code+' เหลือ '+a.available+' แผ่น':'')+'\nต้องใช้ '+need+' แผ่น — เลือกงานใยแผ่นอื่น'); return; }
+      add.sheet={ id:uid(), time:localISO(), orderId:o.id, srcOrderId:src, qty:need, quick:true };
+    }
+    /* 2) ปลอก */
+    if(sp.fabricType){
+      const atC=caseAtLine(o);
+      if(atC<n){
+        const bid=$('ptCase').value, b=picCaseBags(o).find(x=>x.batchId===bid), need=n-atC;
+        if(!b){ await info('ยังไม่ได้เลือกถุงปลอก','เลือก "ปลอก — ถุงที่หยิบมา" ก่อน'); return; }
+        if(b.readyBalance<need){ await info('ปลอกในถุงนี้ไม่พอ','ถุง #'+b.batchNo+' เหลือ '+b.readyBalance+' ใบ ต้องใช้ '+need+' ใบ — เลือกถุงใหม่'); return; }
+        add.fab={ id:uid(), time:localISO(), orderId:o.id, fabricType:b.fabricType, size:b.size, qty:need, picks:[{ batchId:b.batchId, batchNo:b.batchNo, qty:need }], quick:true };
+      }
+    }
+    /* 3) ถุงแพ็ค — ที่ไลน์ไม่พอ ยกกระสอบที่เลือกมาทั้งกระสอบ */
+    if(sp.packBagName && CALC.packBagPerPack(sp)>0 && sp.autoCutBag!==false && picPackBagLeft(o)<CALC.packBagPerPack(sp)){
+      const sk=picSacks(o).find(x=>x.sackId===$('ptSack').value);
+      if(!sk){ await info('ยังไม่ได้เลือกกระสอบถุงแพ็ค','เลือก "ถุงแพ็ค — กระสอบที่หยิบมา" ก่อน'); return; }
+      add.bag={ id:uid(), time:localISO(), orderId:o.id, kind:'pack', name:sp.packBagName, kg:r3(sk.remainingKg), picks:[{ sackId:sk.sackId, sackNo:sk.sackNo, kg:r3(sk.remainingKg) }], quick:true };
+    }
+    if(add.sheet){ S.sheetWd=S.sheetWd||[]; S.sheetWd.push(add.sheet); }
+    if(add.fab) S.fabricWd.push(add.fab);
+    if(add.bag) S.bagWd.push(add.bag);
+    if(add.sheet||add.fab||add.bag) await saveFeed();
+    const btn=$('btnPicTap'); btn.disabled=true;
+    try{ await startPack(null,null); } finally { btn.disabled=false; refreshPicTap(active()); }
+  };
   function autoCutBags(o,lineId){
     const sp=o.spec||{};
     /* งานใยแผ่นก็ต้องหักถุงด้วย ไม่งั้นต้นทุนถุงเป็น 0 — ค่า autoCutBag=false ของงานใยแผ่นเดิมมาจากโค้ดเก่าที่บังคับปิดไว้ ไม่ใช่คนเลือก */

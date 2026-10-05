@@ -918,7 +918,7 @@ window.WPDAUTH = {
     /* ค่าผ้าต่อ 1 ใบ(ปลอก) = ราคาม้วน แบ่งตามพื้นที่ชิ้นที่ตัดจากม้วนนั้นจริง × จำนวนชิ้นต่อใบ
        ม้วนเดียวตัดหลายไซซ์ ชิ้นใหญ่ (ปิกนิก 40x79) ต้องแพงกว่าชิ้นเล็ก (18x54) · ปิกนิก 2 ผืนประกบ = 2 ชิ้นต่อใบ
        ไซซ์ไหนอ่านไม่ออก → แบ่งตามจำนวนชิ้นเหมือนเดิม */
-    fabricBahtPerPiece(PRICE, cutBatches, batchId){
+    fabricBahtPerPiece(PRICE, cutBatches, batchId, receipts){
       const b=(cutBatches||[]).find(x=>x.id===batchId);
       if(!b) return { baht:0, src:'none', type:'' };
       const type=b.fabricType||'';
@@ -934,7 +934,17 @@ window.WPDAUTH = {
       const pp=+b.piecesPer||1;
       const areaAll=same.reduce((s,x)=>s+(+x.qtyCut||0)*COST.pieceArea(x.size),0);
       const byArea=same.every(x=>!(+x.qtyCut) || COST.pieceArea(x.size)>0) && areaAll>0;
-      const perPiece=byArea ? p.baht*COST.pieceArea(b.size)/areaAll : p.baht/pieces;
+      let perPiece=byArea ? p.baht*COST.pieceArea(b.size)/areaAll : p.baht/pieces;
+      /* ม้วนที่ยังตัดไม่หมด (รู้หน้ากว้าง×ยาว): คิดราคาเฉพาะส่วนที่ใช้ไปแล้วตามความยาว — ตัดหมด/กด "ตัดหมดแล้ว" = ทั้งม้วน (รวมเศษ) */
+      const rec=(receipts||[]).find(r=>b.rollId ? r.id===b.rollId : (r.fabricType===type && String(r.rollNo)===String(b.rollNo)));
+      if(rec && +rec.widthIn && +rec.lengthIn && !rec.retired){
+        let used=0, ok=true;
+        same.forEach(x=>{ const m=String(x.size||'').match(/(\d+\.?\d*)\s*[xX×*]\s*(\d+\.?\d*)/); if(!m){ ok=false; return; }
+          let w=+m[1], h=+m[2]; if(/(ซม|เซน|\bcm\b)/i.test(String(x.size))){ w/=2.54; h/=2.54; }
+          if(w>+rec.widthIn && h<=+rec.widthIn){ const t=w; w=h; h=t; }
+          used+=Math.ceil((+x.qtyCut||0)/Math.max(1,Math.floor(+rec.widthIn/w)))*h; });
+        if(ok && used>0 && used<+rec.lengthIn) perPiece*=used/(+rec.lengthIn);
+      }
       return { baht:r4(perPiece*pp), src:p.src, type:type, pieces:pieces, roll:p.baht, piecesPer:pp };
     },
 
@@ -1076,7 +1086,7 @@ window.WPDAUTH = {
       (P.wd||[]).filter(w=>inR(w) && !withUse.has(w.orderId)).forEach(w=>{ const kg=+w.kg||0; fiberKg+=kg; fiber+=kg*COST.fiberPricePerKg(PRICE,w.fiberName,w.lot,w.receiptId).baht; });
       let fab=0, sew=0;
       (P.orders||[]).forEach(o=>COST.caseRowsFor(P,o.id,inR).forEach(cu=>{
-        const q=+cu.pieces||0; fab+=q*COST.fabricBahtPerPiece(PRICE,S.cutBatches,cu.batchId).baht;
+        const q=+cu.pieces||0; fab+=q*COST.fabricBahtPerPiece(PRICE,S.cutBatches,cu.batchId,S.fabricReceipts).baht;
         if((o.productType||'')!=='ใย') sew+=q*(+((K.sewBySize||{})[cu.size])||+K.sewPerPiece||0);
       }));
       let bag=0; (P.bagUse||[]).filter(inR).forEach(b=>{ bag+=(+b.pieces||0)*COST.bagBahtPerPiece(PRICE,S.sackReceipts,b.kind,b.name,b.sackNo).baht; });
@@ -1141,7 +1151,7 @@ window.WPDAUTH = {
       const caseRows=COST.caseRowsFor(P, orderId);
       caseRows.forEach(cu=>{
         const q=+cu.pieces||0; if(!q) return;
-        const c=COST.fabricBahtPerPiece(PRICE, S.cutBatches, cu.batchId);
+        const c=COST.fabricBahtPerPiece(PRICE,S.cutBatches,cu.batchId,S.fabricReceipts);
         fabPieces+=q; fabBaht=r2(fabBaht+q*c.baht);
         if(c.src==='none') miss.push('ผ้า "'+(c.type||cu.fabricType)+'" ยังไม่ได้ใส่ราคา');
         else if(c.src==='noCut') miss.push('ผ้า "'+(c.type||cu.fabricType)+'" ถุง #'+cu.batchNo+' ไม่รู้ว่าตัดได้กี่ชิ้น');
@@ -1536,7 +1546,7 @@ window.WPDAUTH = {
           ? priceInput('fabric|'+n+'|rollid|'+l.id, (e.rollIds||{})[String(l.id)]!=null?(e.rollIds||{})[String(l.id)]:(e.rolls||{})[String(l.rollNo)], 'ตามมาตรฐาน')
           : priceInput('fabric|'+n+'|roll|'+l.rollNo, (e.rolls||{})[String(l.rollNo)], 'ตามมาตรฐาน'))+'</div></div>').join('');
       const perPc=(()=>{ const b=S.cutBatches.filter(x=>x.fabricType===n)[0];
-        if(!b) return null; const c=COST.fabricBahtPerPiece(PRICE,S.cutBatches,b.id); return c.baht?c:null; })();
+        if(!b) return null; const c=COST.fabricBahtPerPiece(PRICE,S.cutBatches,b.id,S.fabricReceipts); return c.baht?c:null; })();
       return '<div class="scard"><div class="nm">'+esc(n)+'</div>'+
         '<div class="frow" style="margin-top:6px;"><div style="flex:1;font-size:12.5px">ราคามาตรฐาน (บาท/ม้วน)</div>'+
         '<div style="width:110px">'+priceInput('fabric|'+n+'|std', e.std, 'เช่น 4200')+'</div></div>'+
@@ -1784,7 +1794,7 @@ window.WPDAUTH = {
     if(!fabBaht && $('qFabric').value){
       const t=$('qFabric').value;
       const b=(S.cutBatches||[]).filter(x=>x.fabricType===t)[0];
-      if(b){ const c=COST.fabricBahtPerPiece(PRICE,S.cutBatches,b.id); fabBaht=c.baht; fabSrc=c.src; }
+      if(b){ const c=COST.fabricBahtPerPiece(PRICE,S.cutBatches,b.id,S.fabricReceipts); fabBaht=c.baht; fabSrc=c.src; }
       else fabSrc='none';
     }
     const pieces=+$('qPieces').value||0;
@@ -1938,7 +1948,7 @@ window.WPDAUTH = {
     fabricNames().forEach(n=>{ const b=(S.cutBatches||[]).filter(x=>x.fabricType===n)[0];
       if(!b){ const p=COST.fabricPricePerRoll(PRICE,n,null);
         prices.push(['ผ้า',n,p.baht?fmtBaht(p.baht)+' บาท/ม้วน':'—',p.src]); return; }
-      const c=COST.fabricBahtPerPiece(PRICE,S.cutBatches,b.id);
+      const c=COST.fabricBahtPerPiece(PRICE,S.cutBatches,b.id,S.fabricReceipts);
       prices.push(['ผ้า',n,c.baht?fmtBaht(c.baht)+' บาท/ชิ้น':'—',c.src]); });
     ['zip','pack'].forEach(k=>bagNames(k).forEach(n=>{
       const c=COST.bagBahtPerPiece(PRICE,S.sackReceipts,k,n,null);

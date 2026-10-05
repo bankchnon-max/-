@@ -956,6 +956,19 @@ window.WPDAUTH = {
     },
 
     /* ค่าถุงต่อใบ = ราคากระสอบ ÷ จำนวนใบในกระสอบนั้น */
+    /* ถุงวนใช้: ราคาต่อใบ ÷ ใช้ได้กี่รอบ = ค่าถุงต่อการใช้ 1 ครั้ง */
+    reuseBahtPerUse(PRICE, name){
+      const e=((PRICE||{}).reuse||{})[name]||{};
+      const per=+e.std||0, cyc=+e.cycles||0;
+      if(!per) return { baht:0, src:'none' };
+      if(!cyc) return { baht:0, src:'noCycles', per };
+      return { baht:r4(per/cyc), src:'std', per, cycles:cyc };
+    },
+    /* แพ็คนี้ใช้ถุงวนใช้กี่ใบ (0 = ไม่ได้ใช้) */
+    reuseUsesPerPack(S, spec){
+      const sp=spec||{}; if(!sp.packBagName || !(S.reuseItems||[]).some(x=>x.name===sp.packBagName)) return 0;
+      return (sp.packPerPack!=null && sp.packPerPack!=='') ? (+sp.packPerPack||0) : ((+sp.packBagWeight||0)>0 ? 1 : 0);
+    },
     bagBahtPerPiece(PRICE, sackReceipts, kind, name, sackNo){
       const key=(kind==='zip')?'zip':'pack';
       const e=((PRICE||{})[key]||{})[name];
@@ -1090,6 +1103,7 @@ window.WPDAUTH = {
         if((o.productType||'')!=='ใย') sew+=q*(+((K.sewBySize||{})[cu.size])||+K.sewPerPiece||0);
       }));
       let bag=0; (P.bagUse||[]).filter(inR).forEach(b=>{ bag+=(+b.pieces||0)*COST.bagBahtPerPiece(PRICE,S.sackReceipts,b.kind,b.name,b.sackNo).baht; });
+      lines.forEach(l=>{ const o=(P.orders||[]).find(x=>x.id===l.orderId); const per=o?COST.reuseUsesPerPack(S,o.spec):0; if(per>0) bag+=per*COST.reuseBahtPerUse(PRICE,o.spec.packBagName).baht; });
       let sheet=0; (P.sheetUse||[]).filter(inR).forEach(u=>{ sheet+=(+u.qty||0)*COST.sheetCostPerPiece(ctx,u.srcOrderId,0).baht; });
       const hrRate=(+K.laborHoursPerDay>0)?(+K.laborDaily||0)/(+K.laborHoursPerDay):0;
       const labor=hours*hrRate+pieces*(+K.laborPerPiece||0);
@@ -1169,6 +1183,12 @@ window.WPDAUTH = {
         else if(c.src==='noSack') miss.push('ถุง "'+b.name+'" ไม่รู้จำนวนใบต่อกระสอบ');
         detail.push({cat:'ถุง', what:(b.kind==='zip'?'ถุงซิล ':'ถุงแพ็ค ')+b.name+' #'+b.sackNo, qty:q+' ใบ', unit:c.baht, baht:r2(q*c.baht), src:c.src});
       });
+      { const per=order?COST.reuseUsesPerPack(S, order.spec):0;
+        if(per>0 && packs>0){ const uses=packs*per, c=COST.reuseBahtPerUse(PRICE, order.spec.packBagName), nm=order.spec.packBagName;
+          packPcs+=uses; bagBaht=r2(bagBaht+uses*c.baht);
+          if(c.src==='none') miss.push('ถุงวนใช้ "'+nm+'" ยังไม่ได้ใส่ราคา');
+          else if(c.src==='noCycles') miss.push('ถุงวนใช้ "'+nm+'" ยังไม่ได้ใส่ว่าใช้ได้กี่รอบ');
+          detail.push({cat:'ถุง', what:'♻ '+(/วนใช้/.test(nm)?'':'ถุงวนใช้ ')+nm+(c.cycles?' (ใบละ '+c.per+' ÷ '+c.cycles+' รอบ)':''), qty:uses+' รอบ', unit:c.baht, baht:r2(uses*c.baht), src:c.src}); } }
 
       /* ---- ค่าจ้างเย็บ ---- */
       let sewPieces=0, sewBaht=0;
@@ -1417,7 +1437,7 @@ window.WPDAUTH = {
     const Pf=parse(fi,{}), Pa=parse(fa,{}), Pb=parse(bg,{}), Pg=parse(gs,{});
     S.fiberReceipts=Pf.receipts||[];
     S.fabricReceipts=Pa.receipts||[]; S.cutBatches=Pa.cutBatches||[];
-    S.sackReceipts=Pb.receipts||[]; S.gasReceipts=Pg.receipts||[];
+    S.sackReceipts=Pb.receipts||[]; S.reuseItems=Pb.reuseItems||[]; S.gasReceipts=Pg.receipts||[];
     const A=parse(ord,{}), B=parse(fd,{}), C=parse(ln,{});
     PROD.orders=A.orders||[];
     PROD.wd=B.wd||[]; PROD.use=B.use||[]; PROD.fabricWd=B.fabricWd||[]; PROD.caseUse=B.caseUse||[]; PROD.bagWd=B.bagWd||[];
@@ -1581,6 +1601,16 @@ window.WPDAUTH = {
           '</div>';
       });
     });
+    if((S.reuseItems||[]).length){
+      bh+='<div style="margin-top:14px;font-size:14px;font-weight:600;color:var(--w-label,#465262);">♻ ถุงวนใช้ (เฉลี่ยลงต้นทุนทุกครั้งที่ใช้)</div>';
+      (S.reuseItems||[]).forEach(it=>{
+        const e=((PRICE.reuse||{})[it.name])||{}, c=COST.reuseBahtPerUse(PRICE,it.name);
+        bh+='<div class="scard"><div class="nm">♻ '+esc(it.name)+'</div>'+
+          '<div class="frow" style="margin-top:6px;"><div style="flex:1;font-size:12.5px">ราคาต่อใบ (บาท)</div><div style="width:110px">'+priceInput('reuse|'+it.name+'|std', e.std, 'เช่น 35')+'</div></div>'+
+          '<div class="frow" style="margin-top:6px;"><div style="flex:1;font-size:12.5px">ใช้ได้ประมาณกี่รอบ</div><div style="width:110px">'+priceInput('reuse|'+it.name+'|cycles', e.cycles, 'เช่น 50')+'</div></div>'+
+          (c.baht?'<div class="sumline">≈ <b style="color:var(--accent2)">'+fmtBaht(c.baht)+' บาท/รอบ</b> (ใบละ '+fmtBaht(c.per)+' ÷ '+fmtInt(c.cycles)+' รอบ) — เฉลี่ยลงทุกแพ็คที่ใช้</div>':'')+'</div>';
+      });
+    }
     $('prBag').innerHTML = bh || '<div class="empty">ยังไม่มีถุงในระบบ</div>';
     $('prGas').value = PRICE.gas>0?PRICE.gas:'';
 
@@ -1589,6 +1619,7 @@ window.WPDAUTH = {
     fiberNames().forEach(n=>{ const e=(PRICE.fiber||{})[n]||{}; if(!(+e.std>0)) todo.push('ใย '+n); });
     fabricNames().forEach(n=>{ const e=(PRICE.fabric||{})[n]||{}; if(!(+e.std>0)) todo.push('ผ้า '+n); });
     ['zip','pack'].forEach(k=>bagNames(k).forEach(n=>{ const e=((PRICE[k]||{})[n])||{}; if(!(+e.std>0)) todo.push((k==='zip'?'ถุงซิล ':'ถุงแพ็ค ')+n); }));
+    (S.reuseItems||[]).forEach(it=>{ const e=((PRICE.reuse||{})[it.name])||{}; if(!(+e.std>0) || !(+e.cycles>0)) todo.push('ถุงวนใช้ '+it.name); });
     if(!(+PRICE.gas>0) && S.gasReceipts.length) todo.push('แก๊ส');
     $('priceTodo').innerHTML = todo.length
       ? '<span class="bdg bad">ขาด '+todo.length+' อย่าง</span> ต้นทุนจะต่ำกว่าความจริงจนกว่าจะใส่ครบ:<br>'+todo.map(t=>'• '+esc(t)).join('<br>')
@@ -1602,6 +1633,7 @@ window.WPDAUTH = {
       PRICE[grp]=PRICE[grp]||{};
       PRICE[grp][name]=PRICE[grp][name]||{};
       if(kind==='std'){ if(v>0) PRICE[grp][name].std=v; else delete PRICE[grp][name].std; }
+      else if(kind==='cycles'){ if(v>0) PRICE[grp][name].cycles=v; else delete PRICE[grp][name].cycles; }
       else {
         const bucket = kind==='lot'?'lots':kind==='rid'?'rids':kind==='roll'?'rolls':kind==='rollid'?'rollIds':'sacks';
         PRICE[grp][name][bucket]=PRICE[grp][name][bucket]||{};

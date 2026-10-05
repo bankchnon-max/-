@@ -707,6 +707,8 @@
         <label>น้ำหนักกระสอบนี้ (กก.)</label><input id="bwQty" type="number" inputmode="decimal" step="0.1" placeholder="เลือกกระสอบแล้วเติมให้อัตโนมัติ">
         <div class="sumline" id="bwPreview" style="margin-top:8px;"></div>
         <button class="btn w" id="btnBagWd">ยืนยันเบิกทั้งหมด</button>
+        <div class="sumline" style="margin-top:12px; font-weight:600;">ถุงที่อยู่ที่ไลน์ตอนนี้ — ใช้ต่องานหน้าได้จนกว่ากระสอบจะหมด</div>
+        <div class="scr"><table id="tBagAtLine"></table></div>
         <div class="scr" style="margin-top:11px;"><table id="tBagWdHist"></table></div>
       </div>
       <div class="card" id="cardGas">
@@ -1643,7 +1645,7 @@ window.WPDAUTH = {
       raw:{ cutBatches:(SA.cutBatches||[]), sewSent:(SA.sewSent||[]), sewReturns:(SA.sewReturns||[]) },
       batches: CALC.cutBatchStatus(SA.cutBatches||[], SA.sewSent||[], SA.sewReturns||[], S.fabricWd) };
     const sacks = CALC.sackStatus(SB.receipts||[], S.bagWd);
-    STOCKBAG = { zip:{}, pack:{}, sacks, receipts:(SB.receipts||[]) };
+    STOCKBAG = { zip:{}, pack:{}, sacks, receipts:(SB.receipts||[]), reuse:(SB.reuseItems||[]) };
     sacks.forEach(s=>{ const bucket=STOCKBAG[s.kind]; if(!bucket) return; bucket[s.name]=bucket[s.name]||{sizes:new Set(),lastWeightPerBag:0}; bucket[s.name].sizes.add(s.size); bucket[s.name].lastWeightPerBag=s.weightPerBag; });
     STOCKGAS = CALC.gasStatus(SG.receipts||[], S.gasSwaps);
     STOCKFIN = { shipments:SN.shipments||[], finAdjustments:SN.finAdjustments||[] };
@@ -1890,11 +1892,13 @@ window.WPDAUTH = {
   }
 
   /* น้ำหนักถุงใน Standard — ถุงซิล และ/หรือ ถุงแพ็ค (งานใยแผ่นใช้ถุงแพ็คอย่างเดียว) */
+  /* ถุงวนใช้ (ตั้งที่แอพสต๊อก) — แพ็คแล้วไม่หักสต๊อก แต่น้ำหนักยังบวกเข้าแพ็ค */
+  function isReuseBag(name){ return !!name && (STOCKBAG.reuse||[]).some(x=>x.name===name); }
   function bagSummary(sp){
     sp=sp||{}; const parts=[];
     const zipKg=CALC.zipKgPerPack(sp), packKg=CALC.packKgPerPack(sp);
     if(zipKg>0) parts.push('ถุง'+(sp.packBagName?'ซิล ':' ')+(sp.bagName?esc(sp.bagName)+' ':'')+zipKg+' กก.');
-    if(packKg>0) parts.push('ถุงแพ็ค '+(sp.packBagName?esc(sp.packBagName)+' ':'')+packKg+' กก.');
+    if(packKg>0) parts.push((isReuseBag(sp.packBagName)?(/วนใช้/.test(sp.packBagName)?'♻ ':'♻ ถุงวนใช้ '):'ถุงแพ็ค ')+(sp.packBagName?esc(sp.packBagName)+' ':'')+packKg+' กก.');
     return parts.length ? parts.join(' + ') : 'ถุง 0 กก.';
   }
   function rSpecLib(){
@@ -3049,14 +3053,16 @@ window.WPDAUTH = {
       '<div class="acts" style="margin-top:11px;"><button class="btn" id="spSave" style="flex:1;">บันทึกค่า Standard</button>'+
       (isSet?'<button class="btn sec sm" id="spCancel">ยกเลิก</button>':'')+'</div>';
     /* ปิกนิก: เลือกกระสอบที่การ์ด "แพ็คปิกนิก" แทน ไม่ต้องตั้งเบอร์กระสอบใน Standard */
-    if(_isPicnic && $('spPackBagLot')){ const _c=$('spPackBagLot').closest('div'); if(_c) _c.style.display='none'; }
+    if((_isPicnic || isReuseBag(packNameVal)) && $('spPackBagLot')){ const _c=$('spPackBagLot').closest('div'); if(_c) _c.style.display='none'; }
 
     function packBagHTML(title){
       const packNames=Object.keys(STOCKBAG.pack||{}).sort();
-      const isNew=!!packNameVal && !packNames.includes(packNameVal);
+      const reuseNames=(STOCKBAG.reuse||[]).map(x=>x.name).filter(n=>!packNames.includes(n)).sort();
+      const isNew=!!packNameVal && !packNames.includes(packNameVal) && !reuseNames.includes(packNameVal);
       return '<div class="sumline" style="margin-top:14px; font-weight:600;">'+esc(title)+'</div>'+
         '<div class="rf"><div><label>ใช้ถุงแพ็คอะไร</label><select id="spPackBagSel">'+
         '<option value="">— เลือกถุงแพ็ค —</option>'+packNames.map(n=>'<option value="'+esc(n)+'"'+(n===packNameVal?' selected':'')+'>'+esc(n)+'</option>').join('')+
+        (reuseNames.length?'<optgroup label="♻ ถุงวนใช้ (ไม่หักสต๊อกทุกแพ็ค)">'+reuseNames.map(n=>'<option value="'+esc(n)+'"'+(n===packNameVal?' selected':'')+'>♻ '+esc(n)+'</option>').join('')+'</optgroup>':'')+
         '<option value="__new__"'+(isNew?' selected':'')+'>+ พิมพ์ชื่อใหม่…</option></select>'+
         '<input id="spPackBag" value="'+esc(packNameVal)+'" placeholder="เช่น ถุงแพ็คใหญ่" style="'+(isNew?'':'display:none;')+' margin-top:6px;"></div>'+
         '<div><label>เบอร์กระสอบถุงแพ็ค (อ้างอิงจากสต๊อกจริง)</label>'+
@@ -3145,7 +3151,10 @@ window.WPDAUTH = {
         if(sel.value==='__new__'){ txt.style.display='block'; txt.value=''; txt.focus&&txt.focus(); }
         else { txt.style.display='none'; txt.value=sel.value; }
         if(prefix==='spBag') refreshBagLotOptions(); if(prefix==='spBag2') refreshBag2LotOptions();
-        if(prefix==='spPackBag'){ refreshPackBagLotOptions(); fillFromStock('pack','spPackBag',null,'spPackW','spPackBagLot'); prev(); }
+        if(prefix==='spPackBag'){ refreshPackBagLotOptions(); fillFromStock('pack','spPackBag',null,'spPackW','spPackBagLot');
+          const _ru=(STOCKBAG.reuse||[]).find(x=>x.name===txt.value); if(_ru && +_ru.weightPerBag>0 && $('spPackW')) $('spPackW').value=_ru.weightPerBag;
+          if($('spPackBagLot')){ const _c=$('spPackBagLot').closest('div'); if(_c) _c.style.display=(_isPicnic||_ru)?'none':''; }
+          prev(); }
       };
       txt.oninput=()=>{ formDirty=true; if(prefix==='spBag') refreshBagLotOptions(); if(prefix==='spBag2') refreshBag2LotOptions(); };
     }
@@ -3531,8 +3540,10 @@ window.WPDAUTH = {
   }
   /* ของที่ยกมาไว้ที่ไลน์นานเกิน 14 วันโดยไม่เคยมีบันทึกการใช้เลย = ข้อมูลก่อนมีระบบหักอัตโนมัติ ถือว่าใช้หมดแล้ว */
   function lineSince(){ const d=new Date(); d.setDate(d.getDate()-14); return localISO(d); }
+  /* วันที่เริ่มบันทึกการใช้จริง (รายการใช้แรกสุด) — เบิกหลังจากนั้นค้างที่ไลน์จนใช้หมด · ยังไม่เคยมีบันทึกการใช้ = 14 วันล่าสุด */
+  function trackSince(list){ let m=null; (list||[]).forEach(u=>{ const t=String(u.time||''); if(t && (!m || t<m)) m=t; }); return m ? m.slice(0,10) : lineSince(); }
   function sackQueue(kind,name){
-    const st=sackStatusNow(), since=lineSince();
+    const st=sackStatusNow(), since=trackSince(S.bagUse);
     const tracked=new Set((S.bagUse||[]).map(u=>u.bwId));
     return (S.bagWd||[])
       .filter(w=>!w.auto && w.kind===kind && w.name===name && (String(w.time)>=since || tracked.has(w.id)))
@@ -3582,9 +3593,11 @@ window.WPDAUTH = {
     const sk=picSacks(o);
     sel.sackId=fill('ptSack', sk.map(x=>({ v:x.sackId, t:'กระสอบ #'+x.sackNo+' · '+x.weightPerBag+' กก./ใบ · เหลือ '+x.remainingPieces+' ใบ' })), sel.sackId,
       sp.packBagName?'— ไม่มีกระสอบ '+sp.packBagName+' ในสต๊อก —':'— ตั้งถุงแพ็คใน Standard ก่อน —');
-    const atS=CALC.sheetLineTotal(S.sheetWd,S.sheetUse,o.id), atC=sp.fabricType?caseAtLine(o):null, atB=sp.packBagName?picPackBagLeft(o):null;
+    const _reuse=isReuseBag(sp.packBagName);
+    $('ptSack').style.display=_reuse?'none':''; if($('ptSack').previousElementSibling) $('ptSack').previousElementSibling.style.display=_reuse?'none':'';
+    const atS=CALC.sheetLineTotal(S.sheetWd,S.sheetUse,o.id), atC=sp.fabricType?caseAtLine(o):null, atB=sp.packBagName&&!_reuse?picPackBagLeft(o):null;
     $('ptInfo').innerHTML=(std?'Standard แพ็คละ <b>'+n+' ใบ</b> · <b>'+std+' กก.</b>':'<span class="bdg bad">ยังไม่ได้ตั้ง Standard</span> ตั้งที่การ์ดด้านบนก่อน')+
-      '<br>ที่ไลน์ตอนนี้: ใยแผ่น <b>'+atS+'</b> แผ่น'+(atC!=null?' · ปลอก <b>'+atC+'</b> ใบ':'')+(atB!=null?' · ถุงแพ็ค <b>'+atB+'</b> ใบ':'')+
+      '<br>ที่ไลน์ตอนนี้: ใยแผ่น <b>'+atS+'</b> แผ่น'+(atC!=null?' · ปลอก <b>'+atC+'</b> ใบ':'')+(atB!=null?' · ถุงแพ็ค <b>'+atB+'</b> ใบ':(_reuse?' · ♻ '+(/วนใช้/.test(sp.packBagName)?'':'ถุงวนใช้ ')+esc(sp.packBagName):''))+
       '<br><span style="color:var(--dim)">ที่ไลน์ไม่พอ ระบบเบิกจากที่เลือกไว้ให้เองตอนกด</span>';
     const today=(S.line||[]).filter(l=>l.orderId===o.id && dayOf(l.time)===todayStr()).length, all=(S.line||[]).filter(l=>l.orderId===o.id).length;
     $('ptBtnSub').textContent='วันนี้ '+today+' แพ็ค · รวม '+all+(o.orderedPacks?' / '+o.orderedPacks:'')+' แพ็ค';
@@ -3618,7 +3631,7 @@ window.WPDAUTH = {
       }
     }
     /* 3) ถุงแพ็ค — ที่ไลน์ไม่พอ ยกกระสอบที่เลือกมาทั้งกระสอบ */
-    if(sp.packBagName && CALC.packBagPerPack(sp)>0 && sp.autoCutBag!==false && picPackBagLeft(o)<CALC.packBagPerPack(sp)){
+    if(sp.packBagName && CALC.packBagPerPack(sp)>0 && sp.autoCutBag!==false && !isReuseBag(sp.packBagName) && picPackBagLeft(o)<CALC.packBagPerPack(sp)){
       const sk=picSacks(o).find(x=>x.sackId===$('ptSack').value);
       if(!sk){ await info('ยังไม่ได้เลือกกระสอบถุงแพ็ค','เลือก "ถุงแพ็ค — กระสอบที่หยิบมา" ก่อน'); return; }
       add.bag={ id:uid(), time:localISO(), orderId:o.id, kind:'pack', name:sp.packBagName, kg:r3(sk.remainingKg), picks:[{ sackId:sk.sackId, sackNo:sk.sackNo, kg:r3(sk.remainingKg) }], quick:true };
@@ -3641,7 +3654,7 @@ window.WPDAUTH = {
       const k=(STOCKBAG.zip||{})[sp.bagName]?'zip':((STOCKBAG.pack||{})[sp.bagName]?'pack':'zip');
       jobs.push({kind:k, label:k==='zip'?'ถุงซิล':'ถุงแพ็ค', name:sp.bagName, n:CALC.zipPerPack(sp), wKey:'bagWeight', sackKey:'bagSackNo'});
     }
-    if(sp.packBagName && CALC.packBagPerPack(sp)>0)
+    if(sp.packBagName && CALC.packBagPerPack(sp)>0 && !isReuseBag(sp.packBagName))
       jobs.push({kind:'pack', label:'ถุงแพ็ค', name:sp.packBagName, n:CALC.packBagPerPack(sp), wKey:'packBagWeight', sackKey:'packBagLotRef'});
     if(!jobs.length) return null;
     S.bagUse=S.bagUse||[];
@@ -3698,7 +3711,7 @@ window.WPDAUTH = {
     const sizeOf=id=>{ const b=bs.find(x=>x.batchId===id); return b?[b.size,b.cutSize]:[]; };
     const used={}; (S.caseUse||[]).forEach(u=>{ const k=u.fwId+'\u0000'+u.batchId; used[k]=(used[k]||0)+(+u.pieces||0); });
     const lots=[];
-    const since=lineSince(), tracked=new Set((S.caseUse||[]).map(u=>u.fwId));
+    const since=trackSince(S.caseUse), tracked=new Set((S.caseUse||[]).map(u=>u.fwId));
     (S.fabricWd||[]).filter(w=>w.fabricType===fab && (String(w.time)>=since || tracked.has(w.id))).slice().sort((a,b)=>String(a.time).localeCompare(String(b.time))).forEach(w=>{
       (w.picks||[]).forEach(p=>{
         if(want && normSize(w.size)!==want && !sizeOf(p.batchId).includes(want)) return;
@@ -3990,7 +4003,19 @@ window.WPDAUTH = {
     };
   }
 
+  /* ถุงที่ค้างอยู่ที่ไลน์ (ทุกชื่อ ทุกงาน) */
+  function renderBagAtLine(){
+    const t=$('tBagAtLine'); if(!t) return;
+    const keys=[...new Set((S.bagWd||[]).filter(w=>!w.auto).map(w=>w.kind+'\u0000'+w.name))];
+    const rows=[];
+    keys.forEach(k=>{ const [kind,name]=k.split('\u0000'); sackQueue(kind,name).filter(x=>x.remaining>0.0000001).forEach((x,i)=>rows.push({kind,name,x,inUse:i===0})); });
+    t.innerHTML=rows.length?'<tr><th>ถุง</th><th>กระสอบ</th><th>เหลือ</th><th>เบิกมาเมื่อ</th></tr>'+
+      rows.map(r=>'<tr><td>'+(r.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+' '+esc(r.name)+'</td><td>#'+esc(r.x.sackNo)+(r.inUse?' <span class="bdg ok">กำลังใช้</span>':' <span class="bdg warn">รอคิว</span>')+'</td>'+
+        '<td><b>'+piecesOf(r.x.remaining,r.x.weightPerBag)+'</b> ใบ <span style="color:var(--dim)">('+r.x.remaining+' กก.)</span></td><td>'+thDate(r.x.time)+'</td></tr>').join('')
+      :'<tr><td class="empty">ไม่มีถุงค้างที่ไลน์</td></tr>';
+  }
   function refreshBwSelects(){
+    renderBagAtLine();
     const nameSel=$('bwNameSel'); if(!nameSel) return;
     const kind=$('bwKindSel').value;
     const names=Object.keys(STOCKBAG[kind]||{});

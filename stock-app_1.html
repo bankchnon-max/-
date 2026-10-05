@@ -771,6 +771,22 @@
         <label>หมายเหตุ</label><input id="bagNote">
         <button class="btn w" id="btnBag">บันทึกรับเข้ากระสอบ</button>
       </div>
+      <div class="card" id="cardReuse">
+        <h3>♻ ถุงวนใช้ — ใช้ซ้ำได้หลายรอบ</h3>
+        <p class="sumline">นับเป็นใบ · บันทึกแพ็คแล้ว<b>ไม่หักสต๊อก</b> ยอดลดเมื่อกด "ทิ้ง" ถุงที่ขาด/ใช้ไม่ได้ · ราคาต่อใบ และใช้ได้กี่รอบ ตั้งที่แอพต้นทุน (เฉลี่ยลงต้นทุนทุกชิ้น)</p>
+        <div id="reuseCards"></div>
+        <div class="rf" style="margin-top:8px;">
+          <div><label>ถุง</label><select id="ruSel"></select><input id="ruName" placeholder="ชื่อถุงใหม่ เช่น ถุงวนใช้ 70x100" style="display:none;"></div>
+          <div style="max-width:120px;"><label>รับเข้ากี่ใบ</label><input id="ruQty" type="number" inputmode="numeric" placeholder="เช่น 50"></div>
+        </div>
+        <div class="rf">
+          <div><label>ไซซ์</label><input id="ruSize" placeholder="เช่น 70x100"></div>
+          <div><label>น้ำหนักต่อใบ (กก.)</label><input id="ruW" type="number" inputmode="decimal" step="0.001" placeholder="เช่น 0.12"></div>
+        </div>
+        <label>วันที่รับเข้า</label><input id="ruDate" type="date">
+        <button class="btn w" id="btnRuIn">บันทึกรับเข้าถุงวนใช้</button>
+        <div class="scr" style="margin-top:10px;"><table id="tReuseHist"></table></div>
+      </div>
       <div class="sumline" style="margin:6px 0 0;">ชื่อถุงที่ใช้ต่อออเดอร์อ่านมาจากหน้าตั้งค่า Standard ในแอพผลิตโดยตรง — การเบิกกระสอบไปใช้ ทำที่แอพผลิต (หน้าท้ายไลน์ → เบิกกระสอบถุง)</div>
       <div class="card"><h3>สถานะกระสอบทั้งหมด</h3><div id="sackBar"></div><div class="scr"><table id="tSackStatus"></table></div></div>
       <div class="card"><h3>ประวัติรับเข้ากระสอบ</h3><div class="scr"><table id="tBagHist"></table></div></div>
@@ -1510,7 +1526,7 @@ window.WPDAUTH = {
   const KEYMAP = {
     v3s_fiber:  ()=>({receipts:S.fiberReceipts, th:S.fiberTh, baleUsage:S.baleUsage}),
     v3s_fabric: ()=>({receipts:S.fabricReceipts, cuts:S.cuts, cutBatches:S.cutBatches, sewSent:S.sewSent, sewReturns:S.sewReturns, waste:S.waste, prodTypeTh:S.prodTypeTh, sizeMaster:S.sizeMaster||null}),
-    v3s_bag:    ()=>({receipts:S.sackReceipts}),
+    v3s_bag:    ()=>({receipts:S.sackReceipts, reuseItems:S.reuseItems||[], reuseIn:S.reuseIn||[], reuseOut:S.reuseOut||[]}),
     v3s_gas:    ()=>({receipts:S.gasReceipts}),
     v3s_fin:    ()=>({shipments:S.shipments, deliveries:S.deliveries, finAdjustments:S.finAdjustments,
                       tradeItems:S.tradeItems, tradeIn:S.tradeIn, tradeOut:S.tradeOut, tradeAdj:S.tradeAdj})
@@ -1569,7 +1585,7 @@ window.WPDAUTH = {
     const Pf=parse(fi,{}), Pa=parse(fa,{}), Pb=parse(bg,{}), Pg=parse(gs,{}), Pn=parse(fn,{});
     S.fiberReceipts=Pf.receipts||[]; S.fiberTh=Pf.th||{}; S.baleUsage=Pf.baleUsage||[];
     S.fabricReceipts=Pa.receipts||[]; S.cuts=Pa.cuts||[]; S.cutBatches=Pa.cutBatches||[]; S.sewSent=Pa.sewSent||[]; S.sewReturns=Pa.sewReturns||[]; S.waste=Pa.waste||[]; S.prodTypeTh=Pa.prodTypeTh||{}; S.sizeMaster=Array.isArray(Pa.sizeMaster)?Pa.sizeMaster:null;
-    S.sackReceipts=Pb.receipts||[];
+    S.sackReceipts=Pb.receipts||[]; S.reuseItems=Pb.reuseItems||[]; S.reuseIn=Pb.reuseIn||[]; S.reuseOut=Pb.reuseOut||[];
     S.gasReceipts=Pg.receipts||[];
     S.shipments=Pn.shipments||[]; S.deliveries=Pn.deliveries||[]; S.finAdjustments=Pn.finAdjustments||[];
     S.tradeItems=Pn.tradeItems||[]; S.tradeIn=Pn.tradeIn||[]; S.tradeOut=Pn.tradeOut||[]; S.tradeAdj=Pn.tradeAdj||[];
@@ -3193,6 +3209,7 @@ window.WPDAUTH = {
   /* ---------- 3. BAGS ---------- */
   function allBagNames(kind){ const set=new Set(); S.sackReceipts.filter(r=>r.kind===kind).forEach(r=>set.add(r.name)); return Array.from(set).filter(Boolean).sort(); }
   function rBag(){
+    rReuse();
     if(!$('bagDate').value) $('bagDate').value=todayStr();
     const sackStatus=CALC.sackStatus(S.sackReceipts,PROD.bagWd);
     const zip=CALC.bagAggregate(sackStatus,'zip');
@@ -3337,6 +3354,62 @@ window.WPDAUTH = {
       (dup.length?'<br><span class="bdg warn">เลข #'+esc(packNosText(dup))+' มีอยู่แล้ว</span>':'');
     if(skipGrid!==true) noGrid('bagGrid', p.nos, def, 'กก.', '0.1');
   }
+  /* ---------- ถุงวนใช้ ---------- */
+  function reuseStock(){
+    return (S.reuseItems||[]).map(it=>{ const i=(S.reuseIn||[]).filter(x=>x.itemId===it.id).reduce((a,x)=>a+(+x.qty||0),0), o=(S.reuseOut||[]).filter(x=>x.itemId===it.id).reduce((a,x)=>a+(+x.qty||0),0);
+      return Object.assign({}, it, { received:i, scrapped:o, have:i-o }); });
+  }
+  function rReuse(){
+    if(!$('reuseCards')) return;
+    if(!$('ruDate').value) $('ruDate').value=todayStr();
+    const st=reuseStock();
+    $('reuseCards').innerHTML=st.length?st.map(x=>'<div class="scard"><div class="nm">♻ '+esc(x.name)+(x.size?' <span style="color:var(--dim);font-weight:400;">'+esc(x.size)+'</span>':'')+'</div>'+
+      '<div class="n">'+x.have+' <span style="font-size:13px;color:var(--dim);">ใบ</span></div>'+
+      '<div class="l">รับเข้า '+x.received+' · ทิ้งแล้ว '+x.scrapped+(x.weightPerBag?' · '+x.weightPerBag+' กก./ใบ':'')+'</div>'+
+      '<button class="ed" data-ruout="'+x.id+'" style="margin-top:6px;">ทิ้ง (ขาด/ใช้ไม่ได้)</button></div>').join('')
+      :'<div class="empty">ยังไม่มีถุงวนใช้ — รับเข้าครั้งแรกที่ฟอร์มด้านล่าง</div>';
+    $('reuseCards').querySelectorAll('[data-ruout]').forEach(b=>b.onclick=async()=>{
+      const x=reuseStock().find(y=>y.id===b.dataset.ruout); if(!x) return;
+      const v=await askText2('ทิ้งถุงวนใช้ "'+x.name+'" กี่ใบ?\n\nตอนนี้มี '+x.have+' ใบ', '1'); if(v==null) return;
+      const n=Math.round(+String(v).replace(/[^\d.]/g,'')||0);
+      if(!(n>0)){ toast('กรอกจำนวนใบ'); return; }
+      if(n>x.have){ toast('มีอยู่แค่ '+x.have+' ใบ'); return; }
+      S.reuseOut=S.reuseOut||[]; S.reuseOut.push({ id:uid(), time:localISO(), itemId:x.id, qty:n, note:'ชำรุด/ใช้ไม่ได้' });
+      await saveBag(); rBag(); toast('ทิ้ง '+x.name+' '+n+' ใบ — เหลือ '+(x.have-n)+' ใบ');
+    });
+    const keep=$('ruSel').value;
+    $('ruSel').innerHTML=(st.length?st.map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join(''):'')+'<option value="__new__">+ ถุงวนใช้ชนิดใหม่…</option>';
+    if(keep && [...$('ruSel').options].some(o=>o.value===keep)) $('ruSel').value=keep;
+    $('ruSel').onchange();
+    const ev=[].concat((S.reuseIn||[]).map(x=>({t:x.time,k:'in',x})),(S.reuseOut||[]).map(x=>({t:x.time,k:'out',x}))).sort((a,b)=>String(b.t).localeCompare(String(a.t))).slice(0,40);
+    const nm=id=>((S.reuseItems||[]).find(i=>i.id===id)||{name:'(ลบแล้ว)'}).name;
+    $('tReuseHist').innerHTML=ev.length?'<tr><th>วันที่</th><th>ถุง</th><th>รายการ</th><th>จำนวน</th><th></th></tr>'+
+      ev.map(e=>'<tr><td>'+thDate(e.t)+'</td><td>'+esc(nm(e.x.itemId))+'</td><td>'+(e.k==='in'?'<span class="bdg ok">รับเข้า</span>':'<span class="bdg warn">ทิ้ง</span>')+'</td><td>'+(e.k==='in'?'+':'−')+e.x.qty+' ใบ</td>'+
+        '<td><button class="x" data-rudel="'+e.k+'|'+e.x.id+'">✕</button></td></tr>').join(''):'';
+    $('tReuseHist').querySelectorAll('[data-rudel]').forEach(b=>b.onclick=async()=>{
+      const [k,id]=b.dataset.rudel.split('|'); if(!await ask('ลบรายการนี้?')) return;
+      if(k==='in') S.reuseIn=S.reuseIn.filter(x=>x.id!==id); else S.reuseOut=S.reuseOut.filter(x=>x.id!==id);
+      await saveBag(); rBag(); toast('ลบแล้ว');
+    });
+  }
+  $('ruSel').onchange=function(){ const n=$('ruName'), it=(S.reuseItems||[]).find(x=>x.id===this.value);
+    n.style.display=this.value==='__new__'?'block':'none';
+    if(it){ $('ruSize').value=it.size||''; $('ruW').value=it.weightPerBag||''; } };
+  $('btnRuIn').onclick=async()=>{
+    const qty=Math.round(+$('ruQty').value||0); if(!(qty>0)){ toast('กรอกจำนวนใบที่รับเข้า'); return; }
+    let it=(S.reuseItems||[]).find(x=>x.id===$('ruSel').value);
+    const size=normSize($('ruSize').value||''), w=+$('ruW').value||0;
+    if(!it){
+      const name=normSize($('ruName').value||'').trim(); if(!name){ toast('พิมพ์ชื่อถุงวนใช้'); return; }
+      if((S.reuseItems||[]).some(x=>x.name===name)){ toast('มีถุงชื่อนี้แล้ว — เลือกจากรายการ'); return; }
+      if((S.sackReceipts||[]).some(x=>x.name===name)){ await info('ชื่อซ้ำกับถุงแบบกระสอบ','"'+name+'" มีอยู่แล้วเป็นถุงแบบกระสอบ (หักทุกแพ็ค) — ตั้งชื่อถุงวนใช้ให้ต่างกัน เช่น "'+name+' (วนใช้)"'); return; }
+      it={ id:uid(), name, size, weightPerBag:w }; S.reuseItems=S.reuseItems||[]; S.reuseItems.push(it);
+    } else { if(size) it.size=size; if(w>0) it.weightPerBag=w; }
+    const dateVal=$('ruDate').value?$('ruDate').value+'T'+localISO().slice(11):localISO();
+    S.reuseIn=S.reuseIn||[]; S.reuseIn.push({ id:uid(), time:dateVal, itemId:it.id, qty });
+    await saveBag(); $('ruQty').value=''; $('ruName').value=''; $('ruSel').value=it.id; rBag();
+    toast('รับเข้าถุงวนใช้ '+it.name+' '+qty+' ใบแล้ว');
+  };
   $('bagKind').onchange=rBag;
   $('bagNameSel').onchange=function(){ const v=this.value,t=$('bagNameNew'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} updateBagSackPreview(); };
   $('bagNameNew').oninput=updateBagSackPreview;
@@ -4104,7 +4177,7 @@ window.WPDAUTH = {
     if(!window.confirm('⚠ จะลบข้อมูลสต๊อกทั้งหมด (ใย/ผ้า/ถุง/สินค้า/จัดส่ง) — ข้อมูลในแอพผลิตไม่กระทบ\n\nแนะนำให้กด "ออกทั้งหมด" เก็บไฟล์ไว้ก่อน\n\nยืนยันครั้งที่ 1 — ต้องการลบจริงหรือไม่?')) return;
     if(!window.confirm('⚠ ยืนยันอีกครั้ง — การลบนี้กู้คืนไม่ได้\n\nพิมพ์ "ตกลง" เพื่อยืนยันการลบข้อมูลสต๊อกทั้งหมด')) return;
     S.fiberReceipts=[]; S.fiberTh={}; S.baleUsage=[]; S.fabricReceipts=[]; S.cuts=[]; S.cutBatches=[]; S.sewSent=[]; S.sewReturns=[]; S.waste=[]; S.prodTypeTh={};
-    S.sackReceipts=[]; S.gasReceipts=[]; S.shipments=[]; S.deliveries=[]; S.finAdjustments=[];
+    S.sackReceipts=[]; S.reuseItems=[]; S.reuseIn=[]; S.reuseOut=[]; S.gasReceipts=[]; S.shipments=[]; S.deliveries=[]; S.finAdjustments=[];
     S.tradeItems=[]; S.tradeIn=[]; S.tradeOut=[]; S.tradeAdj=[];
     await Promise.all([saveFiber(),saveFabric(),saveBag(),saveGas(),saveFin()]);
     renderPanel(); toast('ล้างข้อมูลสต๊อกทั้งหมดแล้ว');

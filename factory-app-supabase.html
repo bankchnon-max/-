@@ -115,6 +115,14 @@
   .opcard.opwarn{ border:1.5px solid var(--red) !important; }
   .opcard.opwarn .opmsg{ display:block; }
   .opok{ font-size:12px; color:var(--dim); margin-top:6px; }
+  .walert{ display:none; align-items:center; gap:10px; margin:12px 0 4px; padding:12px 14px; border:2px solid var(--red); border-radius:14px;
+           background:rgba(229,89,95,.12); color:var(--red); animation:waPulse 1.2s ease-in-out 3; }
+  .walert.show{ display:flex; }
+  .walert .wa-ic{ font-size:28px; line-height:1; font-weight:700; }
+  .walert .wa-t{ flex:1; font-size:15px; font-weight:600; line-height:1.35; }
+  .walert .wa-t small{ display:block; font-weight:400; font-size:12.5px; color:var(--text); opacity:.8; margin-top:2px; }
+  .walert button.btn{ width:auto !important; margin:0 !important; flex:none; background:var(--red) !important; color:#fff !important; border-color:var(--red) !important; }
+  @keyframes waPulse{ 50%{ box-shadow:0 0 0 6px rgba(229,89,95,.25); } }
   .opcard.opwarn .opok{ display:none; }
   /* ยังไม่ลงชื่อวันนี้: ล็อกทุกการ์ดในหน้า ยกเว้นช่องลงชื่อ */
   .panel.oplock > :not(.opcard){ opacity:.35; filter:grayscale(.6); user-select:none; }
@@ -676,6 +684,7 @@
         <div class="sumline" id="actHint"></div>
         <label>หมายเหตุ</label>
         <input id="lineNote" placeholder="เช่น ใยแน่นเกิน">
+        <div class="walert" id="wAlert"><div class="wa-ic" id="wAlertIc"></div><div class="wa-t" id="wAlertT"></div><button class="btn sm" id="wAlertOk">รับทราบ</button></div>
         <button class="btn w" id="btnPack">บันทึก 1 แพ็ค (น้ำหนักจริง)</button>
         <button class="btn sec w" id="btnPackStd">ตรงตาม Standard พอดี — ไม่ต้องชั่ง</button>
         <div id="carryBox"></div>
@@ -3460,7 +3469,19 @@ window.WPDAUTH = {
     if(_sheet) _tail+=(_sheet.short?' ⚠ '+_sheet.short:' · '+_sheet.msg);
     toast('แพ็คที่ '+seq+' · '+(act==null?std+' กก. (ตาม Std)':act+' กก.'+
       (st==='ok'?' ✓ ตรงสเปค':st==='over'?' ▲ สูงไป '+r3(act-std)+' กก.':' ▼ ต่ำไป '+r3(std-act)+' กก.'))+_tail);
+    if(st==='over'||st==='under') showWAlert(seq, act, std, st, +o.spec.tolPct||3);
   }
+
+  /* กล่องแจ้งน้ำหนักเกินที่ยอมให้คลาด — ค้างไว้จนกด "รับทราบ" */
+  function showWAlert(seq, act, std, st, tol){
+    const lo=st==='under', pct=std?r2((act-std)/std*100):0;
+    $('wAlertIc').textContent=lo?'▼':'▲';
+    $('wAlertT').innerHTML='แพ็คที่ '+seq+' น้ำหนัก'+(lo?'ต่ำไป':'สูงไป')+' '+r3(Math.abs(act-std))+' กก.'+
+      '<small>ชั่งได้ '+act+' กก. · Standard '+std+' กก. ('+(pct>0?'+':'')+pct+'% · ยอมให้คลาด ±'+tol+'%) — '+(lo?'เติมใยให้ได้น้ำหนัก':'ลดใยลง')+' แล้วเช็คแพ็คถัดไป</small>';
+    $('wAlert').classList.add('show');
+    try{ if(navigator.vibrate) navigator.vibrate([200,100,200]); }catch(e){}
+  }
+  $('wAlertOk').onclick=()=>$('wAlert').classList.remove('show');
 
   /* ---------- คิวก้อนใยที่เบิกมาไว้ที่ไลน์แล้ว ----------
      เบิก 1 ครั้ง = ยกก้อนมาที่ไลน์ 1 ก้อน (หักสต๊อกตอนเบิก)

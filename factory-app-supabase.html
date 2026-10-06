@@ -631,6 +631,7 @@
       </div>
       <div class="card" id="cardPicTap" style="display:none;">
         <h3>🧺 แพ็คปิกนิก — เลือกของที่ใช้ แล้วกด 1 ครั้ง = 1 แพ็ค</h3>
+        <label>ใครแพ็ค</label><select id="ptWho"><option value="contract">🤝 เหมา (คนรับเหมาแพ็ค)</option><option value="staff">👷 พนักงานแพ็ค</option></select>
         <div class="sumline" id="ptInfo"></div>
         <label>ใยแผ่นที่ใช้ — จากงานไหน</label><select id="ptSheet"></select>
         <label>ปลอก — ถุงที่หยิบมา</label><select id="ptCase"></select>
@@ -3368,7 +3369,9 @@ window.WPDAUTH = {
       note:note, gapMinutes:gapMin||null,
       gapReason:gapReason||null, isDowntime:!!flagged,
       /* แพ็คนี้มีแผ่นค้างจากงานก่อนรวมอยู่ — ชิ้นที่งานนี้ผลิตเอง = ชิ้นต่อแพ็ค − แผ่นค้าง */
-      carryIn:_carry?_carry.pieces:0, carryFrom:_carry?_carry.from:[], carryKg:_carry?_carry.kg:0 });
+      carryIn:_carry?_carry.pieces:0, carryFrom:_carry?_carry.from:[], carryKg:_carry?_carry.kg:0,
+      /* งานปิกนิก: ใครแพ็ค (เหมา/พนักงาน) — แอพต้นทุนคิดค่าเหมา หรือค่าแรงพนักงาน ตามนี้ */
+      packedBy: isPicnic(o) ? (((o.picSel||{}).packedBy==='staff')?'staff':'contract') : undefined });
     const _cut=autoCutBags(o,_lineId);
     /* จดกระสอบ/ไซซ์ถุงที่หักจริงของแพ็คนี้ไว้ในรายการ (แทนช่องที่เคยให้กรอกเอง) */
     { const _row=S.line.find(l=>l.id===_lineId), _bu=(S.bagUse||[]).filter(u=>u.lineId===_lineId);
@@ -3599,12 +3602,15 @@ window.WPDAUTH = {
     $('ptInfo').innerHTML=(std?'Standard แพ็คละ <b>'+n+' ใบ</b> · <b>'+std+' กก.</b>':'<span class="bdg bad">ยังไม่ได้ตั้ง Standard</span> ตั้งที่การ์ดด้านบนก่อน')+
       '<br>ที่ไลน์ตอนนี้: ใยแผ่น <b>'+atS+'</b> แผ่น'+(atC!=null?' · ปลอก <b>'+atC+'</b> ใบ':'')+(atB!=null?' · ถุงแพ็ค <b>'+atB+'</b> ใบ':(_reuse?' · ♻ '+(/วนใช้/.test(sp.packBagName)?'':'ถุงวนใช้ ')+esc(sp.packBagName):''))+
       '<br><span style="color:var(--dim)">ที่ไลน์ไม่พอ ระบบเบิกจากที่เลือกไว้ให้เองตอนกด</span>';
-    const today=(S.line||[]).filter(l=>l.orderId===o.id && dayOf(l.time)===todayStr()).length, all=(S.line||[]).filter(l=>l.orderId===o.id).length;
-    $('ptBtnSub').textContent='วันนี้ '+today+' แพ็ค · รวม '+all+(o.orderedPacks?' / '+o.orderedPacks:'')+' แพ็ค';
+    $('ptWho').value=sel.packedBy==='staff'?'staff':'contract';
+    const _todayRows=(S.line||[]).filter(l=>l.orderId===o.id && dayOf(l.time)===todayStr()), today=_todayRows.length, all=(S.line||[]).filter(l=>l.orderId===o.id).length;
+    const _tc=_todayRows.filter(l=>l.packedBy==='contract').length, _ts=_todayRows.filter(l=>l.packedBy==='staff').length;
+    $('ptBtnSub').textContent='วันนี้ '+today+' แพ็ค'+(_tc||_ts?' (เหมา '+_tc+' · พนักงาน '+_ts+')':'')+' · รวม '+all+(o.orderedPacks?' / '+o.orderedPacks:'')+' แพ็ค';
     $('ptToday').innerHTML='';
   }
-  ['ptSheet','ptCase','ptSack'].forEach(id=>{ if($(id)) $(id).onchange=async()=>{ const o=active(); if(!o) return; const sel=picSel(o);
-    sel.sheet=$('ptSheet').value; sel.caseBatch=$('ptCase').value; sel.sackId=$('ptSack').value; await saveOrders(); refreshPicTap(o); }; });
+  ['ptSheet','ptCase','ptSack','ptWho'].forEach(id=>{ if($(id)) $(id).onchange=async()=>{ const o=active(); if(!o) return; const sel=picSel(o);
+    sel.sheet=$('ptSheet').value; sel.caseBatch=$('ptCase').value; sel.sackId=$('ptSack').value; sel.packedBy=$('ptWho').value; await saveOrders(); refreshPicTap(o);
+    if(id==='ptWho') toast(sel.packedBy==='staff'?'แพ็คต่อจากนี้ = 👷 พนักงานแพ็ค':'แพ็คต่อจากนี้ = 🤝 เหมา'); }; });
   if($('ptDetail')) $('ptDetail').onchange=()=>rLine();
   if($('btnPicTap')) $('btnPicTap').onclick=async()=>{
     const o=active(); if(!isPicnic(o)) return;

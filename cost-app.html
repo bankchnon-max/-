@@ -956,6 +956,28 @@ window.WPDAUTH = {
     },
 
     /* ค่าถุงต่อใบ = ราคากระสอบ ÷ จำนวนใบในกระสอบนั้น */
+    /* ค่าเหมาแพ็คปิกนิก (บาท/ชิ้น): ราคาตามไซซ์ ไม่ได้ตั้ง = ราคากลาง */
+    picnicSizeOf(order){
+      if(!order) return '';
+      if(order.picnicSize) return order.picnicSize;
+      const m=/(\d+(?:\.\d+)?)\s*F(?![a-z])/i.exec(String(order.code||'')); if(m) return m[1]+'F';
+      return ({'40x79':'3F','46x79':'3.5F','63x78':'5F','76x83':'6F','36x75':'3F','42x75':'3.5F','59x75':'5F','72x78':'6F'})[String((order.spec||{}).fabricSize||'').replace(/\s/g,'').toLowerCase()]||'';
+    },
+    picnicContractRate(PRICE, order){
+      const e=((PRICE||{}).picnicContract||{}).all||{}, z=COST.picnicSizeOf(order);
+      const bySize=+((e.sizes||{})[z])||0;
+      if(bySize>0) return { baht:bySize, src:'size', size:z };
+      if(+e.std>0) return { baht:+e.std, src:'std', size:z };
+      return { baht:0, src:'none', size:z };
+    },
+    /* แพ็คปิกนิกที่จ้างเหมา: จำนวนแพ็ค / ชิ้น และค่าเหมา (lines = แพ็คของงานนี้ในช่วงที่คิด) */
+    picnicContractOf(PRICE, order, lines){
+      if(!order || (order.productType||'')!=='ปิกนิก') return { packs:0, pieces:0, baht:0, rate:{baht:0,src:'none'} };
+      const cl=(lines||[]).filter(l=>l.packedBy==='contract');
+      const pieces=cl.reduce((a,l)=>a+((+l.piecesPerPack)||(+((order.spec||{}).piecesPerPack))||1),0);
+      const rate=COST.picnicContractRate(PRICE, order);
+      return { packs:cl.length, pieces, baht:r2(pieces*rate.baht), rate };
+    },
     /* ถุงวนใช้: ราคาต่อใบ ÷ ใช้ได้กี่รอบ = ค่าถุงต่อการใช้ 1 ครั้ง */
     reuseBahtPerUse(PRICE, name){
       const e=((PRICE||{}).reuse||{})[name]||{};
@@ -1106,7 +1128,11 @@ window.WPDAUTH = {
       lines.forEach(l=>{ const o=(P.orders||[]).find(x=>x.id===l.orderId); const per=o?COST.reuseUsesPerPack(S,o.spec):0; if(per>0) bag+=per*COST.reuseBahtPerUse(PRICE,o.spec.packBagName).baht; });
       let sheet=0; (P.sheetUse||[]).filter(inR).forEach(u=>{ sheet+=(+u.qty||0)*COST.sheetCostPerPiece(ctx,u.srcOrderId,0).baht; });
       const hrRate=(+K.laborHoursPerDay>0)?(+K.laborDaily||0)/(+K.laborHoursPerDay):0;
-      const labor=hours*hrRate+pieces*(+K.laborPerPiece||0);
+      /* ปิกนิกที่จ้างเหมา: ค่าเหมาแทนค่าแรงในโรงของแพ็คนั้น */
+      let _cPacks=0, _cPieces=0, _cBaht=0;
+      (P.orders||[]).filter(o=>(o.productType||'')==='ปิกนิก').forEach(o=>{ const c=COST.picnicContractOf(PRICE, o, lines.filter(l=>l.orderId===o.id)); _cPacks+=c.packs; _cPieces+=c.pieces; _cBaht+=c.baht; });
+      const _share=(packs>0 && _cPacks>0) ? Math.max(0,(packs-_cPacks)/packs) : 1;
+      const labor=hours*hrRate*_share+Math.max(0,pieces-_cPieces)*(+K.laborPerPiece||0)+_cBaht;
       const tanks=(P.gasSwaps||[]).filter(inR).reduce((s,g)=>s+((g.gasNos&&g.gasNos.length)||1),0);
       const gas=tanks*COST.gasPricePerTank(PRICE).baht;
       const elec=hours*(+K.elecPerHour||0), ship=packs*(+K.shipPerPack||0);
@@ -1204,10 +1230,18 @@ window.WPDAUTH = {
 
       /* ---- ค่าแรงในโรง (รายวัน + รายชิ้น) ---- */
       const hrRate=(+K.laborHoursPerDay>0)? (+K.laborDaily||0)/(+K.laborHoursPerDay) : 0;
-      const laborTime=r2(hours*hrRate);
-      const laborPiece=r2(pieces*(+K.laborPerPiece||0));
-      if(laborTime) detail.push({cat:'ค่าแรง', what:'รายวัน', qty:hours+' ชม.', unit:r2(hrRate), baht:laborTime, src:'set'});
-      if(laborPiece) detail.push({cat:'ค่าแรง', what:'รายชิ้น', qty:pieces+' ชิ้น', unit:+K.laborPerPiece||0, baht:laborPiece, src:'set'});
+      /* งานปิกนิก: แพ็คที่จ้างเหมา ไม่คิดค่าแรงในโรง (คิดค่าเหมาแทน) — ค่าแรงในโรงคิดตามสัดส่วนแพ็คที่พนักงานแพ็ค */
+      const _pc=COST.picnicContractOf(PRICE, order, lines);
+      const _staffShare=(_pc.packs>0 && packs>0) ? Math.max(0,(packs-_pc.packs)/packs) : 1;
+      const laborTime=r2(hours*hrRate*_staffShare);
+      let laborPiece=r2(Math.max(0,pieces-_pc.pieces)*(+K.laborPerPiece||0));
+      if(laborTime) detail.push({cat:'ค่าแรง', what:'รายวัน'+(_staffShare<1?' (เฉพาะแพ็คที่พนักงานแพ็ค '+Math.round(_staffShare*100)+'%)':''), qty:r2(hours*_staffShare)+' ชม.', unit:r2(hrRate), baht:laborTime, src:'set'});
+      if(laborPiece) detail.push({cat:'ค่าแรง', what:'รายชิ้น', qty:Math.max(0,pieces-_pc.pieces)+' ชิ้น', unit:+K.laborPerPiece||0, baht:laborPiece, src:'set'});
+      if(_pc.packs>0){
+        laborPiece=r2(laborPiece+_pc.baht);
+        if(_pc.rate.src==='none') miss.push('ยังไม่ได้ใส่ค่าเหมาแพ็คปิกนิก');
+        detail.push({cat:'ค่าแรง', what:'🤝 ค่าเหมาแพ็คปิกนิก'+(_pc.rate.size?' '+_pc.rate.size:''), qty:_pc.pieces+' ชิ้น ('+_pc.packs+' แพ็ค)', unit:_pc.rate.baht, baht:_pc.baht, src:_pc.rate.src==='none'?'none':'set'});
+      }
 
       /* ---- แก๊ส: นับถังที่เปลี่ยนระหว่างช่วงเวลาของงานนี้ — เฉพาะงานที่ใช้แก๊ส (ใยแผ่น)
               หมอน/ปิกนิก/ใยปั่น-ใยสาง ไม่ใช้แก๊ส ไม่คิด แม้เปลี่ยนถังที่ไลน์ใยแผ่นช่วงเดียวกัน ---- */
@@ -1611,6 +1645,12 @@ window.WPDAUTH = {
           (c.baht?'<div class="sumline">≈ <b style="color:var(--accent2)">'+fmtBaht(c.baht)+' บาท/รอบ</b> (ใบละ '+fmtBaht(c.per)+' ÷ '+fmtInt(c.cycles)+' รอบ) — เฉลี่ยลงทุกแพ็คที่ใช้</div>':'')+'</div>';
       });
     }
+    { const e=((PRICE.picnicContract||{}).all)||{};
+      bh+='<div style="margin-top:14px;font-size:14px;font-weight:600;color:var(--w-label,#465262);">🤝 ค่าเหมาแพ็คปิกนิก (บาท/ชิ้น)</div>'+
+        '<div class="scard"><div class="sumline" style="margin-top:0">ใช้กับแพ็คที่ท้ายไลน์เลือก "🤝 เหมา" · แพ็คที่พนักงานแพ็ค คิดค่าแรงในโรงตามเดิม · ไซซ์ไหนไม่ใส่ = ใช้ราคากลาง</div>'+
+        '<div class="frow" style="margin-top:6px;"><div style="flex:1;font-size:12.5px">ราคากลาง (ทุกไซซ์)</div><div style="width:110px">'+priceInput('picnicContract|all|std', e.std, 'เช่น 3')+'</div></div>'+
+        ['3F','3.5F','5F','6F'].map(z=>'<div class="frow" style="margin-top:6px;"><div style="flex:1;font-size:12.5px">ปิกนิก '+z+'</div><div style="width:110px">'+priceInput('picnicContract|all|size|'+z, (e.sizes||{})[z], 'ตามราคากลาง')+'</div></div>').join('')+'</div>';
+    }
     $('prBag').innerHTML = bh || '<div class="empty">ยังไม่มีถุงในระบบ</div>';
     $('prGas').value = PRICE.gas>0?PRICE.gas:'';
 
@@ -1635,7 +1675,7 @@ window.WPDAUTH = {
       if(kind==='std'){ if(v>0) PRICE[grp][name].std=v; else delete PRICE[grp][name].std; }
       else if(kind==='cycles'){ if(v>0) PRICE[grp][name].cycles=v; else delete PRICE[grp][name].cycles; }
       else {
-        const bucket = kind==='lot'?'lots':kind==='rid'?'rids':kind==='roll'?'rolls':kind==='rollid'?'rollIds':'sacks';
+        const bucket = kind==='lot'?'lots':kind==='rid'?'rids':kind==='roll'?'rolls':kind==='rollid'?'rollIds':kind==='size'?'sizes':'sacks';
         PRICE[grp][name][bucket]=PRICE[grp][name][bucket]||{};
         if(v>0) PRICE[grp][name][bucket][key]=v; else delete PRICE[grp][name][bucket][key];
       }

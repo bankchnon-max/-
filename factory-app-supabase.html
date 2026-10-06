@@ -1311,6 +1311,14 @@ window.WPDAUTH = {
       for(const b of list){ if(b.maxPct==null || abs<=b.maxPct) return b; }
       return list[list.length-1];
     },
+    /* ข้อความผลตามเกณฑ์ พร้อมทิศทาง: ต่ำ/สูงกว่า Standard (ระดับแรก "ดีมาก" ไม่ต้องบอก) */
+    diffBandText(band, diffPct, bands){
+      if(!band) return '';
+      const list=(bands&&bands.length)?bands:CALC.defaultDiffBands();
+      if(!diffPct || band===list[0]) return band.label;
+      const lo=diffPct<0;
+      return (lo?'▼ ':'▲ ')+(band.label==='เกินเกณฑ์' ? (lo?'ต่ำกว่าเกณฑ์':'สูงกว่าเกณฑ์') : band.label+(lo?' · ต่ำไป':' · สูงไป'));
+    },
     defaultDiffBands(){
       return [
         {maxPct:1, color:'#0a8f3c', label:'ดีมาก'},
@@ -2952,7 +2960,7 @@ window.WPDAUTH = {
           '<td>'+l.stdPerPack+'</td>'+
           '<td><b style="color:'+(bandPack?bandPack.color:'var(--dim)')+'">'+(l.actualWeight==null?'—':l.actualWeight)+'</b></td>'+
           '<td>'+(diffPctPack==null?'—':(diffPctPack>0?'+':'')+diffPctPack+'%')+'</td>'+
-          '<td>'+(bandPack?'<span class="bdg" style="background:'+bandPack.color+'26;color:'+bandPack.color+';">'+esc(bandPack.label)+'</span>':'<span style="color:var(--dim)">ตาม Std</span>')+'</td>'+
+          '<td>'+(bandPack?'<span class="bdg" style="background:'+bandPack.color+'26;color:'+bandPack.color+';">'+esc(CALC.diffBandText(bandPack,diffPctPack,bands))+'</span>':'<span style="color:var(--dim)">ตาม Std</span>')+'</td>'+
           '<td>'+(l.cumActual==null?l.cumStd:l.cumActual)+'</td><td>'+l.cumStd+'</td>'+
           '<td style="white-space:normal">'+esc(l.note)+'</td>'+
           '<td><button class="x" data-ln="'+l.id+'">✕</button></td></tr>';
@@ -3451,7 +3459,7 @@ window.WPDAUTH = {
     if(_case) _tail+=(_case.short?' ⚠ '+_case.short:' · '+_case.msg);
     if(_sheet) _tail+=(_sheet.short?' ⚠ '+_sheet.short:' · '+_sheet.msg);
     toast('แพ็คที่ '+seq+' · '+(act==null?std+' กก. (ตาม Std)':act+' กก.'+
-      (st==='ok'?' ✓ ตรงสเปค':st==='over'?' ▲ เกิน '+r3(act-std):' ▼ ขาด '+r3(std-act)))+_tail);
+      (st==='ok'?' ✓ ตรงสเปค':st==='over'?' ▲ สูงไป '+r3(act-std)+' กก.':' ▼ ต่ำไป '+r3(std-act)+' กก.'))+_tail);
   }
 
   /* ---------- คิวก้อนใยที่เบิกมาไว้ที่ไลน์แล้ว ----------
@@ -3855,8 +3863,8 @@ window.WPDAUTH = {
     const calcPack=r3(pc*(+sp.piecesPerPack||0)+r3(CALC.stdPerPack(sp)-(+sp.weightPerPiece||0)*(+sp.piecesPerPack||0)));
     const st=CALC.tolStatus(pc,+sp.weightPerPiece||0,sp.tolPct);
     H.innerHTML='ต่อชิ้น '+(st==='ok'?'<span class="bdg ok">ตรงสเปค</span>':
-        st==='over'?'<span class="bdg warn">เกิน '+r3(pc-(+sp.weightPerPiece||0))+'</span>':
-        '<span class="bdg bad">ขาด '+r3((+sp.weightPerPiece||0)-pc)+'</span>')+
+        st==='over'?'<span class="bdg warn">▲ สูงไป '+r3(pc-(+sp.weightPerPiece||0))+'</span>':
+        '<span class="bdg bad">▼ ต่ำไป '+r3((+sp.weightPerPiece||0)-pc)+'</span>')+
       ' · ถ้าทั้งแพ็คใช้ชิ้นละเท่านี้จะได้ '+calcPack+' กก. '+
       '<button class="btn sec sm" id="btnUsePc" style="margin-left:6px;">ใช้ค่านี้เป็นน้ำหนักแพ็ค</button>';
     $('btnUsePc').onclick=()=>{ $('actW').value=calcPack; formDirty=true; };
@@ -3880,7 +3888,7 @@ window.WPDAUTH = {
     const _std=CALC.stdPerPack((active()||{}).spec||{});
     if(_std>0 && (packW>_std*1.3 || packW<_std*0.7)){
       const _pct=Math.round((packW/_std-1)*100);
-      if(!await ask('น้ำหนักห่างจาก Standard มาก — พิมพ์ผิดหรือเปล่า?',
+      if(!await ask((packW<_std?'▼ น้ำหนักต่ำกว่า':'▲ น้ำหนักสูงกว่า')+' Standard มาก — พิมพ์ผิดหรือเปล่า?',
         'กรอก '+packW+' กก. แต่ Standard คือ '+_std+' กก./แพ็ค ('+(_pct>0?'+':'')+_pct+'%)\n\nถ้าชั่งได้จริงกดยืนยัน ถ้าพิมพ์ผิดกดยกเลิกแล้วแก้ตัวเลข')) return;
     }
     formDirty=false;

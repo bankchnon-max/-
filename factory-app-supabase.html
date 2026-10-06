@@ -114,6 +114,11 @@
   .opmsg{ display:none; font-size:12.5px; color:var(--red); margin-top:6px; }
   .opcard.opwarn{ border:1.5px solid var(--red) !important; }
   .opcard.opwarn .opmsg{ display:block; }
+  .opok{ font-size:12px; color:var(--dim); margin-top:6px; }
+  .opcard.opwarn .opok{ display:none; }
+  /* ยังไม่ลงชื่อวันนี้: ล็อกทุกการ์ดในหน้า ยกเว้นช่องลงชื่อ */
+  .panel.oplock > :not(.opcard){ opacity:.35; filter:grayscale(.6); user-select:none; }
+  .panel.oplock > :not(.opcard), .panel.oplock > :not(.opcard) *{ pointer-events:none !important; }
   #fr button.btn.w { width:100%; }
   #fr .frow { display:flex; gap:6px; margin-top:6px; align-items:center; }
   #fr .frow input { margin-top:0; }
@@ -544,7 +549,8 @@
       <div class="card opcard" id="opc_feed">
         <div class="oprow"><span class="oplbl">👤 ผู้ลงข้อมูล</span><select id="op_feed"></select></div>
         <div class="oprow" id="opn_feed" style="display:none;margin-top:8px;"><input id="opi_feed" placeholder="พิมพ์ชื่อ" autocomplete="off"><button class="btn sm" id="opa_feed" style="margin:0;width:auto;">เพิ่ม</button></div>
-        <div class="opmsg">ยังไม่ได้เลือกชื่อ — เลือกก่อนลงข้อมูล ระบบจะจดชื่อไว้ทุกรายการ (เลือกครั้งเดียว เครื่องนี้จำไว้)</div>
+        <div class="opmsg">ลงชื่อก่อนเริ่มงานวันนี้ — ต้องลงชื่อทุกวัน ระบบจะจดชื่อไว้ทุกรายการ (ยังไม่ลงชื่อ = กดลงข้อมูลไม่ได้)</div>
+        <div class="opok"></div>
       </div>
       <div class="card">
         <h3>กำลังป้อนใยให้ออเดอร์</h3>
@@ -641,7 +647,8 @@
       <div class="card opcard" id="opc_line">
         <div class="oprow"><span class="oplbl">👤 ผู้ลงข้อมูล</span><select id="op_line"></select></div>
         <div class="oprow" id="opn_line" style="display:none;margin-top:8px;"><input id="opi_line" placeholder="พิมพ์ชื่อ" autocomplete="off"><button class="btn sm" id="opa_line" style="margin:0;width:auto;">เพิ่ม</button></div>
-        <div class="opmsg">ยังไม่ได้เลือกชื่อ — เลือกก่อนลงข้อมูล ระบบจะจดชื่อไว้ทุกรายการ (เลือกครั้งเดียว เครื่องนี้จำไว้)</div>
+        <div class="opmsg">ลงชื่อก่อนเริ่มงานวันนี้ — ต้องลงชื่อทุกวัน ระบบจะจดชื่อไว้ทุกรายการ (ยังไม่ลงชื่อ = กดลงข้อมูลไม่ได้)</div>
+        <div class="opok"></div>
       </div>
       <div class="card" id="cardSpec">
         <div id="specForm"></div>
@@ -1800,15 +1807,20 @@ window.WPDAUTH = {
 
   /* ═══ ผู้ลงข้อมูล (ป้อนใย / ท้ายไลน์): ชื่อจำไว้ในเครื่อง แยกหน้า · รายชื่อใช้ร่วมกันทุกเครื่อง (S.settings.operators) ═══ */
   const OP_KEY={ feed:'wpd_op_feed', line:'wpd_op_line' };
-  function opGet(p){ try{ return localStorage.getItem(OP_KEY[p])||''; }catch(e){ return ''; } }
-  function opSet(p,v){ try{ v?localStorage.setItem(OP_KEY[p],v):localStorage.removeItem(OP_KEY[p]); }catch(e){} }
+  /* ลงชื่อใช้ได้เฉพาะวันที่ลง — ข้ามวัน = ต้องลงชื่อใหม่ (คนป้อนใย/ท้ายไลน์ เปลี่ยนได้ทุกวัน) */
+  function opGet(p){ try{ const o=JSON.parse(localStorage.getItem(OP_KEY[p])||'null'); return (o && o.day===todayStr() && o.name) ? o.name : ''; }catch(e){ return ''; } }
+  function opSet(p,v){ try{ v?localStorage.setItem(OP_KEY[p],JSON.stringify({ name:v, day:todayStr(), at:localISO() })):localStorage.removeItem(OP_KEY[p]); }catch(e){} }
+  function opAt(p){ try{ const o=JSON.parse(localStorage.getItem(OP_KEY[p])||'null'); return o && o.day===todayStr() ? o.at : ''; }catch(e){ return ''; } }
   /* ชื่อที่จดลงรายการ = ชื่อของหน้าที่เปิดอยู่ตอนกด (หน้าอื่น = ไม่จด) */
   function opBy(){ return (current==='feed'||current==='line') ? (opGet(current)||null) : null; }
   const byCell=x=>'<td>'+(x&&x.by?esc(x.by):'<span style="color:var(--dim)">—</span>')+'</td>';
   function rOp(p){
-    const sel=$('op_'+p); if(!sel || $('opn_'+p).style.display!=='none') return;
+    const sel=$('op_'+p); if(!sel) return;
+    $('p-'+p).classList.toggle('oplock', !opGet(p));
+    if($('opn_'+p).style.display!=='none') return;
     const cur=opGet(p), names=(S.settings.operators||[]).slice(); if(cur && names.indexOf(cur)<0) names.push(cur);
-    const sig=cur+'|'+names.join('|'); if(sel.dataset.sig===sig) return; sel.dataset.sig=sig;
+    const sig=todayStr()+'|'+cur+'|'+names.join('|'); if(sel.dataset.sig===sig) return; sel.dataset.sig=sig;
+    const at=opAt(p); $('opc_'+p).querySelector('.opok').textContent = cur ? '✓ ลงชื่อวันนี้แล้ว'+(at?' ('+String(hhmm(at)).slice(0,5)+')':'')+' — พรุ่งนี้ต้องลงชื่อใหม่' : '';
     sel.innerHTML='<option value="">— เลือกชื่อ —</option>'+names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('')+'<option value="__new__">＋ เพิ่มชื่อใหม่…</option>';
     sel.value=cur; $('opc_'+p).classList.toggle('opwarn',!cur);
   }
@@ -3381,7 +3393,7 @@ window.WPDAUTH = {
       idleNotified=false; idleBeeped=false;
     } else { el.innerHTML=''; idleNotified=false; idleBeeped=false; }
   }
-  setInterval(()=>{ if(typeof paintBreak==='function') paintBreak(); checkIdle(); },15000);
+  setInterval(()=>{ if(typeof paintBreak==='function') paintBreak(); checkIdle(); if(current==='feed'||current==='line') rOp(current); },15000);
 
   function addPack(gapReason,gapMin,flagged,actual,actualPc){
     const o=active(); const std=CALC.stdPerPack(o.spec);

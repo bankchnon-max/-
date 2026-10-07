@@ -2944,6 +2944,7 @@ window.WPDAUTH = {
   function rLine(force){
     rOp('line');
     const o=active(), t=todayStr();
+    if(o && pillowZipFix(o)){ saveOrders(); toast('งานหมอน: ตั้งถุงซิลเป็นใบละ 1 ถุง (แพ็คละ '+o.spec.zipPerPack+' ใบ) ให้แล้ว'); }
     if((o?o.id:null)!==lastLineOrder){ lastLineOrder=o?o.id:null; specOpen=null;
       if(o && $('bwKindSel')) $('bwKindSel').value = ((o.productType||'ใย')==='ใย' || isPicnic(o)) ? 'pack' : 'zip'; }
     /* แสดงเฉพาะของที่งานนี้ใช้ กันกดผิด: หมอน/ปิกนิก ไม่ใช้แก๊ส · ใยแผ่นไม่ใช้ปลอกผ้า (ยังไม่เลือกออเดอร์ = ซ่อนเบิกปลอก) */
@@ -3144,10 +3145,10 @@ window.WPDAUTH = {
                 : packBagHTML('ถุงแพ็คที่ใช้ห่อ (งานใยแผ่นไม่ใช้ถุงซิล)')+
                   '<div class="sumline" style="margin-top:2px;">น้ำหนักถุงแพ็ค × จำนวนใบ ระบบบวกเข้า Standard ให้เอง · บันทึกแพ็คแล้วหักถุงจากกระสอบที่เบิกมาไว้ที่ไลน์</div>')+
       (isPillow && !_isPicnic ? (
-        '<div class="rf"><div><label>ใช้ถุงซิลกี่ใบต่อ 1 แพ็ค</label>'+
-        '<input id="spZipN" type="number" inputmode="numeric" min="0" step="1" value="'+zipNDefault+'" placeholder="เช่น 10"></div>'+
+        '<div class="rf"><div><label>ถุงซิลต่อ 1 แพ็ค (หมอน = ใบละ 1 ถุง)</label>'+
+        '<input id="spZipN" type="number" readonly tabindex="-1" style="background:var(--surface-2,transparent);color:var(--dim);" value="'+(+sp.piecesPerPack||'')+'" placeholder="= จำนวนชิ้นต่อแพ็ค"></div>'+
         '<div></div></div>'+
-        '<div class="sumline" style="margin-top:2px;">น้ำหนักถุงซิลรวม = น้ำหนักต่อใบ × จำนวนใบต่อแพ็ค — ระบบบวกเข้า Standard ให้เอง</div>'+
+        '<div class="sumline" style="margin-top:2px;">หมอนทุกใบใส่ถุงซิล — ระบบตั้งเท่าจำนวนชิ้นต่อแพ็คให้เอง · น้ำหนักถุงซิลรวมบวกเข้า Standard และหักถุงตามนี้</div>'+
         (legacyBag2Note||'')+
         (_isPicnic?'<div class="sumline" style="margin-top:14px; color:var(--accent2);">งานปิกนิก 1 แพ็ค = 1 ชิ้น — ใช้ใยแผ่น 1 แผ่น + ผ้า 1 ชิ้น + ถุงแพ็ค 1 ใบ<br>เลือกถุงแพ็ค<b>ไซซ์ให้ตรงกับขนาดใยแผ่น</b> (3F / 3.5F / 5F / 6F)</div>':'')+
         packBagHTML('ถุงแพ็ค (ถุงใหญ่ห่อทั้งแพ็คอีกชั้น)')+
@@ -3324,7 +3325,9 @@ window.WPDAUTH = {
     }
     if($('spFabKg'))   $('spFabKg').oninput  =()=>{ formDirty=true; syncSplit('fab');   prev(); };
     if($('spFiberKg')) $('spFiberKg').oninput=()=>{ formDirty=true; syncSplit('fiber'); prev(); };
-    ['spW','spN','spBagW','spZipN','spPackW','spPackN'].forEach(id=>{ if($(id)) $(id).oninput=()=>{ formDirty=true; if(id==='spW') syncSplit('w'); prev(); }; });
+    ['spW','spN','spBagW','spZipN','spPackW','spPackN'].forEach(id=>{ if($(id)) $(id).oninput=()=>{ formDirty=true; if(id==='spW') syncSplit('w');
+      if(id==='spN' && $('spZipN') && $('spZipN').readOnly) $('spZipN').value=$('spN').value;   /* หมอน: ถุงซิล = จำนวนชิ้น */
+      prev(); }; });
     wireAutoFill();
     if($('spPackBag')) $('spPackBag').addEventListener('input',refreshPackBagLotOptions);
     ['spBag','spBag2','spTol','spPackBag','spFabType','spFabSize','spBagSize','spBag2Size'].forEach(id=>{ if($(id)) $(id).oninput=()=>{ formDirty=true; }; });
@@ -3366,7 +3369,7 @@ window.WPDAUTH = {
       if(!w||!n){ toast('กรอกน้ำหนักต่อชิ้นและจำนวนชิ้นต่อแพ็คก่อน'); return; }
       const _draft={ weightPerPiece:w, piecesPerPack:n,
         bagName: isPillow && $('spBag') ? normSize($('spBag').value) : '', bagWeight: isPillow && $('spBagW') ? (+$('spBagW').value||0) : 0,
-        zipPerPack: isPillow && $('spZipN') ? (+$('spZipN').value||0) : 0,
+        zipPerPack: isPillow && $('spZipN') ? ((o.productType==='หมอน' && $('spBag') && $('spBag').value.trim()) ? n : (+$('spZipN').value||0)) : 0,
         packBagName: $('spPackBag') ? normSize($('spPackBag').value) : '',
         packBagWeight: $('spPackW') ? (+$('spPackW').value||0) : 0,
         packPerPack: $('spPackN') ? (+$('spPackN').value||0) : 0 };
@@ -3899,9 +3902,18 @@ window.WPDAUTH = {
     return moved;
   }
 
+  /* งานหมอน: ถุงซิลใบละ 1 ถุงเสมอ → ถุงซิลต่อแพ็ค = จำนวนชิ้นต่อแพ็ค (แก้ให้เองถ้าตั้งไว้ไม่ตรง · งานที่จบแล้วไม่แตะ) */
+  function pillowZipFix(o){
+    const sp=o&&o.spec; if(!sp || o.productType!=='หมอน' || o.status==='done') return false;
+    const n=+sp.piecesPerPack||0; if(!(n>0) || !sp.bagName) return false;
+    if(sp.zipPerPack!=null && sp.zipPerPack!=='' && +sp.zipPerPack===n) return false;
+    sp.zipPerPack=n; sp.bagPerPiece=false; sp.hasBag2=false;
+    return true;
+  }
   async function startPack(actual,actualPc){
     const o=active();
     if(!o){ toast('เลือกออเดอร์ก่อน'); return; }
+    if(pillowZipFix(o)) saveOrders();
     const std=CALC.stdPerPack(o.spec);
     if(!std){ toast('ตั้งค่าน้ำหนัก Standard ก่อน'); return; }
     if(isPicnic(o)){

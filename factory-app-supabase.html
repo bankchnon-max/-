@@ -3152,9 +3152,7 @@ window.WPDAUTH = {
         (legacyBag2Note||'')+
         (_isPicnic?'<div class="sumline" style="margin-top:14px; color:var(--accent2);">งานปิกนิก 1 แพ็ค = 1 ชิ้น — ใช้ใยแผ่น 1 แผ่น + ผ้า 1 ชิ้น + ถุงแพ็ค 1 ใบ<br>เลือกถุงแพ็ค<b>ไซซ์ให้ตรงกับขนาดใยแผ่น</b> (3F / 3.5F / 5F / 6F)</div>':'')+
         packBagHTML('ถุงแพ็ค (ถุงใหญ่ห่อทั้งแพ็คอีกชั้น)')+
-        '<label style="display:flex; align-items:center; gap:8px; margin-top:12px;">'+
-        '<input type="checkbox" id="spAutoCut" style="width:auto; margin:0;" '+(sp.autoCutBag===false?'':'checked')+'>'+
-        '<span style="font-size:13px; color:var(--text);">บันทึกแพ็คแล้วหักถุงออกจากกระสอบที่แท็กไว้ให้อัตโนมัติ</span></label>'+
+        '<div class="sumline" style="margin-top:12px; color:var(--text);">✓ บันทึกแพ็คแล้วระบบหักถุงซิล/ถุงแพ็คออกจากกระสอบที่ไลน์ให้อัตโนมัติทุกครั้ง</div>'+
         '<div class="sumline" style="margin-top:2px;">ถ้ากระสอบที่แท็กไว้หมด ระบบจะไล่หยิบกระสอบถัดไปของถุงชื่อเดียวกันให้เอง</div>'+
         '<div class="rf" style="margin-top:9px;"><div><label>ชนิดผ้าที่ใช้</label>'+
         '<input id="spFabType" list="dlFabType" value="'+esc(sp.fabricType||'')+'" placeholder="เช่น ผ้าขาว 65g">'+
@@ -3389,7 +3387,7 @@ window.WPDAUTH = {
         zipPerPack:_draft.zipPerPack,
         packBagWeight:_draft.packBagWeight,
         packPerPack:_draft.packPerPack,
-        autoCutBag: isPillow && $('spAutoCut') ? $('spAutoCut').checked : _isPicnic,
+        autoCutBag: true,   /* หักถุงอัตโนมัติเสมอ (ไม่มีให้ปิดแล้ว) */
         /* เลิกใช้แบบเก่าแล้ว แต่เก็บค่าเดิมไว้ไม่ให้ข้อมูลหาย */
         bagPerPiece:false, hasBag2:false,
         bagName2: sp.bagName2||'', bagWeight2: sp.bagWeight2||0, bagSize2: sp.bagSize2||'', bagSackNo2: sp.bagSackNo2||'',
@@ -3778,7 +3776,7 @@ window.WPDAUTH = {
       }
     }
     /* 3) ถุงแพ็ค — ที่ไลน์ไม่พอ ยกกระสอบที่เลือกมาทั้งกระสอบ */
-    if(sp.packBagName && CALC.packBagPerPack(sp)>0 && sp.autoCutBag!==false && !isReuseBag(sp.packBagName) && picPackBagLeft(o)<CALC.packBagPerPack(sp)){
+    if(sp.packBagName && CALC.packBagPerPack(sp)>0 && !isReuseBag(sp.packBagName) && picPackBagLeft(o)<CALC.packBagPerPack(sp)){
       const sk=picSacks(o).find(x=>x.sackId===$('ptSack').value);
       if(!sk){ await info('ยังไม่ได้เลือกกระสอบถุงแพ็ค','เลือก "ถุงแพ็ค — กระสอบที่หยิบมา" ก่อน'); return; }
       add.bag={ id:uid(), time:localISO(), orderId:o.id, kind:'pack', name:sp.packBagName, kg:r3(sk.remainingKg), picks:[{ sackId:sk.sackId, sackNo:sk.sackNo, kg:r3(sk.remainingKg) }], quick:true };
@@ -3793,8 +3791,7 @@ window.WPDAUTH = {
   function autoCutBags(o,lineId){
     const sp=o.spec||{};
     /* งานใยแผ่นก็ต้องหักถุงด้วย ไม่งั้นต้นทุนถุงเป็น 0 — ค่า autoCutBag=false ของงานใยแผ่นเดิมมาจากโค้ดเก่าที่บังคับปิดไว้ ไม่ใช่คนเลือก */
-    const pillowLike = o.productType==='หมอน' || isPicnic(o);
-    if(pillowLike && sp.autoCutBag===false) return null;
+    /* หักถุงทุกงานเสมอ — ค่า autoCutBag=false ของงานเก่า ไม่สนแล้ว (เคยปิดไว้ทำให้ถุงไม่ถูกหัก) */
     const jobs=[];
     if(sp.bagName && CALC.zipPerPack(sp)>0){
       /* ชื่อถุงอยู่ในกระสอบประเภทไหนในสต๊อก ก็หักจากประเภทนั้น (งานใยแผ่นมักใช้ถุงแพ็ค) */

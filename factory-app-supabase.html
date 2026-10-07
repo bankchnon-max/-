@@ -460,6 +460,7 @@
       var paint = function(){ var n = count(sc); sc.style.display = folded ? 'none' : '';
         var txt = folded ? '▸ ดูรายการที่บันทึกไว้' + (n ? ' (' + n + ')' : '') : '▾ ซ่อนรายการ'; if(t.textContent !== txt) t.textContent = txt; };
       t.onclick = function(){ folded = !folded; var o = load(); o[k] = folded; save(o); paint(); };
+      sc.__wopen = function(){ if(folded){ folded = false; paint(); } };
       paint(); new MutationObserver(paint).observe(sc, { childList:true, subtree:true });
     });
   }
@@ -487,6 +488,16 @@
       else if(c.querySelector(':scope > h3')) wholeCard(c);
     });
   }
+  /* การ์ด "แตะดู..." ที่เลื่อนไปหาตาราง: ตารางพับอยู่ → เปิดให้ก่อน (ไม่งั้นแตะแล้วเหมือนไม่มีอะไรเกิดขึ้น) */
+  function reveal(el){
+    for(var n = el; n && n !== document.body; n = n.parentElement){
+      if(n.__wopen && n.style.display === 'none') n.__wopen();
+      if(n.classList && n.classList.contains('wfold') && n.classList.contains('folded')) n.classList.remove('folded');
+    }
+  }
+  window.wpdReveal = reveal;
+  var _siv = Element.prototype.scrollIntoView;
+  Element.prototype.scrollIntoView = function(){ try{ scan(); reveal(this); }catch(e){} return _siv.apply(this, arguments); };
   document.addEventListener('DOMContentLoaded', function(){ scan(); setInterval(scan, 2500); });
 })();
 </script><!-- /wpd-fold -->

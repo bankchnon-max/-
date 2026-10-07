@@ -911,6 +911,19 @@
     </div>
   </div>
 
+  <div class="ov" id="ovBwEdit">
+    <div class="box">
+      <h3>แก้ไขรายการเบิกถุง</h3>
+      <label>ชนิด / ชื่อถุง</label><select id="beName"></select>
+      <label>กระสอบที่หยิบมาจริง</label><select id="beSack"></select>
+      <label>น้ำหนักที่เบิก (กก.)</label><input id="beKg" type="number" inputmode="decimal" step="0.01">
+      <div id="beHint" class="sumline"></div>
+      <div class="ba" style="margin-top:12px;">
+        <button class="btn" id="beSave">บันทึก</button>
+        <button class="btn sec" id="beCancel">ปิด</button>
+      </div>
+    </div>
+  </div>
   <div class="ov" id="ovWdEdit">
     <div class="box">
       <h3>แก้ไขรายการเบิกใย</h3>
@@ -2266,8 +2279,20 @@ window.WPDAUTH = {
       : '<tr><td class="empty">ยังไม่มีการเบิกใยวันนี้</td></tr>';
     $('tWd').querySelectorAll('[data-wde]').forEach(b=>b.onclick=()=>openWdEdit(b.dataset.wde));
     $('tWd').querySelectorAll('[data-wdd]').forEach(b=>b.onclick=async()=>{
-      if(!await ask('ลบรายการเบิก','ลบรายการเบิกใยนี้?')) return;
-      S.wd=S.wd.filter(x=>x.id!==b.dataset.wdd); await saveFeed(); rFeed(); toast('ลบแล้ว');
+      const _id=b.dataset.wdd, _w=S.wd.find(x=>x.id===_id);
+      const _uses=(S.use||[]).filter(u=>u.wdId===_id && !u.closeout), _usedKg=r3(_uses.reduce((a,u)=>a+(+u.kg||0),0));
+      if(!await ask('ลบรายการเบิก', _usedKg>0
+          ? 'ก้อนนี้ป้อนเข้าไลน์ไปแล้ว '+_usedKg+' กก.\n\nถ้าแค่ลงชื่อใย/เบอร์ก้อนผิด ให้กด "แก้" แทน\nถ้าลบ: ยอด '+_usedKg+' กก. ที่ป้อนไปแล้ว จะย้ายไปหักก้อนอื่นที่ไลน์ (ไม่มีก้อนที่ไลน์ = จดค้างไว้ หักตอนเบิกก้อนที่ถูก)'
+          : 'ลบรายการเบิกใยนี้? (ก้อนจะกลับเข้าสต๊อก)')) return;
+      S.wd=S.wd.filter(x=>x.id!==_id);
+      /* ยอดที่ป้อนไปแล้วจากก้อนนี้ → จดค้าง แล้วหักก้อนอื่นที่ไลน์ให้เลย · การปิดก้อนของก้อนนี้ยกเลิก */
+      const _closes=(S.use||[]).filter(u=>u.wdId===_id && u.closeout).map(u=>u.id);
+      if(_closes.length){ S.use=S.use.filter(u=>_closes.indexOf(u.id)<0); (S.orders||[]).forEach(oo=>{ if(oo.lotLog) oo.lotLog=oo.lotLog.filter(x=>_closes.indexOf(x.useId)<0); }); }
+      const _names=new Set();
+      _uses.forEach(u=>{ u.wdId=null; u.baleNo=''; u.lot=null; u.receiptId=null; u.pending=true; delete u.backfilled; _names.add(u.fiberName); });
+      let _moved=0; _names.forEach(n=>{ _moved=r3(_moved+settlePendingFiber(n)); });
+      await Promise.all([saveFeed(), _closes.length?saveOrders():Promise.resolve()]); rFeed(true);
+      toast('ลบแล้ว'+(_usedKg>0?(_moved>=_usedKg-0.0001?' — ยอดที่ป้อนไป '+_usedKg+' กก. ย้ายไปหักก้อนอื่นที่ไลน์แล้ว':' — ยอดที่ป้อนไป '+r3(_usedKg-_moved)+' กก. จดค้างไว้ หักตอนเบิกก้อน'+(_w?' '+_w.fiberName:'')):''));
     });
 
     rFeedSummary(t);
@@ -2558,9 +2583,15 @@ window.WPDAUTH = {
       const _m=(STOCKFIBER[n]||[]).filter(l=>String(l.lotNo)===String(w.lot));
       w.receiptId=_m.length===1?_m[0].id:null; w.lotDate=_m.length===1?_m[0].time:null;
     }
+    /* ป้อนไปแล้วเท่าไร — น้ำหนักก้อนต้องไม่น้อยกว่านี้ */
+    const _uses=(S.use||[]).filter(u=>u.wdId===w.id), _usedKg=r3(_uses.filter(u=>!u.closeout).reduce((a,u)=>a+(+u.kg||0),0));
+    if(kg<_usedKg-0.0001){ await info('น้ำหนักน้อยกว่าที่ป้อนไปแล้ว','ก้อนนี้ป้อนเข้าไลน์ไปแล้ว '+_usedKg+' กก. — น้ำหนักก้อนต้องไม่น้อยกว่านี้'); return; }
     w.kg=kg; w.note=$('ewNote').value.trim();
     w.offRecipe=!inRecipe(orderById(w.orderId),n); w.editedAt=localISO();
-    await saveFeed(); closeOv('ovWdEdit'); rFeed(); toast('แก้ไขรายการเบิกใยแล้ว');
+    /* รายการป้อนใยที่หักจากก้อนนี้ไปแล้ว → เปลี่ยนชื่อใย/เบอร์/ลอตตาม (ต้นทุนและสต๊อกจะคิดถูกก้อน) */
+    _uses.forEach(u=>{ u.fiberName=w.fiberName; u.baleNo=String(w.seq||w.lot||''); u.lot=w.lot; u.receiptId=w.receiptId||null; });
+    (S.orders||[]).forEach(oo=>(oo.lotLog||[]).forEach(x=>{ if(_uses.some(u=>u.id===x.useId)) x.fiberName=w.fiberName; }));
+    await saveFeed(); closeOv('ovWdEdit'); rFeed(); toast('แก้ไขรายการเบิกใยแล้ว'+(_uses.length?' — รายการป้อนใยที่ใช้ก้อนนี้ ('+_usedKg+' กก.) เปลี่ยนตามแล้ว':''));
   };
 
   // คลังชื่อใย: รวมจากทุกสูตร ทุกการเบิก และที่พิมพ์เพิ่มเอง
@@ -4120,13 +4151,65 @@ window.WPDAUTH = {
     const hist=S.bagWd.slice().reverse().slice(0,30);
     $('tBagWdHist').innerHTML=hist.length?'<tr><th>เวลา</th><th>ประเภท</th><th>ชื่อ</th><th>กก.</th><th>หยิบจากกระสอบ</th><th></th></tr>'+
       hist.map(w=>'<tr><td>'+(w.time||'').slice(0,16).replace('T',' ')+'</td><td>'+(w.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+'</td><td>'+esc(w.name)+'</td><td>'+w.kg+
-        '</td><td>'+(w.picks||[]).map(p=>'#'+p.sackNo+':'+(p.kg!=null?p.kg:p.take)+' กก.').join(', ')+'</td><td><button class="x" data-bwd="'+w.id+'">✕</button></td></tr>').join('')
+        '</td><td>'+(w.picks||[]).map(p=>'#'+p.sackNo+':'+(p.kg!=null?p.kg:p.take)+' กก.').join(', ')+'</td><td style="white-space:nowrap"><button class="btn sec sm" data-bwe="'+w.id+'">แก้</button> <button class="x" data-bwd="'+w.id+'">✕</button></td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีการเบิก</td></tr>';
+    $('tBagWdHist').querySelectorAll('[data-bwe]').forEach(b=>b.onclick=()=>openBwEdit(b.dataset.bwe));
     $('tBagWdHist').querySelectorAll('[data-bwd]').forEach(b=>b.onclick=async()=>{
+      const _pcs=(S.bagUse||[]).filter(u=>u.bwId===b.dataset.bwd).reduce((a,u)=>a+(+u.pieces||0),0);
+      if(_pcs>0){ await info('ลบไม่ได้ — ใช้ถุงจากรายการนี้ไปแล้ว','แพ็คไปแล้ว '+_pcs+' ใบจากรายการเบิกนี้\n\nถ้าเบิกผิดชนิดถุง/ผิดกระสอบ/น้ำหนักผิด ให้กด "แก้" แทน แพ็คที่ใช้ไปแล้วจะเปลี่ยนตามให้'); return; }
       if(!await ask('ลบรายการเบิกนี้?','ยอดที่หยิบไปจะกลับเข้ากระสอบเดิม')) return;
       S.bagWd=S.bagWd.filter(x=>x.id!==b.dataset.bwd); await saveFeed(); refreshBwSelects(); toast('ลบแล้ว');
     });
   }
+  /* ═══ แก้รายการเบิกถุง: เปลี่ยนชนิด/ชื่อถุง/กระสอบ/น้ำหนัก — แพ็คที่ใช้ถุงจากรายการนี้ไปแล้วเปลี่ยนตาม ═══ */
+  let beId=null;
+  function beKN(){ const v=$('beName').value||'', i=v.indexOf(':'); return i<0?['','']:[v.slice(0,i), decodeURIComponent(v.slice(i+1))]; }
+  function beSackOptions(){
+    const w=S.bagWd.find(x=>x.id===beId); if(!w) return;
+    const [kind,name]=beKN(), keep=$('beSack').value;
+    const own=new Set((w.picks||[]).map(p=>p.sackId));
+    const list=sackStatusNow().filter(x=>x.kind===kind && x.name===name && (sackHasBag(x) || own.has(x.sackId))).sort((a,b)=>a.sackNo-b.sackNo);
+    $('beSack').innerHTML=list.length?list.map(x=>{ const back=own.has(x.sackId)?(w.picks||[]).filter(p=>p.sackId===x.sackId).reduce((a,p)=>a+(+(p.kg!=null?p.kg:p.take)||0),0):0;
+        return '<option value="'+esc(x.sackId)+'">กระสอบ #'+x.sackNo+' · '+x.weightPerBag+' กก./ใบ · เหลือ '+r3(x.remainingKg+back)+' กก.'+(own.has(x.sackId)?' (รายการนี้หยิบอยู่)':'')+'</option>'; }).join('')
+      :'<option value="">— ไม่มีกระสอบของถุงนี้ในสต๊อก —</option>';
+    if(list.some(x=>x.sackId===keep)) $('beSack').value=keep;
+    beHint();
+  }
+  function beHint(){
+    const w=S.bagWd.find(x=>x.id===beId); if(!w) return;
+    const sk=sackStatusNow().find(x=>x.sackId===$('beSack').value), pcs=(S.bagUse||[]).filter(u=>u.bwId===w.id).reduce((a,u)=>a+(+u.pieces||0),0);
+    $('beHint').innerHTML=(pcs?'แพ็คไปแล้ว <b>'+pcs+' ใบ</b> จากรายการนี้ — บันทึกแล้วจะเปลี่ยนเป็นถุง/กระสอบที่เลือกให้':'ยังไม่ได้ใช้ถุงจากรายการนี้')+
+      (sk&&sk.weightPerBag>0&&+$('beKg').value>0?'<br>≈ '+piecesOf(+$('beKg').value,sk.weightPerBag)+' ใบ':'');
+  }
+  function openBwEdit(id){
+    const w=S.bagWd.find(x=>x.id===id); if(!w) return; beId=id;
+    const opts=[]; ['zip','pack'].forEach(k=>Object.keys(STOCKBAG[k]||{}).forEach(n=>opts.push({k,n})));
+    if(!opts.some(o=>o.k===w.kind&&o.n===w.name)) opts.unshift({k:w.kind,n:w.name});
+    $('beName').innerHTML=opts.map(o=>'<option value="'+esc(o.k+':'+encodeURIComponent(o.n))+'">'+(o.k==='zip'?'ถุงซิล':'ถุงแพ็ค')+' — '+esc(o.n)+'</option>').join('');
+    $('beName').value=w.kind+':'+encodeURIComponent(w.name);
+    $('beKg').value=w.kg||'';
+    beSackOptions();
+    const p0=(w.picks||[])[0]; if(p0) $('beSack').value=p0.sackId; beHint();
+    openOv('ovBwEdit');
+  }
+  $('beName').onchange=beSackOptions; $('beSack').onchange=beHint; $('beKg').oninput=beHint;
+  $('beCancel').onclick=()=>closeOv('ovBwEdit');
+  $('beSave').onclick=async()=>{
+    const w=S.bagWd.find(x=>x.id===beId); if(!w) return;
+    const [kind,name]=beKN(), kg=r3(+$('beKg').value||0);
+    const sk=sackStatusNow().find(x=>x.sackId===$('beSack').value);
+    if(!sk){ toast('เลือกกระสอบที่หยิบมาจริง'); return; }
+    if(!(kg>0)){ toast('กรอกน้ำหนักที่เบิก'); return; }
+    const back=(w.picks||[]).filter(p=>p.sackId===sk.sackId).reduce((a,p)=>a+(+(p.kg!=null?p.kg:p.take)||0),0);
+    if(kg>r3(sk.remainingKg+back)+0.0001){ await info('กระสอบนี้มีไม่พอ','กระสอบ #'+sk.sackNo+' เหลือ '+r3(sk.remainingKg+back)+' กก. แต่กรอก '+kg+' กก.'); return; }
+    const uses=(S.bagUse||[]).filter(u=>u.bwId===w.id), pcs=uses.reduce((a,u)=>a+(+u.pieces||0),0), wpb=+sk.weightPerBag||0;
+    if(wpb>0 && pcs>0 && piecesOf(kg,wpb)<pcs){ await info('น้ำหนักน้อยกว่าที่ใช้ไปแล้ว','แพ็คไปแล้ว '+pcs+' ใบ ('+r3(pcs*wpb)+' กก.) — น้ำหนักที่เบิกต้องไม่น้อยกว่านี้'); return; }
+    const was=(w.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+' '+w.name+' #'+(w.picks||[]).map(p=>p.sackNo).join(',');
+    w.kind=kind; w.name=name; w.kg=kg; w.picks=[{ sackId:sk.sackId, sackNo:sk.sackNo, kg:kg }]; w.editedAt=localISO();
+    uses.forEach(u=>{ u.kind=kind; u.name=name; u.sackNo=String(sk.sackNo); if(wpb>0) u.kg=r3((+u.pieces||0)*wpb); });
+    await saveFeed(); closeOv('ovBwEdit'); refreshBwSelects(); refreshBwSackOptions(); if(current==='line') rLine();
+    toast('แก้รายการเบิกถุงแล้ว ('+was+' → '+(kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+' '+name+' #'+sk.sackNo+')'+(pcs?' — แพ็คที่ใช้ไปแล้ว '+pcs+' ใบ เปลี่ยนตามแล้ว':''));
+  };
   let bwPick=null;
   function refreshBwSackOptions(){
     const sel=$('bwSackSel'); if(!sel) return;

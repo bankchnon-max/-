@@ -115,6 +115,11 @@
   .opcard.opwarn{ border:1.5px solid var(--red) !important; }
   .opcard.opwarn .opmsg{ display:block; }
   .opok{ font-size:12px; color:var(--dim); margin-top:6px; }
+  .bagst{ margin-top:8px; padding:9px 12px; border-radius:12px; font-size:13.5px; line-height:1.5; }
+  .bagst.ok{ background:rgba(63,178,127,.10); border:1px solid rgba(63,178,127,.35); }
+  .bagst.bad{ background:rgba(229,89,95,.12); border:2px solid var(--red); color:var(--red); font-weight:500; }
+  .bagst.bad b{ color:var(--red); }
+  .bagst .btn{ width:auto !important; margin:6px 0 0 !important; background:var(--red) !important; color:#fff !important; border-color:var(--red) !important; }
   .walert{ display:none; align-items:center; gap:10px; margin:12px 0 4px; padding:12px 14px; border:2px solid var(--red); border-radius:14px;
            background:rgba(229,89,95,.12); color:var(--red); animation:waPulse 1.2s ease-in-out 3; }
   .walert.show{ display:flex; }
@@ -687,6 +692,7 @@
         <h3>ท้ายไลน์ — ออเดอร์ที่กำลังทำงาน</h3>
         <div id="lineInfo"></div>
         <div class="bigstd" id="stdBox"></div>
+        <div id="bagStat"></div>
         <div id="idleWarn"></div>
         <div class="rf">
           <div><label>ชั่งจริง — ต่อชิ้น (กก.)</label><input id="actPc" type="number" inputmode="decimal" step="0.001" placeholder="สุ่มชั่ง 1 ชิ้น"></div>
@@ -2945,6 +2951,7 @@ window.WPDAUTH = {
     rOp('line');
     const o=active(), t=todayStr();
     if(o && pillowZipFix(o)){ saveOrders(); toast('งานหมอน: ตั้งถุงซิลเป็นใบละ 1 ถุง (แพ็คละ '+o.spec.zipPerPack+' ใบ) ให้แล้ว'); }
+    renderBagStat(o);
     if((o?o.id:null)!==lastLineOrder){ lastLineOrder=o?o.id:null; specOpen=null;
       if(o && $('bwKindSel')) $('bwKindSel').value = ((o.productType||'ใย')==='ใย' || isPicnic(o)) ? 'pack' : 'zip'; }
     /* แสดงเฉพาะของที่งานนี้ใช้ กันกดผิด: หมอน/ปิกนิก ไม่ใช้แก๊ส · ใยแผ่นไม่ใช้ปลอกผ้า (ยังไม่เลือกออเดอร์ = ซ่อนเบิกปลอก) */
@@ -2970,7 +2977,7 @@ window.WPDAUTH = {
     $('stdBox').innerHTML = o
       ? (std? '<div class="v">'+std+' กก.</div><div class="l">น้ำหนัก Standard ต่อแพ็ค (ต้องคุมให้ได้)</div>'+
           '<div class="brk">'+o.spec.weightPerPiece+' กก./ชิ้น × '+o.spec.piecesPerPack+' ชิ้น + '+bagSummary(o.spec)+'<br>'+
-          bagStockLine(o.spec).replace('<br>','<br>')+          '<br>Standard เฉลี่ยต่อชิ้นรวมถุง '+CALC.stdPerPiece(o.spec)+' กก. · ผลิตแล้ว '+packs+
+          '<br>Standard เฉลี่ยต่อชิ้นรวมถุง '+CALC.stdPerPiece(o.spec)+' กก. · ผลิตแล้ว '+packs+
           (o.orderedPacks?' / '+o.orderedPacks:'')+' แพ็ค'+
           (function(){
             const rs=S.line.filter(l=>l.orderId===o.id);
@@ -3075,6 +3082,47 @@ window.WPDAUTH = {
     const list=sackStatusNow().filter(x=>x.kind===kind && x.name===name);
     if(sackNo) { const hit=list.find(x=>String(x.sackNo)===String(sackNo)); if(hit) return hit; }
     return list.filter(sackHasBag).sort((a,b)=>a.sackNo-b.sackNo)[0]||null;
+  }
+  /* ═══ ถุงตาม Standard ของงานนี้ ที่ไลน์: ใช้กระสอบไหน (ที่ยกมาก่อนใช้ก่อน) รับเข้าวันไหน เหลือกี่ใบ · ไม่มี/ไม่พอ = แดง ให้เบิก ═══ */
+  function bagLineJobs(sp){
+    const j=[];
+    if(sp.bagName && CALC.zipPerPack(sp)>0){ const k=(STOCKBAG.zip||{})[sp.bagName]?'zip':((STOCKBAG.pack||{})[sp.bagName]?'pack':'zip');
+      j.push({ kind:k, name:sp.bagName, n:CALC.zipPerPack(sp), w:+sp.bagWeight||0, label:k==='zip'?'ถุงซิล':'ถุงแพ็ค' }); }
+    if(sp.packBagName && CALC.packBagPerPack(sp)>0 && !isReuseBag(sp.packBagName))
+      j.push({ kind:'pack', name:sp.packBagName, n:CALC.packBagPerPack(sp), w:+sp.packBagWeight||0, label:'ถุงแพ็ค' });
+    return j;
+  }
+  function bagLineStatus(o){
+    if(!o || !o.spec || isPicnic(o) || !(CALC.stdPerPack(o.spec)>0)) return '';
+    return bagLineJobs(o.spec).map(j=>{
+      const q=sackQueue(j.kind,j.name).filter(lineHasBag), at=q[0];
+      const left=q.reduce((a,x)=>a+piecesOf(x.remaining,x.weightPerBag||j.w),0);
+      if(at && left>=j.n){
+        const atLeft=piecesOf(at.remaining,at.weightPerBag||j.w);
+        return '<div class="bagst ok">✓ '+j.label+' <b>'+esc(j.name)+'</b> — ใช้กระสอบ <b>#'+esc(at.sackNo)+'</b>'+(at.recvTime?' (รับเข้า '+thDate(at.recvTime)+')':'')+
+          ' · ที่ไลน์เหลือ <b>'+(at.wEst?'≈ ':'')+atLeft+' ใบ</b>'+
+          (q.length>1?' · รอคิวอีก '+(q.length-1)+' กระสอบ (#'+q.slice(1).map(x=>esc(x.sackNo)).join(', #')+')':'')+
+          ' · พอ ~'+Math.floor(left/j.n)+' แพ็ค</div>';
+      }
+      const old=sackStatusNow().filter(x=>x.kind===j.kind && x.name===j.name && sackHasBag(x))
+        .sort((a,b)=>String(a.time).localeCompare(String(b.time))||(+a.sackNo||0)-(+b.sackNo||0))[0];
+      return '<div class="bagst bad">⚠ '+j.label+' <b>'+esc(j.name)+'</b> '+(at?'ที่ไลน์เหลือ '+left+' ใบ ไม่พอแพ็คถัดไป (ใช้ '+j.n+' ใบ/แพ็ค)':'ไม่มีที่ไลน์')+' — <b>ต้องเบิกก่อนแพ็ค</b> ไม่งั้นถุงไม่ถูกหัก'+
+        (old?'<br>กระสอบเก่าสุดในสต๊อก: <b>#'+esc(old.sackNo)+'</b> (รับเข้า '+thDate(old.time)+') เหลือ '+old.remainingKg+' กก.'+(+old.weightPerBag>0?' ≈ '+old.remainingPieces+' ใบ':'')
+            :'<br>ในสต๊อกไม่มีกระสอบถุงนี้เหลือแล้ว — แจ้งสต๊อกรับเข้า')+
+        '<br><button class="btn sm" data-bwgo="'+esc(j.kind+':'+encodeURIComponent(j.name))+'"'+(old?' data-bwsack="'+esc(old.sackId)+'"':'')+'>เบิกเลย</button></div>';
+    }).join('');
+  }
+  function renderBagStat(o){
+    const el=$('bagStat'); if(!el) return;
+    const h=bagLineStatus(o); if(el.dataset.h===h) return; el.dataset.h=h; el.innerHTML=h;
+    el.querySelectorAll('[data-bwgo]').forEach(b=>b.onclick=()=>{
+      const v=b.dataset.bwgo, i=v.indexOf(':'), kind=v.slice(0,i), name=decodeURIComponent(v.slice(i+1));
+      $('bwKindSel').value=kind; $('bwKindSel').dispatchEvent(new Event('change'));
+      $('bwNameSel').value=name; $('bwNameSel').dispatchEvent(new Event('change'));
+      if(b.dataset.bwsack){ $('bwSackSel').value=b.dataset.bwsack; $('bwSackSel').dispatchEvent(new Event('change')); }
+      const c=$('bwKindSel').closest('.card'); if(c){ c.scrollIntoView({behavior:'smooth',block:'start'}); if(c.id) flash(c.id); }
+      toast('เลือก'+(kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+' '+name+' ไว้ให้แล้ว — เช็คเบอร์กระสอบที่หยิบมาจริง แล้วกดบันทึกการเบิก');
+    });
   }
   function bagStockLine(sp){
     if(!sp) return '';
@@ -3685,7 +3733,7 @@ window.WPDAUTH = {
         const info=st.find(x=>x.sackId===first.sackId)||{};
         return { bwId:w.id, sackNo:(first.sackNo!=null?first.sackNo:''), sackId:first.sackId,
                  kg:r3(+w.kg||0), used:used, remaining:r3((+w.kg||0)-used),
-                 weightPerBag:+info.weightPerBag||estBagW(w), wEst:!(+info.weightPerBag>0), size:info.size||'', time:w.time };
+                 weightPerBag:+info.weightPerBag||estBagW(w), wEst:!(+info.weightPerBag>0), size:info.size||'', time:w.time, recvTime:info.time||'' };
       });
   }
   /* กระสอบ/ถุงที่ยกมาไลน์ ยังมีถุงเหลือจริงไหม — เหลือไม่ถึงครึ่งใบ (เศษตาชั่ง) = หมดแล้ว · ไม่รู้น้ำหนักต่อใบ = ดูแค่ว่ายังมีน้ำหนักเหลือ */
@@ -4169,7 +4217,7 @@ window.WPDAUTH = {
       :'<tr><td class="empty">ไม่มีถุงค้างที่ไลน์</td></tr>';
   }
   function refreshBwSelects(){
-    renderBagAtLine();
+    renderBagAtLine(); renderBagStat(active());   /* เบิก/ลบ/แก้ถุงแล้ว กล่องสถานะถุงอัปเดตทันที */
     const nameSel=$('bwNameSel'); if(!nameSel) return;
     const kind=$('bwKindSel').value;
     const names=Object.keys(STOCKBAG[kind]||{});
@@ -4245,14 +4293,16 @@ window.WPDAUTH = {
     const kind=$('bwKindSel').value, name=$('bwNameSel').value;
     const keep=sel.value;
     if(!name){ sel.innerHTML='<option value="">— เลือกชื่อถุงก่อน —</option>'; return; }
+    /* กระสอบเก่าสุด (รับเข้าก่อน) ขึ้นก่อน — ใช้ของเก่าก่อน */
     const live=sackStatusNow().filter(x=>x.kind===kind && x.name===name && sackHasBag(x))
-      .sort((a,b)=>a.sackNo-b.sackNo);
+      .sort((a,b)=>String(a.time).localeCompare(String(b.time))||(+a.sackNo||0)-(+b.sackNo||0));
     if(!live.length){ sel.innerHTML='<option value="">— ไม่มีกระสอบที่เหลือของในสต๊อก —</option>'; return; }
     sel.innerHTML='<option value="">— เลือกกระสอบที่หยิบมา —</option>'+live.map(x=>
       '<option value="'+esc(x.sackId)+'">กระสอบ #'+x.sackNo+' · รับ '+thDate(x.time)+' · '+x.weightPerBag+' กก./ใบ'+
       (x.size?' · '+esc(x.size):'')+' · เหลือ '+x.remainingKg+' กก.'+(+x.weightPerBag>0?' ('+x.remainingPieces+' ใบ)':' (⚠ ยังไม่ได้ใส่น้ำหนัก/ใบ ในแอพสต๊อก)')+'</option>').join('');
     if(live.some(x=>x.sackId===keep)) sel.value=keep;
-    else if(live.length===1) sel.value=live[0].sackId;
+    else sel.value=live[0].sackId;   /* เลือกกระสอบเก่าสุดไว้ให้ */
+    if(sel.options[1]) sel.options[1].textContent+=' (เก่าสุด)';
   }
   function updateBwPreview(){
     const box=$('bwPreview'); if(!box) return;

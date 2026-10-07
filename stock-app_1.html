@@ -3326,10 +3326,28 @@ window.WPDAUTH = {
       await saveBag(); rBag(); toast('ลบกระสอบ #'+s.sackNo+' ('+s.name+') แล้ว');
     });
 
-    $('tBagHist').innerHTML=S.sackReceipts.length?'<tr><th>เวลา</th><th>ประเภท</th><th>ชื่อ</th><th>กระสอบ #</th><th>น้ำหนัก</th><th></th></tr>'+
+    $('tBagHist').innerHTML=S.sackReceipts.length?'<tr><th>เวลา</th><th>ประเภท</th><th>ชื่อ</th><th>กระสอบ #</th><th>น้ำหนัก</th><th>กก./ใบ</th><th></th></tr>'+
       S.sackReceipts.slice().reverse().map(r=>'<tr><td>'+ymd(r.time)+' '+hhmm(r.time)+'</td><td>'+(r.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+'</td><td>'+esc(r.name)+
-        '</td><td>#'+r.sackNo+'</td><td>'+r.sackWeightKg+' กก.</td><td><button class="x" data-bd="'+r.id+'">✕</button></td></tr>').join('')
+        '</td><td>#'+r.sackNo+'</td><td>'+r.sackWeightKg+' กก.</td><td>'+(+r.weightPerBag>0?r.weightPerBag+(r.size?' <span style="color:var(--dim)">'+esc(r.size)+'</span>':''):'<span class="bdg bad">ยังไม่ใส่</span>')+
+        '</td><td style="white-space:nowrap"><button class="btn sec sm" data-bge="'+r.id+'">แก้</button> <button class="x" data-bd="'+r.id+'">✕</button></td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>';
+    $('tBagHist').querySelectorAll('[data-bge]').forEach(b=>b.onclick=()=>{
+      const r=S.sackReceipts.find(x=>x.id===b.dataset.bge); if(!r) return;
+      fabSheet('แก้กระสอบ #'+r.sackNo+' — '+r.name,
+        '<div class="sumline" style="margin-top:0">'+(r.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+' · รับ '+ymd(r.time)+' · '+r.sackWeightKg+' กก.</div>'+
+        '<label>น้ำหนักต่อใบ (กก.)</label><input id="bgeW" type="number" inputmode="decimal" step="0.001" value="'+(+r.weightPerBag>0?r.weightPerBag:'')+'" placeholder="ชั่ง 10 ใบ ÷ 10 เช่น 0.172">'+
+        '<div class="sumline" id="bgePrev"></div>'+
+        '<label>ขนาดถุง (ถ้ามี)</label><input id="bgeSize" value="'+esc(r.size||'')+'" placeholder="เช่น 40x70">'+
+        '<button class="btn w" id="bgeSave" style="margin-top:12px;">บันทึก</button>');
+      const prev=()=>{ const w=+$('bgeW').value||0; $('bgePrev').innerHTML=w>0?'กระสอบนี้ ≈ <b>'+Math.round((+r.sackWeightKg||0)/w)+' ใบ</b>':''; };
+      $('bgeW').oninput=prev; prev();
+      $('bgeSave').onclick=async()=>{
+        const w=+$('bgeW').value||0; if(!(w>0)){ toast('กรอกน้ำหนักต่อใบ'); return; }
+        if(w>(+r.sackWeightKg||0)){ toast('น้ำหนักต่อใบมากกว่าทั้งกระสอบ — เช็คตัวเลขอีกที'); return; }
+        r.weightPerBag=w; r.size=$('bgeSize').value.trim(); r.editedAt=new Date().toISOString();
+        await saveBag(); closeFabSheet(); rBag(); toast('แก้กระสอบ #'+r.sackNo+' แล้ว — '+w+' กก./ใบ');
+      };
+    });
     $('tBagHist').querySelectorAll('[data-bd]').forEach(b=>b.onclick=async()=>{ const _r=S.sackReceipts.find(x=>x.id===b.dataset.bd)||{}; if(!await ask('ลบรายการรับเข้ากระสอบนี้?','ชื่อถุง: '+(_r.name||'-')+'\nเบอร์กระสอบ: #'+(_r.sackNo!=null?_r.sackNo:'-')+'\nน้ำหนัก: '+(_r.kg!=null?_r.kg:'-')+' กก.\nวันที่รับ: '+ymd(_r.time||'')))return; S.sackReceipts=S.sackReceipts.filter(x=>x.id!==b.dataset.bd); await saveBag(); rBag(); toast('ลบแล้ว'); });
 
     const wdHist=PROD.bagWd.slice().reverse().slice(0,50);

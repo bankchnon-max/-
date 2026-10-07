@@ -3673,12 +3673,20 @@ window.WPDAUTH = {
         const info=st.find(x=>x.sackId===first.sackId)||{};
         return { bwId:w.id, sackNo:(first.sackNo!=null?first.sackNo:''), sackId:first.sackId,
                  kg:r3(+w.kg||0), used:used, remaining:r3((+w.kg||0)-used),
-                 weightPerBag:+info.weightPerBag||0, size:info.size||'', time:w.time };
+                 weightPerBag:+info.weightPerBag||estBagW(w), wEst:!(+info.weightPerBag>0), size:info.size||'', time:w.time };
       });
   }
   /* กระสอบ/ถุงที่ยกมาไลน์ ยังมีถุงเหลือจริงไหม — เหลือไม่ถึงครึ่งใบ (เศษตาชั่ง) = หมดแล้ว · ไม่รู้น้ำหนักต่อใบ = ดูแค่ว่ายังมีน้ำหนักเหลือ */
   function lineHasBag(x){ return x.remaining>0.0000001 && (!(x.weightPerBag>0) || piecesOf(x.remaining,x.weightPerBag)>=1); }
   function sackHasBag(s){ return s.remainingKg>0 && (!(+s.weightPerBag>0) || s.remainingPieces>=1); }
+  /* กระสอบที่รับเข้าโดยไม่ได้ใส่น้ำหนักต่อใบ — ประมาณจากที่ใช้ไปแล้ว (กก.÷ใบ) หรือจาก Standard ของงานที่ใช้ถุงนี้ */
+  function estBagW(w){
+    let kg=0, pc=0; (S.bagUse||[]).forEach(u=>{ if(u.bwId===w.id && +u.pieces>0){ kg+=+u.kg||0; pc+=+u.pieces; } });
+    if(pc>0 && kg>0) return r3(kg/pc);
+    const os=(S.orders||[]).filter(o=>o.spec && ((o.spec.packBagName===w.name && +o.spec.packBagWeight>0) || (o.spec.bagName===w.name && +o.spec.bagWeight>0)));
+    const o=os.find(x=>x.id===S.activeId)||os[os.length-1]; if(!o) return 0;
+    return (o.spec.packBagName===w.name && +o.spec.packBagWeight>0) ? +o.spec.packBagWeight : +o.spec.bagWeight;
+  }
   function sackAtLine(kind,name){ return sackQueue(kind,name).find(lineHasBag)||null; }
   function sackWaiting(kind,name){ return sackQueue(kind,name).filter(lineHasBag).slice(1); }
   function piecesOf(kg,w){ return (w>0)?Math.round(kg/w):0; }
@@ -3794,7 +3802,7 @@ window.WPDAUTH = {
         /* กระสอบเก่าหมด → กระสอบที่เบิกไว้มาแทนที่ + ปรับน้ำหนักต่อใบตามกระสอบใหม่ทันที */
         if(String(sk.sackNo)!==String(sp[j.sackKey]||'')){
           const from=sp[j.sackKey]||'';
-          const oldW=+sp[j.wKey]||0, newW=sk.weightPerBag||oldW;
+          const oldW=+sp[j.wKey]||0, newW=(!sk.wEst && sk.weightPerBag)||oldW;
           sp[j.sackKey]=String(sk.sackNo);
           let note='';
           if(newW>0 && Math.abs(newW-oldW)>0.0000001){
@@ -4136,7 +4144,8 @@ window.WPDAUTH = {
     keys.forEach(k=>{ const [kind,name]=k.split('\u0000'); sackQueue(kind,name).filter(lineHasBag).forEach((x,i)=>rows.push({kind,name,x,inUse:i===0})); });
     t.innerHTML=rows.length?'<tr><th>ถุง</th><th>กระสอบ</th><th>เหลือ</th><th>เบิกมาเมื่อ</th></tr>'+
       rows.map(r=>'<tr><td>'+(r.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+' '+esc(r.name)+'</td><td>#'+esc(r.x.sackNo)+(r.inUse?' <span class="bdg ok">กำลังใช้</span>':' <span class="bdg warn">รอคิว</span>')+'</td>'+
-        '<td><b>'+piecesOf(r.x.remaining,r.x.weightPerBag)+'</b> ใบ <span style="color:var(--dim)">('+r.x.remaining+' กก.)</span></td><td>'+thDate(r.x.time)+'</td></tr>').join('')
+        '<td><b>'+(r.x.weightPerBag>0?(r.x.wEst?'≈ ':'')+piecesOf(r.x.remaining,r.x.weightPerBag):'?')+'</b> ใบ <span style="color:var(--dim)">('+r.x.remaining+' กก.)</span>'+
+        (r.x.wEst?'<br><span class="bdg warn">ยังไม่ได้ใส่น้ำหนัก/ใบ ในแอพสต๊อก'+(r.x.weightPerBag>0?' — คิดจาก '+r.x.weightPerBag+' กก./ใบ':'')+'</span>':'')+'</td><td>'+thDate(r.x.time)+'</td></tr>').join('')
       :'<tr><td class="empty">ไม่มีถุงค้างที่ไลน์</td></tr>';
   }
   function refreshBwSelects(){
@@ -4221,7 +4230,7 @@ window.WPDAUTH = {
     if(!live.length){ sel.innerHTML='<option value="">— ไม่มีกระสอบที่เหลือของในสต๊อก —</option>'; return; }
     sel.innerHTML='<option value="">— เลือกกระสอบที่หยิบมา —</option>'+live.map(x=>
       '<option value="'+esc(x.sackId)+'">กระสอบ #'+x.sackNo+' · รับ '+thDate(x.time)+' · '+x.weightPerBag+' กก./ใบ'+
-      (x.size?' · '+esc(x.size):'')+' · เหลือ '+x.remainingKg+' กก. ('+x.remainingPieces+' ใบ)</option>').join('');
+      (x.size?' · '+esc(x.size):'')+' · เหลือ '+x.remainingKg+' กก.'+(+x.weightPerBag>0?' ('+x.remainingPieces+' ใบ)':' (⚠ ยังไม่ได้ใส่น้ำหนัก/ใบ ในแอพสต๊อก)')+'</option>').join('');
     if(live.some(x=>x.sackId===keep)) sel.value=keep;
     else if(live.length===1) sel.value=live[0].sackId;
   }

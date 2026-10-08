@@ -698,7 +698,7 @@
         <label>ถุงแพ็ค — กระสอบที่หยิบมา</label><select id="ptSack"></select>
         <button class="pictap" id="btnPicTap">＋1 แพ็ค<small id="ptBtnSub"></small></button>
         <div class="sumline" id="ptToday" style="margin-top:8px;"></div>
-        <label class="oldtoggle"><input type="checkbox" id="ptDetail"> แสดงการเบิก/ชั่งแบบละเอียด (หน้าแบบเดิม)</label>
+        <label class="oldtoggle"><input type="checkbox" id="ptDetail"> แสดงการชั่งน้ำหนักทีละแพ็ค (หน้าแบบเดิม)</label>
       </div>
       <div class="card" id="cardRun">
         <h3>ท้ายไลน์ — ออเดอร์ที่กำลังทำงาน</h3>
@@ -1927,6 +1927,8 @@ window.WPDAUTH = {
     lastLineOrder=undefined;
     document.querySelectorAll('.nb').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
     if(typeof rTop==='function') rTop();   /* แถบบน: แท็บปิกนิกบอกงานปิกนิก · แท็บอื่นบอกงานที่ไลน์ */
+    /* จำแท็บหน้างานของเครื่องนี้ (ป้อนใย / ท้ายไลน์ / ปิกนิก) — รีเฟรชแล้วกลับมาที่เดิม */
+    if(['feed','line','pic'].indexOf(p)>=0){ try{ localStorage.setItem('wpd_fac_tab', p); }catch(e){} }
     renderPanel(true);
   }
   document.querySelectorAll('.nb').forEach(b=>b.addEventListener('click',()=>show(b.dataset.p)));
@@ -3900,8 +3902,10 @@ window.WPDAUTH = {
     const pic=isPicnic(o), detail=$('ptDetail').checked;
     card.style.display=pic?'':'none';
     const bagCard=$('bwKindSel')?$('bwKindSel').closest('.card'):null;
-    if(pic && !detail){ ['cardRun','cardSheet','cardFabWd'].forEach(id=>{ if($(id)) $(id).style.display='none'; }); if(bagCard) bagCard.style.display='none'; }
-    else { if($('cardRun')) $('cardRun').style.display=''; if(bagCard) bagCard.style.display=''; }
+    /* ปิกนิก: การ์ดเบิกใยแผ่น/ปลอก/ถุง ขึ้นตลอด (เบิกแบบเดิมได้) · การ์ดชั่งน้ำหนักแบบเดิมซ่อนไว้ ติ๊กดูได้ */
+    if(pic && !detail){ if($('cardRun')) $('cardRun').style.display='none'; }
+    else if($('cardRun')) $('cardRun').style.display='';
+    if(bagCard) bagCard.style.display='';
     if(!pic) return;
     const sp=o.spec||{}, sel=picSel(o), n=sheetsPerPack(o), std=CALC.stdPerPack(sp);
     const fill=(id,opts,keep,empty)=>{ const e=$(id); e.innerHTML=opts.length?opts.map(x=>'<option value="'+esc(x.v)+'">'+esc(x.t)+'</option>').join(''):'<option value="">'+esc(empty)+'</option>';
@@ -5069,7 +5073,9 @@ window.WPDAUTH = {
     paintRole(); rTop();
     // เปิดแอปมาแล้วทำงานต่อได้เลย: ถ้ามีออเดอร์ที่กำลังทำอยู่ ให้เข้าหน้าท้ายไลน์ทันที
     const a0=active();
-    show(a0 && a0.status!=='done' ? 'line' : 'order');
+    let _tab=''; try{ _tab=localStorage.getItem('wpd_fac_tab')||''; }catch(e){}
+    if(['feed','line','pic'].indexOf(_tab)>=0) show(_tab);   /* เครื่องนี้ใช้หน้างานไหน เปิดมาที่นั่นเลย */
+    else show(a0 && a0.status!=='done' ? 'line' : 'order');
   })();
 })();
 </script>

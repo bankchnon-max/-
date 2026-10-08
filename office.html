@@ -92,7 +92,7 @@
   <!-- เข้าระบบครั้งเดียวที่นี่ = เปิดได้ทุกแอพ (ผลิต / สต๊อก / ต้นทุน / สแกนหน้า) บนเครื่องนี้ -->
   <div class="login" id="loginBox" style="display:none;">
     <div class="lt">🔒 เข้าระบบครั้งเดียว ใช้ได้ทุกแอพ</div>
-    <div class="ls">ผลิต · สต๊อก · ต้นทุน · สแกนหน้า — เครื่องนี้จำไว้ให้ ไม่ต้องเข้าระบบแยกทีละแอพ</div>
+    <div class="ls">ใช้บัญชีหลังบ้าน (ไม่ใช่บัญชีแท็บเล็ตหน้างาน) — เข้าครั้งเดียว เปิดได้ทั้ง ผลิต · สต๊อก · ต้นทุน · สแกนหน้า เครื่องนี้จำไว้ให้</div>
     <form id="loginForm" autocomplete="on">
       <label for="lEmail">อีเมล</label><input id="lEmail" type="email" autocomplete="username" required>
       <label for="lPass">รหัสผ่าน</label><input id="lPass" type="password" autocomplete="current-password" required>
@@ -157,17 +157,21 @@
   });
   wpdApply();
 
-  /* ═══ เข้าระบบครั้งเดียว ═══
-     - แอพผลิต/สต๊อก/ต้นทุน ใช้ session ชุดเดียวกัน (localStorage "wpd_auth_v1")
-     - แอพสแกนหน้า (/face/) ใช้ supabase-js เก็บ session ของตัวเอง ("sb-<project>-auth-token")
-     เข้าระบบที่นี่ = ขอ session ให้ทั้ง 2 ชุด (แยกกัน ต่อเวลา/หมดอายุของใครของมัน ไม่แย่งกัน) */
+  /* ═══ เข้าระบบครั้งเดียว (หน้าหลังบ้าน) ═══
+     แต่ละแอพเข้าระบบแยกกัน — แท็บเล็ตหน้างานเข้าแอพไหนไว้ ก็ใช้ได้แค่แอพนั้น:
+       แอพผลิต "wpd_auth_v1" · แอพสต๊อก "wpd_auth_stock" · แอพต้นทุน "wpd_auth_cost" · สแกนหน้า (supabase-js) "sb-<project>-auth-token"
+     หน้านี้ใช้บัญชีหลังบ้าน (ไม่ใช่บัญชีแท็บเล็ตหน้างาน) เข้าครั้งเดียว = ขอ session แยกให้ทุกแอพ (ต่ออายุของใครของมัน ไม่แย่งกัน) */
   var SUPABASE_URL='https://tekhjdnbfncfvpwejlni.supabase.co';
   var SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRla2hqZG5iZm5jZnZwd2VqbG5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5NjgzNDIsImV4cCI6MjEwMTU0NDM0Mn0.bOO7i_NyD-noFzyPjs22R0M2wGlUznViV-_YjOTqbak';
-  var K_WPD='wpd_auth_v1', K_FACE='sb-tekhjdnbfncfvpwejlni-auth-token';
+  var K_HUB='wpd_auth_hub';
+  var APP_KEYS=['wpd_auth_v1','wpd_auth_stock','wpd_auth_cost','sb-tekhjdnbfncfvpwejlni-auth-token'];
+  /* บัญชีที่ใช้กับแท็บเล็ตหน้างาน — เข้าหน้าหลังบ้านไม่ได้ */
+  var LINE_ACCOUNTS=['staff@winpoly.com'];
   function rd(k){ try{ return JSON.parse(localStorage.getItem(k)||'null'); }catch(e){ return null; } }
   function wr(k,v){ try{ v ? localStorage.setItem(k, JSON.stringify(v)) : localStorage.removeItem(k); }catch(e){} }
   function norm(j){ if(j && !j.expires_at && j.expires_in) j.expires_at=Math.floor(Date.now()/1000)+(+j.expires_in||3600); return j; }
   function alive(s){ return !!(s && s.access_token && (!s.expires_at || s.expires_at*1000-Date.now()>60000)); }
+  function isLine(email){ return LINE_ACCOUNTS.indexOf(String(email||'').trim().toLowerCase())>=0; }
   async function token(body, grant){
     var r=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type='+grant,{ method:'POST', headers:{ apikey:SUPABASE_ANON_KEY, 'Content-Type':'application/json' }, body:JSON.stringify(body) });
     var j={}; try{ j=await r.json(); }catch(e){}
@@ -175,32 +179,31 @@
     return norm(j);
   }
   async function current(){
-    var s=rd(K_WPD); if(!s || !s.access_token) return null;
+    var s=rd(K_HUB); if(!s || !s.access_token || isLine(s.user&&s.user.email)) return null;
     if(alive(s)) return s;
     if(!s.refresh_token) return null;
-    try{ s=await token({ refresh_token:s.refresh_token },'refresh_token'); wr(K_WPD,s); return s; }catch(e){ return null; }
+    try{ s=await token({ refresh_token:s.refresh_token },'refresh_token'); wr(K_HUB,s); return s; }catch(e){ return null; }
   }
   function show(s){
-    var on=!!s, face=rd(K_FACE), faceOn=!!(face&&face.refresh_token);
-    /* เข้าระบบจากแอพอื่นมาก่อน (ยังไม่มี session ของแอพสแกนหน้า) → ให้เข้าที่นี่อีกครั้งเดียว จะได้ครบทุกแอพ */
-    document.getElementById('loginBox').style.display=(on&&faceOn)?'none':'';
-    document.querySelector('#loginBox .ls').textContent=on&&!faceOn?'เครื่องนี้เข้าแอพผลิต/สต๊อก/ต้นทุนแล้ว — เข้าที่นี่อีกครั้งเดียว แอพสแกนหน้าจะเปิดได้ด้วย':'ผลิต · สต๊อก · ต้นทุน · สแกนหน้า — เครื่องนี้จำไว้ให้ ไม่ต้องเข้าระบบแยกทีละแอพ';
+    var on=!!s;
+    document.getElementById('loginBox').style.display=on?'none':'';
     document.getElementById('whoBox').style.display=on?'':'none';
     document.body.classList.toggle('out', !on);
     if(on) document.getElementById('whoEmail').textContent=(s.user&&s.user.email)||'';
-    else { try{ var last=localStorage.getItem('wpd_last_email'); if(last) document.getElementById('lEmail').value=last; }catch(e){} }
+    else { try{ var last=localStorage.getItem('wpd_hub_email'); if(last) document.getElementById('lEmail').value=last; }catch(e){} }
   }
   document.getElementById('loginForm').addEventListener('submit', async function(ev){
     ev.preventDefault();
     var em=document.getElementById('lEmail').value.trim(), pw=document.getElementById('lPass').value, er=document.getElementById('lErr'), go=document.getElementById('lGo');
     if(!em||!pw){ er.textContent='กรอกอีเมลและรหัสผ่านก่อน'; return; }
+    if(isLine(em)){ er.textContent='บัญชีนี้ใช้กับแท็บเล็ตหน้างาน — หน้าหลังบ้านต้องใช้บัญชีหลังบ้าน'; return; }
     go.disabled=true; go.textContent='กำลังเข้าระบบ…'; er.textContent='';
     try{
-      var a=await token({ email:em, password:pw },'password');       /* แอพผลิต/สต๊อก/ต้นทุน */
-      var b=await token({ email:em, password:pw },'password');       /* แอพสแกนหน้า */
-      wr(K_WPD,a); wr(K_FACE,b);
-      try{ localStorage.setItem('wpd_last_email', em); }catch(e){}
-      document.getElementById('lPass').value=''; show(a);
+      var hub=await token({ email:em, password:pw },'password');
+      var all=[]; for(var i=0;i<APP_KEYS.length;i++) all.push(await token({ email:em, password:pw },'password'));   /* session แยกให้แต่ละแอพ */
+      wr(K_HUB,hub); APP_KEYS.forEach(function(k,i){ wr(k,all[i]); });
+      try{ localStorage.setItem('wpd_hub_email', em); }catch(e){}
+      document.getElementById('lPass').value=''; show(hub);
     }catch(e){
       var m=String(e&&e.message||e);
       er.textContent=/Invalid login/i.test(m)?'อีเมลหรือรหัสผ่านไม่ถูกต้อง':/Email not confirmed/i.test(m)?'บัญชีนี้ยังไม่ได้ยืนยันอีเมล — ให้แอดมินกด Confirm ให้ก่อน':/fetch|network/i.test(m)?'ต่ออินเทอร์เน็ตไม่ได้ — ลองใหม่':'เข้าระบบไม่สำเร็จ: '+m;
@@ -210,7 +213,7 @@
   document.getElementById('btnOut').addEventListener('click', async function(){
     var out=[]; try{ out=JSON.parse(localStorage.getItem('faceatt_outbox')||'[]'); }catch(e){}
     if(!confirm(out.length?'เครื่องนี้มีข้อมูลสแกนหน้ารอส่ง '+out.length+' รายการ — ออกจากระบบตอนนี้ข้อมูลจะยังไม่ถูกส่ง\n\nออกจากระบบทุกแอพ?':'ออกจากระบบทุกแอพบนเครื่องนี้? (ต้องเข้าระบบใหม่)')) return;
-    [K_WPD,K_FACE].forEach(function(k){ var s=rd(k); if(s&&s.access_token) fetch(SUPABASE_URL+'/auth/v1/logout',{ method:'POST', headers:{ apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+s.access_token } }).catch(function(){}); wr(k,null); });
+    [K_HUB].concat(APP_KEYS).forEach(function(k){ var s=rd(k); if(s&&s.access_token) fetch(SUPABASE_URL+'/auth/v1/logout?scope=local',{ method:'POST', headers:{ apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+s.access_token } }).catch(function(){}); wr(k,null); });
     try{ localStorage.removeItem('faceatt_boot'); }catch(e){}
     show(null);
   });

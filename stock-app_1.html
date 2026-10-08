@@ -1028,7 +1028,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
    ล็อกอินก่อนใช้งาน — กันคนนอกเข้าถึงข้อมูลผ่าน key ที่ฝังอยู่ในหน้าเว็บ
    ล็อกอินครั้งเดียวต่อเครื่อง ระบบจำไว้ให้ ไม่ต้องกรอกซ้ำทุกวัน
    ========================================================================== */
-const WPD_AUTH_KEY = 'wpd_auth_v1';
+const WPD_AUTH_KEY = 'wpd_auth_stock';   // แต่ละแอพเข้าระบบแยกกัน (แท็บเล็ตมีแอพไหนเข้าได้แค่แอพนั้น) · หน้าหลังบ้าน /office เข้าทีเดียวได้ทุกแอพ
 let WPD_SESSION = null;
 try { WPD_SESSION = JSON.parse(localStorage.getItem(WPD_AUTH_KEY) || 'null'); } catch(e){}
 

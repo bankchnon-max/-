@@ -681,6 +681,11 @@
         <div class="opmsg">ลงชื่อก่อนเริ่มงานวันนี้ — ต้องลงชื่อทุกวัน ระบบจะจดชื่อไว้ทุกรายการ (ยังไม่ลงชื่อ = กดลงข้อมูลไม่ได้)</div>
         <div class="opok"></div>
       </div>
+      <div class="card" id="cardPicSel" style="display:none;">
+        <h3>🧺 จุดแพ็คปิกนิก — ทำพร้อมไลน์ผลิตได้</h3>
+        <label>งานปิกนิกที่แพ็คอยู่</label><select id="picOrderSel"></select>
+        <div class="sumline" id="picLineNote"></div>
+      </div>
       <div class="card" id="cardSpec">
         <div id="specForm"></div>
       </div>
@@ -993,6 +998,7 @@
     <button class="nb on" data-p="order"><span class="ic">🧾</span>ออเดอร์</button>
     <button class="nb" data-p="feed"><span class="ic">🧵</span>ป้อนใย</button>
     <button class="nb" data-p="line"><span class="ic">🏁</span>ท้ายไลน์</button>
+    <button class="nb" data-p="pic"><span class="ic">🧺</span>ปิกนิก</button>
     <button class="nb" data-p="office"><span class="ic">🖥️</span>ออฟฟิศ</button>
     <button class="nb" data-p="sum"><span class="ic">📊</span>สรุป</button>
   </div>
@@ -1629,7 +1635,7 @@ window.WPDAUTH = {
     }
   }
   function snapshot(k){
-    if(k==='v3_orders') return {orders:S.orders,activeId:S.activeId,activeFeedId:S.activeFeedId,fiberMaster:S.fiberMaster||[]};
+    if(k==='v3_orders') return {orders:S.orders,activeId:S.activeId,activeFeedId:S.activeFeedId,activePicnicId:S.activePicnicId||null,fiberMaster:S.fiberMaster||[]};
     if(k==='v3_feed')   return {feed:S.feed,wd:S.wd,use:S.use,fabricWd:S.fabricWd,bagWd:S.bagWd,bagUse:S.bagUse,gasSwaps:S.gasSwaps,
                                 sheetWd:S.sheetWd||[],sheetUse:S.sheetUse||[],caseUse:S.caseUse||[]};
     if(k==='v3_line')   return {line:S.line,scrap:S.scrap,breaks:S.breaks,carry:S.carry||[]};
@@ -1713,7 +1719,7 @@ window.WPDAUTH = {
     const A=parse(a,null), B=parse(b,{}), C=parse(c,{}), D=parse(d,null), SF=parse(sf,{receipts:[],baleUsage:[]}),
       SA=parse(sa,{receipts:[],cuts:[],cutBatches:[],sewSent:[],sewReturns:[]}), SB=parse(sb,{receipts:[]}), SG=parse(sg,{receipts:[]}),
       SN=parse(sn,{});
-    if (A){ S.orders=A.orders||[]; S.activeId=A.activeId||null; S.activeFeedId=A.activeFeedId||null; S.fiberMaster=A.fiberMaster||[]; }
+    if (A){ S.orders=A.orders||[]; S.activeId=A.activeId||null; S.activeFeedId=A.activeFeedId||null; S.activePicnicId=A.activePicnicId||null; S.fiberMaster=A.fiberMaster||[]; }
     else if (!S.orders.length){
       S.orders=[{ id:uid(), customer:'ทรัพย์รุ่งเรือง', code:'ใย 300*34*46', orderedPacks:0,
         fibers:[{name:'15DHC64',kg:2},{name:'15DHC-T64',kg:1},{name:'15DHW64',kg:1},{name:'LM',kg:1}],
@@ -1805,7 +1811,8 @@ window.WPDAUTH = {
   function typing(){ const a=document.activeElement;
     return !!(a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)); }
 
-  const active = () => S.orders.find(o=>o.id===S.activeId) || null;
+  /* งานที่หน้านี้ทำอยู่: แท็บ "ปิกนิก" = งานปิกนิกของจุดแพ็คปิกนิก (แยกจากงานที่ไลน์) · ที่อื่น = งานที่ไลน์ */
+  const active = () => S.orders.find(o=>o.id===(current==='pic'?S.activePicnicId:S.activeId)) || null;
   const activeFeed = () => S.orders.find(o=>o.id===(S.activeFeedId||S.activeId)) || null;
   const orderById = id => S.orders.find(o=>o.id===id) || null;
   const ordLabel = id => { const o=orderById(id); return o? o.customer+' / '+o.code : '-'; };
@@ -1880,20 +1887,22 @@ window.WPDAUTH = {
   }
 
   /* ═══ ผู้ลงข้อมูล (ป้อนใย / ท้ายไลน์): ชื่อจำไว้ในเครื่อง แยกหน้า · รายชื่อใช้ร่วมกันทุกเครื่อง (S.settings.operators) ═══ */
-  const OP_KEY={ feed:'wpd_op_feed', line:'wpd_op_line' };
+  const OP_KEY={ feed:'wpd_op_feed', line:'wpd_op_line', pic:'wpd_op_pic' };
+  /* แท็บปิกนิกใช้ช่องลงชื่อของหน้าท้ายไลน์ แต่จำชื่อแยก (คนแพ็คปิกนิก ≠ คนท้ายไลน์) */
+  const opKey = p => (p==='line' && current==='pic') ? 'pic' : p;
   /* ลงชื่อใช้ได้เฉพาะวันที่ลง — ข้ามวัน = ต้องลงชื่อใหม่ (คนป้อนใย/ท้ายไลน์ เปลี่ยนได้ทุกวัน) */
-  function opGet(p){ try{ const o=JSON.parse(localStorage.getItem(OP_KEY[p])||'null'); return (o && o.day===todayStr() && o.name) ? o.name : ''; }catch(e){ return ''; } }
-  function opSet(p,v){ try{ v?localStorage.setItem(OP_KEY[p],JSON.stringify({ name:v, day:todayStr(), at:localISO() })):localStorage.removeItem(OP_KEY[p]); }catch(e){} }
-  function opAt(p){ try{ const o=JSON.parse(localStorage.getItem(OP_KEY[p])||'null'); return o && o.day===todayStr() ? o.at : ''; }catch(e){ return ''; } }
+  function opGet(p){ try{ const o=JSON.parse(localStorage.getItem(OP_KEY[opKey(p)])||'null'); return (o && o.day===todayStr() && o.name) ? o.name : ''; }catch(e){ return ''; } }
+  function opSet(p,v){ try{ v?localStorage.setItem(OP_KEY[opKey(p)],JSON.stringify({ name:v, day:todayStr(), at:localISO() })):localStorage.removeItem(OP_KEY[opKey(p)]); }catch(e){} }
+  function opAt(p){ try{ const o=JSON.parse(localStorage.getItem(OP_KEY[opKey(p)])||'null'); return o && o.day===todayStr() ? o.at : ''; }catch(e){ return ''; } }
   /* ชื่อที่จดลงรายการ = ชื่อของหน้าที่เปิดอยู่ตอนกด (หน้าอื่น = ไม่จด) */
-  function opBy(){ return (current==='feed'||current==='line') ? (opGet(current)||null) : null; }
+  function opBy(){ return (current==='feed'||current==='line'||current==='pic') ? (opGet(current==='pic'?'line':current)||null) : null; }
   const byCell=x=>'<td>'+(x&&x.by?esc(x.by):'<span style="color:var(--dim)">—</span>')+'</td>';
   function rOp(p){
     const sel=$('op_'+p); if(!sel) return;
     $('p-'+p).classList.toggle('oplock', !opGet(p));
     if($('opn_'+p).style.display!=='none') return;
     const cur=opGet(p), names=(S.settings.operators||[]).slice(); if(cur && names.indexOf(cur)<0) names.push(cur);
-    const sig=todayStr()+'|'+cur+'|'+names.join('|'); if(sel.dataset.sig===sig) return; sel.dataset.sig=sig;
+    const sig=todayStr()+'|'+opKey(p)+'|'+cur+'|'+names.join('|'); if(sel.dataset.sig===sig) return; sel.dataset.sig=sig;
     const at=opAt(p); $('opc_'+p).querySelector('.opok').textContent = cur ? '✓ ลงชื่อวันนี้แล้ว'+(at?' ('+String(hhmm(at)).slice(0,5)+')':'')+' — พรุ่งนี้ต้องลงชื่อใหม่' : '';
     sel.innerHTML='<option value="">— เลือกชื่อ —</option>'+names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('')+'<option value="__new__">＋ เพิ่มชื่อใหม่…</option>';
     sel.value=cur; $('opc_'+p).classList.toggle('opwarn',!cur);
@@ -1913,8 +1922,11 @@ window.WPDAUTH = {
     if(LOCKED.indexOf(p)>=0 && !bossActive()){ askPin(()=>show(p)); return; }
     touchBoss();
     current=p;
-    PANELS.forEach(x=>$('p-'+x).classList.toggle('show',x===p));
+    const _panel = p==='pic' ? 'line' : p;   /* แท็บปิกนิกใช้หน้าท้ายไลน์ตัวเดิม (งาน = งานปิกนิกของจุดแพ็ค) */
+    PANELS.forEach(x=>$('p-'+x).classList.toggle('show',x===_panel));
+    lastLineOrder=undefined;
     document.querySelectorAll('.nb').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
+    if(typeof rTop==='function') rTop();   /* แถบบน: แท็บปิกนิกบอกงานปิกนิก · แท็บอื่นบอกงานที่ไลน์ */
     renderPanel(true);
   }
   document.querySelectorAll('.nb').forEach(b=>b.addEventListener('click',()=>show(b.dataset.p)));
@@ -1923,7 +1935,7 @@ window.WPDAUTH = {
     if (current==='order') rOrders();
     else if (current==='feed') rFeed(force);
     else if (current==='office') rOffice();
-    else if (current==='line') rLine(force);
+    else if (current==='line' || current==='pic') rLine(force);
     else if (current==='sum') rSum();
   }
 
@@ -2001,6 +2013,7 @@ window.WPDAUTH = {
       S.orders=S.orders.filter(x=>x.id!==o.id);
       if (S.activeId===o.id) S.activeId=null;
       if (S.activeFeedId===o.id) S.activeFeedId=null;
+      if (S.activePicnicId===o.id) S.activePicnicId=null;
       await saveOrders(); rTop(); rOrders(); toast('ลบแล้ว');
     });
     rSpecLib();
@@ -2994,7 +3007,27 @@ window.WPDAUTH = {
     $('carryUseOn').checked=false;
     return { pieces:from.reduce((a,x)=>a+x.pieces,0), from, kg:r3(kg) };
   }
+  /* แท็บปิกนิก: เลือกงานปิกนิกของจุดแพ็ค (ไม่แตะงานที่ไลน์) */
+  function rPicSel(){
+    const c=$('cardPicSel'); if(!c) return;
+    c.style.display = current==='pic' ? '' : 'none';
+    if(current!=='pic') return;
+    const sel=$('picOrderSel'), list=S.orders.filter(o=>isPicnic(o) && o.status!=='done');
+    const sig=list.map(o=>o.id+o.code).join('|')+'#'+(S.activePicnicId||'');
+    if(sel.dataset.sig!==sig){ sel.dataset.sig=sig;
+      sel.innerHTML='<option value="">— เลือกงานปิกนิก —</option>'+list.map(o=>'<option value="'+o.id+'">'+esc(o.customer)+' — '+esc(o.code)+'</option>').join('');
+      sel.value=list.some(o=>o.id===S.activePicnicId)?S.activePicnicId:''; }
+    const lo=S.orders.find(o=>o.id===S.activeId);
+    $('picLineNote').innerHTML=(lo && !isPicnic(lo)?'ไลน์ผลิตตอนนี้: <b>'+esc(lo.customer)+' — '+esc(lo.code)+'</b> (เดินต่อได้ ไม่เกี่ยวกัน) · ':'')+
+      (list.length?'แพ็คที่นี่นับเข้างานปิกนิกที่เลือก':'<span style="color:var(--yellow)">ยังไม่มีงานปิกนิกที่ยังไม่จบ — เพิ่มออเดอร์ปิกนิกที่แท็บออเดอร์ก่อน</span>');
+  }
+  if($('picOrderSel')) $('picOrderSel').onchange=async()=>{
+    const id=$('picOrderSel').value||null, o=id?orderById(id):null;
+    S.activePicnicId=id; if(o){ if(!o.startedAt) o.startedAt=localISO(); if(o.status!=='done') o.status='active'; }
+    await saveOrders(); rTop(); rLine(true); toast(o?'จุดแพ็คปิกนิก: '+o.customer+' — '+o.code:'ยังไม่ได้เลือกงานปิกนิก');
+  };
   function rLine(force){
+    rPicSel();
     rOp('line');
     const o=active(), t=todayStr();
     if(o && pillowZipFix(o)){ saveOrders(); toast('งานหมอน: ตั้งถุงซิลเป็นใบละ 1 ถุง (แพ็คละ '+o.spec.zipPerPack+' ใบ) ให้แล้ว'); }
@@ -3511,7 +3544,8 @@ window.WPDAUTH = {
   function lastPackTime(){
     const o=active(); if(!o) return null;
     const _t=todayStr();
-    const rows=S.line.filter(l=>dayOf(l.time)===_t);
+    /* แพ็คปิกนิกจากจุดแพ็ค ไม่นับเป็นการเดินของไลน์ (และกลับกัน) */
+    const rows=S.line.filter(l=>dayOf(l.time)===_t && (isPicnic(o) ? l.orderId===o.id : !isPicnic(orderById(l.orderId))));
     if(!rows.length) return (o.startedAt && dayOf(o.startedAt)===_t) ? o.startedAt : null;
     return rows.reduce((m,l)=>l.time>m?l.time:m,rows[0].time);
   }
@@ -3527,6 +3561,7 @@ window.WPDAUTH = {
   function checkIdle(){
     const o=active();
     const el=$('idleWarn'); if(!el) return;
+    if(current==='pic' || isPicnic(o)){ el.innerHTML=''; return; }   /* จุดแพ็คปิกนิกไม่ต้องเตือนเครื่องหยุด */
     const b=(typeof openBreak==='function')?openBreak():null;
     if(b){
       el.innerHTML='<div class="banner warn" style="display:block; margin:10px 0 0;">⏸ กำลังพัก: '+esc(b.reason)+
@@ -3548,7 +3583,7 @@ window.WPDAUTH = {
       idleNotified=false; idleBeeped=false;
     } else { el.innerHTML=''; idleNotified=false; idleBeeped=false; }
   }
-  setInterval(()=>{ if(typeof paintBreak==='function') paintBreak(); checkIdle(); if(current==='feed'||current==='line') rOp(current); },15000);
+  setInterval(()=>{ if(typeof paintBreak==='function') paintBreak(); checkIdle(); if(current==='feed'||current==='line'||current==='pic') rOp(current==='pic'?'line':current); },15000);
 
   function addPack(gapReason,gapMin,flagged,actual,actualPc){
     const o=active(); const std=CALC.stdPerPack(o.spec);
@@ -3597,7 +3632,7 @@ window.WPDAUTH = {
     $('lineNote').value=''; $('actW').value=''; $('actPc').value=''; $('actHint').innerHTML='';
     lastPackAt=localISO(); idleNotified=false;
     if(_cut||_case){ saveFeed(); }
-    saveLine().then(()=>{ if(current==='line') rLine(); });
+    saveLine().then(()=>{ if(current==='line'||current==='pic') rLine(); });
     const st=CALC.tolStatus(act,std,o.spec.tolPct);
     let _tail='';
     if(_cut && _cut.msgs && _cut.msgs.length) _tail=' — '+_cut.msgs.join(' · ');
@@ -4063,7 +4098,8 @@ window.WPDAUTH = {
     }
     /* วัดช่วงห่างจากแพ็คล่าสุดของ "ไลน์" ในวันเดียวกัน (ทุกออเดอร์) — ข้ามคืนหรือสลับงานไม่นับเป็นเวลาที่เสีย */
     const _today=todayStr();
-    const prev=S.line.filter(l=>dayOf(l.time)===_today).sort((a,b)=>a.time<b.time?-1:1).pop();
+    /* ไลน์: ไม่นับแพ็คปิกนิกจากจุดแพ็ค · จุดแพ็คปิกนิก: ไม่ถามช่วงห่าง */
+    const prev=current==='pic' ? null : S.line.filter(l=>dayOf(l.time)===_today && (isPicnic(o) || !isPicnic(orderById(l.orderId)))).sort((a,b)=>a.time<b.time?-1:1).pop();
     const now=localISO();
     const gap=prev?Math.max(0,minsBetween(now,prev.time)-breakOverlapMinutes(prev.time,now)):null;
     if(gap!==null && gap>(+S.settings.gapMin||20)){
@@ -4375,7 +4411,7 @@ window.WPDAUTH = {
     const was=(w.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+' '+w.name+' #'+(w.picks||[]).map(p=>p.sackNo).join(',');
     w.kind=kind; w.name=name; w.kg=kg; w.picks=[{ sackId:sk.sackId, sackNo:sk.sackNo, kg:kg }]; w.editedAt=localISO();
     uses.forEach(u=>{ u.kind=kind; u.name=name; u.sackNo=String(sk.sackNo); if(wpb>0) u.kg=r3((+u.pieces||0)*wpb); });
-    await saveFeed(); closeOv('ovBwEdit'); refreshBwSelects(); refreshBwSackOptions(); if(current==='line') rLine();
+    await saveFeed(); closeOv('ovBwEdit'); refreshBwSelects(); refreshBwSackOptions(); if(current==='line'||current==='pic') rLine();
     toast('แก้รายการเบิกถุงแล้ว ('+was+' → '+(kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+' '+name+' #'+sk.sackNo+')'+(pcs?' — แพ็คที่ใช้ไปแล้ว '+pcs+' ใบ เปลี่ยนตามแล้ว':''));
   };
   let bwPick=null;
@@ -4447,6 +4483,12 @@ window.WPDAUTH = {
       ' · น้ำหนักจริงรวม '+actF+' กก.'+
       ' · ใยที่ใช้จริง '+fiberUsed+' กก. · เศษ '+scrap+' กก.'+(scrapPcs?' · ของเสีย '+scrapPcs+' ชิ้น':''))) return;
     o.status='done'; o.finishedAt=localISO();
+    /* จบงานที่จุดแพ็คปิกนิก — ไม่แตะงานที่ไลน์ */
+    if(current==='pic'){
+      S.activePicnicId=null; if(S.activeId===o.id) S.activeId=null;
+      await saveOrders(); rTop(); toast('จบงานปิกนิกเรียบร้อย — เลือกงานปิกนิกถัดไปได้เลย'); rLine(true); return;
+    }
+    if(S.activePicnicId===o.id) S.activePicnicId=null;
     const nextId = (S.activeFeedId && S.activeFeedId!==o.id && orderById(S.activeFeedId) && orderById(S.activeFeedId).status!=='done') ? S.activeFeedId : null;
     if(nextId){
       const nx=orderById(nextId);

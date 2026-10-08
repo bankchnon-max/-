@@ -1972,7 +1972,7 @@ window.WPDAUTH = {
       ? 'พบ '+list.length+' ออเดอร์ จากทั้งหมด '+S.orders.length
       : 'ทั้งหมด '+S.orders.length+' ออเดอร์ · ค้นเจอแล้วกดชื่อลูกค้าเพื่อเริ่มงานได้เลย';
     g.innerHTML=list.map(o=>{
-      const on=S.activeId===o.id;
+      const on=S.activeId===o.id || (isPicnic(o) && S.activePicnicId===o.id);
       const done=o.status==='done';
       const packs=S.line.filter(l=>l.orderId===o.id).length;
       const stdP=CALC.stdPerPack(o.spec);
@@ -1999,6 +1999,8 @@ window.WPDAUTH = {
       const o=orderById(el.dataset.sel); if(!o) return;
       if (o.status==='done'){ toast('ออเดอร์นี้จบงานแล้ว — กด "เปิดงานใหม่" ก่อน'); return; }
       if (!o.startedAt) o.startedAt=localISO();
+      /* งานปิกนิก = งานของจุดแพ็คปิกนิก (แท็บ 🧺 ปิกนิก) ไม่ใช่งานของไลน์ */
+      if (isPicnic(o)){ o.status='active'; S.activePicnicId=o.id; await saveOrders(); rOrders(); toast('งานปิกนิก: '+o.customer+' — แพ็คที่แท็บ 🧺 ปิกนิก'); show('pic'); return; }
       o.status='active'; S.activeId=o.id;
       await saveOrders(); rTop(); rOrders(); toast('เลือกออเดอร์: '+o.customer);
     });
@@ -3027,6 +3029,10 @@ window.WPDAUTH = {
     await saveOrders(); rTop(); rLine(true); toast(o?'จุดแพ็คปิกนิก: '+o.customer+' — '+o.code:'ยังไม่ได้เลือกงานปิกนิก');
   };
   function rLine(force){
+    /* แบบเก่า: งานที่ไลน์เป็นปิกนิก → ย้ายไปจุดแพ็คปิกนิก (แท็บ 🧺 ปิกนิก) */
+    if(current==='line'){ const _lo=S.orders.find(x=>x.id===S.activeId);
+      if(_lo && isPicnic(_lo)){ if(!S.activePicnicId) S.activePicnicId=_lo.id; S.activeId=null; saveOrders(); rTop();
+        toast('งานปิกนิกย้ายไปแพ็คที่แท็บ 🧺 ปิกนิก — ท้ายไลน์ใช้กับงานใยแผ่น/หมอน'); } }
     rPicSel();
     rOp('line');
     const o=active(), t=todayStr();

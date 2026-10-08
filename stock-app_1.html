@@ -402,6 +402,13 @@
     var b=document.createElement('button'); b.type='button'; b.id='wpdMode'; b.className='savechip wpd-mode'; b.setAttribute('data-noguard','1');
     b.onclick=function(){ try{ localStorage.setItem(K, dark()?'light':'dark'); }catch(e){} apply(); };
     chip.parentNode.insertBefore(b, chip.nextSibling); apply();
+    /* เครื่องหลังบ้าน (เข้าระบบที่หน้า /office) → ปุ่มกลับหน้ารวม · แท็บเล็ตหน้างานไม่เห็น */
+    var hub=null; try{ hub=localStorage.getItem('wpd_auth_hub'); }catch(e){}
+    if(hub && !document.getElementById('wpdHub')){
+      var h=document.createElement('a'); h.id='wpdHub'; h.href='/office'; h.className='savechip wpd-mode'; h.setAttribute('data-noguard','1');
+      h.style.textDecoration='none'; h.textContent='🏠 หน้ารวม';
+      chip.parentNode.insertBefore(h, b);
+    }
   });
 })();
 </script><!-- /wpd-mode -->

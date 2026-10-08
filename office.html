@@ -69,6 +69,16 @@
   .tips { margin-top:22px; background:var(--panel); border:1px dashed var(--border); border-radius:14px; padding:12px 14px; font-size:13.5px; color:var(--dim); }
   .tips b { color:var(--text); }
   .tips ul { margin:6px 0 0; padding-left:18px; }
+  .login { margin-top:14px; background:var(--panel); border:1px solid var(--tint-bd); border-radius:16px; padding:16px; box-shadow:var(--shadow); max-width:440px; }
+  .login .lt { font-family:'Kanit',sans-serif; font-weight:600; font-size:17px; }
+  .login .ls { color:var(--dim); font-size:13px; margin:2px 0 10px; }
+  .login label { display:block; font-size:13.5px; color:var(--label); margin-top:8px; }
+  .login input { width:100%; padding:12px; margin-top:4px; border:1px solid var(--border); border-radius:10px; background:var(--panel2); color:var(--text); font:400 16px 'Sarabun',sans-serif; }
+  .login .lerr { min-height:20px; color:#cf3e45; font-size:13px; margin:8px 0; }
+  .who { margin-top:14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:10px 14px; font-size:14px; }
+  .who span { flex:1; min-width:200px; }
+  .who b { color:var(--green); }
+  body.out .grid .btn.go { opacity:.45; pointer-events:none; }
 </style>
 </head>
 <body>
@@ -78,6 +88,22 @@
     <div class="grow"><h1>หลังบ้าน วินโพลีดีไซน์</h1><div class="sub">รวมทุกแอพไว้ที่เดียว — แตะ "เปิด" หรือ "คัดลอกลิงก์" ส่งให้คนอื่น</div></div>
     <button class="mode" id="mode" type="button" onclick="wpdToggle()">🌙 โหมดมืด</button>
   </header>
+
+  <!-- เข้าระบบครั้งเดียวที่นี่ = เปิดได้ทุกแอพ (ผลิต / สต๊อก / ต้นทุน / สแกนหน้า) บนเครื่องนี้ -->
+  <div class="login" id="loginBox" style="display:none;">
+    <div class="lt">🔒 เข้าระบบครั้งเดียว ใช้ได้ทุกแอพ</div>
+    <div class="ls">ผลิต · สต๊อก · ต้นทุน · สแกนหน้า — เครื่องนี้จำไว้ให้ ไม่ต้องเข้าระบบแยกทีละแอพ</div>
+    <form id="loginForm" autocomplete="on">
+      <label for="lEmail">อีเมล</label><input id="lEmail" type="email" autocomplete="username" required>
+      <label for="lPass">รหัสผ่าน</label><input id="lPass" type="password" autocomplete="current-password" required>
+      <div class="lerr" id="lErr"></div>
+      <button class="btn go" id="lGo" type="submit" style="width:100%;">เข้าสู่ระบบ</button>
+    </form>
+  </div>
+  <div class="who" id="whoBox" style="display:none;">
+    <span>✓ เข้าระบบแล้ว: <b id="whoEmail"></b> — เปิดแอพไหนก็ได้ ไม่ต้องเข้าระบบซ้ำ</span>
+    <button class="btn cp" id="btnOut" type="button">ออกจากระบบทุกแอพ</button>
+  </div>
 
   <h2>งานหลังบ้าน</h2>
   <div class="grid">
@@ -107,8 +133,8 @@
     <div class="card">
       <div class="top"><div class="ic">🙂</div><div class="nm">สแกนหน้า เข้า-ออกงาน</div></div>
       <div class="ds">จุดสแกนหน้า (เลือกหน้างานตอนเข้างาน) · HR: พนักงาน / สรุปรายวัน / ลา / ค่าแรง</div>
-      <div class="row"><a class="btn go" href="https://bankchnon-max.github.io/face-attendance/">เปิด</a><button class="btn cp" type="button" data-cp="https://bankchnon-max.github.io/face-attendance/">คัดลอกลิงก์</button></div>
-      <div class="url">bankchnon-max.github.io/face-attendance</div>
+      <div class="row"><a class="btn go" href="/face/">เปิด</a><button class="btn cp" type="button" data-cp="/face/">คัดลอกลิงก์</button></div>
+      <div class="url">production.winpolydesign.com/face</div>
     </div>
   </div>
 
@@ -130,6 +156,65 @@
     });
   });
   wpdApply();
+
+  /* ═══ เข้าระบบครั้งเดียว ═══
+     - แอพผลิต/สต๊อก/ต้นทุน ใช้ session ชุดเดียวกัน (localStorage "wpd_auth_v1")
+     - แอพสแกนหน้า (/face/) ใช้ supabase-js เก็บ session ของตัวเอง ("sb-<project>-auth-token")
+     เข้าระบบที่นี่ = ขอ session ให้ทั้ง 2 ชุด (แยกกัน ต่อเวลา/หมดอายุของใครของมัน ไม่แย่งกัน) */
+  var SUPABASE_URL='https://tekhjdnbfncfvpwejlni.supabase.co';
+  var SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRla2hqZG5iZm5jZnZwd2VqbG5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5NjgzNDIsImV4cCI6MjEwMTU0NDM0Mn0.bOO7i_NyD-noFzyPjs22R0M2wGlUznViV-_YjOTqbak';
+  var K_WPD='wpd_auth_v1', K_FACE='sb-tekhjdnbfncfvpwejlni-auth-token';
+  function rd(k){ try{ return JSON.parse(localStorage.getItem(k)||'null'); }catch(e){ return null; } }
+  function wr(k,v){ try{ v ? localStorage.setItem(k, JSON.stringify(v)) : localStorage.removeItem(k); }catch(e){} }
+  function norm(j){ if(j && !j.expires_at && j.expires_in) j.expires_at=Math.floor(Date.now()/1000)+(+j.expires_in||3600); return j; }
+  function alive(s){ return !!(s && s.access_token && (!s.expires_at || s.expires_at*1000-Date.now()>60000)); }
+  async function token(body, grant){
+    var r=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type='+grant,{ method:'POST', headers:{ apikey:SUPABASE_ANON_KEY, 'Content-Type':'application/json' }, body:JSON.stringify(body) });
+    var j={}; try{ j=await r.json(); }catch(e){}
+    if(!r.ok) throw new Error(j.error_description||j.msg||j.message||('HTTP '+r.status));
+    return norm(j);
+  }
+  async function current(){
+    var s=rd(K_WPD); if(!s || !s.access_token) return null;
+    if(alive(s)) return s;
+    if(!s.refresh_token) return null;
+    try{ s=await token({ refresh_token:s.refresh_token },'refresh_token'); wr(K_WPD,s); return s; }catch(e){ return null; }
+  }
+  function show(s){
+    var on=!!s, face=rd(K_FACE), faceOn=!!(face&&face.refresh_token);
+    /* เข้าระบบจากแอพอื่นมาก่อน (ยังไม่มี session ของแอพสแกนหน้า) → ให้เข้าที่นี่อีกครั้งเดียว จะได้ครบทุกแอพ */
+    document.getElementById('loginBox').style.display=(on&&faceOn)?'none':'';
+    document.querySelector('#loginBox .ls').textContent=on&&!faceOn?'เครื่องนี้เข้าแอพผลิต/สต๊อก/ต้นทุนแล้ว — เข้าที่นี่อีกครั้งเดียว แอพสแกนหน้าจะเปิดได้ด้วย':'ผลิต · สต๊อก · ต้นทุน · สแกนหน้า — เครื่องนี้จำไว้ให้ ไม่ต้องเข้าระบบแยกทีละแอพ';
+    document.getElementById('whoBox').style.display=on?'':'none';
+    document.body.classList.toggle('out', !on);
+    if(on) document.getElementById('whoEmail').textContent=(s.user&&s.user.email)||'';
+    else { try{ var last=localStorage.getItem('wpd_last_email'); if(last) document.getElementById('lEmail').value=last; }catch(e){} }
+  }
+  document.getElementById('loginForm').addEventListener('submit', async function(ev){
+    ev.preventDefault();
+    var em=document.getElementById('lEmail').value.trim(), pw=document.getElementById('lPass').value, er=document.getElementById('lErr'), go=document.getElementById('lGo');
+    if(!em||!pw){ er.textContent='กรอกอีเมลและรหัสผ่านก่อน'; return; }
+    go.disabled=true; go.textContent='กำลังเข้าระบบ…'; er.textContent='';
+    try{
+      var a=await token({ email:em, password:pw },'password');       /* แอพผลิต/สต๊อก/ต้นทุน */
+      var b=await token({ email:em, password:pw },'password');       /* แอพสแกนหน้า */
+      wr(K_WPD,a); wr(K_FACE,b);
+      try{ localStorage.setItem('wpd_last_email', em); }catch(e){}
+      document.getElementById('lPass').value=''; show(a);
+    }catch(e){
+      var m=String(e&&e.message||e);
+      er.textContent=/Invalid login/i.test(m)?'อีเมลหรือรหัสผ่านไม่ถูกต้อง':/Email not confirmed/i.test(m)?'บัญชีนี้ยังไม่ได้ยืนยันอีเมล — ให้แอดมินกด Confirm ให้ก่อน':/fetch|network/i.test(m)?'ต่ออินเทอร์เน็ตไม่ได้ — ลองใหม่':'เข้าระบบไม่สำเร็จ: '+m;
+    }
+    go.disabled=false; go.textContent='เข้าสู่ระบบ';
+  });
+  document.getElementById('btnOut').addEventListener('click', async function(){
+    var out=[]; try{ out=JSON.parse(localStorage.getItem('faceatt_outbox')||'[]'); }catch(e){}
+    if(!confirm(out.length?'เครื่องนี้มีข้อมูลสแกนหน้ารอส่ง '+out.length+' รายการ — ออกจากระบบตอนนี้ข้อมูลจะยังไม่ถูกส่ง\n\nออกจากระบบทุกแอพ?':'ออกจากระบบทุกแอพบนเครื่องนี้? (ต้องเข้าระบบใหม่)')) return;
+    [K_WPD,K_FACE].forEach(function(k){ var s=rd(k); if(s&&s.access_token) fetch(SUPABASE_URL+'/auth/v1/logout',{ method:'POST', headers:{ apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+s.access_token } }).catch(function(){}); wr(k,null); });
+    try{ localStorage.removeItem('faceatt_boot'); }catch(e){}
+    show(null);
+  });
+  current().then(show);
 </script>
 </body>
 </html>

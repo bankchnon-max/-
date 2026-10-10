@@ -2172,6 +2172,13 @@ window.WPDAUTH = {
   };
 
   /* ---------- 2. FEED ---------- */
+  /* ตัวเลือกออเดอร์แยกกลุ่มตามฝั่งที่ใช้ใย (ฝั่งหมอน / ฝั่งใยแผ่น) · ปิกนิกไม่ใช้ใยดิบ ไม่แสดง */
+  function sideOptions(list, label){
+    const g={ pillow:[], sheet:[] };
+    list.filter(o=>!isPicnic(o)).forEach(o=>g[fiberSide(o)].push(o));
+    return [['pillow','🛏️ ฝั่งหมอน'],['sheet','🧵 ฝั่งใยแผ่น']].filter(([k])=>g[k].length)
+      .map(([k,t])=>'<optgroup label="'+t+'">'+g[k].map(o=>'<option value="'+o.id+'">'+label(o)+'</option>').join('')+'</optgroup>').join('');
+  }
   function rFeed(force){
     rOp('feed');
     const o=activeFeed(), t=todayStr();
@@ -2181,7 +2188,7 @@ window.WPDAUTH = {
     if(feedSel){
       const openOrders=S.orders.filter(x=>x.status!=='done');
       const keep=feedSel.value;
-      feedSel.innerHTML=openOrders.map(x=>'<option value="'+x.id+'">'+esc(x.customer)+' — '+esc(x.code)+(x.id===S.activeId?' (ท้ายไลน์กำลังทำอยู่)':'')+'</option>').join('');
+      feedSel.innerHTML=sideOptions(openOrders, x=>esc(x.customer)+' — '+esc(x.code)+(x.id===S.activeId?' (ท้ายไลน์กำลังทำอยู่)':''));
       const wantId = S.activeFeedId||S.activeId;
       if(openOrders.some(x=>x.id===wantId)) feedSel.value=wantId;
       else if(openOrders.some(x=>x.id===keep)) feedSel.value=keep;
@@ -2387,7 +2394,8 @@ window.WPDAUTH = {
       else $('wdName').style.display='none';
       populateWdLotOptions($('wdName').value);
       const sel=$('recSel'), keep=sel.value;
-      sel.innerHTML=S.orders.map(x=>'<option value="'+x.id+'">'+esc(x.customer)+' — '+esc(x.code)+'</option>').join('');
+      /* งานที่ยังไม่จบขึ้นก่อน งานที่จบแล้วต่อท้ายในกลุ่มเดียวกัน */
+      sel.innerHTML=sideOptions(S.orders.slice().sort((a,b)=>(a.status==='done')-(b.status==='done')), x=>esc(x.customer)+' — '+esc(x.code)+(x.status==='done'?' (จบแล้ว)':''));
       sel.value = orderById(keep)?keep : (o?o.id:(S.orders[0]||{}).id||'');
       loadRecipe();
     }

@@ -603,7 +603,7 @@
         <div id="feedInfo"></div>
       </div>
       <div class="card" id="cardBale">
-        <h3>ก้อนใยที่กำลังใช้อยู่</h3>
+        <h3>ก้อนใยที่กำลังใช้อยู่ <span id="baleSideTag" class="bdg ok" style="font-size:12px;vertical-align:middle;"></span></h3>
         <div id="baleList"></div>
         <div class="sumline" style="margin-top:12px; font-weight:600;">ประวัติการเปลี่ยนก้อน</div>
         <div class="scr"><table id="tLotLog"></table></div>
@@ -2209,6 +2209,7 @@ window.WPDAUTH = {
           : '<div class="sumline">ยังไม่ได้ตั้งสูตร — ตั้งค่าที่การ์ดล่างสุด</div>');
     }
     if($('wdDupWarn')){
+      if($('baleSideTag')) $('baleSideTag').textContent = o ? SIDE_TH[fiberSide(o)] : '';
       const need=(o?(o.fibers||[]):[]).filter(f=>f.name&&(+f.kg||0)>0&&!baleAtLine(f.name)).map(f=>f.name);
       $('wdDupWarn').innerHTML = need.length
         ? '<span class="bdg bad">ยังไม่มีก้อนที่ไลน์: '+need.map(esc).join(', ')+' — เบิกก่อนถึงจะป้อนใยได้</span>'
@@ -2626,7 +2627,7 @@ window.WPDAUTH = {
         '"'+n+'" ไม่อยู่ในสูตรของ '+o.customer+'\nสูตรคือ '+(o.fibers.length?o.fibers.map(f=>f.name).join(', '):'ยังไม่ได้ตั้ง')+
         '\n\nยืนยันจะบันทึกการเบิกนี้หรือไม่?')) return;
     }
-    S.wd.push({ by:opBy(), id:uid(), time:localISO(), orderId:o.id,
+    S.wd.push({ by:opBy(), id:uid(), time:localISO(), orderId:o.id, side:fiberSide(o),   /* เบิกไปฝั่งไหน (หมอน / ใยแผ่น) */
       seq:$('wdSeq').value.trim(),
       fiberName:n, lot:lot, receiptId:_rcpt?_rcpt.id:null, lotDate:_rcpt?_rcpt.time:null, kg:kg, note:$('wdNote').value.trim(),
       offRecipe:!inRecipe(o,n) });
@@ -3714,10 +3715,16 @@ window.WPDAUTH = {
   function baleUsed(wdId){
     return r3((S.use||[]).filter(u=>u.wdId===wdId).reduce((a,b)=>a+(+b.kg||0),0));
   }
-  /* ก้อนที่พักไว้ข้างไลน์ (hold) ไม่ถูกใช้ · เอากลับมาใช้ = ต่อท้ายคิว (requeueAt) */
-  function baleQueue(fiberName){
+  /* ═══ ฝั่งที่ใช้ใย: เครื่องหมอน กับ ไลน์ใยแผ่น ใช้ก้อนใยแยกกัน (ชื่อใยเดียวกันก็ไม่ปนกัน) ═══ */
+  function fiberSide(o){ return (o && (o.productType||'')==='หมอน') ? 'pillow' : 'sheet'; }
+  function wdSide(w){ return w.side || fiberSide(orderById(w.orderId)); }
+  function feedSide(){ return fiberSide(activeFeed()); }
+  const SIDE_TH={ pillow:'ฝั่งหมอน', sheet:'ฝั่งใยแผ่น' };
+  /* ก้อนที่พักไว้ข้างไลน์ (hold) ไม่ถูกใช้ · เอากลับมาใช้ = ต่อท้ายคิว (requeueAt) · เฉพาะก้อนของฝั่งนั้น */
+  function baleQueue(fiberName, side){
+    side=side||feedSide();
     return (S.wd||[])
-      .filter(w=>w.fiberName===fiberName && !w.auto && !w.hold)
+      .filter(w=>w.fiberName===fiberName && !w.auto && !w.hold && wdSide(w)===side)
       .slice().sort((a,b)=>String(a.requeueAt||a.time).localeCompare(String(b.requeueAt||b.time)))
       .map(w=>{ const used=baleUsed(w.id);
         return { wdId:w.id, no:(w.seq||w.lot||''), lot:w.lot, receiptId:w.receiptId||null, rdate:baleRecvDate(w), kg:r3(+w.kg||0),
@@ -3730,15 +3737,15 @@ window.WPDAUTH = {
     const r=(w.receiptId&&ls.find(l=>l.id===w.receiptId))||ls.filter(l=>String(l.lotNo)===String(w.lot)).pop();
     return r?r.time:null;
   }
-  function baleAtLine(fiberName){
-    return baleQueue(fiberName).find(b=>b.remaining>0.0000001)||null;
+  function baleAtLine(fiberName, side){
+    return baleQueue(fiberName, side).find(b=>b.remaining>0.0000001)||null;
   }
-  function baleWaiting(fiberName){
-    const q=baleQueue(fiberName).filter(b=>b.remaining>0.0000001);
+  function baleWaiting(fiberName, side){
+    const q=baleQueue(fiberName, side).filter(b=>b.remaining>0.0000001);
     return q.slice(1);
   }
-  function lineTotal(fiberName){
-    return r3(baleQueue(fiberName).reduce((a,b)=>a+Math.max(0,b.remaining),0));
+  function lineTotal(fiberName, side){
+    return r3(baleQueue(fiberName, side).reduce((a,b)=>a+Math.max(0,b.remaining),0));
   }
   /* ---------- ก้อนใย: แท็กก้อนที่ใช้อยู่ + หักสต๊อกอัตโนมัติทุกรอบป้อน ---------- */
   /* วันที่แบบที่เขียนบนก้อน เช่น 21/8/2569 */
@@ -3788,10 +3795,11 @@ window.WPDAUTH = {
     rec.forEach(f=>{
       let remain=+f.kg||0;
       /* ก้อนที่ใช้อยู่จริงล่าสุด (ดูจากการหักจริง ไม่ใช่เลขก้อนที่พิมพ์ไว้ในสูตร) */
-      const lastUse=(S.use||[]).slice().reverse().find(u=>u.fiberName===f.name && u.wdId);
+      const _side=fiberSide(o);
+      const lastUse=(S.use||[]).slice().reverse().find(u=>u.fiberName===f.name && u.wdId && (S.wd.find(w=>w.id===u.wdId) ? wdSide(S.wd.find(w=>w.id===u.wdId))===_side : true));
       const before=lastUse?String(lastUse.baleNo):'';
       /* สลับได้เฉพาะก้อนที่กดเบิกมาไว้ที่ไลน์แล้ว และชื่อใยตรงกันเท่านั้น (เรียงตามลำดับที่เบิก) */
-      const q=baleQueue(f.name).filter(b=>b.remaining>0.0000001);
+      const q=baleQueue(f.name, _side).filter(b=>b.remaining>0.0000001);
       for(const b of q){
         if(remain<=0.0000001) break;
         const take=Math.min(b.remaining, remain);
@@ -3806,7 +3814,7 @@ window.WPDAUTH = {
           fiberName:f.name, wdId:b.wdId, baleNo:String(b.no), lot:b.lot, receiptId:b.receiptId||null, kg:r3(take) });
         remain=r3(remain-take);
       }
-      const atLine=baleAtLine(f.name);
+      const atLine=baleAtLine(f.name, _side);
       msgs.push(f.name+' '+(atLine?'ก้อน '+atLine.no+' เหลือ '+atLine.remaining+' กก.':'ที่ไลน์หมดแล้ว'));
       if(remain>0.0000001){
         /* ใยที่ป้อนจริงแต่ยังไม่มีก้อนให้หัก — จดค้างไว้ พอกดเบิกก้อนชื่อเดียวกันแล้วจะหักย้อนหลังให้เอง ไม่หายจากต้นทุน */
@@ -4071,7 +4079,7 @@ window.WPDAUTH = {
     let moved=0;
     for(const p of pend){
       let left=+p.kg||0;
-      for(const b of baleQueue(name).filter(x=>x.remaining>0.0000001)){
+      for(const b of baleQueue(name, fiberSide(orderById(p.orderId))).filter(x=>x.remaining>0.0000001)){   /* หักก้อนฝั่งเดียวกับงานนั้น */
         if(left<=0.0000001) break;
         const take=r3(Math.min(b.remaining,left));
         S.use.push({ by:opBy(), id:uid(), time:p.time, orderId:p.orderId, feedId:p.feedId||null, fiberName:name, wdId:b.wdId,

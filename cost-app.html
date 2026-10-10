@@ -1459,7 +1459,9 @@ window.WPDAUTH = {
     if(inflight[k]){ setTimeout(()=>flush(k,attempt),400); return; }
     if(!(k in pending)) return;
     if(hasStore && !loadOk){ delete pending[k]; setSaveState('bad','ยังโหลดข้อมูลไม่สำเร็จ — รายการนี้ไม่ได้บันทึก'); return; }
-    const data=pending[k]; delete pending[k]; inflight[k]=true; setSaveState('saving');
+    /* แช่แข็งข้อมูล ณ ตอนเริ่มบันทึก — ระหว่างรอเน็ตถ้ากดเพิ่ม (เช่นป้อนใยรอบใหม่) ของใหม่ไปบันทึกรอบหน้า
+       ห้ามปนเข้าฐานเทียบ (เคยทำให้รอบที่กดระหว่างบันทึกถูกมองว่า "เครื่องอื่นลบ" แล้วหายไป) */
+    const dataStr=JSON.stringify(pending[k]), data=JSON.parse(dataStr); delete pending[k]; inflight[k]=true; setSaveState('saving');
     try{
       if(!hasStore) throw new Error('no storage');
       wpdWriteSeq++;
@@ -1468,7 +1470,7 @@ window.WPDAUTH = {
       await window.storage.set(k,str,true);
       /* รวมข้อมูลจากเครื่องอื่นแล้ว: ฐานเทียบรอบหน้า = ของที่เครื่องนี้ส่ง (ในเครื่องยังไม่มีของเครื่องอื่นจนกว่าจะโหลดใหม่)
          — บันทึกครั้งถัดไปจะรวมอีกรอบ ไม่ส่งข้อมูลที่ขาดของเครื่องอื่นขึ้นไปทับ */
-      SEEN[k]=(prepared===data)?str:JSON.stringify(data);
+      SEEN[k]=(prepared===data)?str:dataStr;
       inflight[k]=false; storeDown=false;
       await window.storage.set('v3k_pulse',Date.now()+'',true).catch(()=>{});
       if(Object.keys(pending).length) Object.keys(pending).forEach(kk=>flush(kk)); else { setSaveState('ok'); wpdRefreshAfterMerge(); }

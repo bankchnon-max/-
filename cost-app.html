@@ -911,6 +911,11 @@ window.WPDAUTH = {
       if(+byRid>0) return { baht:+byRid, src:'lot' };
       const byLot=(e.lots||{})[String(lot)];
       if(+byLot>0) return { baht:+byLot, src:'lot' };
+      /* ราคาตามวันที่รับเข้า (ชื่อเดียวกัน วันเดียวกัน = ล็อตเดียวกัน) */
+      const _R=(typeof S!=='undefined' && S.fiberReceipts)||[];
+      const _r=(receiptId && _R.find(x=>x.id===receiptId)) || (lot!=null && _R.find(x=>x.fiberName===name && String(x.lotNo)===String(lot)));
+      const byDate=_r?(e.dates||{})[String(_r.time||'').slice(0,10)]:null;
+      if(+byDate>0) return { baht:+byDate, src:'lot' };
       if(+e.std>0) return { baht:+e.std, src:'std' };
       return { baht:0, src:'none' };
     },
@@ -923,6 +928,11 @@ window.WPDAUTH = {
       if(+byId>0) return { baht:+byId, src:'roll' };
       const byRoll=(e.rolls||{})[String(rollNo)];
       if(+byRoll>0) return { baht:+byRoll, src:'roll' };
+      /* ราคาตามวันที่รับเข้า (ชนิดผ้าเดียวกัน วันเดียวกัน = ล็อตเดียวกัน) */
+      const _R=(typeof S!=='undefined' && S.fabricReceipts)||[];
+      const _r=(rollId && _R.find(x=>x.id===rollId)) || (rollNo!=null && _R.find(x=>x.fabricType===type && String(x.rollNo)===String(rollNo)));
+      const byDate=_r?(e.dates||{})[String(_r.time||'').slice(0,10)]:null;
+      if(+byDate>0) return { baht:+byDate, src:'roll' };
       if(+e.std>0) return { baht:+e.std, src:'std' };
       return { baht:0, src:'none' };
     },
@@ -1013,12 +1023,14 @@ window.WPDAUTH = {
       const key=(kind==='zip')?'zip':'pack';
       const e=((PRICE||{})[key]||{})[name];
       if(!e) return { baht:0, src:'none' };
-      const bySack=(e.sacks||{})[String(sackNo)];
-      const perSack = (+bySack>0) ? +bySack : (+e.std>0 ? +e.std : 0);
-      if(!perSack) return { baht:0, src:'none' };
-      const src=(+bySack>0)?'sack':'std';
       const rows=(sackReceipts||[]).filter(r=>r.kind===kind && r.name===name);
-      const exact=rows.filter(r=>String(r.sackNo)===String(sackNo))[0];
+      const exact=sackNo!=null ? rows.filter(r=>String(r.sackNo)===String(sackNo))[0] : null;
+      const bySack=(e.sacks||{})[String(sackNo)];
+      /* ราคาตามวันที่รับเข้า (ชื่อถุงเดียวกัน วันเดียวกัน = ล็อตเดียวกัน) */
+      const byDate=exact?(e.dates||{})[String(exact.time||'').slice(0,10)]:null;
+      const perSack = (+bySack>0) ? +bySack : (+byDate>0 ? +byDate : (+e.std>0 ? +e.std : 0));
+      if(!perSack) return { baht:0, src:'none' };
+      const src=(+bySack>0 || +byDate>0)?'sack':'std';
       const ref=exact||rows.sort((a,b)=>String(b.time).localeCompare(String(a.time)))[0];
       if(!ref) return { baht:0, src:'noSack' };
       const pcs=COST.sackPieces(ref.sackWeightKg, ref.weightPerBag);
@@ -1572,6 +1584,18 @@ window.WPDAUTH = {
   function priceInput(path, val, ph){
     return '<input data-pr="'+esc(path)+'" type="number" inputmode="decimal" step="0.01" value="'+(val>0?val:'')+'" placeholder="'+(ph||'—')+'">';
   }
+  /* รายการรับเข้า จัดกลุ่มตามวันที่รับเข้า (ล่าสุดก่อน) — วันเดียวกัน = ล็อตเดียวกัน ใส่ราคาเดียว */
+  function byRecvDate(list){
+    const m=new Map(); list.forEach(r=>{ const d=String(r.time||'').slice(0,10); if(!d) return; if(!m.has(d)) m.set(d,[]); m.get(d).push(r); });
+    return [...m.entries()].sort((a,b)=>b[0].localeCompare(a[0])).map(([d,items])=>({ d, items:items.slice().sort((x,y)=>String(x.time).localeCompare(String(y.time))) }));
+  }
+  function dateRows(grp, name, groups, dates, label){
+    if(!groups.length) return '';
+    return '<div class="sumline" style="margin-top:8px;font-weight:600;color:var(--w-label,#465262)">ราคาตามวันที่รับเข้า — วันเดียวกัน = ล็อตเดียวกัน ใส่ราคาเดียวใช้ทั้งล็อต</div>'+
+      groups.slice(0,30).map(g=>'<div class="frow"><div style="flex:1;font-size:12.5px">รับ '+thDate(g.d)+' · '+label(g.items)+'</div>'+
+        '<div style="width:110px">'+priceInput(grp+'|'+name+'|date|'+g.d, (dates||{})[g.d], 'ตามมาตรฐาน')+'</div></div>').join('')+
+      (groups.length>30?'<div class="sumline">แสดง 30 วันล่าสุดจากทั้งหมด '+groups.length+' วัน</div>':'');
+  }
   function rPrice(){
     /* --- ใย --- */
     const usedLots={};
@@ -1596,8 +1620,9 @@ window.WPDAUTH = {
       return '<div class="scard"><div class="nm">'+esc(n)+'</div>'+
         '<div class="frow" style="margin-top:6px;"><div style="flex:1;font-size:12.5px">ราคามาตรฐาน (บาท/กก.)</div>'+
         '<div style="width:110px">'+priceInput('fiber|'+n+'|std', e.std, 'เช่น 62.50')+'</div></div>'+
-        (lots.length?'<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--accent2)">แยกราคาทีละก้อน ('+lots.length+' ก้อน)</summary>'+
-          '<div class="sumline" style="margin-top:4px">ก้อนไหนไม่ใส่ = ใช้ราคามาตรฐาน</div>'+rows+
+        dateRows('fiber', n, byRecvDate(lots), e.dates, it=>it.length+' ก้อน (#'+it.map(l=>esc(l.lotNo)).join(', #')+') · '+r2(it.reduce((a,l)=>a+(+l.kg||0),0))+' กก.')+
+        (lots.length?'<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--accent2)">แยกราคาทีละก้อน ('+lots.length+' ก้อน) — ถ้าก้อนไหนราคาไม่เหมือนล็อต</summary>'+
+          '<div class="sumline" style="margin-top:4px">ก้อนไหนไม่ใส่ = ใช้ราคาตามวันที่รับเข้า หรือราคามาตรฐาน</div>'+rows+
           (lots.length>60?'<div class="sumline">แสดง 60 ก้อนล่าสุดจากทั้งหมด '+lots.length+' ก้อน</div>':'')+
           '</details>':'')+
         '</div>';
@@ -1623,8 +1648,9 @@ window.WPDAUTH = {
         '<div class="frow" style="margin-top:6px;"><div style="flex:1;font-size:12.5px">ราคามาตรฐาน (บาท/ม้วน)</div>'+
         '<div style="width:110px">'+priceInput('fabric|'+n+'|std', e.std, 'เช่น 4200')+'</div></div>'+
         (perPc?'<div class="sumline">≈ <b style="color:var(--accent2)">'+fmtBaht(perPc.baht)+' บาท/ชิ้น</b> (ม้วนละ '+fmtBaht(perPc.roll)+' ÷ ตัดได้ '+fmtInt(perPc.pieces)+' ชิ้น)</div>':'')+
-        (rolls.length?'<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--accent2)">แยกราคาทีละม้วน ('+rolls.length+' ม้วน)</summary>'+
-          '<div class="sumline" style="margin-top:4px">ม้วนไหนไม่ใส่ = ใช้ราคามาตรฐาน</div>'+rows+'</details>':'')+
+        dateRows('fabric', n, byRecvDate(rolls), e.dates, it=>it.length+' ม้วน (#'+it.map(l=>esc(l.rollNo)).join(', #')+')')+
+        (rolls.length?'<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--accent2)">แยกราคาทีละม้วน ('+rolls.length+' ม้วน) — ถ้าม้วนไหนราคาไม่เหมือนล็อต</summary>'+
+          '<div class="sumline" style="margin-top:4px">ม้วนไหนไม่ใส่ = ใช้ราคาตามวันที่รับเข้า หรือราคามาตรฐาน</div>'+rows+'</details>':'')+
         '</div>';
     }).join('') : '<div class="empty">ยังไม่มีผ้าในระบบ</div>';
 
@@ -1649,7 +1675,8 @@ window.WPDAUTH = {
           '<div class="frow" style="margin-top:6px;"><div style="flex:1;font-size:12.5px">ราคามาตรฐาน (บาท/กระสอบ)</div>'+
           '<div style="width:110px">'+priceInput(kind+'|'+n+'|std', e.std, 'เช่น 850')+'</div></div>'+
           (c.baht?'<div class="sumline">≈ <b style="color:var(--accent2)">'+fmtBaht(c.baht)+' บาท/ใบ</b> (กระสอบละ '+fmtBaht(c.perSack)+' ÷ '+fmtInt(c.pieces)+' ใบ)</div>':'')+
-          (sacks.length?'<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--accent2)">แยกราคาทีละกระสอบ ('+sacks.length+')</summary>'+rows+'</details>':'')+
+          dateRows(kind, n, byRecvDate(sacks), e.dates, it=>it.length+' กระสอบ (#'+it.map(l=>esc(l.sackNo)).join(', #')+') · บาท/กระสอบ')+
+          (sacks.length?'<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--accent2)">แยกราคาทีละกระสอบ ('+sacks.length+') — ถ้ากระสอบไหนราคาไม่เหมือนล็อต</summary>'+rows+'</details>':'')+
           '</div>';
       });
     });
@@ -1693,7 +1720,7 @@ window.WPDAUTH = {
       if(kind==='std'){ if(v>0) PRICE[grp][name].std=v; else delete PRICE[grp][name].std; }
       else if(kind==='cycles'){ if(v>0) PRICE[grp][name].cycles=v; else delete PRICE[grp][name].cycles; }
       else {
-        const bucket = kind==='lot'?'lots':kind==='rid'?'rids':kind==='roll'?'rolls':kind==='rollid'?'rollIds':kind==='size'?'sizes':'sacks';
+        const bucket = kind==='lot'?'lots':kind==='rid'?'rids':kind==='roll'?'rolls':kind==='rollid'?'rollIds':kind==='size'?'sizes':kind==='date'?'dates':'sacks';
         PRICE[grp][name][bucket]=PRICE[grp][name][bucket]||{};
         if(v>0) PRICE[grp][name][bucket][key]=v; else delete PRICE[grp][name][bucket][key];
       }

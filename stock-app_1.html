@@ -1145,28 +1145,55 @@ window.WPDAUTH = {
 
   async function get(key){
     await wpdRequireSession();
-    let r = await fetch(base + '?id=eq.' + encodeURIComponent(key) + '&select=value', { headers: headers() });
+    let r = await fetch(base + '?id=eq.' + encodeURIComponent(key) + '&select=value,updated_at', { headers: headers() });
     if (r.status === 401 || r.status === 403) {
       if (!(await wpdRefresh())) { wpdSaveSession(null); await wpdShowLogin('เซสชันหมดอายุ — เข้าสู่ระบบอีกครั้ง'); }
-      r = await fetch(base + '?id=eq.' + encodeURIComponent(key) + '&select=value', { headers: headers() });
+      r = await fetch(base + '?id=eq.' + encodeURIComponent(key) + '&select=value,updated_at', { headers: headers() });
     }
     if (!r.ok) throw new Error('Supabase get failed: HTTP ' + r.status + ' ' + (await r.text()).slice(0,150));
     const rows = await r.json();
     if (!rows.length) return null;
-    return { key: key, value: rows[0].value, shared: true };
+    return { key: key, value: rows[0].value, shared: true, ver: rows[0].updated_at };
   }
 
-  async function set(key, value){
+
+  /* อ่านหลายแถวในคำขอเดียว (ใช้ตอนเปิดแอพครั้งแรก ดึงก้อนรายวันที่ยังไม่มีในเครื่อง) */
+  async function getMany(keys){
     await wpdRequireSession();
-    const doPost = () => fetch(base, { method: 'POST',
-      headers: Object.assign(headers(), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
-      body: JSON.stringify([{ id: key, value: value, shared: true, updated_at: new Date().toISOString() }]) });
+    const url = base + '?select=id,value,updated_at&id=in.(' + keys.map(k => encodeURIComponent('"' + String(k).replace(/"/g, '') + '"')).join(',') + ')';
+    let r = await fetch(url, { headers: headers() });
+    if (r.status === 401 || r.status === 403) {
+      if (!(await wpdRefresh())) { wpdSaveSession(null); await wpdShowLogin('เซสชันหมดอายุ — เข้าสู่ระบบอีกครั้ง'); }
+      r = await fetch(url, { headers: headers() });
+    }
+    if (!r.ok) throw new Error('Supabase get failed: HTTP ' + r.status + ' ' + (await r.text()).slice(0,150));
+    const out = {};
+    (await r.json()).forEach(x => { out[x.id] = { key: x.id, value: x.value, shared: true, ver: x.updated_at }; });
+    return out;
+  }
+
+  /* expect = เวลาแก้ล่าสุดที่เครื่องนี้อ่านไป (null = ยังไม่มีแถว) → เขียนผ่าน kv_cas ที่ตรวจเวอร์ชันให้
+     ถ้ามีเครื่องอื่นแก้ไปก่อน ฐานข้อมูลจะไม่เขียน แล้วแอพรวมข้อมูลใหม่ก่อนลองอีกครั้ง (ไม่ทับของคนอื่น) */
+  async function set(key, value, shared, expect){
+    await wpdRequireSession();
+    const cas = expect !== undefined;
+    const doPost = () => cas
+      ? fetch(SUPABASE_URL.replace(/\/$/,'') + '/rest/v1/rpc/kv_cas', { method: 'POST', headers: headers(),
+          body: JSON.stringify({ p_id: key, p_value: value, p_expect: expect }) })
+      : fetch(base, { method: 'POST',
+          headers: Object.assign(headers(), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+          body: JSON.stringify([{ id: key, value: value, shared: true, updated_at: new Date().toISOString() }]) });
     let r = await doPost();
     if (r.status === 401 || r.status === 403) {
       if (!(await wpdRefresh())) { wpdSaveSession(null); await wpdShowLogin('เซสชันหมดอายุ — เข้าสู่ระบบอีกครั้ง'); }
       r = await doPost();
     }
     if (!r.ok) throw new Error('Supabase set failed: HTTP ' + r.status + ' ' + (await r.text()).slice(0,150));
+    if (cas) {
+      const ver = await r.json();
+      if (!ver) { const e = new Error('ข้อมูลถูกแก้จากเครื่องอื่นพร้อมกัน — กำลังรวมใหม่'); e.conflict = true; throw e; }
+      return { key: key, value: value, shared: true, ver: ver };
+    }
     return { key: key, value: value, shared: true };
   }
 
@@ -1185,9 +1212,190 @@ window.WPDAUTH = {
     });
     return;
   }
-  window.storage = { get, set };
+  window.storage = { get, set, getMany };
 })();
 </script>
+<script id="wpd-store">
+/* ==========================================================================
+   WPD SPLIT STORE — แบ่งข้อมูลก้อนใหญ่ (ท้ายไลน์ / ป้อนใย) เก็บเป็นก้อนรายวัน
+   - แอพยังเห็นข้อมูลเป็นก้อนเดียวเหมือนเดิม (get/set ทั้งก้อน) ชั้นนี้แบ่ง/ประกอบให้เอง
+   - บันทึก 1 ครั้ง ส่งขึ้นแค่ก้อนของวันที่มีการเปลี่ยน (ปกติคือวันนี้) + สารบัญเล็กๆ
+   - ก้อนวันเก่าเก็บไว้ในเครื่อง (IndexedDB) ไม่ต้องดาวน์โหลดซ้ำ
+   - ข้อมูลเก่ารูปแบบเดิม (ก้อนเดียว) อ่านได้ และถูกแปลงเป็นรายวันตอนบันทึกครั้งแรก
+   ========================================================================== */
+(function(){
+  var S0 = window.storage; if(!S0 || !S0.get || !S0.set) return;
+  var FORMAT = 1;                          // รูปแบบข้อมูล — เปลี่ยนเมื่อไหร่ แอพเวอร์ชันเก่าจะถูกบังคับให้โหลดใหม่
+  var SPLIT = { v3_line:1, v3_feed:1 };
+  var IDX = '~idx', SEP = '~';
+  var mem = {};                            // id ก้อน -> { h, s, ver }
+  var verOf = {};                          // id แถว -> เวลาแก้ล่าสุดที่อ่าน/เขียน (ใช้ตรวจเวอร์ชันตอนเขียน กันทับของเครื่องอื่น)
+  function noteVer(id, r){ if(r && r.ver !== undefined) verOf[id] = r.ver; else if(!r) verOf[id] = null; }
+  function expectOf(id){ return (id in verOf) ? verOf[id] : undefined; }
+  var lastIdx = {};                        // key -> สารบัญล่าสุดที่อ่าน/เขียน
+
+  function hash(s){ var h = 2166136261 >>> 0; for(var i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    return h.toString(36) + '.' + s.length.toString(36); }
+  function dayOf(it){ var t = it && (it.time || it.start || it.createdAt); t = (typeof t === 'string') ? t.slice(0, 10) : '';
+    return /^\d{4}-\d\d-\d\d$/.test(t) ? t : '_'; }
+  function isObj(v){ return v !== null && typeof v === 'object' && !Array.isArray(v); }
+
+  /* ---------- แคชในเครื่อง (IndexedDB) ---------- */
+  var dbp = null;
+  function idb(){
+    if(dbp) return dbp;
+    dbp = new Promise(function(res){
+      try{ var r = indexedDB.open('wpd-chunks', 1);
+        r.onupgradeneeded = function(){ r.result.createObjectStore('c'); };
+        r.onsuccess = function(){ res(r.result); }; r.onerror = function(){ res(null); }; r.onblocked = function(){ res(null); };
+      }catch(e){ res(null); }
+    });
+    return dbp;
+  }
+  function idbGet(k){ return idb().then(function(db){ if(!db) return null; return new Promise(function(res){
+    try{ var q = db.transaction('c').objectStore('c').get(k); q.onsuccess = function(){ res(q.result || null); }; q.onerror = function(){ res(null); }; }catch(e){ res(null); } }); }); }
+  function idbPut(k, v){ idb().then(function(db){ if(!db) return; try{ db.transaction('c', 'readwrite').objectStore('c').put(v, k); }catch(e){} }); }
+  /* เก็บหลายก้อนในรายการเดียว — เร็วกว่าและไม่ค้างครึ่งๆ กลางๆ ถ้าปิดแอพเร็ว */
+  function idbPutMany(list){ if(!list.length) return; idb().then(function(db){ if(!db) return;
+    try{ var st = db.transaction('c', 'readwrite').objectStore('c'); list.forEach(function(x){ st.put(x[1], x[0]); }); }catch(e){} }); }
+
+  /* ---------- บังคับโหลดใหม่ถ้ารูปแบบข้อมูลใหม่กว่าแอพนี้ ---------- */
+  function tooOld(){
+    try{ if(!document.getElementById('__wpdStale')){
+      var g = document.createElement('div'); g.id = '__wpdStale';
+      g.style.cssText = 'position:fixed;inset:0;z-index:100001;background:var(--w-gate,rgba(242,244,247,.97));color:var(--w-text,#1b2430);display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;font:500 17px/1.7 Sarabun,sans-serif;cursor:pointer';
+      g.textContent = '🔄 มีแอพเวอร์ชันใหม่ — แตะที่นี่เพื่อโหลดใหม่\n(ยังไม่ให้บันทึกจนกว่าจะโหลดใหม่ กันข้อมูลเสียหาย)';
+      g.style.whiteSpace = 'pre-line'; g.onclick = function(){ location.reload(); };
+      document.body.appendChild(g);
+    } }catch(e){}
+    throw new Error('app version too old for data format');
+  }
+
+  /* ---------- แบ่ง / ประกอบ ---------- */
+  function split(obj){
+    var order = Object.keys(obj), rest = {}, fields = [], days = {};
+    order.forEach(function(k){
+      var v = obj[k];
+      if(Array.isArray(v) && v.every(isObj)){
+        fields.push(k);
+        v.forEach(function(it){ var d = dayOf(it); (days[d] = days[d] || {}); (days[d][k] = days[d][k] || []).push(it); });
+      } else rest[k] = v;
+    });
+    var chunks = {};
+    Object.keys(days).forEach(function(d){
+      var o = {}; fields.forEach(function(f){ if(days[d][f]) o[f] = days[d][f]; });
+      chunks[d] = JSON.stringify(o);
+    });
+    return { idx:{ fmt:FORMAT, order:order, fields:fields, rest:rest, days:{} }, chunks:chunks };
+  }
+  function assemble(idx, dayList, parts){
+    var out = {};
+    idx.order.forEach(function(k){
+      if(idx.fields.indexOf(k) >= 0){
+        var arr = [];
+        dayList.forEach(function(d, i){ var p = parts[i]; if(p && p[k]) arr = arr.concat(p[k]); });
+        out[k] = arr;
+      } else out[k] = idx.rest[k];
+    });
+    return JSON.stringify(out);
+  }
+
+  /* ก้อนที่มีในเครื่องแล้ว (หน่วยความจำ → IndexedDB) — ไม่มี/ไม่ตรงกับสารบัญ คืน undefined */
+  function localChunk(key, d, h){
+    var id = key + SEP + d, m = mem[id];
+    if(m && m.h === h){ if(m.ver !== undefined) verOf[id] = m.ver; return Promise.resolve(JSON.parse(m.s)); }
+    return idbGet(id).then(function(c){
+      if(c && c.h === h){ mem[id] = c; if(c.ver !== undefined) verOf[id] = c.ver; return JSON.parse(c.s); }
+      return undefined;
+    });
+  }
+  /* ดึงหลายก้อนจากฐานข้อมูล — ถ้าตัวเชื่อมทำได้ ดึงทีละ 40 ก้อนต่อคำขอ (เปิดครั้งแรก 1 ปี = ~20 คำขอ แทน ~700) */
+  var MANY = 40;
+  function fetchMany(ids){
+    var out = {};
+    if(!ids.length) return Promise.resolve(out);
+    if(S0.getMany){
+      var groups = []; for(var i = 0; i < ids.length; i += MANY) groups.push(ids.slice(i, i + MANY));
+      return Promise.all(groups.map(function(g){ return S0.getMany(g); })).then(function(rs){
+        rs.forEach(function(m){ Object.keys(m || {}).forEach(function(k){ out[k] = m[k]; }); });
+        return out;
+      });
+    }
+    return Promise.all(ids.map(function(id){ return S0.get(id, true).then(function(r){ out[id] = r; }); })).then(function(){ return out; });
+  }
+
+  var assembled = {};                      // key -> { idx: สารบัญ (string), value } — สารบัญไม่เปลี่ยน = ข้อมูลไม่เปลี่ยน ไม่ต้องประกอบใหม่
+  function getSplit(key){
+    return S0.get(key + IDX, true).then(function(r){
+      noteVer(key + IDX, r);
+      if(!r){ delete lastIdx[key]; return S0.get(key, true); }        // ยังไม่ถูกแปลง — อ่านรูปแบบเดิม
+      var a = assembled[key];
+      if(a && a.idx === r.value) return { key:key, value:a.value, shared:true };
+      var idx = JSON.parse(r.value);
+      if((idx.fmt || 0) > FORMAT) tooOld();
+      lastIdx[key] = idx;
+      var ds = Object.keys(idx.days).sort();
+      return Promise.all(ds.map(function(d){ return localChunk(key, d, idx.days[d]); })).then(function(loc){
+        var miss = ds.filter(function(d, i){ return loc[i] === undefined; });
+        return fetchMany(miss.map(function(d){ return key + SEP + d; })).then(function(got){
+          var puts = [];
+          var parts = ds.map(function(d, i){
+            if(loc[i] !== undefined) return loc[i];
+            /* จำไว้ใต้รหัสที่สารบัญบอก (ไม่ใช่รหัสที่คิดเอง) — กู้ข้อมูลด้วยมือแค่เปลี่ยนรหัสในสารบัญ ทุกเครื่องก็ดึงใหม่ */
+            var id = key + SEP + d, r = got[id] || null, s = r ? r.value : '{}';
+            var v = { h:idx.days[d], s:s, ver:(r && r.ver !== undefined) ? r.ver : (r ? undefined : null) };
+            mem[id] = v; puts.push([id, v]); noteVer(id, r);
+            return JSON.parse(s);
+          });
+          idbPutMany(puts);
+          var v = assemble(idx, ds, parts);
+          assembled[key] = { idx:r.value, value:v };
+          return { key:key, value:v, shared:true };
+        });
+      });
+    });
+  }
+
+  function setSplit(key, value){
+    if(document.getElementById('__wpdStale')) tooOld();
+    var sp = split(JSON.parse(value));
+    var prev = (lastIdx[key] && lastIdx[key].days) || {};
+    var writes = [];
+    Object.keys(sp.chunks).forEach(function(d){
+      var s = sp.chunks[d], h = hash(s), id = key + SEP + d;
+      sp.idx.days[d] = h;
+      if(prev[d] !== h) writes.push(S0.set(id, s, true, prev[d] ? expectOf(id) : null).then(function(res){
+        var v = { h:h, s:s, ver:res && res.ver }; mem[id] = v; idbPut(id, v); noteVer(id, res); }));
+    });
+    /* ก้อนต้องขึ้นครบก่อน แล้วค่อยเขียนสารบัญ — เครื่องอื่นจะไม่เห็นสารบัญที่ชี้ไปก้อนที่ยังไม่มี */
+    var idxStr;
+    return Promise.all(writes).then(function(){
+      sp.idx.at = new Date().toISOString();
+      idxStr = JSON.stringify(sp.idx);
+      return S0.set(key + IDX, idxStr, true, expectOf(key + IDX));
+    }).then(function(res){
+      noteVer(key + IDX, res);
+      lastIdx[key] = sp.idx;
+      /* จำค่าที่เพิ่งเขียนไว้ รอบหน้าถ้าสารบัญยังเป็นของเรา ก็คืนค่านี้ได้เลย — แอพเห็นว่าไม่มีใครแก้ ไม่ต้องรวมข้อมูล */
+      assembled[key] = { idx:idxStr, value:value };
+      return { key:key, value:value, shared:true };
+    });
+  }
+
+  /* หมวดอื่นๆ (ออเดอร์ สต๊อก ราคา ฯลฯ) ก็เขียนแบบตรวจเวอร์ชันเหมือนกัน — ยกเว้นสัญญาณ pulse ที่เขียนทับได้เสมอ */
+  var isPulse = function(k){ return /_pulse$/.test(k); };
+  window.storage = {
+    get: function(k, shared){
+      if(SPLIT[k]) return getSplit(k);
+      return S0.get(k, shared).then(function(r){ if(!isPulse(k)) noteVer(k, r); return r; });
+    },
+    set: function(k, v, shared){
+      if(SPLIT[k]) return setSplit(k, v);
+      return S0.set(k, v, shared, isPulse(k) ? undefined : expectOf(k)).then(function(res){ if(!isPulse(k)) noteVer(k, res); return res; });
+    }
+  };
+})();
+</script><!-- /wpd-store -->
 
 <script>
 (function(){
@@ -1482,6 +1690,7 @@ window.WPDAUTH = {
   let loadOk=false;
   const SEEN={};
   function wpdMarkLoaded(vals){
+    wpdNeedReload=false;
     Object.keys(vals).forEach(k=>{ if(!(k in pending) && !inflight[k]) SEEN[k]=vals[k]; });
     loadOk=true;
   }
@@ -1517,6 +1726,7 @@ window.WPDAUTH = {
     return local;
   }
   let wpdMergedAt=0;
+  let wpdNeedReload=false;
   let wpdWriteSeq=0;
   function wpdBusy(){ return Object.keys(pending).length>0 || Object.keys(inflight).some(k=>inflight[k]); }
   function wpdStale(seq,busyAtStart){ return busyAtStart || seq!==wpdWriteSeq || wpdBusy(); }
@@ -1575,14 +1785,21 @@ window.WPDAUTH = {
       const prepared=await wpdPrepareWrite(k,data);
       const str=JSON.stringify(prepared);
       await window.storage.set(k,str,true);
-      /* รวมข้อมูลจากเครื่องอื่นแล้ว: ฐานเทียบรอบหน้า = ของที่เครื่องนี้ส่ง (ในเครื่องยังไม่มีของเครื่องอื่นจนกว่าจะโหลดใหม่)
-         — บันทึกครั้งถัดไปจะรวมอีกรอบ ไม่ส่งข้อมูลที่ขาดของเครื่องอื่นขึ้นไปทับ */
-      SEEN[k]=(prepared===data)?str:dataStr;
+      /* ถ้ารวมข้อมูลจากเครื่องอื่นเข้ามา — ในเครื่องนี้ยังไม่มีของพวกนั้น ห้ามถือว่าตรงกับเซิร์ฟเวอร์
+         คงฐานเดิมไว้ บันทึกครั้งถัดไปจะรวมอีกรอบ (ไม่งั้นจะส่งข้อมูลที่ขาดขึ้นไปทับ) จนกว่าจะโหลดข้อมูลล่าสุดเข้ามา */
+      if(prepared===data) SEEN[k]=str;
+      /* รวมข้อมูลจากเครื่องอื่นแล้ว: ฐานเทียบรอบหน้า = ของที่เครื่องนี้ส่ง (มีของตัวเองครบ แต่ยังไม่มีของเครื่องอื่น)
+         — แถวที่เครื่องนี้ลบทีหลังจะลบได้จริง และแถวใหม่ของเครื่องอื่นไม่ถูกมองว่าเราลบ */
+      else { SEEN[k]=dataStr; wpdNeedReload=true; }
       inflight[k]=false; storeDown=false;
-      await window.storage.set('v3s_pulse',Date.now()+'',true).catch(()=>{});
+      const _pv=Date.now()+'';
+      /* บันทึกเองแล้ว ไม่ต้องดึงข้อมูลกลับมาใหม่ทั้งหมดรอบหน้า */
+      await window.storage.set('v3s_pulse',_pv,true).then(()=>{ const a=String(lastPulse||'|').split('|'); lastPulse=_pv+'|'+(a[1]||''); }).catch(()=>{});
       if(Object.keys(pending).length) Object.keys(pending).forEach(kk=>flush(kk)); else { setSaveState('ok'); wpdRefreshAfterMerge(); }
     }catch(e){
-      inflight[k]=false; pending[k]=data;
+      /* เครื่องอื่นแก้ไปก่อน — ลองใหม่ทันที (รอบหน้าจะดึงของล่าสุดมารวมก่อนเขียน) */
+      if(e && e.conflict && attempt<12){ inflight[k]=false; if(!(k in pending)) pending[k]=data; setSaveState('saving'); setTimeout(()=>flush(k,attempt+1), 60+Math.random()*240); return; }
+      inflight[k]=false; if(!(k in pending)) pending[k]=data;
       if(attempt<6){ setTimeout(()=>flush(k,attempt+1), Math.min(15000,600*Math.pow(2,attempt))); setSaveState('saving'); }
       else { storeDown=true; setSaveState('bad', (e&&e.message)?String(e.message).slice(0,60):''); }
     }
@@ -2384,6 +2601,7 @@ window.WPDAUTH = {
     if(!ov){
       ov=document.createElement('div'); ov.id='fabSheet';
       ov.innerHTML='<div class="fsbox"><div class="fshead"><b id="fsTitle"></b><button class="x" id="fsClose" data-noguard="1">✕</button></div><div id="fsBody"></div></div>';
+      /* ต้องอยู่ใน #sk ถึงจะได้หน้าตาเดียวกับแอพ (ตาราง/ตัวเลข) */
       ($('sk')||document.body).appendChild(ov);
       ov.addEventListener('click',e=>{ if(e.target===ov) closeFabSheet(); });
       $('fsClose').onclick=closeFabSheet;
@@ -4247,7 +4465,7 @@ window.WPDAUTH = {
     try{
       const p=await rawGet('v3s_pulse'); const po=await rawGet('v3_pulse');
       const combined=(p||'')+'|'+(po||'');
-      if(combined===lastPulse){ pollMs=3000; syncBusy=false; return; }
+      if(combined===lastPulse && !wpdNeedReload){ pollMs=3000; syncBusy=false; return; }
       const h=await readAll(); lastPulse=combined; pollMs=3000;
       if(h!==lastHash){ lastHash=h; renderPanel(); }
     }catch(e){ pollMs=Math.min(30000,pollMs*2); }
@@ -4265,6 +4483,7 @@ window.WPDAUTH = {
   (async function init(){
     document.title='ระบบสต๊อกสินค้า — วินโพลีดีไซน์';
     lastHash=await wpdLoadFirst(readAll);
+    try{ lastPulse=((await rawGet('v3s_pulse'))||'')+'|'+((await rawGet('v3_pulse'))||''); }catch(e){}
     if(!hasStore){ storeDown=true; setSaveState('bad','ไม่รองรับ'); } else setSaveState('ok');
     show('fiber');
   })();

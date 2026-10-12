@@ -909,6 +909,10 @@
         <div class="rf">
           <div><label>จำนวน (แพ็ค)</label><input id="dpQty" type="number" inputmode="numeric"></div>
         </div>
+        <div id="dpStkCustRow" style="display:none;">
+          <label>ส่งให้ลูกค้า (ของจากสต๊อกปิกนิก)</label><select id="dpStkCustSel"></select>
+          <input id="dpStkCust" placeholder="พิมพ์ชื่อลูกค้า" style="display:none;">
+        </div>
         <button class="btn sec w" id="btnAddDpItem">+ เพิ่มลงเที่ยวรถ</button>
         <div id="dpTradeBox" style="margin-top:14px; padding-top:10px; border-top:1px dashed var(--line);">
           <h3 style="margin:0;">🛒 เพิ่มสินค้าซื้อมาขาย</h3>
@@ -4112,6 +4116,22 @@ window.WPDAUTH = {
   /* สินค้าที่ส่ง: ออเดอร์ หรือ ยอดยกมาที่ยังไม่มีออเดอร์ (ค่าใน dpOrdSel = "F:"+ชื่อ) */
   function srcOf(v){ return v && v.indexOf('F:')===0 ? { freeLabel:v.slice(2) } : { orderId:v }; }
   function sameSrc(x,src){ return src.orderId ? x.orderId===src.orderId : (!x.orderId && x.freeLabel===src.freeLabel); }
+  function itemCust(it){ const o=it.orderId?orderById(it.orderId):null; return it.customer || (o?o.customer:''); }
+  /* สต๊อกปิกนิก (แพ็คเก็บตามไซซ์ ไม่ผูกลูกค้า): เลือกลูกค้าที่จะส่งให้ — ลูกค้างานปิกนิกขึ้นก่อน */
+  function refreshDpStkCust(){
+    const o=orderById($('dpOrdSel').value), row=$('dpStkCustRow'); if(!row) return;
+    row.style.display=o&&o.stockJob?'':'none'; if(!(o&&o.stockJob)) return;
+    const pic=[...new Set(PROD.orders.filter(x=>!x.stockJob && (x.productType||'')==='ปิกนิก').map(x=>x.customer).filter(Boolean))];
+    const rest=[...new Set(PROD.orders.filter(x=>!x.stockJob).map(x=>x.customer).concat((S.tradeOut||[]).map(x=>x.customer)).filter(Boolean))].filter(c=>!pic.includes(c)).sort((a,b)=>a.localeCompare(b,'th'));
+    const keep=$('dpStkCustSel').value;
+    $('dpStkCustSel').innerHTML='<option value="">— เลือกลูกค้า —</option>'+
+      (pic.length?'<optgroup label="ลูกค้างานปิกนิก">'+pic.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('')+'</optgroup>':'')+
+      (rest.length?'<optgroup label="ลูกค้าอื่น">'+rest.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('')+'</optgroup>':'')+
+      '<option value="__new__">+ พิมพ์ชื่อลูกค้าใหม่…</option>';
+    if(keep && [...$('dpStkCustSel').options].some(x=>x.value===keep)) $('dpStkCustSel').value=keep;
+    $('dpStkCust').style.display=$('dpStkCustSel').value==='__new__'?'block':'none';
+  }
+  if($('dpStkCustSel')) $('dpStkCustSel').onchange=function(){ const t=$('dpStkCust'); if(this.value==='__new__'){ t.style.display='block'; t.value=''; t.focus(); } else t.style.display='none'; };
   function srcLabel(x){ return x.orderId ? orderLabel(x.orderId) : (x.freeLabel||'(ไม่ทราบ)'); }
   function freeParts(label){ const a=S.finAdjustments.find(x=>!x.orderId && x.freeLabel===label && x.freeCust); if(a) return { customer:a.freeCust, code:a.freeCode||'' };
     const i=String(label).indexOf(' — '); return i<0?{ customer:label, code:'' }:{ customer:label.slice(0,i), code:label.slice(i+3) }; }
@@ -4148,14 +4168,14 @@ window.WPDAUTH = {
       $('dpOrdSel').innerHTML=stock.filter(s=>s.stock>0).map(s=>'<option value="'+s.orderId+'">'+esc(orderLabel(s.orderId))+' · '+esc(catLabel(orderById(s.orderId)))+' (เหลือ '+s.stock+' แพ็ค)</option>').join('')+
         (free.length?'<optgroup label="ยอดยกมา (ยังไม่มีออเดอร์)">'+free.map(s=>'<option value="F:'+esc(s.freeLabel)+'">'+esc(s.freeLabel)+' (เหลือ '+s.stock+' แพ็ค)</option>').join('')+'</optgroup>':'');
       $('dpOrdSel').dataset.init='1';
-      $('dpOrdSel').onchange=refreshDpDateOptions;
+      $('dpOrdSel').onchange=()=>{ refreshDpDateOptions(); refreshDpStkCust(); };
       refreshDpDateOptions();
     }
-    refreshDpTrade();
+    refreshDpTrade(); refreshDpStkCust();
     $('dpItems').innerHTML = dpItems.length ? dpItems.map((it,i)=> it.kind==='trade'
       ? '<div class="cartrow"><b style="color:var(--accent2)">🛒 '+esc(it.name)+'</b> — '+it.qty+' '+esc(it.unit)+' → '+esc(it.customer)+
         ' <span class="bdg warn">ซื้อมาขาย</span> <button class="x" data-rm="'+i+'">✕</button></div>'
-      : '<div class="cartrow"><b class="kn" style="color:var(--accent2)">'+esc(srcLabel(it))+'</b> — '+it.qty+' แพ็ค'+
+      : '<div class="cartrow"><b class="kn" style="color:var(--accent2)">'+esc(srcLabel(it))+'</b>'+(it.customer&&it.orderId?' → <b>'+esc(it.customer)+'</b>':'')+' — '+it.qty+' แพ็ค'+
       (it.ref.count?' <span class="bdg ok">'+(it.pickedDate?'วันที่เลือก':'FIFO อัตโนมัติ')+': เบอร์ '+esc(packsText(it.ref.packs))+'</span>':'')+
       (it.ref.short?' <span class="bdg warn">ไม่มีเบอร์แพ็ค '+it.ref.short+' แพ็ค</span>':'')+
       ' <button class="x" data-rm="'+i+'">✕</button>'+
@@ -4176,7 +4196,7 @@ window.WPDAUTH = {
       '<table style="margin-top:6px;"><tr><th>ลูกค้า/ออเดอร์</th><th>จำนวน</th><th>อ้างอิงลำดับผลิต</th></tr>'+
       d.items.map(it=>it.kind==='trade'
         ? '<tr><td>'+esc(it.customer)+' — 🛒 '+esc(it.name)+'</td><td>'+it.qty+' '+esc(it.unit)+'</td><td>ซื้อมาขาย</td></tr>'
-        : '<tr><td>'+esc(srcLabel(it))+'</td><td>'+it.qty+' แพ็ค</td><td>'+
+        : '<tr><td>'+esc(srcLabel(it))+(it.customer&&it.orderId?' → '+esc(it.customer):'')+'</td><td>'+it.qty+' แพ็ค</td><td>'+
         (it.packs&&it.packs.length? esc(packsText(it.packs)) : it.refSeqFrom!=null? it.refSeqFrom+'-'+it.refSeqTo+' ('+it.refDateFrom+')' : '—')+'</td></tr>').join('')+
       '</table><button class="btn sec sm" style="margin-top:8px;" data-print="'+d.id+'">🖨 พิมพ์บิลนี้อีกครั้ง</button> '+
       '<button class="btn dg sm" style="margin-top:8px;" data-delrm="'+d.id+'">✕ ลบเที่ยวรถนี้</button></div>'
@@ -4195,6 +4215,9 @@ window.WPDAUTH = {
     if(!v||!qty){ toast('เลือกสินค้าและกรอกจำนวน'); return; }
     if(qty!==Math.round(qty)||qty<0){ toast('จำนวนแพ็คต้องเป็นจำนวนเต็ม'); return; }
     const src=srcOf(v), lb=srcLabel(src);
+    const _so=src.orderId?orderById(src.orderId):null;
+    const stkCust=_so&&_so.stockJob ? (($('dpStkCustSel').value==='__new__'?$('dpStkCust').value:$('dpStkCustSel').value)||'').trim() : '';
+    if(_so&&_so.stockJob && !stkCust){ toast('ของจากสต๊อกปิกนิก — เลือกลูกค้าที่จะส่งให้ก่อน'); return; }
     /* ห้ามส่งเกินของที่มี — ส่งเกินแล้วสต๊อกติดลบ ยอดรวมจะผิดทั้งระบบ */
     const _st=src.orderId?CALC.finStock(producedByOrder(),S.shipments,S.finAdjustments).find(x=>x.orderId===src.orderId):CALC.freeFinStock(S.finAdjustments,S.shipments).find(x=>x.freeLabel===src.freeLabel);
     const inTrip=dpItems.filter(x=>x.kind!=='trade' && sameSrc(x,src));
@@ -4213,7 +4236,7 @@ window.WPDAUTH = {
     if(ref.short>0 && !await ask('แพ็คที่มีเบอร์'+(pickedDate?' (ผลิตวันที่ '+thDate(pickedDate)+')':'')+' ไม่พอ', 'ขาดอยู่ '+ref.short+' แพ็ค (ส่วนนี้มาจากยอดยกมาที่ไม่ได้ลงเบอร์/ปรับยอด จะไม่มีเบอร์แพ็คในบิล)\n\nยืนยันจะเพิ่มลงเที่ยวรถหรือไม่?')) return;
     const fp=src.freeLabel?freeParts(src.freeLabel):null;
     dpItems.push(Object.assign({ orderId:src.orderId||null, qty, ref, checkedSeqs:[], pickedDate, pp:srcPP(src) },
-      fp?{ freeLabel:src.freeLabel, customer:fp.customer, code:fp.code }:{}));
+      fp?{ freeLabel:src.freeLabel, customer:fp.customer, code:fp.code }:{}, stkCust?{ customer:stkCust }:{}));
     $('dpQty').value=''; rShip(); toast('เพิ่มลงเที่ยวรถแล้ว — เช็คลิสต์ลำดับก่อนขึ้นรถด้วย');
   };
   /* ลูกค้าที่จะส่งสินค้าซื้อมาขายให้: ลูกค้าที่อยู่ในเที่ยวนี้ก่อน (ส่งพร้อมสินค้าเรา) แล้วตามด้วยลูกค้าทั้งหมด */
@@ -4224,7 +4247,7 @@ window.WPDAUTH = {
       :'<option value="">— ยังไม่มีสินค้าซื้อมาขายในสต๊อก —</option>';
     if(keep && st.some(x=>x.itemId===keep)) $('dpTrSel').value=keep;
     const it=tradeById($('dpTrSel').value); $('dpTrQtyLabel').textContent='จำนวน'+(it?' ('+(it.unit||'ชิ้น')+')':'');
-    const inTrip=[...new Set(dpItems.map(x=>x.kind==='trade'||!x.orderId?x.customer:((orderById(x.orderId)||{}).customer)).filter(Boolean))];
+    const inTrip=[...new Set(dpItems.map(x=>x.kind==='trade'||!x.orderId?x.customer:itemCust(x)).filter(Boolean))];
     const all=[...new Set(PROD.orders.map(o=>o.customer).concat((S.tradeOut||[]).map(x=>x.customer)).filter(Boolean))].filter(c=>!inTrip.includes(c)).sort((a,b)=>a.localeCompare(b,'th'));
     const keepC=$('dpTrCustSel').value;
     $('dpTrCustSel').innerHTML=(inTrip.length?'<optgroup label="ลูกค้าในเที่ยวนี้ (ส่งพร้อมสินค้าเรา)">'+inTrip.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('')+'</optgroup>':'<option value="">— เลือกลูกค้า —</option>')+
@@ -4256,10 +4279,10 @@ window.WPDAUTH = {
         ? ({ kind:'trade', itemId:it.itemId, name:it.name, unit:it.unit, qty:it.qty, customer:it.customer })
         : Object.assign({ orderId:it.orderId||null, qty:it.qty, refSeqFrom:it.ref.seqFrom, refSeqTo:it.ref.seqTo, refDateFrom:it.ref.dateFrom, refDateTo:it.ref.dateTo, seqs:it.ref.seqs||[], checkedSeqs:it.checkedSeqs||[],
             packs:(it.ref.packs||[]).map(p=>({ no:p.no, date:p.date, pp:p.pp, bf:p.bf })), pp:it.pp||0 },
-            it.freeLabel?{ freeLabel:it.freeLabel, customer:it.customer, code:it.code }:{})) };
+            it.freeLabel?{ freeLabel:it.freeLabel, customer:it.customer, code:it.code }:(it.customer?{ customer:it.customer }:{}))) };
     S.deliveries.push(delivery);
     dpItems.filter(it=>it.kind==='trade').forEach(it=>{ S.tradeOut.push({ id:uid(), time:localISO(), itemId:it.itemId, qty:it.qty, customer:it.customer, note:delivery.date+(delivery.truck?' '+delivery.truck:''), deliveryId:delivery.id }); });
-    dpItems.filter(it=>it.kind!=='trade').forEach(it=>{ S.shipments.push(Object.assign({ id:uid(), time:localISO(), orderId:it.orderId||null, qty:it.qty, to:delivery.truck, note:'เที่ยวรถ '+delivery.date, deliveryId:delivery.id }, it.freeLabel?{ freeLabel:it.freeLabel }:{})); });
+    dpItems.filter(it=>it.kind!=='trade').forEach(it=>{ S.shipments.push(Object.assign({ id:uid(), time:localISO(), orderId:it.orderId||null, qty:it.qty, to:delivery.truck, note:'เที่ยวรถ '+delivery.date, deliveryId:delivery.id }, it.freeLabel?{ freeLabel:it.freeLabel }:{}, (it.orderId&&it.customer)?{ customer:it.customer }:{})); });
     await saveFin();
     printDelivery(delivery);
     dpItems=[]; $('dpTruck').value=''; $('dpPO').value=''; $('dpOrdSel').dataset.init=''; rShip(); toast('บันทึกเที่ยวรถและออกบิลแล้ว');
@@ -4267,7 +4290,7 @@ window.WPDAUTH = {
   function printDelivery(d){
     if(!d) return;
     const byCustomer={};
-    d.items.forEach(it=>{ const o=it.kind==='trade'||!it.orderId?null:orderById(it.orderId); const cust=it.kind==='trade'||!it.orderId?(it.customer||'(ไม่ทราบ)'):(o?o.customer:'(ไม่ทราบ)'); byCustomer[cust]=byCustomer[cust]||[]; byCustomer[cust].push(it); });
+    d.items.forEach(it=>{ const o=it.kind==='trade'||!it.orderId?null:orderById(it.orderId); const cust=it.kind==='trade'||!it.orderId?(it.customer||'(ไม่ทราบ)'):(it.customer||(o?o.customer:'(ไม่ทราบ)')); byCustomer[cust]=byCustomer[cust]||[]; byCustomer[cust].push(it); });
     let html='';
     Object.entries(byCustomer).forEach(([cust,allItems],idx)=>{
       const items=allItems.filter(it=>it.kind!=='trade'), trade=allItems.filter(it=>it.kind==='trade');
@@ -4422,7 +4445,7 @@ window.WPDAUTH = {
     S.deliveries.filter(d=>(!from||d.date>=from)&&(!to||d.date<=to)).forEach(d=>d.items.forEach(it=>{
       if(it.kind==='trade'){ rows.push([d.date,d.truck||'',d.poNumber||'',it.customer||'','ซื้อมาขาย: '+it.name,it.qty+' '+(it.unit||''),'']); return; }
       const o=it.orderId?orderById(it.orderId):null;
-      rows.push([d.date,d.truck||'',d.poNumber||'',o?o.customer:(it.customer||''),o?o.code:(it.code||it.freeLabel||''),it.qty,it.packs&&it.packs.length?packsText(it.packs):it.refSeqFrom!=null?it.refSeqFrom+'-'+it.refSeqTo:'']);
+      rows.push([d.date,d.truck||'',d.poNumber||'',it.customer||(o?o.customer:''),o?o.code:(it.code||it.freeLabel||''),it.qty,it.packs&&it.packs.length?packsText(it.packs):it.refSeqFrom!=null?it.refSeqFrom+'-'+it.refSeqTo:'']);
     }));
     rows.push([]);
     rows.push(['[สินค้าซื้อมาขาย — รับเข้า]']); rows.push(['วันที่','สินค้า','จำนวน','หน่วย','ราคาทุน/หน่วย','ซื้อจาก','เลขบิล','หมายเหตุ']);

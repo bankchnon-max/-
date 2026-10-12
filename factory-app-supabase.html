@@ -683,7 +683,9 @@
       </div>
       <div class="card" id="cardPicSel" style="display:none;">
         <h3>🧺 จุดแพ็คปิกนิก</h3>
-        <label>งานปิกนิกที่แพ็คอยู่</label><select id="picOrderSel"></select>
+        <label>แพ็คไซซ์ไหน — กดแล้วแพ็คได้เลย (เก็บเข้าสต๊อก ไม่ต้องเลือกลูกค้า)</label>
+        <div id="picSizeBtns" style="display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 6px;"></div>
+        <select id="picOrderSel" style="display:none;"></select>
         <div class="sumline" id="picLineNote"></div>
       </div>
       <div class="card" id="cardSpec">
@@ -3261,6 +3263,23 @@ window.WPDAUTH = {
     return { pieces:from.reduce((a,x)=>a+x.pieces,0), from, kg:r3(kg) };
   }
   /* แท็บปิกนิก: เลือกงานปิกนิกของจุดแพ็ค (ไม่แตะงานที่ไลน์) */
+  /* ปิกนิกเก็บสต๊อกตามไซซ์: งานละไซซ์ ไม่ผูกลูกค้า — ส่งให้ลูกค้าไหนค่อยเลือกตอนออกเที่ยวรถในแอพสต๊อก */
+  const PIC_SIZES=[['3F','36x75'],['3.5F','42x75'],['5F','59x75'],['6F','72x78']];
+  function picStockJob(z){
+    const id='picstk-'+z.replace('.','_');
+    let o=orderById(id);
+    if(!o){
+      /* Standard (น้ำหนัก ผ้าปลอก ถุงแพ็ค) ดึงจากงานปิกนิกไซซ์เดียวกันล่าสุด — ไม่มีก็ตั้งใหม่ครั้งเดียว */
+      const src=S.orders.filter(x=>isPicnic(x) && !x.stockJob && picnicSize(x)===z).sort((a,b)=>String(b.createdAt||b.startedAt||'').localeCompare(String(a.createdAt||a.startedAt||'')))[0];
+      o={ id, customer:'สต๊อกปิกนิก', code:'ปิกนิก '+z, orderedPacks:0, productType:'ปิกนิก', category:'ปิกนิก', picnicSize:z, stockJob:true,
+          recipeVer:1, recipeLog:[], fibers:[], recipeTargetKg:0,
+          spec: src ? JSON.parse(JSON.stringify(src.spec||{})) : { weightPerPiece:0, piecesPerPack:1, bagName:'', bagWeight:0, tolPct:3 },
+          due:null, status:'active', startedAt:localISO(), finishedAt:null, createdAt:localISO() };
+      S.orders.push(o);
+    }
+    if(o.status==='done'){ o.status='active'; o.finishedAt=null; }
+    return o;
+  }
   function rPicSel(){
     const c=$('cardPicSel'); if(!c) return;
     c.style.display = current==='pic' ? '' : 'none';
@@ -3270,7 +3289,16 @@ window.WPDAUTH = {
     if(sel.dataset.sig!==sig){ sel.dataset.sig=sig;
       sel.innerHTML='<option value="">— เลือกงานปิกนิก —</option>'+list.map(o=>'<option value="'+o.id+'">'+esc(o.customer)+' — '+esc(o.code)+'</option>').join('');
       sel.value=list.some(o=>o.id===S.activePicnicId)?S.activePicnicId:''; }
-    $('picLineNote').innerHTML=(list.length?'':'<span style="color:var(--yellow)">ยังไม่มีงานปิกนิกที่ยังไม่จบ — เพิ่มออเดอร์ปิกนิกที่แท็บออเดอร์ก่อน</span>');
+    const cur=orderById(S.activePicnicId), curZ=cur&&cur.stockJob?picnicSize(cur):'';
+    $('picSizeBtns').innerHTML=PIC_SIZES.map(([z,d])=>'<button class="btn'+(z===curZ?'':' sec')+'" data-pz="'+z+'" style="flex:1 1 40%;min-height:58px;font-size:19px;font-weight:700;line-height:1.15">'+
+      (z===curZ?'✓ ':'')+z+'<div style="font-size:12px;font-weight:400">'+d+'</div></button>').join('');
+    $('picSizeBtns').querySelectorAll('[data-pz]').forEach(b=>b.onclick=async()=>{
+      const o=picStockJob(b.dataset.pz); S.activePicnicId=o.id;
+      await saveOrders(); rTop(); rLine(true); toast('แพ็คปิกนิก '+b.dataset.pz+' — เก็บเข้าสต๊อก');
+    });
+    $('picLineNote').innerHTML = !cur||cur.status==='done'
+      ? '<span style="color:#c62828;font-weight:700">👆 กดเลือกไซซ์ก่อน — ถึงจะเบิกใยแผ่น / ปลอก / ถุง และกดแพ็คได้</span>'
+      : (cur.stockJob ? '' : 'ตอนนี้แพ็คเข้างาน <b>'+esc(cur.customer)+' — '+esc(cur.code)+'</b> · กดไซซ์ด้านบนเพื่อแพ็คเก็บสต๊อกแทน');
   }
   if($('picOrderSel')) $('picOrderSel').onchange=async()=>{
     const id=$('picOrderSel').value||null, o=id?orderById(id):null;
@@ -4169,6 +4197,12 @@ window.WPDAUTH = {
     if(bagCard) bagCard.style.display='';
     /* ปุ่มพัก/เริ่มงานต่อ เป็นของไลน์ — แท็บปิกนิกไม่มี (กดแล้วจะไปปิดการพักของไลน์) */
     if($('btnBreak')) $('btnBreak').style.display=(current==='pic'||pic)?'none':'';
+    /* แท็บปิกนิก: ไม่มีเปลี่ยนแก๊ส (ของท้ายไลน์) · ยังไม่ได้เลือกงานปิกนิก = ซ่อนการ์ดอื่นหมด เหลือช่องเลือกงาน */
+    { const fin=$('btnFinish')?$('btnFinish').closest('.card'):null, scr=$('scKg')?$('scKg').closest('.card'):null;
+      if(current==='pic'){ if($('cardGas')) $('cardGas').style.display='none';
+        if(!pic){ [$('cardSpec'),$('cardRun'),bagCard,fin,scr].forEach(c=>{ if(c) c.style.display='none'; }); }
+        else { [$('cardSpec'),scr].forEach(c=>{ if(c) c.style.display=''; }); if(fin) fin.style.display=o&&o.stockJob?'none':''; } }   /* สต๊อกปิกนิก: ไม่มีจบงาน */
+      else { [$('cardSpec'),fin,scr].forEach(c=>{ if(c) c.style.display=''; }); } }
     if(!pic) return;
     const sp=o.spec||{}, sel=picSel(o), n=sheetsPerPack(o), std=CALC.stdPerPack(sp);
     const fill=(id,opts,keep,empty)=>{ const e=$(id); e.innerHTML=opts.length?opts.map(x=>'<option value="'+esc(x.v)+'">'+esc(x.t)+'</option>').join(''):'<option value="">'+esc(empty)+'</option>';

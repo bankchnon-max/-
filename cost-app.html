@@ -891,6 +891,15 @@ window.WPDAUTH = {
     }
     return { key: key, value: value, shared: true };
   }
+  window.wpdRpc = async function(fn, args){
+    await wpdRequireSession();
+    const go = () => fetch(SUPABASE_URL.replace(/\/$/,'') + '/rest/v1/rpc/' + fn, { method: 'POST', headers: headers(), body: JSON.stringify(args || {}) });
+    let r = await go();
+    if (r.status === 401) { if (await wpdRefresh()) r = await go(); }
+    if (r.status === 401 || r.status === 403) return { denied: true, msg: (await r.text()).slice(0, 200) };
+    if (!r.ok) throw new Error('rpc ' + fn + ' failed: HTTP ' + r.status + ' ' + (await r.text()).slice(0, 150));
+    return { rows: await r.json() };
+  };
   if (needsSetup){
     window.storage = null;
     document.addEventListener('DOMContentLoaded', () => {
@@ -1347,6 +1356,24 @@ window.WPDAUTH = {
     },
 
     /* ═══ ต้นทุนรวมของทั้งโรงในช่วงวันที่ (รายวัน/เดือน/ปี) — ใช้สูตรเดียวกับต้นทุนต่องาน แต่ตัดตามวันที่แทนออเดอร์ ═══ */
+    /* ค่าแรงจริงของวัน d (จากแอพสแกนหน้า) แบ่งให้งานที่ผลิตวันนั้น:
+       คนที่สแกนเข้าหน้างาน "แพ็คปิกนิก" → งานปิกนิก ตามแพ็คที่พนักงานแพ็ค (แพ็คจ้างเหมาคิดค่าเหมาแยก)
+       ที่เหลือ (ไลน์ / ตัดผ้า / อื่นๆ) → งานบนไลน์ ตามชั่วโมงเดินเครื่อง · วันนั้นไม่มีงานไลน์ → ทุกงานตามจำนวนแพ็ค */
+    laborAlloc(ctx, d){
+      const L=ctx.LABOR&&ctx.LABOR[d]; if(!L) return null;
+      const memo=ctx._la||(ctx._la={}); if(memo[d]) return memo[d];
+      const P=ctx.PROD||{}, by={};
+      (P.line||[]).forEach(l=>{ if(String(l.time||'').slice(0,10)===d) (by[l.orderId]=by[l.orderId]||[]).push(l); });
+      const isPic=id=>{ const o=(P.orders||[]).find(x=>x.id===id); return !!o && (o.productType||'')==='ปิกนิก'; };
+      const ids=Object.keys(by), lineIds=ids.filter(id=>!isPic(id)), picIds=ids.filter(isPic);
+      const out={}; ids.forEach(id=>out[id]=0);
+      const hrs=id=>COST.machineHours(by[id]), staff=id=>by[id].filter(l=>l.packedBy!=='contract').length, cnt=id=>by[id].length;
+      const spread=(baht,list,w)=>{ const t=list.reduce((a,id)=>a+w(id),0); if(!(baht>0)) return true; if(!(t>0)) return false; list.forEach(id=>out[id]+=baht*w(id)/t); return true; };
+      const pic=+(L.st.picnic||0), rest=r2(L.total-pic);
+      if(!spread(pic,picIds,staff)) if(!spread(pic,lineIds,hrs)) spread(pic,ids,cnt);
+      if(!spread(rest,lineIds,hrs)) spread(rest,ids,cnt);
+      return (memo[d]=out);
+    },
     periodCost(ctx, from, to){
       const S=ctx.S||{}, P=ctx.PROD||{}, K=ctx.KSET||{}, PRICE=ctx.PRICE||{};
       const inR=x=>{ const d=String(x.time||'').slice(0,10); return d>=from && d<=to; };
@@ -1371,7 +1398,11 @@ window.WPDAUTH = {
       let _cPacks=0, _cPieces=0, _cBaht=0;
       (P.orders||[]).filter(o=>(o.productType||'')==='ปิกนิก').forEach(o=>{ const c=COST.picnicContractOf(PRICE, o, lines.filter(l=>l.orderId===o.id)); _cPacks+=c.packs; _cPieces+=c.pieces; _cBaht+=c.baht; });
       const _share=(packs>0 && _cPacks>0) ? Math.max(0,(packs-_cPacks)/packs) : 1;
-      const labor=hours*hrRate*_share+Math.max(0,pieces-_cPieces)*(+K.laborPerPiece||0)+_cBaht;
+      /* ค่าแรงในโรง: วันที่มีข้อมูลแอพสแกนหน้า = ค่าแรงจริงทั้งวัน (รวมวันที่ไม่มีผลิต) · วันที่ไม่มี = ชั่วโมงเดินเครื่อง × ค่าแรงที่ตั้งไว้ */
+      let laborDay=0; const _seen={};
+      COST.runDays(lines).forEach(dd=>{ _seen[dd.date]=1; const L=ctx.LABOR&&ctx.LABOR[dd.date]; laborDay+=L?L.total:dd.hours*hrRate*_share; });
+      if(ctx.LABOR) Object.keys(ctx.LABOR).forEach(d=>{ if(d>=from && d<=to && !_seen[d]) laborDay+=ctx.LABOR[d].total; });
+      const labor=laborDay+Math.max(0,pieces-_cPieces)*(+K.laborPerPiece||0)+_cBaht;
       const tanks=(P.gasSwaps||[]).filter(inR).reduce((s,g)=>s+((g.gasNos&&g.gasNos.length)||1),0);
       const gas=tanks*COST.gasPricePerTank(PRICE).baht;
       const elec=hours*(+K.elecPerHour||0), ship=packs*(+K.shipPerPack||0);
@@ -1483,9 +1514,16 @@ window.WPDAUTH = {
       /* งานปิกนิก: แพ็คที่จ้างเหมา ไม่คิดค่าแรงในโรง (คิดค่าเหมาแทน) — ค่าแรงในโรงคิดตามสัดส่วนแพ็คที่พนักงานแพ็ค */
       const _pc=COST.picnicContractOf(PRICE, order, lines);
       const _staffShare=(_pc.packs>0 && packs>0) ? Math.max(0,(packs-_pc.packs)/packs) : 1;
-      const laborTime=r2(hours*hrRate*_staffShare);
+      /* ค่าแรงจริงจากแอพสแกนหน้า (แบ่งตามชั่วโมงเดินเครื่องของวันนั้น) — วันที่ไม่มีข้อมูล ใช้ค่าแรงที่ตั้งไว้ */
+      let laborAtt=0, attDays=0, setHours=0;
+      days.forEach(dd=>{ const a=COST.laborAlloc(ctx, dd.date);
+        if(a){ laborAtt+=a[orderId]||0; attDays++; const L=ctx.LABOR[dd.date]; if(L.noWage) miss.push('แอพสแกนหน้า: '+dd.date+' มีพนักงาน '+L.noWage+' คนยังไม่ใส่ค่าแรง'); }
+        else setHours+=dd.hours; });
+      laborAtt=r2(laborAtt);
+      if(attDays) detail.push({cat:'ค่าแรง', what:'ตามแอพสแกนหน้า ('+attDays+' วัน · แบ่งตามชั่วโมงเดินเครื่องของวันนั้น)', qty:attDays+' วัน', unit:r2(laborAtt/attDays), baht:laborAtt, src:'att'});
+      const laborTime=r2(laborAtt+setHours*hrRate*_staffShare);
       let laborPiece=r2(Math.max(0,pieces-_pc.pieces)*(+K.laborPerPiece||0));
-      if(laborTime) detail.push({cat:'ค่าแรง', what:'รายวัน'+(_staffShare<1?' (เฉพาะแพ็คที่พนักงานแพ็ค '+Math.round(_staffShare*100)+'%)':''), qty:r2(hours*_staffShare)+' ชม.', unit:r2(hrRate), baht:laborTime, src:'set'});
+      if(laborTime-laborAtt>0.004) detail.push({cat:'ค่าแรง', what:'รายวัน'+(_staffShare<1?' (เฉพาะแพ็คที่พนักงานแพ็ค '+Math.round(_staffShare*100)+'%)':''), qty:r2(setHours*_staffShare)+' ชม.', unit:r2(hrRate), baht:r2(laborTime-laborAtt), src:'set'});
       if(laborPiece) detail.push({cat:'ค่าแรง', what:'รายชิ้น', qty:Math.max(0,pieces-_pc.pieces)+' ชิ้น', unit:+K.laborPerPiece||0, baht:laborPiece, src:'set'});
       if(_pc.packs>0){
         laborPiece=r2(laborPiece+_pc.baht);
@@ -1717,8 +1755,25 @@ window.WPDAUTH = {
 
   /* โหลดพลาดต้องโยน error ขึ้นไป ห้ามคืนค่าว่าง ไม่งั้นแอพจะเข้าใจว่าไม่มีข้อมูล แล้วบันทึกทับของจริง */
   async function rawGet(k){ if(!hasStore) return null; const r=await window.storage.get(k,true); return r?r.value:null; }
+  /* ค่าแรงจริงรายวันจากแอพสแกนหน้า — ได้แค่ยอดรวมต่อวัน/หน้างาน (ค่าแรงรายคนไม่ออกมาจากฐานข้อมูล)
+     บัญชีที่ไม่ใช่ HR ของแอพสแกนหน้า → ใช้ค่าแรงรายวันที่ตั้งไว้ในหน้าตั้งค่าแทน */
+  let LABOR=null, LABOR_NOTE='';
+  async function loadLabor(){
+    if(!window.wpdRpc) return '';
+    const d=new Date(), to=localISO(d).slice(0,10); d.setDate(d.getDate()-399); const from=localISO(d).slice(0,10);
+    try{
+      const r=await window.wpdRpc('att_labor_daily', { p_from:from, p_to:to });
+      if(r.denied){ LABOR=null; LABOR_NOTE='denied'; return 'denied'; }
+      const L={};
+      (r.rows||[]).forEach(x=>{ const k=String(x.day).slice(0,10), e=L[k]||(L[k]={ total:0, wage:0, ot:0, people:0, units:0, noWage:0, noOut:0, st:{} });
+        const b=r2((+x.wage_baht||0)+(+x.ot_baht||0)); e.total=r2(e.total+b); e.wage=r2(e.wage+(+x.wage_baht||0)); e.ot=r2(e.ot+(+x.ot_baht||0));
+        e.people+=+x.people||0; e.units+=+x.day_units||0; e.noWage+=+x.no_wage||0; e.noOut+=+x.no_out||0; e.st[x.station]=r2((e.st[x.station]||0)+b); });
+      LABOR=L; LABOR_NOTE='ok'; return JSON.stringify(r.rows||[]);
+    }catch(e){ LABOR_NOTE='error'; return 'err'; }   /* ดึงไม่ได้ชั่วคราว — ใช้ข้อมูลรอบก่อน */
+  }
   async function readAll(){
     const _seq=wpdWriteSeq, _busy=wpdBusy();
+    const _lab=await loadLabor();
     const [fi,fa,bg,gs,ord,fd,ln,st,pr,qt] = await Promise.all([
       rawGet('v3s_fiber'), rawGet('v3s_fabric'), rawGet('v3s_bag'), rawGet('v3s_gas'),
       rawGet('v3_orders'), rawGet('v3_feed'), rawGet('v3_line'),
@@ -1726,7 +1781,7 @@ window.WPDAUTH = {
     ]);
     /* มีการบันทึกเกิดขึ้นระหว่างที่กำลังดึงข้อมูล = ข้อมูลที่ได้มาเก่ากว่าในเครื่อง ห้ามเอามาทับ รอบหน้าค่อยดึงใหม่ */
     if(wpdStale(_seq,_busy)) return lastHash;
-    const hash=[fi,fa,bg,gs,ord,fd,ln,st,pr,qt].map(x=>x||'').join('|');
+    const hash=[fi,fa,bg,gs,ord,fd,ln,st,pr,qt,_lab].map(x=>x||'').join('|');
     const parse=(s,f)=>{ try{ return s?JSON.parse(s):f; }catch(e){ return f; } };
     const Pf=parse(fi,{}), Pa=parse(fa,{}), Pb=parse(bg,{}), Pg=parse(gs,{});
     S.fiberReceipts=Pf.receipts||[];
@@ -1791,9 +1846,21 @@ window.WPDAUTH = {
     if(_hpmRef!==PROD.line || _hpmPlan!==plan){ _hpmRef=PROD.line; _hpmPlan=plan; _hpm=Math.max(COST.hoursPerMonth(PROD.line), plan); }
     return _hpm;
   }
-  function ctx(){ return { S, PROD, PRICE, KSET:Object.assign({}, KSET, {_hoursPerMonth:hoursPerMonthNow()}) }; }
+  function ctx(){ return { S, PROD, PRICE, LABOR, KSET:Object.assign({}, KSET, {_hoursPerMonth:hoursPerMonthNow()}) }; }
+  /* ค่าแรงจริงเฉลี่ยต่อชั่วโมงเดินเครื่อง (30 วันล่าสุดที่มีทั้งผลิตและข้อมูลสแกนหน้า) */
+  function laborHourAvg(){
+    if(!LABOR) return 0;
+    const rd=COST.runDays(PROD.line||[]).filter(d=>LABOR[d.date] && d.hours>0).slice(-30);
+    const h=rd.reduce((a,d)=>a+d.hours,0), b=rd.reduce((a,d)=>a+LABOR[d.date].total,0);
+    return h>0 ? r2(b/h) : 0;
+  }
+  function quoteK(){
+    const K=Object.assign({}, KSET, {_hoursPerMonth:hoursPerMonthNow()}), hr=laborHourAvg();
+    if(!(+K.laborDaily>0) && hr>0){ K.laborDaily=r2(hr*(+K.laborHoursPerDay||8)); }
+    return K;
+  }
   const SRCTXT = { lot:'ราคาก้อนนั้น', roll:'ราคาม้วนนั้น', sack:'ราคากระสอบนั้น',
-                   std:'ราคามาตรฐาน', set:'ค่าที่ตั้งไว้',
+                   std:'ราคามาตรฐาน', set:'ค่าที่ตั้งไว้', att:'แอพสแกนหน้า',
                    none:'ยังไม่ได้ใส่ราคา', noCut:'ไม่รู้จำนวนที่ตัดได้', noSack:'ไม่รู้จำนวนใบ/กระสอบ',
                    job:'ต้นทุนจริงของงานที่ผลิตแผ่นนั้น', noProd:'งานต้นทางยังไม่มีบันทึกผลิต' };
   function srcBadge(s){
@@ -2008,10 +2075,13 @@ window.WPDAUTH = {
       : '<span class="bdg warn">ยังไม่รู้ชั่วโมงเดินเครื่อง</span> ยังไม่มีข้อมูลการผลิตพอให้คำนวณ — กรอกเองไปก่อนได้';
 
     const hr=(+KSET.laborHoursPerDay>0)?(+KSET.laborDaily||0)/(+KSET.laborHoursPerDay):0;
-    $('laborPreview').innerHTML = (hr||KSET.laborPerPiece)
+    const _ah=laborHourAvg();
+    $('laborPreview').innerHTML = (LABOR ? '<span class="bdg ok">ค่าแรงดึงจากแอพสแกนหน้าแล้ว</span> ต้นทุนใช้ค่าแรงจริงรายวัน'+(_ah?' (30 วันล่าสุดเฉลี่ย <b>'+fmtBaht(_ah)+' บาท/ชม.เดินเครื่อง</b>)':'')+' — ช่องข้างบนใช้กับวันที่ไม่มีข้อมูลสแกนหน้า และตอนตีราคาถ้าใส่ไว้<br>'
+        : LABOR_NOTE==='denied' ? '<span class="bdg warn">บัญชีนี้ยังไม่มีสิทธิ์ดูค่าแรงจากแอพสแกนหน้า</span> — ใช้ค่าที่ตั้งไว้ข้างบนแทน<br>' : '')+
+      ((hr||KSET.laborPerPiece)
       ? 'คิดเป็น '+(hr?'<b>'+fmtBaht(hr)+' บาท/ชั่วโมง</b>':'')+(hr&&KSET.laborPerPiece?' + ':'')+
         (KSET.laborPerPiece?'<b>'+fmtBaht(KSET.laborPerPiece)+' บาท/ชิ้น</b>':'')
-      : '<span style="color:var(--muted)">ยังไม่ได้ตั้งค่าแรง</span>';
+      : (LABOR?'':'<span style="color:var(--muted)">ยังไม่ได้ตั้งค่าแรง</span>'));
   }
   /* พรีวิวต้องขยับตามที่พิมพ์ทันที ไม่ต้องรอกดบันทึก */
   function liveSetPreview(){
@@ -2182,7 +2252,7 @@ window.WPDAUTH = {
       ? 'ความเร็วจริงจากงานที่ผ่านมา <b>'+meta.pph+' ชิ้น/ชั่วโมง</b>'+($('qHours').value===''&&q.hours?' → งานนี้น่าจะใช้ <b>'+q.hours+' ชม.</b>':'')
       : '<span class="bdg warn">ยังไม่มีข้อมูลความเร็วการผลิต</span> กรอกชั่วโมงเองไปก่อน';
 
-    const K=Object.assign({}, KSET, {_hoursPerMonth:hoursPerMonthNow()});
+    const K=quoteK();
     const c=COST.quoteCost(q, K);
     $('qStats').innerHTML =
       '<div class="stat"><div class="v">'+fmtBaht(c.perPiece)+'</div><div class="l">ต้นทุน (บาท/ชิ้น)</div></div>'+
@@ -2223,6 +2293,7 @@ window.WPDAUTH = {
     const mode=$('perMode').value||'day';
     const dates=new Set();
     [PROD.line,PROD.use,PROD.caseUse,PROD.bagUse,PROD.gasSwaps].forEach(a=>(a||[]).forEach(x=>{ const d=String(x.time||'').slice(0,10); if(d) dates.add(d); }));
+    if(LABOR) Object.keys(LABOR).forEach(d=>dates.add(d));
     const keyOf=d=>mode==='day'?d:mode==='month'?d.slice(0,7):d.slice(0,4);
     const keys=[...new Set([...dates].map(keyOf))].sort().reverse().slice(0,mode==='day'?62:mode==='month'?24:10);
     const range=k=>mode==='day'?[k,k]:mode==='month'?[k+'-01',k+'-31']:[k+'-01-01',k+'-12-31'];
@@ -2234,7 +2305,7 @@ window.WPDAUTH = {
       const d=String(x.time||'').slice(0,10); if(!d) return; const k=keyOf(d); if(!want.has(k)) return;
       const bk=buckets[k]||(buckets[k]={}); (bk[f]||(bk[f]=[])).push(x); }));
     const allUseOrders=new Set((PROD.use||[]).map(u=>u.orderId)), caseTracked=new Set((PROD.caseUse||[]).map(u=>u.orderId));
-    const rows=keys.map(k=>({k, ...COST.periodCost(Object.assign({}, c, { allUseOrders, caseTracked, PROD:Object.assign({}, PROD, buckets[k]||{}, Object.fromEntries(['line','carry','use','wd','caseUse','fabricWd','bagUse','sheetUse','gasSwaps'].map(f=>[f,(buckets[k]||{})[f]||[]]))) }), '0000-00-00', '9999-99-99')})).filter(r=>r.packs||r.total);
+    const rows=keys.map(k=>({k, ...COST.periodCost(Object.assign({}, c, { LABOR:LABOR?Object.fromEntries(Object.entries(LABOR).filter(([d])=>keyOf(d)===k)):null, allUseOrders, caseTracked, PROD:Object.assign({}, PROD, buckets[k]||{}, Object.fromEntries(['line','carry','use','wd','caseUse','fabricWd','bagUse','sheetUse','gasSwaps'].map(f=>[f,(buckets[k]||{})[f]||[]]))) }), '0000-00-00', '9999-99-99')})).filter(r=>r.packs||r.total);
     const tot=rows.reduce((a,r)=>{ ['packs','pieces','hours','fiberKg','fiber','fabric','bag','labor','gas','elec','ship','fixed','total'].forEach(f=>a[f]=r2((a[f]||0)+r[f])); return a; },{});
     const td=(v,b)=>'<td'+(b?' class="kn"':'')+'>'+v+'</td>';
     const line=(lbl,r,b)=>'<tr>'+td(lbl,b)+td(fmtInt(r.packs),b)+td(fmtInt(r.pieces),b)+td(r.hours,b)+td(r.fiberKg+' กก. · '+fmtBaht(r.fiber),b)+
@@ -2365,7 +2436,7 @@ window.WPDAUTH = {
     if(!q.pieces){ toast('กรอกจำนวนที่สั่งก่อน'); return; }
     const cust=$('qCust').value.trim(), code=$('qCode').value.trim();
     if(!cust||!code){ toast('กรอกชื่อลูกค้าและชื่องาน'); return; }
-    const c=COST.quoteCost(q, Object.assign({},KSET,{_hoursPerMonth:hoursPerMonthNow()}));
+    const c=COST.quoteCost(q, quoteK());
     QUOTES.push({ id:uid(), time:localISO(), customer:cust, code:code, type:q.type,
       pieces:c.pieces, packs:c.packs, hours:c.hours,
       total:c.total, perPiece:c.perPiece, marginPct:c.marginPct, sell:c.sell, sellPerPiece:c.sellPerPiece, input:q });

@@ -2654,6 +2654,8 @@ window.WPDAUTH = {
 
   $('ring').onclick=()=>{
     const o=activeFeed(); if(!o) return;
+    /* ยังไม่ได้ตั้งสูตร = กดป้อนแล้วนับใยเป็น 0 กก. และไม่หักจากก้อน (เคยเกิด: กดไป 11 รอบ ใยหายจากบัญชี ~55 กก.) */
+    if(!(CALC.recipeTotal(o.fibers)>0)){ info('ยังไม่ได้ตั้งสูตรใย — กดป้อนไม่ได้', o.customer+' — '+o.code+'\nออเดอร์นี้ยังไม่มีสูตร ถ้ากดป้อนจะนับใยเป็น 0 กก. และไม่หักจากก้อน\n\nไปตั้งสูตรที่ “ตั้งค่า / ปรับสูตร” ด้านล่างก่อน แล้วค่อยกดป้อน'); return; }
     const t=todayStr();
     const n=S.feed.filter(l=>l.orderId===o.id&&dayOf(l.time)===t).length;
     const feedId=uid();

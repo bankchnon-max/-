@@ -1378,6 +1378,10 @@ window.WPDAUTH = {
     },
 
     /* ปลอกที่ใช้จริงของงาน: ถ้ามีบันทึกการใช้ต่อแพ็คใช้ตามนั้น ไม่งั้น (งานเก่า) ใช้ยอดที่เบิกไปไลน์ */
+    /* ค่าเย็บต่อชิ้น: ตั้งรายไซซ์ไว้ใช้ราคานั้น ไม่งั้นใช้ค่ามาตรฐาน */
+    sewRate(K, size){ return +(((K||{}).sewBySize||{})[size])||+((K||{}).sewPerPiece)||0; },
+    /* ไซซ์ปลอกหมอนจาก Standard (เช่น "17.5x26 ตัด28.9.69" → 17.5x26) */
+    pillowSize(o){ const m=/(\d+(?:\.\d+)?)\s*["”″]?\s*[x×*]\s*(\d+(?:\.\d+)?)/.exec(String(((o||{}).spec||{}).fabricSize||'')+' '+String((o||{}).code||'')); return m ? m[1]+'x'+m[2] : 'ไม่ระบุไซซ์'; },
     caseRowsFor(P, orderId, inRange, tracked){
       const ok=inRange||(()=>true);
       const cu=(P.caseUse||[]).filter(u=>u.orderId===orderId && ok(u));
@@ -1423,6 +1427,13 @@ window.WPDAUTH = {
         const q=+cu.pieces||0; fab+=q*COST.fabricBahtPerPiece(PRICE,S.cutBatches,cu.batchId,S.fabricReceipts).baht;
         if((o.productType||'')!=='ใย') sew+=q*(+((K.sewBySize||{})[cu.size])||+K.sewPerPiece||0);
       }));
+      /* หมอนที่ผลิตแต่ไม่มีบันทึกใช้ปลอก — ยังต้องจ่ายค่าเย็บ (หมอน 1 ใบ = ปลอก 1 ใบ) */
+      (P.orders||[]).filter(o=>(o.productType||'')==='หมอน').forEach(o=>{
+        const ls=lines.filter(l=>l.orderId===o.id); if(!ls.length) return;
+        const made=COST.madePieces(ls, (P.carry||[]).filter(c=>c.orderId===o.id && inR(c)));
+        const got=COST.caseRowsFor(P,o.id,inR,tracked).reduce((a,c)=>a+(+c.pieces||0),0);
+        if(made>got) sew+=(made-got)*COST.sewRate(K, COST.pillowSize(o));
+      });
       let bag=0; (P.bagUse||[]).filter(inR).forEach(b=>{ bag+=(+b.pieces||0)*COST.bagBahtPerPiece(PRICE,S.sackReceipts,b.kind,b.name,b.sackNo).baht; });
       lines.forEach(l=>{ const o=(P.orders||[]).find(x=>x.id===l.orderId); const per=o?COST.reuseUsesPerPack(S,o.spec):0; if(per>0) bag+=per*COST.reuseBahtPerUse(PRICE,o.spec.packBagName).baht; });
       let sheet=0; (P.sheetUse||[]).filter(inR).forEach(u=>{ sheet+=(+u.qty||0)*COST.sheetCostPerPiece(ctx,u.srcOrderId,0).baht; });
@@ -1541,6 +1552,13 @@ window.WPDAUTH = {
           if(!rate) miss.push('ยังไม่ได้ตั้งค่าจ้างเย็บ (ไซซ์ '+w.size+')');
           groupRows.push({cat:'ค่าเย็บ', what:'ไซซ์ '+w.size, n:q, u:'ชิ้น', unit:rate, baht:r2(q*rate), src:rate?'set':'none'});
         });
+      }
+      /* หมอน: ทุกใบที่ผลิตต้องเย็บปลอก — ใบที่ไม่มีบันทึกใช้ปลอก คิดค่าเย็บจากจำนวนหมอนที่ผลิต */
+      if(order && (order.productType||'')==='หมอน' && pieces>sewPieces){
+        const short=pieces-sewPieces, sz=COST.pillowSize(order), rate=COST.sewRate(K, sz);
+        sewPieces+=short; sewBaht=r2(sewBaht+short*rate);
+        if(!rate) miss.push('ยังไม่ได้ตั้งค่าจ้างเย็บ (ไซซ์ '+sz+')');
+        groupRows.push({cat:'ค่าเย็บ', what:'ไซซ์ '+sz+' (นับจากหมอนที่ผลิต — ไม่มีบันทึกใช้ปลอก)', n:short, u:'ชิ้น', unit:rate, baht:r2(short*rate), src:rate?'set':'none'});
       }
 
       COST.groupDetail(groupRows).forEach(d=>detail.push(d));

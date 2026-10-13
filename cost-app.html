@@ -525,6 +525,7 @@
           <div><label>ค่าไฟเดินเครื่อง (บาท/ชั่วโมง)</label><input id="stElec" type="number" inputmode="decimal" step="0.01" placeholder="เช่น 85"></div>
           <div><label>ค่าส่ง (บาท/แพ็ค)</label><input id="stShip" type="number" inputmode="decimal" step="0.01" placeholder="เช่น 12"></div>
         </div>
+        <div class="sumline" id="gasRateNote"></div>
         <div class="sumline">ค่าแก๊สไม่ต้องตั้งตรงนี้ — ระบบนับถังที่เปลี่ยนระหว่างงานจากแอพผลิต แล้วคูณราคาถังในหน้า "ราคาของ"</div>
       </div>
 
@@ -1255,6 +1256,38 @@ window.WPDAUTH = {
       return { baht:r4(perSack/pcs), src:src, pieces:pcs, perSack:perSack };
     },
 
+    /* งานที่ใช้แก๊ส = ใยแผ่น (หมอน / ปิกนิก / ใยปั่น-ใยสาง ไม่ใช้) */
+    gasJob(o){
+      if(!o || (o.productType||'ใย')!=='ใย') return false;
+      return !(o.category==='ใยปั่น/ใยสาง' || (!o.category && /ใยสาง|ใยปั่น|สาง|ปั่น/.test(String(o.code||''))));
+    },
+    /* นาทีเดินไลน์ใยแผ่นของแต่ละแพ็ค = ห่างจากแพ็คใยแผ่นก่อนหน้า (เกิน 60 นาที = เครื่องหยุด ไม่นับ) */
+    gasMinutesByPack(P){
+      const memo=COST._gm||(COST._gm=new WeakMap()), key=P.line||[];
+      if(memo.has(key)) return memo.get(key);
+      const orders={}; (P.orders||[]).forEach(o=>{ orders[o.id]=o; });
+      const rows=key.filter(l=>COST.gasJob(orders[l.orderId])).slice().sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+      const out=new Map(); let prev=null;
+      rows.forEach(l=>{ const t=new Date(l.time).getTime(); let m=0;
+        if(prev!=null && !isNaN(t)){ const g=(t-prev)/60000; if(g>0 && g<=60) m=g; }
+        out.set(l, m); if(!isNaN(t)) prev=t; });
+      memo.set(key, out); return out;
+    },
+    /* บาทต่อนาทีเดินไลน์ใยแผ่น: ถังที่ใช้หมดแล้ว (ช่วงระหว่างเปลี่ยนถังแต่ละครั้ง) ÷ นาทีที่เดินไลน์ใยแผ่นในช่วงนั้น · 10 ชุดล่าสุด */
+    gasRateFrom(P, PRICE){
+      const price=COST.gasPricePerTank(PRICE).baht;
+      const sw=(P.gasSwaps||[]).filter(g=>g.time).slice().sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+      if(!(price>0) || sw.length<2) return { rate:0, sets:0, minutes:0, price, list:[] };
+      const packs=[...COST.gasMinutesByPack(P).entries()], list=[];
+      for(let i=0;i<sw.length-1;i++){
+        const a=String(sw[i].time), b=String(sw[i+1].time);
+        const m=packs.reduce((acc,[l,mm])=>{ const t=String(l.time); return (t>a && t<=b) ? acc+mm : acc; },0);
+        const tanks=(sw[i].gasNos&&sw[i].gasNos.length)||1;
+        if(m>=60) list.push({ from:a, to:b, min:Math.round(m), tanks });     /* ช่วงที่แทบไม่ได้เดินไลน์ใยแผ่น ไม่เอามาคิด */
+      }
+      const rec=list.slice(-10), rm=rec.reduce((a,x)=>a+x.min,0), rb=rec.reduce((a,x)=>a+x.tanks*price,0);
+      return { rate: rm>0 ? rb/rm : 0, sets:rec.length, minutes:rm, perSetMin: rec.length ? Math.round(rm/rec.length) : 0, price, list:rec };
+    },
     gasPricePerTank(PRICE){
       const g=+((PRICE||{}).gas||0);
       return g>0 ? { baht:g, src:'std' } : { baht:0, src:'none' };
@@ -1404,7 +1437,10 @@ window.WPDAUTH = {
       if(ctx.LABOR) Object.keys(ctx.LABOR).forEach(d=>{ if(d>=from && d<=to && !_seen[d]) laborDay+=ctx.LABOR[d].total; });
       const labor=laborDay+Math.max(0,pieces-_cPieces)*(+K.laborPerPiece||0)+_cBaht;
       const tanks=(P.gasSwaps||[]).filter(inR).reduce((s,g)=>s+((g.gasNos&&g.gasNos.length)||1),0);
-      const gas=tanks*COST.gasPricePerTank(PRICE).baht;
+      /* แก๊ส: นาทีเดินไลน์ใยแผ่นในช่วงนั้น × บาท/นาที — ยังคำนวณอัตราไม่ได้ = ถังที่เปลี่ยนในช่วงนั้น (แบบเดิม) */
+      const _gr=ctx.GAS && ctx.GAS.rate;
+      let _gm=0; if(_gr) COST.gasMinutesByPack(P).forEach((m,l)=>{ if(inR(l)) _gm+=m; });
+      const gas=_gr ? _gm*_gr : tanks*COST.gasPricePerTank(PRICE).baht;
       const elec=hours*(+K.elecPerHour||0), ship=packs*(+K.shipPerPack||0);
       const fixed=hours*COST.fixedPerHour(K.fixed,+K._hoursPerMonth||0);
       const total=fiber+sheet+fab+sew+bag+labor+gas+elec+ship+fixed;
@@ -1536,7 +1572,13 @@ window.WPDAUTH = {
       let gasTanks=0, gasBaht=0;
       const _looseFiber=!!order && (order.productType||'ใย')==='ใย' && (order.category==='ใยปั่น/ใยสาง' || (!order.category && /ใยสาง|ใยปั่น|สาง|ปั่น/.test(String(order.code||''))));
       const _noGasJob=_looseFiber || !!order && ['หมอน','ปิกนิก'].includes(order.productType||'');
-      if(order && order.startedAt && !_noGasJob){
+      const _gr=ctx.GAS && ctx.GAS.rate;
+      if(_gr && order && !_noGasJob){
+        /* นาทีที่เดินไลน์ใยแผ่นของงานนี้ × บาท/นาที (จากประวัติเปลี่ยนถัง) */
+        const mm=COST.gasMinutesByPack(P); let gm=0; lines.forEach(l=>{ gm+=mm.get(l)||0; });
+        gasBaht=r2(gm*_gr); gasTanks=r2(gasBaht/(ctx.GAS.price||1));
+        if(gasBaht) detail.push({cat:'แก๊ส', what:'ตามเวลาเดินไลน์ใยแผ่น (2 ถังเดินได้เฉลี่ย '+ctx.GAS.perSetMin+' นาที)', qty:Math.round(gm)+' นาที', unit:r2(_gr), baht:gasBaht, src:'gasrate'});
+      } else if(order && order.startedAt && !_noGasJob){
         const from=String(order.startedAt), to=String(order.finishedAt||'9999');
         (P.gasSwaps||[]).forEach(g=>{
           const t=String(g.time||'');
@@ -1846,7 +1888,13 @@ window.WPDAUTH = {
     if(_hpmRef!==PROD.line || _hpmPlan!==plan){ _hpmRef=PROD.line; _hpmPlan=plan; _hpm=Math.max(COST.hoursPerMonth(PROD.line), plan); }
     return _hpm;
   }
-  function ctx(){ return { S, PROD, PRICE, LABOR, KSET:Object.assign({}, KSET, {_hoursPerMonth:hoursPerMonthNow()}) }; }
+  let _gasMemo=null;
+  function gasRateNow(){
+    const k=(PROD.line||[]).length+'|'+(PROD.gasSwaps||[]).length+'|'+(PRICE.gas||0)+'|'+(PROD.orders||[]).length;
+    if(_gasMemo && _gasMemo.k===k && _gasMemo.line===PROD.line) return _gasMemo.v;
+    const v=COST.gasRateFrom(PROD, PRICE); _gasMemo={ k, line:PROD.line, v }; return v;
+  }
+  function ctx(){ return { S, PROD, PRICE, LABOR, GAS:gasRateNow(), KSET:Object.assign({}, KSET, {_hoursPerMonth:hoursPerMonthNow()}) }; }
   /* ค่าแรงจริงเฉลี่ยต่อชั่วโมงเดินเครื่อง (30 วันล่าสุดที่มีทั้งผลิตและข้อมูลสแกนหน้า) */
   function laborHourAvg(){
     if(!LABOR) return 0;
@@ -1860,7 +1908,7 @@ window.WPDAUTH = {
     return K;
   }
   const SRCTXT = { lot:'ราคาก้อนนั้น', roll:'ราคาม้วนนั้น', sack:'ราคากระสอบนั้น',
-                   std:'ราคามาตรฐาน', set:'ค่าที่ตั้งไว้', att:'แอพสแกนหน้า',
+                   std:'ราคามาตรฐาน', set:'ค่าที่ตั้งไว้', att:'แอพสแกนหน้า', gasrate:'คิดจากประวัติเปลี่ยนถัง',
                    none:'ยังไม่ได้ใส่ราคา', noCut:'ไม่รู้จำนวนที่ตัดได้', noSack:'ไม่รู้จำนวนใบ/กระสอบ',
                    job:'ต้นทุนจริงของงานที่ผลิตแผ่นนั้น', noProd:'งานต้นทางยังไม่มีบันทึกผลิต' };
   function srcBadge(s){
@@ -2075,6 +2123,9 @@ window.WPDAUTH = {
       : '<span class="bdg warn">ยังไม่รู้ชั่วโมงเดินเครื่อง</span> ยังไม่มีข้อมูลการผลิตพอให้คำนวณ — กรอกเองไปก่อนได้';
 
     const hr=(+KSET.laborHoursPerDay>0)?(+KSET.laborDaily||0)/(+KSET.laborHoursPerDay):0;
+    { const G=gasRateNow(), el=$('gasRateNote');
+      if(el) el.innerHTML = G.rate ? '<span class="bdg ok">ค่าแก๊สคิดตามเวลาเดินไลน์ใยแผ่น</span> 2 ถังเดินได้เฉลี่ย <b>'+G.perSetMin+' นาที</b> → <b>'+fmtBaht(r2(G.rate))+' บาท/นาที</b> (จาก '+G.sets+' ชุดล่าสุด)'
+        : '<span style="color:var(--muted)">ยังคำนวณค่าแก๊สต่อนาทีไม่ได้ (ต้องมีประวัติเปลี่ยนถังอย่างน้อย 2 ครั้ง และใส่ราคาถัง) — ใช้แบบนับถังที่เปลี่ยนไปก่อน</span>'; }
     const _ah=laborHourAvg();
     $('laborPreview').innerHTML = (LABOR ? '<span class="bdg ok">ค่าแรงดึงจากแอพสแกนหน้าแล้ว</span> ต้นทุนใช้ค่าแรงจริงรายวัน'+(_ah?' (30 วันล่าสุดเฉลี่ย <b>'+fmtBaht(_ah)+' บาท/ชม.เดินเครื่อง</b>)':'')+' — ช่องข้างบนใช้กับวันที่ไม่มีข้อมูลสแกนหน้า และตอนตีราคาถ้าใส่ไว้<br>'
         : LABOR_NOTE==='denied' ? '<span class="bdg warn">บัญชีนี้ยังไม่มีสิทธิ์ดูค่าแรงจากแอพสแกนหน้า</span> — ใช้ค่าที่ตั้งไว้ข้างบนแทน<br>' : '')+

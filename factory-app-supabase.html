@@ -2786,9 +2786,16 @@ window.WPDAUTH = {
       if(hint) hint.innerHTML='<span class="bdg warn">ยังไม่มีลอตของ "'+esc(fiberName)+'" ในแอพสต๊อก — ไปรับเข้าใยที่แอพสต๊อกก่อน</span>';
       return;
     }
+    /* ก้อนที่เบิกหมดไปแล้วไม่ต้องให้เลือก — เลือกเบอร์ซ้ำแล้วก้อนเดิมติดลบ ก้อนที่หยิบมาจริงยังโชว์เต็มในคลัง */
+    const open=lots.filter(l=>lotRemaining(fiberName,l.lotNo,+l.kg||0,l.id)>0.05);
+    if(!open.length){
+      sel.innerHTML='<option value="">— ทุกก้อนของใยนี้เบิกไปหมดแล้ว —</option>'; sel.disabled=true;
+      if(hint) hint.innerHTML='<span class="bdg warn">"'+esc(fiberName)+'" ไม่มีก้อนเหลือในคลังแล้ว — ถ้ามีก้อนจริงอยู่ ไปรับเข้าที่แอพสต๊อกก่อน</span>';
+      return;
+    }
     sel.disabled=false;
-    sel.innerHTML='<option value="">— เลือกก้อนที่หยิบมา —</option>'+
-      lots.slice().reverse().map(l=>{
+    sel.innerHTML='<option value="">— เลือกก้อนที่หยิบมา (ดูเบอร์บนป้ายก้อน) —</option>'+
+      open.slice().reverse().map(l=>{
         const rem=lotRemaining(fiberName,l.lotNo,+l.kg||0,l.id);
         /* เลือกตามรายการรับเข้า (ชื่อ + เบอร์ + วันที่รับ) — เบอร์ซ้ำที่รับคนละวันเลือกแยกกันได้ */
         return '<option value="'+esc(l.id||l.lotNo)+'">เบอร์ '+esc(l.lotNo)+' · รับ '+(l.time?thDate(l.time):'—')+' · '+l.kg+' กก. · เหลือ '+rem+' กก.</option>';
@@ -2854,6 +2861,12 @@ window.WPDAUTH = {
     const _rcpt=(STOCKFIBER[n]||[]).find(l=>String(l.id)===String(_pick))||(STOCKFIBER[n]||[]).find(l=>String(l.lotNo)===String(_pick));
     const lot=_rcpt?String(_rcpt.lotNo):_pick;
     if(!lot){ toast('เลือกลอตที่เบิกจากรายการ — ถ้ายังไม่มีให้ไปรับเข้าใยที่แอพสต๊อกก่อน'); return; }
+    if(_rcpt){
+      const _rem=lotRemaining(n,_rcpt.lotNo,+_rcpt.kg||0,_rcpt.id);
+      if(_rem<=0.05){ await info('ก้อนนี้เบิกไปหมดแล้ว','ก้อนเบอร์ '+_rcpt.lotNo+' ของ '+n+' เบิกไปครบแล้ว — ดูเบอร์บนป้ายก้อนที่หยิบมาอีกครั้ง แล้วเลือกให้ตรง'); return; }
+      if(kg>_rem+1 && !await ask('น้ำหนักเกินที่ก้อนนี้เหลือ — เลือกเบอร์ก้อนผิดหรือเปล่า?',
+        'ก้อนเบอร์ '+_rcpt.lotNo+' ของ '+n+' เหลือในระบบ '+_rem+' กก. แต่จะเบิก '+kg+' กก.\n\nดูเบอร์บนป้ายก้อนจริงอีกครั้ง — ถ้าเบอร์ถูกและชั่งได้จริงเท่านี้ กดยืนยัน')) return;
+    }
     if(S.wd.some(w=>w.orderId===o.id&&String(w.seq)===bale&&w.fiberName===n)){
       if(!await ask('หมายเลขก้อนซ้ำ','ก้อน "'+bale+'" ของ '+n+' เคยบันทึกไปแล้วในออเดอร์นี้\n\nยืนยันจะบันทึกซ้ำหรือไม่?')) return;
     }

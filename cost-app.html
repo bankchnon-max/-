@@ -1383,6 +1383,8 @@ window.WPDAUTH = {
     /* ปลอกที่ใช้จริงของงาน: ถ้ามีบันทึกการใช้ต่อแพ็คใช้ตามนั้น ไม่งั้น (งานเก่า) ใช้ยอดที่เบิกไปไลน์ */
     /* ค่าเย็บต่อชิ้น: ตั้งรายไซซ์ไว้ใช้ราคานั้น ไม่งั้นใช้ค่ามาตรฐาน */
     /* ไซซ์แบบเทียบกันได้: 17.5"x26" / 17.5x26 #6 ตัด7/10/69 → 17.5x26 */
+    /* ไซซ์ที่ใช้คิดค่าเย็บ = ไซซ์สำเร็จของถุงนั้น (ไม่รู้ = ไซซ์ที่บันทึกตอนใช้) */
+    caseSewSize(S, cu){ const b=((S||{}).cutBatches||[]).find(x=>x.id===cu.batchId); return COST.sizeKey(b ? (b.sizeFinished||b.size) : cu.size); },
     sizeKey(sz){ const m=/(\d+(?:\.\d+)?)\s*["”″]?\s*[x×*]\s*(\d+(?:\.\d+)?)/.exec(String(sz||'')); return m ? m[1]+'x'+m[2] : String(sz||'').trim(); },
     sewRate(K, size){
       const by=(K||{}).sewBySize||{};
@@ -1435,7 +1437,7 @@ window.WPDAUTH = {
       const tracked=ctx.caseTracked||new Set((P.caseUse||[]).map(u=>u.orderId));
       (P.orders||[]).forEach(o=>COST.caseRowsFor(P,o.id,inR,tracked).forEach(cu=>{
         const q=+cu.pieces||0; fab+=q*COST.fabricBahtPerPiece(PRICE,S.cutBatches,cu.batchId,S.fabricReceipts).baht;
-        if((o.productType||'')!=='ใย') sew+=q*COST.sewRate(K, cu.size);
+        if((o.productType||'')!=='ใย') sew+=q*COST.sewRate(K, COST.caseSewSize(S, cu));
       }));
       /* หมอนที่ผลิตแต่ไม่มีบันทึกใช้ปลอก — ยังต้องจ่ายค่าเย็บ (หมอน 1 ใบ = ปลอก 1 ใบ) */
       (P.orders||[]).filter(o=>(o.productType||'')==='หมอน').forEach(o=>{
@@ -1570,10 +1572,10 @@ window.WPDAUTH = {
       if(order && (order.productType||'')!=='ใย'){
         caseRows.forEach(w=>{
           const q=+w.pieces||0; if(!q) return;
-          const rate=COST.sewRate(K, w.size);
+          const rate=COST.sewRate(K, COST.caseSewSize(S, w));
           sewPieces+=q; sewBaht=r2(sewBaht+q*rate);
           if(!rate) miss.push('ยังไม่ได้ตั้งค่าจ้างเย็บ (ไซซ์ '+w.size+')');
-          groupRows.push({cat:'ค่าเย็บ', what:'ไซซ์ '+w.size, n:q, u:'ชิ้น', unit:rate, baht:r2(q*rate), src:rate?'set':'none'});
+          groupRows.push({cat:'ค่าเย็บ', what:'ไซซ์ '+COST.caseSewSize(S, w), n:q, u:'ชิ้น', unit:rate, baht:r2(q*rate), src:rate?'set':'none'});
         });
       }
       /* หมอน: ทุกใบที่ผลิตต้องเย็บปลอก — ใบที่ไม่มีบันทึกใช้ปลอก คิดค่าเย็บจากจำนวนหมอนที่ผลิต */
@@ -1868,7 +1870,7 @@ window.WPDAUTH = {
     const parse=(s,f)=>{ try{ return s?JSON.parse(s):f; }catch(e){ return f; } };
     const Pf=parse(fi,{}), Pa=parse(fa,{}), Pb=parse(bg,{}), Pg=parse(gs,{});
     S.fiberReceipts=Pf.receipts||[];
-    S.fabricReceipts=Pa.receipts||[]; S.cutBatches=Pa.cutBatches||[];
+    S.fabricReceipts=Pa.receipts||[]; S.cutBatches=Pa.cutBatches||[]; S.sewReturns=Pa.sewReturns||[];
     S.sackReceipts=Pb.receipts||[]; S.reuseItems=Pb.reuseItems||[]; S.gasReceipts=Pg.receipts||[];
     const A=parse(ord,{}), B=parse(fd,{}), C=parse(ln,{});
     PROD.orders=A.orders||[];
@@ -2145,19 +2147,27 @@ window.WPDAUTH = {
     $('stVat').value = (KSET.vatPct||KSET.vatPct===0)?KSET.vatPct:'';
 
     const sew=KSET.sewBySize||{};
-    /* ไซซ์ปลอกจากสต๊อก (ล็อตที่ตัด ทุกผ้า รวมปลอกปิกนิก) + ไซซ์หมอนที่ผลิตแต่ไม่มีล็อต + ที่ตั้งไว้แล้ว — ใส่ค่าเย็บได้ทีละไซซ์ ว่าง = ใช้ค่ามาตรฐาน */
-    { const used={}, fabs={};
-      (S.cutBatches||[]).forEach(b=>{ const k=COST.sizeKey(b.size); if(!k) return; used[k]=(used[k]||0)+(+b.qtyCut||0); (fabs[k]=fabs[k]||new Set()).add(b.fabricType||'-'); });
-      (PROD.orders||[]).filter(o=>(o.productType||'')==='หมอน').forEach(o=>{ const ls=(PROD.line||[]).filter(l=>l.orderId===o.id); if(!ls.length) return;
-        const k=COST.pillowSize(o); if(!(k in used)) used[k]=0; });
-      Object.keys(sew).forEach(k=>{ const kk=COST.sizeKey(k); if(!(kk in used)) used[kk]=0; });
-      const keys=Object.keys(used).sort((a,b)=>used[b]-used[a]);
+    /* ปลอกพร้อมผลิต (รับกลับจากช่างแล้ว − เบิกไปผลิต) ตามประเภทสินค้า + ไซซ์สำเร็จ — แบบเดียวกับหน้า "ปลอกพร้อมผลิต" ในแอพสต๊อก
+       ใส่ค่าเย็บได้ทีละไซซ์ (บาท/ใบ) · ว่าง = ใช้ค่ามาตรฐาน */
+    { const ret={}, wd={}, pt={};
+      (S.sewReturns||[]).forEach(r=>{ ret[r.batchId]=(ret[r.batchId]||0)+(+r.qty||0); if(r.productType) pt[r.batchId]=r.productType; });
+      (PROD.fabricWd||[]).forEach(w=>(w.picks||[]).forEach(p=>{ wd[p.batchId]=(wd[p.batchId]||0)+(+p.qty||0); }));
+      const rows={};
+      (S.cutBatches||[]).forEach(b=>{ const back=ret[b.id]||0; if(!back) return;
+        const k=COST.sizeKey(b.sizeFinished||b.size); if(!k) return;
+        const x=rows[k]||(rows[k]={ ready:0, back:0, fabs:new Set(), types:new Set() });
+        x.back+=back; x.ready+=Math.max(0, back-(wd[b.id]||0)); x.fabs.add(b.fabricType||'-'); if(pt[b.id]) x.types.add(pt[b.id]); });
+      Object.keys(sew).forEach(k=>{ const kk=COST.sizeKey(k); if(!rows[kk]) rows[kk]={ ready:0, back:0, fabs:new Set(), types:new Set() }; });
+      const keys=Object.keys(rows).sort((a,b)=>(rows[b].ready-rows[a].ready) || (rows[b].back-rows[a].back));
       const valOf=k=>{ const hit=Object.keys(sew).find(x=>COST.sizeKey(x)===k); return hit?sew[hit]:''; };
       $('sewSizeRows').innerHTML = keys.length
-        ? '<div class="sumline" style="margin-top:6px;font-weight:600">ค่าเย็บตามไซซ์ปลอก (บาท/ใบ) — ไซซ์จากสต๊อกผ้าปลอก · ว่าง = ใช้ค่ามาตรฐานด้านบน</div>'+
-          keys.map(k=>'<div class="frow"><div style="flex:1">'+esc(k)+'<div class="sumline" style="margin:0">'+(fabs[k]?esc([...fabs[k]].join(', '))+' · ':'')+(used[k]?'ตัดแล้ว '+fmtInt(used[k])+' ใบ':'ไม่มีในสต๊อก')+'</div></div>'+
-            '<div style="width:110px"><input type="number" inputmode="decimal" step="0.01" data-sewsz="'+esc(k)+'" value="'+(valOf(k)===''?'':esc(valOf(k)))+'" placeholder="'+(KSET.sewPerPiece?fmtBaht(KSET.sewPerPiece):'บาท/ใบ')+'"></div></div>').join('')
-        : '<div class="sumline" style="color:var(--muted)">ยังไม่มีงานหมอนที่ผลิต — ใช้ค่ามาตรฐานด้านบนทุกไซซ์</div>';
+        ? '<div class="sumline" style="margin-top:6px;font-weight:600">ค่าเย็บตามไซซ์ — ปลอกพร้อมผลิตในสต๊อก (บาท/ใบ) · ว่าง = ใช้ค่ามาตรฐานด้านบน</div>'+
+          keys.map(k=>{ const x=rows[k];
+            return '<div class="frow"><div style="flex:1">'+(x.types.size?esc([...x.types].join('/'))+' · ':'')+esc(k)+
+              '<div class="sumline" style="margin:0">'+(x.fabs.size?esc([...x.fabs].join(', '))+' · ':'')+
+              (x.back?'<b>พร้อมผลิต '+fmtInt(x.ready)+' ใบ</b> · รับกลับจากช่างแล้วทั้งหมด '+fmtInt(x.back)+' ใบ':'ไม่มีในสต๊อก')+'</div></div>'+
+              '<div style="width:110px"><input type="number" inputmode="decimal" step="0.01" data-sewsz="'+esc(k)+'" value="'+(valOf(k)===''?'':esc(valOf(k)))+'" placeholder="'+(KSET.sewPerPiece?fmtBaht(KSET.sewPerPiece):'บาท/ใบ')+'"></div></div>'; }).join('')
+        : '<div class="sumline" style="color:var(--muted)">ยังไม่มีปลอกรับกลับจากช่างในสต๊อก — ใช้ค่ามาตรฐานด้านบนทุกไซซ์</div>';
       $('sewSizeRows').querySelectorAll('[data-sewsz]').forEach(inp=>inp.onchange=async()=>{
         const k=inp.getAttribute('data-sewsz'), v=+inp.value||0;
         collectSet(); KSET.sewBySize=KSET.sewBySize||{};

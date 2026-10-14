@@ -2145,16 +2145,17 @@ window.WPDAUTH = {
     $('stVat').value = (KSET.vatPct||KSET.vatPct===0)?KSET.vatPct:'';
 
     const sew=KSET.sewBySize||{};
-    /* ไซซ์ปลอกหมอนที่ผลิตจริง (+ ที่ตั้งไว้แล้ว) — ใส่ค่าเย็บได้ทีละไซซ์ ว่าง = ใช้ค่ามาตรฐาน */
-    { const used={};
+    /* ไซซ์ปลอกจากสต๊อก (ล็อตที่ตัด ทุกผ้า รวมปลอกปิกนิก) + ไซซ์หมอนที่ผลิตแต่ไม่มีล็อต + ที่ตั้งไว้แล้ว — ใส่ค่าเย็บได้ทีละไซซ์ ว่าง = ใช้ค่ามาตรฐาน */
+    { const used={}, fabs={};
+      (S.cutBatches||[]).forEach(b=>{ const k=COST.sizeKey(b.size); if(!k) return; used[k]=(used[k]||0)+(+b.qtyCut||0); (fabs[k]=fabs[k]||new Set()).add(b.fabricType||'-'); });
       (PROD.orders||[]).filter(o=>(o.productType||'')==='หมอน').forEach(o=>{ const ls=(PROD.line||[]).filter(l=>l.orderId===o.id); if(!ls.length) return;
-        const k=COST.pillowSize(o); used[k]=(used[k]||0)+COST.madePieces(ls, []); });
+        const k=COST.pillowSize(o); if(!(k in used)) used[k]=0; });
       Object.keys(sew).forEach(k=>{ const kk=COST.sizeKey(k); if(!(kk in used)) used[kk]=0; });
       const keys=Object.keys(used).sort((a,b)=>used[b]-used[a]);
       const valOf=k=>{ const hit=Object.keys(sew).find(x=>COST.sizeKey(x)===k); return hit?sew[hit]:''; };
       $('sewSizeRows').innerHTML = keys.length
-        ? '<div class="sumline" style="margin-top:6px;font-weight:600">ค่าเย็บปลอกหมอนตามไซซ์ (บาท/ใบ) — ว่าง = ใช้ค่ามาตรฐานด้านบน</div>'+
-          keys.map(k=>'<div class="frow"><div style="flex:1">'+esc(k)+'<div class="sumline" style="margin:0">'+(used[k]?'ผลิตแล้ว '+fmtInt(used[k])+' ใบ':'ยังไม่มีผลิต')+'</div></div>'+
+        ? '<div class="sumline" style="margin-top:6px;font-weight:600">ค่าเย็บตามไซซ์ปลอก (บาท/ใบ) — ไซซ์จากสต๊อกผ้าปลอก · ว่าง = ใช้ค่ามาตรฐานด้านบน</div>'+
+          keys.map(k=>'<div class="frow"><div style="flex:1">'+esc(k)+'<div class="sumline" style="margin:0">'+(fabs[k]?esc([...fabs[k]].join(', '))+' · ':'')+(used[k]?'ตัดแล้ว '+fmtInt(used[k])+' ใบ':'ไม่มีในสต๊อก')+'</div></div>'+
             '<div style="width:110px"><input type="number" inputmode="decimal" step="0.01" data-sewsz="'+esc(k)+'" value="'+(valOf(k)===''?'':esc(valOf(k)))+'" placeholder="'+(KSET.sewPerPiece?fmtBaht(KSET.sewPerPiece):'บาท/ใบ')+'"></div></div>').join('')
         : '<div class="sumline" style="color:var(--muted)">ยังไม่มีงานหมอนที่ผลิต — ใช้ค่ามาตรฐานด้านบนทุกไซซ์</div>';
       $('sewSizeRows').querySelectorAll('[data-sewsz]').forEach(inp=>inp.onchange=async()=>{

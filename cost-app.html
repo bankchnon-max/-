@@ -1379,9 +1379,16 @@ window.WPDAUTH = {
 
     /* ปลอกที่ใช้จริงของงาน: ถ้ามีบันทึกการใช้ต่อแพ็คใช้ตามนั้น ไม่งั้น (งานเก่า) ใช้ยอดที่เบิกไปไลน์ */
     /* ค่าเย็บต่อชิ้น: ตั้งรายไซซ์ไว้ใช้ราคานั้น ไม่งั้นใช้ค่ามาตรฐาน */
-    sewRate(K, size){ return +(((K||{}).sewBySize||{})[size])||+((K||{}).sewPerPiece)||0; },
+    /* ไซซ์แบบเทียบกันได้: 17.5"x26" / 17.5x26 #6 ตัด7/10/69 → 17.5x26 */
+    sizeKey(sz){ const m=/(\d+(?:\.\d+)?)\s*["”″]?\s*[x×*]\s*(\d+(?:\.\d+)?)/.exec(String(sz||'')); return m ? m[1]+'x'+m[2] : String(sz||'').trim(); },
+    sewRate(K, size){
+      const by=(K||{}).sewBySize||{};
+      if(+by[size]>0) return +by[size];
+      const k=COST.sizeKey(size), hit=Object.keys(by).find(x=>COST.sizeKey(x)===k && +by[x]>0);
+      return hit ? +by[hit] : (+((K||{}).sewPerPiece)||0);
+    },
     /* ไซซ์ปลอกหมอนจาก Standard (เช่น "17.5x26 ตัด28.9.69" → 17.5x26) */
-    pillowSize(o){ const m=/(\d+(?:\.\d+)?)\s*["”″]?\s*[x×*]\s*(\d+(?:\.\d+)?)/.exec(String(((o||{}).spec||{}).fabricSize||'')+' '+String((o||{}).code||'')); return m ? m[1]+'x'+m[2] : 'ไม่ระบุไซซ์'; },
+    pillowSize(o){ const k=COST.sizeKey(String(((o||{}).spec||{}).fabricSize||'')+' '+String((o||{}).code||'')); return /^\d/.test(k) ? k : 'ไม่ระบุไซซ์'; },
     caseRowsFor(P, orderId, inRange, tracked){
       const ok=inRange||(()=>true);
       const cu=(P.caseUse||[]).filter(u=>u.orderId===orderId && ok(u));
@@ -1425,7 +1432,7 @@ window.WPDAUTH = {
       const tracked=ctx.caseTracked||new Set((P.caseUse||[]).map(u=>u.orderId));
       (P.orders||[]).forEach(o=>COST.caseRowsFor(P,o.id,inR,tracked).forEach(cu=>{
         const q=+cu.pieces||0; fab+=q*COST.fabricBahtPerPiece(PRICE,S.cutBatches,cu.batchId,S.fabricReceipts).baht;
-        if((o.productType||'')!=='ใย') sew+=q*(+((K.sewBySize||{})[cu.size])||+K.sewPerPiece||0);
+        if((o.productType||'')!=='ใย') sew+=q*COST.sewRate(K, cu.size);
       }));
       /* หมอนที่ผลิตแต่ไม่มีบันทึกใช้ปลอก — ยังต้องจ่ายค่าเย็บ (หมอน 1 ใบ = ปลอก 1 ใบ) */
       (P.orders||[]).filter(o=>(o.productType||'')==='หมอน').forEach(o=>{
@@ -1547,7 +1554,7 @@ window.WPDAUTH = {
       if(order && (order.productType||'')!=='ใย'){
         caseRows.forEach(w=>{
           const q=+w.pieces||0; if(!q) return;
-          const rate=+((K.sewBySize||{})[w.size])||+K.sewPerPiece||0;
+          const rate=COST.sewRate(K, w.size);
           sewPieces+=q; sewBaht=r2(sewBaht+q*rate);
           if(!rate) miss.push('ยังไม่ได้ตั้งค่าจ้างเย็บ (ไซซ์ '+w.size+')');
           groupRows.push({cat:'ค่าเย็บ', what:'ไซซ์ '+w.size, n:q, u:'ชิ้น', unit:rate, baht:r2(q*rate), src:rate?'set':'none'});
@@ -2111,14 +2118,26 @@ window.WPDAUTH = {
     $('stVat').value = (KSET.vatPct||KSET.vatPct===0)?KSET.vatPct:'';
 
     const sew=KSET.sewBySize||{};
-    $('sewSizeRows').innerHTML = Object.keys(sew).length
-      ? Object.entries(sew).map(([k,v])=>'<div class="frow"><div style="flex:1">'+esc(k)+'</div><div style="width:110px;text-align:right">'+fmtBaht(v)+' บาท/ชิ้น</div><button class="x" data-sewdel="'+esc(k)+'">✕</button></div>').join('')
-      : '<div class="sumline" style="color:var(--muted)">ยังไม่ได้ตั้งรายไซซ์ — ใช้ค่ามาตรฐานด้านบนทุกไซซ์</div>';
-    $('sewSizeRows').querySelectorAll('[data-sewdel]').forEach(b=>b.onclick=async()=>{
-      const k=b.getAttribute('data-sewdel');
-      if(!await ask('ลบค่าเย็บไซซ์ '+k+'?','ไซซ์นี้จะกลับไปใช้ค่ามาตรฐานแทน')) return;
-      delete KSET.sewBySize[k]; await saveSet(); rSet(); toast('ลบแล้ว');
-    });
+    /* ไซซ์ปลอกหมอนที่ผลิตจริง (+ ที่ตั้งไว้แล้ว) — ใส่ค่าเย็บได้ทีละไซซ์ ว่าง = ใช้ค่ามาตรฐาน */
+    { const used={};
+      (PROD.orders||[]).filter(o=>(o.productType||'')==='หมอน').forEach(o=>{ const ls=(PROD.line||[]).filter(l=>l.orderId===o.id); if(!ls.length) return;
+        const k=COST.pillowSize(o); used[k]=(used[k]||0)+COST.madePieces(ls, []); });
+      Object.keys(sew).forEach(k=>{ const kk=COST.sizeKey(k); if(!(kk in used)) used[kk]=0; });
+      const keys=Object.keys(used).sort((a,b)=>used[b]-used[a]);
+      const valOf=k=>{ const hit=Object.keys(sew).find(x=>COST.sizeKey(x)===k); return hit?sew[hit]:''; };
+      $('sewSizeRows').innerHTML = keys.length
+        ? '<div class="sumline" style="margin-top:6px;font-weight:600">ค่าเย็บปลอกหมอนตามไซซ์ (บาท/ใบ) — ว่าง = ใช้ค่ามาตรฐานด้านบน</div>'+
+          keys.map(k=>'<div class="frow"><div style="flex:1">'+esc(k)+'<div class="sumline" style="margin:0">'+(used[k]?'ผลิตแล้ว '+fmtInt(used[k])+' ใบ':'ยังไม่มีผลิต')+'</div></div>'+
+            '<div style="width:110px"><input type="number" inputmode="decimal" step="0.01" data-sewsz="'+esc(k)+'" value="'+(valOf(k)===''?'':esc(valOf(k)))+'" placeholder="'+(KSET.sewPerPiece?fmtBaht(KSET.sewPerPiece):'บาท/ใบ')+'"></div></div>').join('')
+        : '<div class="sumline" style="color:var(--muted)">ยังไม่มีงานหมอนที่ผลิต — ใช้ค่ามาตรฐานด้านบนทุกไซซ์</div>';
+      $('sewSizeRows').querySelectorAll('[data-sewsz]').forEach(inp=>inp.onchange=async()=>{
+        const k=inp.getAttribute('data-sewsz'), v=+inp.value||0;
+        collectSet(); KSET.sewBySize=KSET.sewBySize||{};
+        Object.keys(KSET.sewBySize).filter(x=>COST.sizeKey(x)===k).forEach(x=>delete KSET.sewBySize[x]);
+        if(v>0) KSET.sewBySize[k]=v;
+        formDirty=false; await saveSet(); rSet(); toast(v>0?'ค่าเย็บไซซ์ '+k+' = '+fmtBaht(v)+' บาท/ใบ':'ไซซ์ '+k+' ใช้ค่ามาตรฐาน');
+      });
+    }
 
     const fx=KSET.fixed||[];
     $('fixedRows').innerHTML = fx.length
@@ -2485,7 +2504,7 @@ window.WPDAUTH = {
     const n=$('sewSizeName').value.trim(), v=+$('sewSizeBaht').value||0;
     if(!n||!v){ toast('กรอกไซซ์และค่าเย็บ'); return; }
     collectSet();
-    KSET.sewBySize=KSET.sewBySize||{}; KSET.sewBySize[n]=v;
+    KSET.sewBySize=KSET.sewBySize||{}; KSET.sewBySize[COST.sizeKey(n)]=v;
     $('sewSizeName').value=''; $('sewSizeBaht').value=''; formDirty=false;
     await saveSet(); rSet(); toast('เพิ่มค่าเย็บไซซ์ '+n+' แล้ว');
   };

@@ -1164,10 +1164,13 @@ window.WPDAUTH = {
     /* ค่าผ้าต่อ 1 ใบ(ปลอก) = ราคาม้วน แบ่งตามพื้นที่ชิ้นที่ตัดจากม้วนนั้นจริง × จำนวนชิ้นต่อใบ
        ม้วนเดียวตัดหลายไซซ์ ชิ้นใหญ่ (ปิกนิก 40x79) ต้องแพงกว่าชิ้นเล็ก (18x54) · ปิกนิก 2 ผืนประกบ = 2 ชิ้นต่อใบ
        ไซซ์ไหนอ่านไม่ออก → แบ่งตามจำนวนชิ้นเหมือนเดิม */
-    fabricBahtPerPiece(PRICE, cutBatches, batchId, receipts){
+    fabricBahtPerPiece(PRICE, cutBatches, batchId, receipts, skipSize){
       const b=(cutBatches||[]).find(x=>x.id===batchId);
       if(!b) return { baht:0, src:'none', type:'' };
       const type=b.fabricType||'';
+      /* ราคาปลอกตามไซซ์ (บาท/ใบ) ที่ใส่เอง — ใช้ก่อนคิดจากราคาม้วน (ปลอกยกมาที่ไม่มีม้วนต้องใช้แบบนี้) */
+      if(!skipSize){ const zp=+((((PRICE||{}).fabric||{})[type]||{}).sizes||{})[COST.sizeKey(b.size)]||0;
+        if(zp>0) return { baht:zp, src:'casesize', type:type }; }
       const p=COST.fabricPricePerRoll(PRICE, type, b.rollNo, b.rollId);
       if(!p.baht) return { baht:0, src:'none', type:type };
       let same=[b];
@@ -1946,7 +1949,7 @@ window.WPDAUTH = {
     return K;
   }
   const SRCTXT = { lot:'ราคาก้อนนั้น', roll:'ราคาม้วนนั้น', sack:'ราคากระสอบนั้น',
-                   std:'ราคามาตรฐาน', set:'ค่าที่ตั้งไว้', att:'แอพสแกนหน้า', gasrate:'คิดจากประวัติเปลี่ยนถัง',
+                   std:'ราคามาตรฐาน', set:'ค่าที่ตั้งไว้', att:'แอพสแกนหน้า', gasrate:'คิดจากประวัติเปลี่ยนถัง', casesize:'ราคาปลอกตามไซซ์',
                    none:'ยังไม่ได้ใส่ราคา', noCut:'ไม่รู้จำนวนที่ตัดได้', noSack:'ไม่รู้จำนวนใบ/กระสอบ',
                    job:'ต้นทุนจริงของงานที่ผลิตแผ่นนั้น', noProd:'งานต้นทางยังไม่มีบันทึกผลิต' };
   function srcBadge(s){
@@ -2036,6 +2039,17 @@ window.WPDAUTH = {
         '<div class="frow" style="margin-top:6px;"><div style="flex:1;font-size:12.5px">ราคามาตรฐาน (บาท/ม้วน)</div>'+
         '<div style="width:110px">'+priceInput('fabric|'+n+'|std', e.std, 'เช่น 4200')+'</div></div>'+
         (perPc?'<div class="sumline">≈ <b style="color:var(--accent2)">'+fmtBaht(perPc.baht)+' บาท/ชิ้น</b> (ม้วนละ '+fmtBaht(perPc.roll)+' ÷ ตัดได้ '+fmtInt(perPc.pieces)+' ชิ้น)</div>':'')+
+        (()=>{ /* ไซซ์ปลอกที่ตัดจากผ้าชนิดนี้ (จากสต๊อก) — ใส่บาท/ใบ แล้วใช้แทนการคิดจากม้วน */
+          const by={};
+          S.cutBatches.filter(b=>b.fabricType===n).forEach(b=>{ const k=COST.sizeKey(b.size); if(!k) return;
+            const x=by[k]||(by[k]={ cut:0, est:0, estN:0, fin:'' }); x.cut+=+b.qtyCut||0;
+            if(b.sizeFinished && COST.sizeKey(b.sizeFinished)!==k) x.fin=COST.sizeKey(b.sizeFinished);
+            const c=COST.fabricBahtPerPiece(PRICE,S.cutBatches,b.id,S.fabricReceipts,true); if(c.baht>0 && +b.qtyCut>0){ x.est+=c.baht*(+b.qtyCut); x.estN+=+b.qtyCut; } });
+          const ks=Object.keys(by).sort((a,b)=>by[b].cut-by[a].cut); if(!ks.length) return '';
+          return '<div class="sumline" style="margin-top:8px;font-weight:600">ราคาปลอกตามไซซ์ (บาท/ใบ) — ใส่แล้วใช้ราคานี้แทนการคิดจากม้วน · ว่าง = คิดจากราคาม้วน</div>'+
+            ks.map(k=>{ const x=by[k], est=x.estN?r2(x.est/x.estN):0;
+              return '<div class="frow"><div style="flex:1;font-size:12.5px">'+esc(k)+(x.fin?' → สำเร็จ '+esc(x.fin):'')+' · ตัดแล้ว '+fmtInt(x.cut)+' ใบ'+
+                (est?' · จากม้วน ≈ '+fmtBaht(est)+'/ใบ':'')+'</div><div style="width:110px">'+priceInput('fabric|'+n+'|size|'+k, (e.sizes||{})[k], est?fmtBaht(est):'บาท/ใบ')+'</div></div>'; }).join(''); })()+
         dateRows('fabric', n, byRecvDate(rolls), e.dates, it=>it.length+' ม้วน (#'+it.map(l=>esc(l.rollNo)).join(', #')+')')+
         (rolls.length?'<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--accent2)">แยกราคาทีละม้วน ('+rolls.length+' ม้วน) — ถ้าม้วนไหนราคาไม่เหมือนล็อต</summary>'+
           '<div class="sumline" style="margin-top:4px">ม้วนไหนไม่ใส่ = ใช้ราคาตามวันที่รับเข้า หรือราคามาตรฐาน</div>'+rows+'</details>':'')+

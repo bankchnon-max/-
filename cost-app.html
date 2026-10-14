@@ -1441,8 +1441,13 @@ window.WPDAUTH = {
         const got=COST.caseRowsFor(P,o.id,inR,tracked).reduce((a,c)=>a+(+c.pieces||0),0);
         if(made>got) sew+=(made-got)*COST.sewRate(K, COST.pillowSize(o));
       });
-      let bag=0; (P.bagUse||[]).filter(inR).forEach(b=>{ bag+=(+b.pieces||0)*COST.bagBahtPerPiece(PRICE,S.sackReceipts,b.kind,b.name,b.sackNo).baht; });
-      lines.forEach(l=>{ const o=(P.orders||[]).find(x=>x.id===l.orderId); const per=o?COST.reuseUsesPerPack(S,o.spec):0; if(per>0) bag+=per*COST.reuseBahtPerUse(PRICE,o.spec.packBagName).baht; });
+      /* ถุงซิลนับเฉพาะงานหมอน — งานอื่นที่หักจากกระสอบถุงซิล นับเป็นถุงแพ็ค */
+      const _ptOf=id=>{ const o=(P.orders||[]).find(x=>x.id===id); return o?(o.productType||'ใย'):''; };
+      let bagPack=0, bagZip=0;
+      (P.bagUse||[]).filter(inR).forEach(b=>{ const v=(+b.pieces||0)*COST.bagBahtPerPiece(PRICE,S.sackReceipts,b.kind,b.name,b.sackNo).baht;
+        if(b.kind==='zip' && _ptOf(b.orderId)==='หมอน') bagZip+=v; else bagPack+=v; });
+      lines.forEach(l=>{ const o=(P.orders||[]).find(x=>x.id===l.orderId); const per=o?COST.reuseUsesPerPack(S,o.spec):0; if(per>0) bagPack+=per*COST.reuseBahtPerUse(PRICE,o.spec.packBagName).baht; });
+      const bag=bagPack+bagZip;
       let sheet=0; (P.sheetUse||[]).filter(inR).forEach(u=>{ sheet+=(+u.qty||0)*COST.sheetCostPerPiece(ctx,u.srcOrderId,0).baht; });
       const hrRate=(+K.laborHoursPerDay>0)?(+K.laborDaily||0)/(+K.laborHoursPerDay):0;
       /* ปิกนิกที่จ้างเหมา: ค่าเหมาแทนค่าแรงในโรงของแพ็คนั้น */
@@ -1460,10 +1465,16 @@ window.WPDAUTH = {
       let _gm=0; if(_gr) COST.gasMinutesByPack(P).forEach((m,l)=>{ if(inR(l)) _gm+=m; });
       const gas=_gr ? _gm*_gr : tanks*COST.gasPricePerTank(PRICE).baht;
       const elec=hours*(+K.elecPerHour||0), ship=packs*(+K.shipPerPack||0);
-      const fixed=hours*COST.fixedPerHour(K.fixed,+K._hoursPerMonth||0);
-      const total=fiber+sheet+fab+sew+bag+labor+gas+elec+ship+fixed;
-      return { packs, pieces, hours, fiberKg:r2(fiberKg), fiber:r2(fiber+sheet), fabric:r2(fab+sew), bag:r2(bag), labor:r2(labor),
-               gas:r2(gas), elec:r2(elec), ship:r2(ship), fixed:r2(fixed), total:r2(total), perPiece:pieces?r2(total/pieces):0 };
+      /* ดอกเบี้ย = รายการค่าใช้จ่ายคงที่ที่ชื่อมีคำว่า "ดอกเบี้ย" กระจายตามชั่วโมงเดินเครื่อง */
+      const _fx=K.fixed||[], _isInt=x=>/ดอกเบี้ย/.test(String(x.name||''));
+      const interest=hours*COST.fixedPerHour(_fx.filter(_isInt),+K._hoursPerMonth||0);
+      const fixedOther=hours*COST.fixedPerHour(_fx.filter(x=>!_isInt(x)),+K._hoursPerMonth||0);
+      const fixed=interest+fixedOther;
+      /* ต้นทุนต่อวัน: ใย · ผ้า+เย็บ (หมอน/ปิกนิก) · ถุงแพ็ค · ถุงซิล (หมอน) · ค่าแรง · ดอกเบี้ย · ขนส่ง · แก๊ส (ใยแผ่น) · ไฟ
+         ไม่รวม: ใยแผ่นที่ยกไปแพ็คปิกนิก (ใยนับไปแล้ววันที่ผลิตแผ่นนั้น) และค่าใช้จ่ายคงที่อื่นนอกจากดอกเบี้ย */
+      const total=fiber+fab+sew+bag+labor+interest+ship+gas+elec;
+      return { packs, pieces, hours, fiberKg:r2(fiberKg), fiber:r2(fiber), sheet:r2(sheet), fabric:r2(fab+sew), bag:r2(bag), bagPack:r2(bagPack), bagZip:r2(bagZip), labor:r2(labor),
+               gas:r2(gas), elec:r2(elec), ship:r2(ship), interest:r2(interest), fixedOther:r2(fixedOther), fixed:r2(fixed), total:r2(total), perPiece:pieces?r2(total/pieces):0 };
     },
 
     /* รวมรายการรายละเอียดที่ซ้ำกันเป็นแถวเดียว (เช่น ถุงจากกระสอบเดียวกันหลายร้อยแพ็ค) — ตารางไม่ยาวหลายพันแถว */
@@ -2394,16 +2405,19 @@ window.WPDAUTH = {
       const bk=buckets[k]||(buckets[k]={}); (bk[f]||(bk[f]=[])).push(x); }));
     const allUseOrders=new Set((PROD.use||[]).map(u=>u.orderId)), caseTracked=new Set((PROD.caseUse||[]).map(u=>u.orderId));
     const rows=keys.map(k=>({k, ...COST.periodCost(Object.assign({}, c, { LABOR:LABOR?Object.fromEntries(Object.entries(LABOR).filter(([d])=>keyOf(d)===k)):null, allUseOrders, caseTracked, PROD:Object.assign({}, PROD, buckets[k]||{}, Object.fromEntries(['line','carry','use','wd','caseUse','fabricWd','bagUse','sheetUse','gasSwaps'].map(f=>[f,(buckets[k]||{})[f]||[]]))) }), '0000-00-00', '9999-99-99')})).filter(r=>r.packs||r.total);
-    const tot=rows.reduce((a,r)=>{ ['packs','pieces','hours','fiberKg','fiber','fabric','bag','labor','gas','elec','ship','fixed','total'].forEach(f=>a[f]=r2((a[f]||0)+r[f])); return a; },{});
+    const tot=rows.reduce((a,r)=>{ ['packs','pieces','hours','fiberKg','fiber','fabric','bag','bagPack','bagZip','labor','gas','elec','ship','interest','fixedOther','fixed','total'].forEach(f=>a[f]=r2((a[f]||0)+r[f])); return a; },{});
     const td=(v,b)=>'<td'+(b?' class="kn"':'')+'>'+v+'</td>';
     const line=(lbl,r,b)=>'<tr>'+td(lbl,b)+td(fmtInt(r.packs),b)+td(fmtInt(r.pieces),b)+td(r.hours,b)+td(r.fiberKg+' กก. · '+fmtBaht(r.fiber),b)+
-      td(fmtBaht(r.fabric),b)+td(fmtBaht(r.bag),b)+td(fmtBaht(r.labor),b)+td(fmtBaht(r2(r.gas+r.elec)),b)+td(fmtBaht(r.ship),b)+td(fmtBaht(r.fixed),b)+
+      td(fmtBaht(r.fabric),b)+td(fmtBaht(r.bagPack),b)+td(fmtBaht(r.bagZip),b)+td(fmtBaht(r.labor),b)+td(fmtBaht(r.interest),b)+td(fmtBaht(r.ship),b)+td(fmtBaht(r.gas),b)+td(fmtBaht(r.elec),b)+
       td('<b>'+fmtBaht(r.total)+'</b>',b)+td(r.pieces?fmtBaht(r2(r.total/r.pieces)):'—',b)+'</tr>';
     $('tPeriod').innerHTML=rows.length
-      ? '<tr><th>'+(mode==='day'?'วันที่':mode==='month'?'เดือน':'ปี')+'</th><th>แพ็ค</th><th>ชิ้น</th><th>ชม.เดินเครื่อง</th><th>ใย</th><th>ผ้าปลอก+เย็บ</th><th>ถุง</th><th>ค่าแรง</th><th>แก๊ส+ไฟ</th><th>ค่าส่ง</th><th>ค่าคงที่</th><th>รวม (บาท)</th><th>บาท/ชิ้น</th></tr>'+
+      ? '<tr><th>'+(mode==='day'?'วันที่':mode==='month'?'เดือน':'ปี')+'</th><th>แพ็ค</th><th>ชิ้น</th><th>ชม.เดินเครื่อง</th><th>ใย</th><th>ผ้า+เย็บ (หมอน)</th><th>ถุงแพ็ค</th><th>ถุงซิล (หมอน)</th><th>ค่าแรง</th><th>ดอกเบี้ย</th><th>ขนส่ง</th><th>แก๊ส (ใยแผ่น)</th><th>ค่าไฟ</th><th>รวม (บาท)</th><th>บาท/ชิ้น</tr>'+
         rows.map(r=>line(label(r.k),r)).join('')+(rows.length>1?line('รวม',tot,true):'')
       : '<tr><td class="empty">ยังไม่มีข้อมูลการผลิต</td></tr>';
-    $('perNote').innerHTML='รวมทุกงานที่ผลิตในช่วงนั้น · ใยคิดตามราคาของก้อนที่ใช้จริง · ปลอก/ถุงคิดตามที่ใช้จริงต่อแพ็ค';
+    { const fx=(KSET.fixed||[]).filter(x=>!/ดอกเบี้ย/.test(String(x.name||'')));
+      $('perNote').innerHTML='ต้นทุนต่อวัน = ใย + ผ้า+เย็บ (หมอน) + ถุงแพ็ค + ถุงซิล (หมอน) + ค่าแรง + ดอกเบี้ย + ขนส่ง + แก๊ส (ใยแผ่น) + ค่าไฟ'+
+        '<br>ใยคิดตามราคาก้อนที่ใช้จริง · ปลอก/ถุงคิดตามที่ใช้จริง · ดอกเบี้ยกระจายตามชั่วโมงเดินเครื่อง · ใยแผ่นที่ยกไปแพ็คปิกนิกไม่นับซ้ำ (นับไปแล้ววันที่ผลิตแผ่น)'+
+        (fx.length?'<br><span style="color:var(--muted)">ไม่ได้รวมในต้นทุนต่อวัน: '+fx.map(x=>esc(x.name)+' '+fmtBaht(+x.baht||0)+'/เดือน').join(' · ')+'</span>':''); }
   }
   function rSum(){
     $('perMode').onchange=rPeriod; rPeriod();

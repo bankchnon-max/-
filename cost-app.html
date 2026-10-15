@@ -9,6 +9,22 @@
 <meta name="apple-mobile-web-app-title" content="ต้นทุน">
 <meta name="theme-color" content="#ffffff">
 <title>ต้นทุน &amp; ตีราคา — วินโพลีดีไซน์</title>
+<html lang="th" data-wfold-default="open">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ต้นทุน">
+<meta name="theme-color" content="#ffffff">
+<title>ต้นทุน &amp; ตีราคา — วินโพลีดีไซน์</title>
+<!-- wpd-pwa -->
+<link rel="manifest" href="/manifest-cost.webmanifest">
+<link rel="icon" type="image/png" href="/icons/cost-192.png">
+<link rel="apple-touch-icon" href="/icons/cost-192.png">
+<script>if("serviceWorker" in navigator && location.protocol==="https:") addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));</script>
+<!-- /wpd-pwa -->
 <!-- wpd-pwa -->
 <link rel="manifest" href="/manifest-cost.webmanifest">
 <link rel="icon" type="image/png" href="/icons/cost-192.png">
@@ -447,7 +463,7 @@
   Element.prototype.scrollIntoView = function(){ try{ scan(); reveal(this); }catch(e){} return _siv.apply(this, arguments); };
   document.addEventListener('DOMContentLoaded', function(){ scan(); setInterval(scan, 2500); });
 })();
-</script><!-- /wpd-fold -->
+</script><!-- /wpd-fold -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- ฟอนต์โหลดเบื้องหลัง ไม่ให้หน้าค้างรอเน็ต (เปิดด้วยฟอนต์เครื่องก่อน แล้วสลับเอง) -->
@@ -635,6 +651,7 @@
 
     <!-- ══════════ 5. สรุป ══════════ -->
     <div class="panel" id="p-sum">
+      <div class="card" id="alertCard"><h3>⚠ จุดที่ควรดู <span class="sumline" style="font-weight:400">— เช็คให้อัตโนมัติจากข้อมูลในแอพ</span></h3><div id="alertList"></div></div>
       <div class="card"><h3>สรุปต้นทุนตามช่วงเวลา</h3>
         <div class="rf" style="align-items:center;"><div><select id="perMode">
           <option value="day">รายวัน</option><option value="month">รายเดือน</option><option value="year">รายปี</option></select></div><div></div></div>
@@ -1094,7 +1111,7 @@ window.WPDAUTH = {
     }
   };
 })();
-</script><!-- /wpd-store -->
+</script><!-- /wpd-store -->
 <script>
 (function(){
   'use strict';
@@ -1877,7 +1894,7 @@ window.WPDAUTH = {
     PROD.wd=B.wd||[]; PROD.use=B.use||[]; PROD.fabricWd=B.fabricWd||[]; PROD.caseUse=B.caseUse||[]; PROD.bagWd=B.bagWd||[];
     PROD.bagUse=B.bagUse||[]; PROD.gasSwaps=B.gasSwaps||[];
     PROD.sheetWd=B.sheetWd||[]; PROD.sheetUse=B.sheetUse||[];
-    PROD.line=C.line||[]; PROD.carry=C.carry||[];
+    PROD.line=C.line||[]; PROD.carry=C.carry||[]; PROD.scrap=C.scrap||[]; PROD.feed=B.feed||[];
     const K=parse(st,null);
     if(K && typeof K==='object'){ KSET=Object.assign(KSET,K); KSET.sewBySize=K.sewBySize||{}; KSET.fixed=K.fixed||[]; }
     const P=parse(pr,null);
@@ -2104,15 +2121,20 @@ window.WPDAUTH = {
     $('prGas').value = PRICE.gas>0?PRICE.gas:'';
 
     /* --- สรุปที่ยังไม่ใส่ราคา --- */
+    const todo=priceTodo();
+    $('priceTodo').innerHTML = todo.length
+      ? '<span class="bdg bad">ขาด '+todo.length+' อย่าง</span> ต้นทุนจะต่ำกว่าความจริงจนกว่าจะใส่ครบ:<br>'+todo.map(t=>'• '+esc(t)).join('<br>')
+      : '<span class="bdg ok">ครบแล้ว</span> ใส่ราคาทุกอย่างเรียบร้อย ต้นทุนคิดได้เต็มจำนวน';
+  }
+  /* ของที่ยังไม่ได้ใส่ราคา (ต้นทุนจะต่ำกว่าจริง) */
+  function priceTodo(){
     const todo=[];
     fiberNames().forEach(n=>{ const e=(PRICE.fiber||{})[n]||{}; if(!(+e.std>0)) todo.push('ใย '+n); });
     fabricNames().forEach(n=>{ const e=(PRICE.fabric||{})[n]||{}; if(!(+e.std>0)) todo.push('ผ้า '+n); });
     ['zip','pack'].forEach(k=>bagNames(k).forEach(n=>{ const e=((PRICE[k]||{})[n])||{}; if(!(+e.std>0)) todo.push((k==='zip'?'ถุงซิล ':'ถุงแพ็ค ')+n); }));
     (S.reuseItems||[]).forEach(it=>{ const e=((PRICE.reuse||{})[it.name])||{}; if(!(+e.std>0) || !(+e.cycles>0)) todo.push('ถุงวนใช้ '+it.name); });
     if(!(+PRICE.gas>0) && S.gasReceipts.length) todo.push('แก๊ส');
-    $('priceTodo').innerHTML = todo.length
-      ? '<span class="bdg bad">ขาด '+todo.length+' อย่าง</span> ต้นทุนจะต่ำกว่าความจริงจนกว่าจะใส่ครบ:<br>'+todo.map(t=>'• '+esc(t)).join('<br>')
-      : '<span class="bdg ok">ครบแล้ว</span> ใส่ราคาทุกอย่างเรียบร้อย ต้นทุนคิดได้เต็มจำนวน';
+    return todo;
   }
   function collectPrice(){
     document.querySelectorAll('#p-price [data-pr]').forEach(inp=>{
@@ -2446,10 +2468,63 @@ window.WPDAUTH = {
         '<br>ค่าแรง = ค่าแรงรายวันจากแอพสแกนหน้า'+(fx.length?' + '+fx.map(x=>esc(x.name)+' '+fmtBaht(+x.baht||0)+'/เดือน').join(' + ')+' (กระจายตามชั่วโมงเดินเครื่อง)':'')+
         '<br>ใยคิดตามราคาก้อนที่ใช้จริง · ปลอก/ถุงคิดตามที่ใช้จริง · ดอกเบี้ยกระจายตามชั่วโมงเดินเครื่อง · ใยแผ่นที่ยกไปแพ็คปิกนิกไม่นับซ้ำ (นับไปแล้ววันที่ผลิตแผ่น)'; }
   }
+  /* ═══ จุดที่ควรดู (กฎตายตัว ไม่ใช้ AI) ═══ */
+  function rAlerts(jobs, costs){
+    const box=$('alertList'); if(!box) return;
+    const A=[], add=(lv,t,d)=>A.push({lv,t,d});
+    const today=localISO().slice(0,10), dAgo=n=>{ const x=new Date(today+'T00:00:00'); x.setDate(x.getDate()-n); return localISO(x).slice(0,10); };
+    const d30=dAgo(30), d14=dAgo(14), d7=dAgo(7);
+    /* 1) ราคาที่ยังไม่ใส่ */
+    const todo=priceTodo();
+    if(todo.length) add(2,'ยังไม่ได้ใส่ราคา '+todo.length+' อย่าง — ต้นทุนต่ำกว่าความจริง', todo.slice(0,8).join(' · ')+(todo.length>8?' …':'')+' → 💰 ราคาของ');
+    /* 2) ค่าที่ยังเป็น 0 */
+    const zero=[]; if(!(+KSET.elecPerHour>0)) zero.push('ค่าไฟ (บาท/ชม.)'); if(!(+KSET.shipPerPack>0)) zero.push('ค่าขนส่ง (บาท/แพ็ค)');
+    if(zero.length) add(1,'ยังไม่ได้ตั้ง '+zero.join(' · '), 'ช่องนี้ในต้นทุนรายวันเป็น 0 → ⚙️ ตั้งค่า');
+    { const miss=new Set(); (PROD.caseUse||[]).filter(u=>String(u.time).slice(0,10)>=d30).forEach(u=>{ const z=COST.caseSewSize(S,u); if(z && !COST.sewRate(KSET,z)) miss.add(z); });
+      if(miss.size) add(1,'ยังไม่ได้ตั้งค่าเย็บไซซ์ '+[...miss].join(', '), 'ปลอกไซซ์นี้ใช้ผลิตใน 30 วัน แต่ค่าเย็บเป็น 0 → ⚙️ ตั้งค่า → ค่าจ้างเย็บ'); }
+    /* 3) งานต้นทุนต่อชิ้นผิดปกติ (30 วัน) เทียบงานประเภทเดียวกัน */
+    { const rec=jobs.map((o,i)=>({o,c:costs[i]})).filter(x=>x.c.pieces>0 && x.c.span && String(x.c.span.to).slice(0,10)>=d30);
+      const by={}; rec.forEach(x=>{ const k=x.o.category||x.o.productType||'อื่นๆ'; (by[k]=by[k]||[]).push(x); });
+      Object.keys(by).forEach(k=>{ const L=by[k]; if(L.length<3) return;
+        const v=L.map(x=>x.c.perPiece).sort((p,q)=>p-q), med=v[Math.floor(v.length/2)];
+        L.filter(x=>med>0 && (x.c.perPiece>med*1.6 || x.c.perPiece<med*0.5)).forEach(x=>{
+          add(x.c.perPiece>med?2:1, (x.c.perPiece>med?'ต้นทุนต่อชิ้นสูงผิดปกติ: ':'ต้นทุนต่อชิ้นต่ำผิดปกติ: ')+x.o.customer+' — '+x.o.code,
+            fmtBaht(x.c.perPiece)+' บาท/ชิ้น · งาน'+k+'ส่วนใหญ่ราว '+fmtBaht(med)+(x.c.missing.length?' · ยังขาด: '+x.c.missing.slice(0,3).join(', '):'')+' → 🧾 ต้นทุนจริง'); }); }); }
+    /* 4) ใยเข้า-ออกไม่สมดุล (7 วัน): ใยที่หักจากก้อน − ใยในสินค้า − เศษ */
+    { const days={};
+      (PROD.use||[]).forEach(u=>{ const d=String(u.time).slice(0,10); if(d<d7||d>=today) return; (days[d]=days[d]||{inn:0,out:0,sc:0}).inn+=+u.kg||0; });
+      (PROD.line||[]).forEach(l=>{ const d=String(l.time).slice(0,10); if(!days[d] || (l.productType||'')==='ปิกนิก') return; const w=(l.actualWeight!=null?+l.actualWeight:+l.stdPerPack)||0; days[d].out+=Math.max(0, w-(+l.bagKgPerPack||0)-(+l.fabricKgPerPack||0)-(+l.carryKg||0)); });
+      (PROD.carry||[]).forEach(c=>{ const d=String(c.time).slice(0,10); if(!days[d]) return; days[d].out+=(+c.pieces||0)*(+c.kgEach||0); });
+      (PROD.scrap||[]).forEach(x=>{ const d=String(x.time).slice(0,10); if(!days[d]) return; days[d].sc+=+x.kg||0; });
+      Object.keys(days).sort().forEach(d=>{ const x=days[d], diff=r2(x.inn-x.out-x.sc);
+        if(Math.abs(diff)>20 && Math.abs(diff)>x.inn*0.05) add(Math.abs(diff)>x.inn*0.1?2:1, 'ใยเข้า-ออกไม่ตรง วันที่ '+thDate(d)+': '+(diff>0?'ใยหายไป ':'ใยออกเกิน ')+fmtInt(Math.abs(diff))+' กก.',
+          'หักจากก้อน '+fmtInt(x.inn)+' · อยู่ในสินค้า '+fmtInt(x.out)+' · เศษ '+fmtInt(x.sc)+' กก. — '+(diff<0?'อาจกดป้อนใยไม่ครบ หรือป้อนตอนยังไม่มีสูตร':'อาจยังชั่งเศษไม่ครบ หรือใยค้างในเครื่อง')); }); }
+    /* 5) กดป้อนใยตอนออเดอร์ยังไม่มีสูตร (14 วัน) */
+    { const by={}; (PROD.feed||[]).filter(x=>String(x.time).slice(0,10)>=d14 && !(+x.recipeKg>0)).forEach(x=>{ by[x.orderId]=(by[x.orderId]||0)+1; });
+      Object.keys(by).forEach(id=>{ const o=PROD.orders.find(x=>x.id===id); add(2,'ป้อนใย '+by[id]+' รอบตอนยังไม่มีสูตร: '+(o?o.customer+' — '+o.code:id), 'รอบเหล่านี้นับใยเป็น 0 กก. และไม่หักจากก้อน — ต้องแก้ข้อมูล'); }); }
+    /* 6) ก้อนใยเบิกเกินน้ำหนักรับเข้า (เลือกเบอร์ก้อนผิด) */
+    { const wd={}; (PROD.wd||[]).forEach(w=>{ if(w.receiptId) wd[w.receiptId]=(wd[w.receiptId]||0)+(+w.kg||0); });
+      const neg=(S.fiberReceipts||[]).filter(r=>wd[r.id] && wd[r.id]>(+r.kg||0)+1).map(r=>r.fiberName+' #'+r.lotNo+' (เกิน '+fmtInt(wd[r.id]-(+r.kg||0))+' กก.)');
+      if(neg.length) add(1,'ก้อนใยถูกเบิกซ้ำ/เกิน '+neg.length+' ก้อน', neg.slice(0,6).join(' · ')+' — ยอดรายก้อนในแอพสต๊อกติดลบ (ยอดรวมต่อชื่อใยยังถูก)'); }
+    /* 7) วันที่ผลิตแต่ไม่มีข้อมูลสแกนหน้า (14 วัน) */
+    if(LABOR){ const ds=[...new Set((PROD.line||[]).map(l=>String(l.time).slice(0,10)).filter(d=>d>=d14 && d<today && !LABOR[d]))].sort();
+      if(ds.length) add(1,'วันที่ผลิตแต่ไม่มีข้อมูลสแกนหน้า: '+ds.map(thDate).join(', '), 'ค่าแรงวันนั้นใช้ค่าที่ตั้งไว้แทน');
+      const nw=Object.keys(LABOR).filter(d=>d>=d7 && LABOR[d].noWage>0); if(nw.length) add(1,'แอพสแกนหน้า: มีพนักงานยังไม่ใส่ค่าแรง ('+nw.map(thDate).join(', ')+')', 'ค่าแรงวันนั้นต่ำกว่าจริง → แอพสแกนหน้า หน้าค่าแรง'); }
+    /* 8) แก๊สชุดที่ใช้อยู่ */
+    { const G=gasRateNow(), sw=(PROD.gasSwaps||[]).filter(g=>g.time).slice().sort((p,q)=>String(p.time).localeCompare(String(q.time))), last=sw[sw.length-1];
+      if(G.rate && G.perSetMin && last){ let m=0; COST.gasMinutesByPack(PROD).forEach((mm,l)=>{ if(String(l.time)>String(last.time)) m+=mm; });
+        if(m>=G.perSetMin*0.9) add(0,'แก๊สชุดที่ใช้อยู่เดินไลน์ใยแผ่นไปแล้ว '+fmtInt(m)+' นาที','เฉลี่ยชุดละ '+G.perSetMin+' นาที — ใกล้ต้องเปลี่ยนถัง'); } }
+    A.sort((p,q)=>q.lv-p.lv);
+    const ic=['ℹ️','🟡','🔴'];
+    box.innerHTML = A.length
+      ? A.map(x=>'<div style="padding:7px 0;border-bottom:1px solid var(--border,#e2e7ee)"><div style="font-weight:600">'+ic[x.lv]+' '+esc(x.t)+'</div><div class="sumline" style="margin:2px 0 0">'+esc(x.d)+'</div></div>').join('')
+      : '<span class="bdg ok">ไม่มีจุดผิดปกติ</span> ข้อมูลครบ ตัวเลขดูปกติ';
+  }
   function rSum(){
     $('perMode').onchange=rPeriod; rPeriod();
     const jobs=jobsWithWork();
     const costs=jobs.map(o=>COST.jobCost(ctx(),o.id));
+    rAlerts(jobs, costs);
     const totalBaht=r2(costs.reduce((s,c)=>s+c.total,0));
     const totalPieces=costs.reduce((s,c)=>s+c.pieces,0);
     const totalHours=r2(costs.reduce((s,c)=>s+c.hours,0));

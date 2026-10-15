@@ -635,6 +635,13 @@
 
     <!-- ══════════ 5. สรุป ══════════ -->
     <div class="panel" id="p-sum">
+      <div class="card" id="aiCard"><h3>🤖 ถาม AI เรื่องต้นทุน</h3>
+        <div class="sumline">AI อ่านยอดสรุปในแอพนี้ (ต้นทุนรายวัน 31 วัน · ต้นทุนรายงาน · ราคาที่ยังไม่ใส่ · ค่าที่ตั้งไว้) แล้วตอบ — ไม่ส่งค่าแรงรายคน · ถามครั้งละประมาณ 3–5 บาท</div>
+        <div id="aiChips" style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;"></div>
+        <textarea id="aiQ" rows="2" placeholder="เช่น ทำไมต้นทุนต่อชิ้นวันที่ 12 สูงกว่าวันที่ 13" style="width:100%;box-sizing:border-box;"></textarea>
+        <div class="rf" style="margin-top:6px;"><div><button class="btn w" id="btnAi">ถาม AI</button></div><div style="max-width:120px;"><button class="btn sec w" id="btnAiNew">เริ่มใหม่</button></div></div>
+        <div id="aiOut" style="margin-top:10px;"></div>
+      </div>
       <div class="card"><h3>สรุปต้นทุนตามช่วงเวลา</h3>
         <div class="rf" style="align-items:center;"><div><select id="perMode">
           <option value="day">รายวัน</option><option value="month">รายเดือน</option><option value="year">รายปี</option></select></div><div></div></div>
@@ -892,6 +899,13 @@ window.WPDAUTH = {
     }
     return { key: key, value: value, shared: true };
   }
+  window.wpdFn = async function(name, body){
+    await wpdRequireSession();
+    const go = () => fetch(SUPABASE_URL.replace(/\/$/,'') + '/functions/v1/' + name, { method: 'POST', headers: headers(), body: JSON.stringify(body || {}) });
+    let r = await go();
+    if (r.status === 401) { if (await wpdRefresh()) r = await go(); }
+    return r;
+  };
   window.wpdRpc = async function(fn, args){
     await wpdRequireSession();
     const go = () => fetch(SUPABASE_URL.replace(/\/$/,'') + '/rest/v1/rpc/' + fn, { method: 'POST', headers: headers(), body: JSON.stringify(args || {}) });
@@ -2104,15 +2118,20 @@ window.WPDAUTH = {
     $('prGas').value = PRICE.gas>0?PRICE.gas:'';
 
     /* --- สรุปที่ยังไม่ใส่ราคา --- */
+    const todo=priceTodo();
+    $('priceTodo').innerHTML = todo.length
+      ? '<span class="bdg bad">ขาด '+todo.length+' อย่าง</span> ต้นทุนจะต่ำกว่าความจริงจนกว่าจะใส่ครบ:<br>'+todo.map(t=>'• '+esc(t)).join('<br>')
+      : '<span class="bdg ok">ครบแล้ว</span> ใส่ราคาทุกอย่างเรียบร้อย ต้นทุนคิดได้เต็มจำนวน';
+  }
+  /* ของที่ยังไม่ได้ใส่ราคา (ต้นทุนจะต่ำกว่าจริง) */
+  function priceTodo(){
     const todo=[];
     fiberNames().forEach(n=>{ const e=(PRICE.fiber||{})[n]||{}; if(!(+e.std>0)) todo.push('ใย '+n); });
     fabricNames().forEach(n=>{ const e=(PRICE.fabric||{})[n]||{}; if(!(+e.std>0)) todo.push('ผ้า '+n); });
     ['zip','pack'].forEach(k=>bagNames(k).forEach(n=>{ const e=((PRICE[k]||{})[n])||{}; if(!(+e.std>0)) todo.push((k==='zip'?'ถุงซิล ':'ถุงแพ็ค ')+n); }));
     (S.reuseItems||[]).forEach(it=>{ const e=((PRICE.reuse||{})[it.name])||{}; if(!(+e.std>0) || !(+e.cycles>0)) todo.push('ถุงวนใช้ '+it.name); });
     if(!(+PRICE.gas>0) && S.gasReceipts.length) todo.push('แก๊ส');
-    $('priceTodo').innerHTML = todo.length
-      ? '<span class="bdg bad">ขาด '+todo.length+' อย่าง</span> ต้นทุนจะต่ำกว่าความจริงจนกว่าจะใส่ครบ:<br>'+todo.map(t=>'• '+esc(t)).join('<br>')
-      : '<span class="bdg ok">ครบแล้ว</span> ใส่ราคาทุกอย่างเรียบร้อย ต้นทุนคิดได้เต็มจำนวน';
+    return todo;
   }
   function collectPrice(){
     document.querySelectorAll('#p-price [data-pr]').forEach(inp=>{
@@ -2415,8 +2434,7 @@ window.WPDAUTH = {
      5. สรุป
      ═══════════════════════════════════════════════════════════════ */
   const TH_MON=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-  function rPeriod(){
-    const mode=$('perMode').value||'day';
+  function periodRows(mode){
     const dates=new Set();
     [PROD.line,PROD.use,PROD.caseUse,PROD.bagUse,PROD.gasSwaps].forEach(a=>(a||[]).forEach(x=>{ const d=String(x.time||'').slice(0,10); if(d) dates.add(d); }));
     if(LABOR) Object.keys(LABOR).forEach(d=>dates.add(d));
@@ -2432,6 +2450,11 @@ window.WPDAUTH = {
       const bk=buckets[k]||(buckets[k]={}); (bk[f]||(bk[f]=[])).push(x); }));
     const allUseOrders=new Set((PROD.use||[]).map(u=>u.orderId)), caseTracked=new Set((PROD.caseUse||[]).map(u=>u.orderId));
     const rows=keys.map(k=>({k, ...COST.periodCost(Object.assign({}, c, { LABOR:LABOR?Object.fromEntries(Object.entries(LABOR).filter(([d])=>keyOf(d)===k)):null, allUseOrders, caseTracked, PROD:Object.assign({}, PROD, buckets[k]||{}, Object.fromEntries(['line','carry','use','wd','caseUse','fabricWd','bagUse','sheetUse','gasSwaps'].map(f=>[f,(buckets[k]||{})[f]||[]]))) }), '0000-00-00', '9999-99-99')})).filter(r=>r.packs||r.total);
+    return { rows, label };
+  }
+  function rPeriod(){
+    const mode=$('perMode').value||'day';
+    const { rows, label }=periodRows(mode);
     const tot=rows.reduce((a,r)=>{ ['packs','pieces','hours','fiberKg','fiber','fabric','bag','bagPack','bagZip','labor','laborDay','gas','elec','ship','interest','fixedOther','fixed','total'].forEach(f=>a[f]=r2((a[f]||0)+r[f])); return a; },{});
     const td=(v,b)=>'<td'+(b?' class="kn"':'')+'>'+v+'</td>';
     const line=(lbl,r,b)=>'<tr>'+td(lbl,b)+td(fmtInt(r.packs),b)+td(fmtInt(r.pieces),b)+td(r.hours,b)+td(r.fiberKg+' กก. · '+fmtBaht(r.fiber),b)+
@@ -2446,7 +2469,83 @@ window.WPDAUTH = {
         '<br>ค่าแรง = ค่าแรงรายวันจากแอพสแกนหน้า'+(fx.length?' + '+fx.map(x=>esc(x.name)+' '+fmtBaht(+x.baht||0)+'/เดือน').join(' + ')+' (กระจายตามชั่วโมงเดินเครื่อง)':'')+
         '<br>ใยคิดตามราคาก้อนที่ใช้จริง · ปลอก/ถุงคิดตามที่ใช้จริง · ดอกเบี้ยกระจายตามชั่วโมงเดินเครื่อง · ใยแผ่นที่ยกไปแพ็คปิกนิกไม่นับซ้ำ (นับไปแล้ววันที่ผลิตแผ่น)'; }
   }
+  /* ═══ AI วิเคราะห์ต้นทุน ═══ */
+  function aiContext(){
+    const c=ctx(), G=gasRateNow(), r=x=>r2(+x||0);
+    const daily=periodRows('day').rows.slice(0,31).map(x=>({ วันที่:x.k, แพ็ค:x.packs, ชิ้น:x.pieces, ชมเดินเครื่อง:x.hours, ใยกก:x.fiberKg, ใย:r(x.fiber), ผ้าเย็บ:r(x.fabric),
+      ถุงแพ็ค:r(x.bagPack), ถุงซิล:r(x.bagZip), ค่าแรง:r(x.labor), ดอกเบี้ย:r(x.interest), ขนส่ง:r(x.ship), แก๊ส:r(x.gas), ค่าไฟ:r(x.elec), รวม:r(x.total), บาทต่อชิ้น:x.pieces?r2(x.total/x.pieces):0 }));
+    const jobs=jobsWithWork().map(o=>({ o, c:COST.jobCost(c, o.id) })).sort((a,b)=>String(b.c.span&&b.c.span.to||'').localeCompare(String(a.c.span&&a.c.span.to||''))).slice(0,40)
+      .map(({o,c:j})=>({ งาน:o.customer+' — '+o.code, ประเภท:o.category||o.productType||'', ผลิต:(j.span&&j.span.from?String(j.span.from).slice(0,10):'')+(j.span&&j.span.to?' ถึง '+String(j.span.to).slice(0,10):''),
+        แพ็ค:j.packs, ชิ้น:j.pieces, ชม:j.hours, ใยกก:r(j.fiber.kg), ใย:r(j.fiber.baht), ใยแผ่นปิกนิก:r(j.sheet.baht), ผ้า:r(j.fabric.baht), เย็บ:r(j.sew.baht), ถุง:r(j.bag.baht), ค่าแรง:r(j.labor.baht),
+        แก๊ส:r(j.gas.baht), ไฟ:r(j.elec.baht), ขนส่ง:r(j.ship.baht), ค่าคงที่:r(j.fixed.baht), รวม:j.total, บาทต่อชิ้น:j.perPiece, ยังขาด:j.missing }));
+    const sew=KSET.sewBySize||{};
+    return JSON.stringify({
+      วันที่ข้อมูล: localISO().slice(0,16),
+      หมายเหตุ: 'ต้นทุนรายวัน = ใย + ผ้า+เย็บ (หมอน/ปิกนิก) + ถุงแพ็ค + ถุงซิล (หมอน) + ค่าแรง (ค่าแรงรายวันจากแอพสแกนหน้า + เงินเดือนประจำกระจายตามชั่วโมง) + ดอกเบี้ย (กระจายตามชั่วโมงเดินเครื่อง) + ขนส่ง + แก๊ส (เฉพาะไลน์ใยแผ่น ตามนาที) + ค่าไฟ · ต้นทุนรายงานรวมค่าใช้จ่ายคงที่ทั้งหมดในช่อง ค่าคงที่ · ใยแผ่นปิกนิก = ใยแผ่นที่ผลิตแล้วเอามาแพ็คปิกนิก (ต้นทุนจริงของงานต้นทาง)',
+      ค่าที่ตั้งไว้: { ค่าแรง: LABOR?'จากแอพสแกนหน้า (ยอดรวมรายวัน)':('ตั้งเอง '+(+KSET.laborDaily||0)+' บาท/วัน'), ค่าใช้จ่ายคงที่ต่อเดือน: (KSET.fixed||[]).map(x=>x.name+' '+(+x.baht||0)),
+        ชั่วโมงเดินเครื่องต่อเดือน: hoursPerMonthNow(), แก๊ส: G.rate?('2 ถังเดินไลน์ใยแผ่นเฉลี่ย '+G.perSetMin+' นาที = '+r2(G.rate)+' บาท/นาที (ถังละ '+G.price+')'):'นับตามถังที่เปลี่ยน',
+        ค่าไฟต่อชม: +KSET.elecPerHour||0, ขนส่งต่อแพ็ค: +KSET.shipPerPack||0, ค่าเย็บมาตรฐาน: +KSET.sewPerPiece||0, ค่าเย็บตามไซซ์: sew },
+      ต้นทุนรายวัน_31วันล่าสุด: daily,
+      ต้นทุนรายงาน_40งานล่าสุด: jobs,
+      ราคาที่ยังไม่ได้ใส่: priceTodo()
+    });
+  }
+  let aiHist=[], aiBusy=false;
+  /* แสดง markdown แบบง่าย: หัวข้อ ตัวหนา รายการ ตาราง */
+  function aiMd(t){
+    const inl=x=>esc(x).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>');
+    const out=[]; let tbl=null, list=false;
+    const flushT=()=>{ if(!tbl) return; out.push('<div class="scr"><table>'+tbl.map((r,i)=>'<tr>'+r.map(cl=>(i===0?'<th>':'<td>')+inl(cl)+(i===0?'</th>':'</td>')).join('')+'</tr>').join('')+'</table></div>'); tbl=null; };
+    const flushL=()=>{ if(list){ out.push('</ul>'); list=false; } };
+    String(t||'').split('\n').forEach(ln=>{
+      const l=ln.trimEnd();
+      if(/^\s*\|.*\|\s*$/.test(l)){ flushL(); if(/^\s*\|[\s:|-]+\|\s*$/.test(l)) return; (tbl=tbl||[]).push(l.trim().replace(/^\||\|$/g,'').split('|').map(x=>x.trim())); return; }
+      flushT();
+      const h=/^(#{1,4})\s+(.*)$/.exec(l), b=/^\s*[-*•]\s+(.*)$/.exec(l), n=/^\s*(\d+)[.)]\s+(.*)$/.exec(l);
+      if(h){ flushL(); out.push('<div style="font-weight:700;margin:10px 0 4px">'+inl(h[2])+'</div>'); }
+      else if(b||n){ if(!list){ out.push('<ul style="margin:4px 0 4px 18px;padding:0">'); list=true; } out.push('<li>'+(n?'<b>'+n[1]+'.</b> ':'')+inl((b||n)[b?1:2])+'</li>'); }
+      else if(!l.trim()){ flushL(); out.push('<div style="height:6px"></div>'); }
+      else { flushL(); out.push('<div>'+inl(l)+'</div>'); }
+    });
+    flushT(); flushL();
+    return out.join('');
+  }
+  function rAiOut(cur){
+    const box=$('aiOut'); if(!box) return;
+    box.innerHTML=aiHist.map(h=>'<div class="sumline" style="margin-top:10px;font-weight:600">🙋 '+esc(h.q)+'</div><div style="font-size:14px;line-height:1.6">'+aiMd(h.a)+'</div>').join('')+
+      (cur?'<div class="sumline" style="margin-top:10px;font-weight:600">🙋 '+esc(cur.q)+'</div><div style="font-size:14px;line-height:1.6">'+(cur.a?aiMd(cur.a):'<span style="color:var(--muted)">กำลังวิเคราะห์…</span>')+'</div>':'');
+  }
+  async function askAi(q){
+    q=String(q||'').trim(); if(!q || aiBusy) return;
+    if(!window.wpdFn){ toast('ยังเชื่อมฐานข้อมูลไม่ได้'); return; }
+    aiBusy=true; $('btnAi').disabled=true; $('aiQ').value='';
+    const cur={ q, a:'' }; rAiOut(cur);
+    try{
+      const r=await window.wpdFn('cost-ai', { question:q, context:aiContext(), history:aiHist.slice(-4) });
+      if(!r.ok || !r.body){ let m='HTTP '+r.status; try{ const j=await r.json(); m=j.error||m; }catch(e){} cur.a='⚠ '+m; }
+      else {
+        const rd=r.body.getReader(), dec=new TextDecoder(); let buf='';
+        for(;;){ const { value, done }=await rd.read(); if(done) break; buf+=dec.decode(value,{ stream:true });
+          let i; while((i=buf.indexOf('\n'))>=0){ const ln=buf.slice(0,i); buf=buf.slice(i+1); if(!ln.trim()) continue;
+            let o; try{ o=JSON.parse(ln); }catch(e){ continue; }
+            if(o.t) cur.a+=o.t; if(o.error) cur.a+='\n\n⚠ '+o.error; }
+          rAiOut(cur); }
+      }
+    }catch(e){ cur.a+='\n\n⚠ ถาม AI ไม่สำเร็จ: '+String(e&&e.message||e); }
+    aiHist.push(cur); aiBusy=false; $('btnAi').disabled=false; rAiOut();
+  }
+  function rAi(){
+    const chips=['สรุปต้นทุนเมื่อวาน','งานไหนต้นทุนต่อชิ้นผิดปกติ','ยังขาดราคาอะไรบ้าง กระทบต้นทุนแค่ไหน','เทียบต้นทุน 7 วันล่าสุด'];
+    if($('aiChips') && !$('aiChips').dataset.init){ $('aiChips').dataset.init='1';
+      $('aiChips').innerHTML=chips.map(x=>'<button class="btn sec sm" data-aiq="'+esc(x)+'">'+esc(x)+'</button>').join('');
+      $('aiChips').querySelectorAll('[data-aiq]').forEach(b=>b.onclick=()=>askAi(b.getAttribute('data-aiq')));
+      $('btnAi').onclick=()=>askAi($('aiQ').value);
+      $('btnAiNew').onclick=()=>{ if(aiBusy) return; aiHist=[]; rAiOut(); };
+      $('aiQ').addEventListener('keydown',e=>{ if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); askAi($('aiQ').value); } });
+    }
+  }
   function rSum(){
+    rAi();
     $('perMode').onchange=rPeriod; rPeriod();
     const jobs=jobsWithWork();
     const costs=jobs.map(o=>COST.jobCost(ctx(),o.id));

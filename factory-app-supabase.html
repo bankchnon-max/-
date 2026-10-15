@@ -5489,5 +5489,57 @@ window.WPDAUTH = {
 })();
 </script>
 
+<!-- wpd-numc -->
+<style>
+  .numc{ display:inline-flex; align-items:center; justify-content:center; min-width:1.6em; height:1.6em; padding:0 .32em; box-sizing:border-box;
+    border:1.5px solid currentColor; border-radius:999px; font-size:.86em; line-height:1; font-weight:600; vertical-align:.06em; margin:0 .1em; font-variant-numeric:tabular-nums; }
+</style>
+<script>
+/* เลขหมายทุกตัว (ถุง ม้วน กระสอบ ก้อน) แสดงเป็นเลขในวงกลม — ทำตอนแสดงผล ข้อมูลที่บันทึกยังเป็นตัวเลขเดิม
+   ในช่องเลือก (dropdown) ใส่ HTML ไม่ได้ ใช้ตัวอักษรวงกลม ①–㊿ แทน (เกิน 50 คงเป็น #เลข) */
+(function(){
+  var RX=/(#|ม้วนที่ ?|เบอร์ ?|ก้อนที่ ?)(\d{1,4})(?:-(\d{1,4}))?/g;
+  var SKIP={SCRIPT:1,STYLE:1,TEXTAREA:1,INPUT:1,SELECT:1,OPTION:1,OPTGROUP:1,NOSCRIPT:1};
+  function uc(n){ n=+n; if(n>=1&&n<=20) return String.fromCharCode(0x245F+n); if(n>=21&&n<=35) return String.fromCharCode(0x3250+n-20); if(n>=36&&n<=50) return String.fromCharCode(0x32B0+n-35); return null; }
+  function optText(t){ return t.replace(RX,function(m,p,a,b){ var x=uc(a), y=b!=null?uc(b):''; if(!x||y===null) return m; return (p==='#'?'':p)+x+(b!=null?'-'+y:''); }); }
+  function span(n){ var s=document.createElement('span'); s.className='numc'; s.textContent=n; return s; }
+  function doText(tn){
+    var t=tn.nodeValue; if(!t || t.indexOf('#')<0 && !/ม้วนที่|เบอร์|ก้อนที่/.test(t)) return;
+    RX.lastIndex=0; if(!RX.test(t)) return; RX.lastIndex=0;
+    var frag=document.createDocumentFragment(), last=0, m;
+    while((m=RX.exec(t))){
+      if(m.index>last) frag.appendChild(document.createTextNode(t.slice(last,m.index)));
+      if(m[1]!=='#') frag.appendChild(document.createTextNode(m[1]));
+      frag.appendChild(span(m[2]));
+      if(m[3]!=null){ frag.appendChild(document.createTextNode('-')); frag.appendChild(span(m[3])); }
+      last=m.index+m[0].length;
+    }
+    if(last<t.length) frag.appendChild(document.createTextNode(t.slice(last)));
+    tn.parentNode.replaceChild(frag,tn);
+  }
+  function walk(root){
+    if(!root) return;
+    if(root.nodeType===3){ var p=root.parentNode; if(p && !SKIP[p.nodeName] && !(p.closest&&p.closest('.numc,[contenteditable],[data-nonum]'))) doText(root); return; }
+    if(root.nodeType!==1) return;
+    if(root.nodeName==='SELECT' || root.nodeName==='OPTION' || root.nodeName==='OPTGROUP'){ (root.nodeName==='OPTION'?[root]:root.querySelectorAll('option')).forEach(function(o){ var v=o.textContent, w=optText(v); if(v!==w) o.textContent=w; }); return; }
+    if(SKIP[root.nodeName] || root.classList.contains('numc') || root.isContentEditable || root.hasAttribute('data-nonum')) return;
+    root.querySelectorAll('option').forEach(function(o){ var v=o.textContent, w=optText(v); if(v!==w) o.textContent=w; });
+    var tw=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{ acceptNode:function(n){ var p=n.parentNode; if(!p||SKIP[p.nodeName]) return 2; if(p.closest&&p.closest('.numc,[contenteditable],[data-nonum]')) return 2; return 1; } });
+    var list=[], n; while((n=tw.nextNode())) list.push(n);
+    list.forEach(doText);
+  }
+  function start(){
+    walk(document.body);
+    new MutationObserver(function(ms){
+      ms.forEach(function(m){
+        if(m.type==='characterData') walk(m.target);
+        else m.addedNodes.forEach(walk);
+      });
+    }).observe(document.body,{childList:true,subtree:true,characterData:true});
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start); else start();
+})();
+</script>
+<!-- /wpd-numc -->
 </body>
 </html>

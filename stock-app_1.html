@@ -593,7 +593,7 @@
       <div class="card" data-step="cut">
         <h3>② ตัดผ้าใส่ถุง</h3>
         <label class="bftoggle"><input type="checkbox" id="cutFreeMode"><span><b>📋 ลงยอดยกมา</b> — ผ้าที่ตัดใส่ถุงไว้แล้ว แต่ไม่มีม้วนในระบบ<small>ใช้ตอนเริ่มใช้แอพครั้งแรกเท่านั้น · ติ๊กออก = กลับไปเลือกถุงตามปกติ</small></span></label>
-        <p class="sumline" style="margin-top:-4px;">ไซซ์เดียวกันหลายถุง ใส่ "กี่ถุง" ได้เลย ระบบออกเลขให้ทีละถุง — <b>เขียนเลขถุงบนถุงจริง</b> ถุงนี้จะเดินทางไปช่างเย็บและกลับมาด้วยเลขเดิม</p>
+        <p class="sumline" style="margin-top:-4px;"><b>ใส่เลขที่เขียนบนถุงเอง</b> ใต้แต่ละแถว — ถุงเดียวใส่ 12 · หลายถุงใส่ 12-14 หรือ 12,15 (จำนวนถุงนับให้ตามเลขที่ใส่) · ถุงนี้จะเดินทางไปช่างเย็บและกลับมาด้วยเลขเดิม</p>
         <div class="rf" id="cutBatchModeRow">
           <div><label>ชนิดผ้า</label><select id="cutFabSel"></select></div>
           <div><label>ม้วนที่ตัด</label><select id="cutRollSel"></select></div>
@@ -603,7 +603,7 @@
             <input id="cutFreeFabName" list="dlCutFreeFab" placeholder="พิมพ์ชนิดผ้า" style="display:none;"><datalist id="dlCutFreeFab"></datalist></div>
           <div><label>ม้วนที่ (ถ้ารู้ — ไม่บังคับ)</label><input id="cutFreeRollNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ก็ได้"></div>
         </div>
-        <label>ตัดได้ไซซ์ไหน — ถุงละกี่ชิ้น — กี่ถุง (นิ้ว กว้าง x ยาว)</label>
+        <label>ตัดได้ไซซ์ไหน — ถุงละกี่ชิ้น — กี่ถุง (นิ้ว กว้าง x ยาว) · ใต้แต่ละแถวใส่เลขที่เขียนบนถุง</label>
         <div id="cutRows"></div>
         <button class="btn sec sm" style="margin-top:8px;" id="btnAddCutRow">+ เพิ่มไซซ์</button>
         <div id="cutFreeBatchRow" style="display:none;"><label>เลขถุงเริ่มต้น (ถ้ามีเขียนไว้อยู่แล้ว)</label><input id="cutFreeBatchNo" type="number" inputmode="numeric" placeholder="ไม่ใส่ = เรียงเลขให้อัตโนมัติ"></div>
@@ -1460,7 +1460,8 @@ window.WPDAUTH = {
     totalBalesRemaining(fiberReceipts, baleUsage, fiberName){
       return CALC.baleStatus(fiberReceipts,baleUsage).filter(b=>b.fiberName===fiberName).reduce((s,b)=>s+b.remaining,0);
     },
-    nextRollNo(receipts, fabricType){ return (receipts||[]).filter(r=>r.fabricType===fabricType).reduce((m,r)=>Math.max(m,r.rollNo||0),0) + 1; },
+    /* เลขม้วนนับ 1 ใหม่ทุกล็อต (ชนิดผ้าเดียวกันแต่รับคนละวัน = คนละล็อต) */
+    nextRollNo(receipts, fabricType, day){ return (receipts||[]).filter(r=>r.fabricType===fabricType && (!day || String(r.time||'').slice(0,10)===day)).reduce((m,r)=>Math.max(m,r.rollNo||0),0) + 1; },
     /* ม้วนที่เลือกตัดได้: ยังไม่เคยตัด หรือ ตัดไปบางส่วนแต่ยังเหลือความยาว (ต้องรู้หน้ากว้าง×ยาว) · กด "ตัดหมดแล้ว" = ไม่ขึ้นอีก */
     availableRolls(receipts, cuts, fabricType, cutBatches){
       const mine=(cuts||[]).filter(c=>c.fabricType===fabricType);
@@ -2339,7 +2340,7 @@ window.WPDAUTH = {
       $('tCutBatchList').innerHTML=bl.length
         ? '<tr><th>ถุง #</th><th>ชนิดผ้า</th><th>ไซซ์ตัด</th><th>ไซซ์สำเร็จ</th><th>ตัดวันที่</th><th>ตัดได้</th><th>รับกลับ</th><th>เบิกไปแล้ว</th><th>พร้อมเบิก</th><th></th></tr>'+
           bl.slice(0,200).map(b=>{ const _bb=S.cutBatches.find(x=>x.id===b.batchId)||{};
-            const _adj=(_bb.adjLog||[]).length?' <span class="bdg warn" title="เคยปรับยอด">ปรับยอด</span>':''; return '<tr><td class="kn"><a class="lnk" data-bagopen="'+b.batchId+'">#'+b.batchNo+'</a>'+_adj+'</td><td><a class="lnk" data-fabopen="'+esc(b.fabricType)+'">'+esc(b.fabricType)+'</a></td>'+
+            const _adj=(_bb.adjLog||[]).length?' <span class="bdg warn" title="เคยปรับยอด">ปรับยอด</span>':''; return '<tr><td class="kn"><a class="lnk" data-bagopen="'+b.batchId+'">#'+b.batchNo+'</a>'+lotTag(b.batchId)+_adj+'</td><td><a class="lnk" data-fabopen="'+esc(b.fabricType)+'">'+esc(b.fabricType)+'</a></td>'+
             '<td>'+(b.cutKnown?esc(b.cutSize):'<span style="color:var(--dim)">— ของเก่า</span>')+'</td>'+
             '<td>'+(!b.cutKnown?esc(b.sizeFinished)
                    :(b.sizeFinished!==b.cutSize?'<b style="color:var(--accent2)">'+esc(b.sizeFinished)+'</b>'
@@ -2352,7 +2353,7 @@ window.WPDAUTH = {
     }
 
     $('tBatchStatus').innerHTML=batchStatus.length?'<tr><th>ถุง #</th><th>ชนิดผ้า</th><th>ไซซ์</th><th>ตัดวันที่</th><th>ตัดได้</th><th>รอส่งเย็บ</th><th>ที่ช่างเย็บ</th><th>รับกลับ</th><th>เบิกแล้ว</th><th>พร้อมผลิต</th><th></th></tr>'+
-      batchStatus.slice().sort((a,b)=>b.time<a.time?-1:1).map(b=>'<tr><td>#'+b.batchNo+'</td><td>'+esc(b.fabricType)+'</td><td>'+sizeCutFin(b.size,b.cutKnown&&b.sizeFinished!==b.size?[b.sizeFinished]:[])+'</td><td class="kn">'+thDate(b.time)+'</td><td>'+b.qtyCut+
+      batchStatus.slice().sort((a,b)=>b.time<a.time?-1:1).map(b=>'<tr><td>#'+b.batchNo+lotTag(b.batchId)+'</td><td>'+esc(b.fabricType)+'</td><td>'+sizeCutFin(b.size,b.cutKnown&&b.sizeFinished!==b.size?[b.sizeFinished]:[])+'</td><td class="kn">'+thDate(b.time)+'</td><td>'+b.qtyCut+
         '</td><td>'+b.cutBalance+'</td><td>'+b.sewingBalance+'</td><td>'+b.returned+'</td><td>'+b.withdrawn+'</td><td><b style="color:'+(b.readyBalance>0?'var(--accent2)':'var(--dim)')+'">'+b.readyBalance+'</b></td>'+
         '<td><button class="ed" data-btadj="'+b.batchId+'">ปรับยอดคงเหลือ</button> <button class="x" data-btrm="'+b.batchId+'">✕</button></td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีการตัดผ้า</td></tr>';
@@ -2389,8 +2390,8 @@ window.WPDAUTH = {
         '<td>'+(r.remainLen!=null?'<b style="color:'+(r.remainLen<=0?'var(--red)':'var(--accent2)')+'">'+r.remainLen+'</b>':'—')+'</td>'+
         '<td>'+ymd(r.dateReceived)+'</td><td>'+
         (r.retired?'<span class="bdg bad">ตัดหมดแล้ว</span>':r.used?(r.remainLen>=1?'<span class="bdg warn">ตัดไปบางส่วน — ยังตัดต่อได้</span>':'<span class="bdg warn">ตัดแล้ว</span>'):'<span class="bdg ok">ยังไม่ตัด</span>')+
-        '</td><td>'+(!r.used&&!r.retired?'<button class="btn sec sm" data-retire="'+r.fabricType+'|'+r.rollNo+'|'+r.rollId+'">ตัดหมดแล้ว</button> <button class="x" data-rollrm="'+r.fabricType+'|'+r.rollNo+'">✕</button>':
-          r.retired?'<button class="ed" data-unretire="'+r.fabricType+'|'+r.rollNo+'">ยกเลิก</button>':
+        '</td><td>'+(!r.used&&!r.retired?'<button class="btn sec sm" data-retire="'+r.fabricType+'|'+r.rollNo+'|'+r.rollId+'">ตัดหมดแล้ว</button> <button class="x" data-rollrm="'+r.fabricType+'|'+r.rollNo+'|'+r.rollId+'">✕</button>':
+          r.retired?'<button class="ed" data-unretire="'+r.fabricType+'|'+r.rollNo+'|'+r.rollId+'">ยกเลิก</button>':
           (r.remainLen>=1?'<button class="btn sec sm" data-retire="'+r.fabricType+'|'+r.rollNo+'|'+r.rollId+'">ตัดหมดแล้ว</button> ':'')+'<span style="color:var(--dim); font-size:11px;">ลบม้วน: ลบที่ "ประวัติการตัด" ก่อน</span>')+'</td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>';
     $('tRollStatus').querySelectorAll('[data-retire]').forEach(b=>b.onclick=async()=>{
@@ -2400,14 +2401,16 @@ window.WPDAUTH = {
       if(r){ r.retired=true; await saveFabric(); rFabric(); toast('บันทึกว่าม้วนที่ '+rn+' ตัดหมดแล้ว'); }
     });
     $('tRollStatus').querySelectorAll('[data-unretire]').forEach(b=>b.onclick=async()=>{
-      const [ft,rn]=b.dataset.unretire.split('|');
-      const r=S.fabricReceipts.find(x=>x.fabricType===ft && String(x.rollNo)===rn);
+      const [ft,rn,rid]=b.dataset.unretire.split('|');
+      const r=S.fabricReceipts.find(x=>rid&&rid!=='undefined' ? x.id===rid : (x.fabricType===ft && String(x.rollNo)===rn));
       if(r){ delete r.retired; await saveFabric(); rFabric(); toast('ยกเลิกสถานะตัดหมดแล้ว — เลือกตัดได้อีกครั้ง'); }
     });
     $('tRollStatus').querySelectorAll('[data-rollrm]').forEach(b=>b.onclick=async()=>{
-      const [ft,rn]=b.dataset.rollrm.split('|');
-      if(!await ask('ลบม้วนที่ '+rn+' ('+ft+') ออกจากสต๊อกเลย?')) return;
-      S.fabricReceipts=S.fabricReceipts.filter(x=>!(x.fabricType===ft && String(x.rollNo)===rn));
+      const [ft,rn,rid]=b.dataset.rollrm.split('|');
+      const _rr=S.fabricReceipts.find(x=>x.id===rid);
+      if(!await ask('ลบม้วนที่ '+rn+' ('+ft+(_rr?' · รับ '+thDate(_rr.time):'')+') ออกจากสต๊อกเลย?')) return;
+      /* เลขม้วนซ้ำได้ (นับใหม่ทุกล็อต) — ลบเฉพาะม้วนนี้ */
+      S.fabricReceipts=S.fabricReceipts.filter(x=>rid&&rid!=='undefined' ? x.id!==rid : !(x.fabricType===ft && String(x.rollNo)===rn));
       await saveFabric(); rFabric(); toast('ลบแล้ว');
     });
 
@@ -2569,27 +2572,30 @@ window.WPDAUTH = {
         '</td><td>'+(w.picks||[]).map(p=>'#'+p.batchNo+':'+p.qty).join(', ')+'</td><td>'+esc(w.note||'')+'</td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีการเบิก</td></tr>';
   }
+  const fabRecDay=()=>($('fabRecDate')&&$('fabRecDate').value)||todayStr();
+  const sameRecLot=(r,n)=>r.fabricType===n && ymd(r.time)===fabRecDay();
   function fabRecPlan(){
     const n=($('fabRecSel').value==='__new__')?$('fabRecName').value.trim():$('fabRecSel').value;
     if(!n) return null;
     const raw=$('fabRecRollNo').value.trim(), p=parsePackNos(raw), cnt=+$('fabRecRolls').value||0;
     if(p.err) return { n, err:p.err, nos:[] };
     if(p.nos.length>1) return { n, nos:p.nos, listed:true, mismatch:cnt && cnt!==p.nos.length ? cnt : 0 };
-    const pl=noPlan(raw, cnt||1, CALC.nextRollNo(S.fabricReceipts,n));
+    const pl=noPlan(raw, cnt||1, CALC.nextRollNo(S.fabricReceipts,n,fabRecDay()));
     return { n, nos:cnt?pl.nos:[], start:pl.nos[0], auto:pl.auto };
   }
   function updateFabRecPreview(){
     const p=fabRecPlan(), el=$('fabRecPreview');
     if(!p){ el.textContent=''; return; }
     if(p.err){ el.innerHTML='<span style="color:var(--red)">เลขม้วนอ่านไม่ออกตรง "'+esc(p.err)+'"</span>'; return; }
-    const have=new Set(S.fabricReceipts.filter(r=>r.fabricType===p.n).map(r=>r.rollNo)), dup=p.nos.filter(x=>have.has(x));
+    const have=new Set(S.fabricReceipts.filter(r=>sameRecLot(r,p.n)).map(r=>r.rollNo)), dup=p.nos.filter(x=>have.has(x));
     el.innerHTML=p.nos.length ? 'จะได้ <b style="color:var(--accent2)">'+p.nos.length+' ม้วน — เลข '+esc(packNosText(p.nos))+'</b>'+(p.mismatch?' <span class="bdg warn">ช่องจำนวนม้วนใส่ไว้ '+p.mismatch+'</span>':'')+
-        (dup.length?'<br><span class="bdg warn">เลข '+esc(packNosText(dup))+' มีอยู่แล้ว</span>':'')
+        (dup.length?'<br><span class="bdg warn">เลข '+esc(packNosText(dup))+' มีอยู่แล้วในล็อตวันที่ '+thDate(fabRecDay())+'</span>':'')+'<br><span style="color:var(--dim)">ล็อตวันที่ '+thDate(fabRecDay())+' — รับคนละวันเลขม้วนเริ่ม 1 ใหม่</span>'
       : 'ม้วนจะได้เลขเริ่มจาก: ม้วนที่ '+p.start+' เป็นต้นไป';
   }
   $('fabRecSel').onchange=function(){ const v=this.value,t=$('fabRecName'); if(v==='__new__'){t.style.display='block';t.value='';}else{t.style.display='none';t.value=v;} updateFabRecPreview(); };
   $('fabRecName').oninput=updateFabRecPreview;
   $('fabRecRolls').addEventListener('input', updateFabRecPreview);
+  if($('fabRecDate')) $('fabRecDate').addEventListener('change', updateFabRecPreview);
   /* ใส่หลายเลขม้วน → นับจำนวนม้วนให้เอง */
   $('fabRecRollNo').addEventListener('input', ()=>{ const p=parsePackNos($('fabRecRollNo').value); if(!p.err && p.nos.length>1) $('fabRecRolls').value=p.nos.length; updateFabRecPreview(); });
   $('btnFabRec').onclick=async()=>{
@@ -2600,7 +2606,7 @@ window.WPDAUTH = {
     if(p.nos.length>300){ toast('รับทีเดียวเกิน 300 ม้วนไม่ได้'); return; }
     const n=p.n, nos=p.nos;
     if(!p.auto){
-      const overlap=nos.filter(x=>S.fabricReceipts.some(r=>r.fabricType===n && r.rollNo===x));
+      const overlap=nos.filter(x=>S.fabricReceipts.some(r=>sameRecLot(r,n) && r.rollNo===x));
       if(overlap.length && !await ask('เลขม้วน '+packNosText(overlap)+' ('+n+') มีอยู่แล้วในระบบ','ถ้าเป็นม้วนใหม่ที่เข้าคนละวัน กดยืนยันได้เลย — ตอนตัดจะเห็นวันที่รับให้เลือกถูกม้วน\n\nยืนยันจะรับเข้าเลขนี้หรือไม่?')) return;
     }
     const dateVal=$('fabRecDate').value?$('fabRecDate').value+'T'+localISO().slice(11):localISO();
@@ -2731,15 +2737,15 @@ window.WPDAUTH = {
   }
 
   function openFabric(name){
-    const rolls=(S.fabricReceipts||[]).filter(r=>r.fabricType===name).sort((a,b)=>(a.rollNo||0)-(b.rollNo||0));
+    const rolls=(S.fabricReceipts||[]).filter(r=>r.fabricType===name).sort((a,b)=>String(a.time).localeCompare(String(b.time))||(a.rollNo||0)-(b.rollNo||0));
     const rs=CALC.rollStatus(S.fabricReceipts,S.cuts,S.cutBatches).filter(r=>r.fabricType===name);
     const bags=CALC.cutBatchStatus(S.cutBatches,S.sewSent,S.sewReturns,PROD.fabricWd).filter(b=>b.fabricType===name).sort((a,b)=>String(b.time).localeCompare(String(a.time)));
     const html=
       '<div class="sumline" style="margin-top:0;">'+rolls.length+' ม้วน · '+bags.length+' ถุง — แตะเลขถุงเพื่อดู/แก้</div>'+
-      '<div class="bagpick" style="margin-top:8px;">'+(bags.length?bags.map(b=>'<button class="bp" data-bagopen="'+b.batchId+'"><b>ถุง #'+b.batchNo+'</b><small>'+esc(b.size)+(b.cutKnown&&b.sizeFinished!==b.size?' → '+esc(b.sizeFinished):'')+'<br>'+
+      '<div class="bagpick" style="margin-top:8px;">'+(bags.length?bags.map(b=>'<button class="bp" data-bagopen="'+b.batchId+'"><b>ถุง #'+b.batchNo+'</b>'+lotTag(b.batchId)+'<small>'+esc(b.size)+(b.cutKnown&&b.sizeFinished!==b.size?' → '+esc(b.sizeFinished):'')+'<br>'+
         (b.cutBalance>0?'รอส่ง '+b.cutBalance:b.sewingBalance>0?'ที่ช่าง '+b.sewingBalance:'พร้อมผลิต '+b.readyBalance)+'</small></button>').join(''):'<div class="empty">ยังไม่มีถุง</div>')+'</div>'+
       '<div class="scr" style="margin-top:10px;"><table><tr><th>ม้วน</th><th>รับเข้า</th><th>กว้าง×ยาว (นิ้ว)</th><th>เหลือ (นิ้ว)</th><th>สถานะ</th><th></th></tr>'+
-        rolls.map(r=>{ const s=rs.find(x=>x.rollNo===r.rollNo)||{};
+        rolls.map(r=>{ const s=rs.find(x=>x.rollId===r.id)||rs.find(x=>!x.rollId&&x.rollNo===r.rollNo)||{};
           return '<tr><td>#'+r.rollNo+'</td><td>'+thDate(r.time)+'</td><td>'+(r.widthIn&&r.lengthIn?r.widthIn+' × '+r.lengthIn:'—')+'</td><td>'+(s.remainLen==null?'—':s.remainLen)+'</td><td>'+
             (s.retired?'ตัดหมดแล้ว':s.used?'ตัดแล้ว':'ยังไม่ตัด')+'</td><td style="white-space:nowrap"><button class="ed" data-rolledit="'+r.id+'">แก้ขนาด</button> <button class="x" data-rolldel="'+r.id+'">✕</button></td></tr>'; }).join('')+
       '</table></div>'+
@@ -2786,7 +2792,7 @@ window.WPDAUTH = {
         '<div class="stat"><div class="v">'+bags.length+'</div><div class="l">ถุงทั้งหมด</div></div></div>'+
       '<div class="sumline" style="margin-top:10px;">แตะเลขถุงเพื่อดูประวัติทั้งถุง / แก้จำนวนที่ตัด</div>'+
       '<div class="bagpick">'+bags.slice().sort((a,b)=>(b.readyBalance>0)-(a.readyBalance>0)||String(b.time).localeCompare(String(a.time))).map(b=>
-        '<button class="bp" data-bagopen="'+b.batchId+'"><b>ถุง #'+b.batchNo+'</b><small>'+esc(b.fabricType)+' · '+esc(b.sizeFinished||b.size)+'<br>'+
+        '<button class="bp" data-bagopen="'+b.batchId+'"><b>ถุง #'+b.batchNo+'</b>'+lotTag(b.batchId)+'<small>'+esc(b.fabricType)+' · '+esc(b.sizeFinished||b.size)+'<br>'+
         (b.readyBalance>0?'พร้อมผลิต '+b.readyBalance:b.sewingBalance>0?'ที่ช่าง '+b.sewingBalance:b.cutBalance>0?'รอส่ง '+b.cutBalance:'ใช้หมดแล้ว')+'</small></button>').join('')+'</div>'+
       '<div class="scr" style="margin-top:10px;"><table><tr><th>วันที่</th><th>ขั้น</th><th>ถุง</th><th>รายละเอียด</th><th></th></tr>'+
         (ev.length?ev.slice(0,120).map(e=>{ const x=e.x;
@@ -2840,7 +2846,7 @@ window.WPDAUTH = {
     $('fsStock').innerHTML='พร้อมผลิต <b>'+ready+'</b>';
     const lastSend=id=>(S.sewSent||[]).filter(x=>x.batchId===id).sort((x,y)=>String(x.time).localeCompare(String(y.time))).pop()||{};
     const chip=(kind,b,sub)=>'<button class="bp'+((BAGDEL&&BAGDEL[kind])?(BAGDEL[kind].includes(b.batchId)?' del':''):((MULTI&&MULTI[kind]?MULTI[kind].includes(b.batchId):$(kind+'BatchSel').value===b.batchId)?' on':''))+'" data-pick="'+kind+'" data-bid="'+b.batchId+'">'+
-      '<b>ถุง #'+b.batchNo+'</b><small>'+esc(b.fabricType)+' · '+esc(b.size)+'<br>'+sub+'</small></button>';
+      '<b>ถุง #'+b.batchNo+'</b>'+lotTag(b.batchId)+'<small>'+esc(b.fabricType)+' · '+esc(b.size)+'<br>'+sub+'</small></button>';
     const byName=(x,y)=>(x.fabricType+x.size).localeCompare(y.fabricType+y.size,'th')||(x.batchNo-y.batchNo);
     $('sewPick').innerHTML=toSend.length ? toSend.slice().sort(byName).map(b=>chip('sew',b,b.cutBalance+' ชิ้น · ตัด '+thDate(b.time))).join('')
       : '<div class="empty">ไม่มีถุงรอส่ง — ตัดผ้าก่อน (ขั้น ②)</div>';
@@ -2939,7 +2945,7 @@ window.WPDAUTH = {
   }
   $('cutFreeMode').onchange=function(){
     const free=this.checked;
-    if($('cutFreeBatchRow')) $('cutFreeBatchRow').style.display=free?'block':'none';
+    if($('cutFreeBatchRow')) $('cutFreeBatchRow').style.display='none';   /* เลขถุงใส่ที่แต่ละแถวแล้ว */
     $('cutBatchModeRow').style.display=free?'none':'flex';
     $('cutFreeModeRow').style.display=free?'flex':'none';
   };
@@ -3019,15 +3025,36 @@ window.WPDAUTH = {
     await saveFabric(); ['smLabel','smCut','smFin'].forEach(id=>$(id).value=''); $('smPP').value='1'; rFabric();
     toast('เพิ่มไซซ์ '+product+(label?' '+label:'')+' แล้ว');
   };
+  /* ล็อตผ้าของถุง = วันที่รับม้วนที่ตัด — เลขถุงนับ 1 ใหม่ได้ทุกล็อต จึงโชว์ล็อตคู่กับเลขถุง */
+  function rollOfCut(b){ return b&&b.rollId ? (S.fabricReceipts||[]).find(r=>r.id===b.rollId)||null : null; }
+  function lotTag(batchId){
+    const r=rollOfCut((S.cutBatches||[]).find(x=>x.id===batchId)); if(!r) return '';
+    const d=ymd(r.time).split('-'); return ' <span style="font-size:11px;color:var(--dim);font-weight:400">ล็อต '+(+d[2])+'/'+(+d[1])+'</span>';
+  }
   function addCutRow(size,qty,bags){
     const d=document.createElement('div'); d.className='frow';
     d.innerHTML='<input class="cs" placeholder="ไซซ์ที่ตัด (นิ้ว) เช่น 18x54" value="'+esc(size||'')+'">'+
       '<input class="cq" type="number" inputmode="numeric" placeholder="ชิ้น/ถุง" style="max-width:84px;" value="'+(qty==null?'':qty)+'">'+
       '<input class="cb" type="number" inputmode="numeric" min="1" title="กี่ถุง" style="max-width:58px;" value="'+(bags||1)+'"><span style="font-size:12px;color:var(--dim);">ถุง</span>'+
-      '<button class="x">✕</button>';
+      '<button class="x">✕</button>'+
+      '<input class="cn" inputmode="text" autocomplete="off" placeholder="เลขที่เขียนบนถุง เช่น 12 หรือ 12-14 หรือ 12,15" style="flex:1 1 100%;">';
+    d.style.flexWrap='wrap';
     d.querySelector('.x').onclick=()=>d.remove();
+    /* ใส่เลขถุงแล้ว จำนวนถุงเท่ากับจำนวนเลขที่ใส่ */
+    d.querySelector('.cn').oninput=function(){ const n=parseBagNos(this.value); if(n && n.length) d.querySelector('.cb').value=n.length; };
     $('cutRows').appendChild(d);
     attachSizePick(d, '.cs', 'cut');
+  }
+  /* "12" · "12-14" · "12,15 18" → [12,13,14] ฯลฯ · ผิดรูปแบบ = null */
+  function parseBagNos(str){
+    const t=String(str||'').trim(); if(!t) return [];
+    const out=[];
+    for(const p of t.split(/[,\s]+/).filter(Boolean)){
+      const m=p.match(/^(\d+)(?:-(\d+))?$/); if(!m) return null;
+      const a=+m[1], b=m[2]!=null?+m[2]:a; if(!(a>0) || b<a || b-a>100) return null;
+      for(let i=a;i<=b;i++) out.push(i);
+    }
+    return out;
   }
   /* กด "+ เพิ่มไซซ์" แล้วให้ไซซ์ล่าสุดค้างไว้ในแถวใหม่ ไม่ต้องพิมพ์ซ้ำ */
   function lastSizeIn(containerId){
@@ -3044,11 +3071,30 @@ window.WPDAUTH = {
     const rollNo=isFree?(+$('cutFreeRollNo').value||null):(_roll?_roll.rollNo:null);
     if(!fab){ toast('เลือกชนิดผ้าก่อน'); return; }
     if(!isFree && !rollNo){ toast('เลือกม้วนที่จะตัด — ถ้าไม่มีม้วนว่าง ต้องไปรับเข้าม้วนผ้าก่อน'); return; }
-    const rowsIn=Array.from(document.querySelectorAll('#cutRows .frow')).map(r=>({ size:normSize(r.querySelector('.cs').value), per:+r.querySelector('.cq').value||0, bags:Math.max(1,Math.round(+(r.querySelector('.cb')||{}).value||1)) })).filter(r=>r.size&&r.per);
+    const rowsIn=Array.from(document.querySelectorAll('#cutRows .frow')).map(r=>({ size:normSize(r.querySelector('.cs').value), per:+r.querySelector('.cq').value||0, bags:Math.max(1,Math.round(+(r.querySelector('.cb')||{}).value||1)), nos:parseBagNos((r.querySelector('.cn')||{}).value) })).filter(r=>r.size&&r.per);
     if(rowsIn.some(r=>r.bags>100)){ toast('ไซซ์เดียวเกิน 100 ถุงในครั้งเดียวไม่ได้'); return; }
     /* ยอดที่ตัดจากม้วน (รวมทุกถุง) — ใช้เช็คความยาวม้วน/เก็บประวัติการตัด */
     const rows=rowsIn.map(r=>({ size:r.size, qty:r.per*r.bags }));
     if(!rows.length){ toast('กรอกไซซ์และจำนวนอย่างน้อย 1 แถว'); return; }
+    /* เลขถุง: พนักงานใส่เองตามที่เขียนบนถุง — ระบบไม่รันเลขให้ */
+    const _badNo=rowsIn.find(r=>r.nos===null);
+    if(_badNo){ toast('เลขถุงของไซซ์ '+_badNo.size+' อ่านไม่ออก — ใส่แบบ 12 หรือ 12-14 หรือ 12,15'); return; }
+    const _noNo=rowsIn.find(r=>!r.nos.length);
+    if(_noNo){ toast('ใส่เลขที่เขียนบนถุงของไซซ์ '+_noNo.size+' ด้วย'); return; }
+    const _cnt=rowsIn.find(r=>r.nos.length!==r.bags);
+    if(_cnt){ toast('ไซซ์ '+_cnt.size+' ใส่เลขถุง '+_cnt.nos.length+' เลข แต่ช่องจำนวนถุงเป็น '+_cnt.bags+' — แก้ให้ตรงกัน'); return; }
+    {
+      const _fabNow=fab;
+      const _dupIn=[], _dupOld=[], _seen={};
+      rowsIn.forEach(r=>r.nos.forEach(n=>{
+        const k=CALC.fkey(_fabNow,r.size)+'#'+n; if(_seen[k]) _dupIn.push(r.size+' #'+n); _seen[k]=1;
+        /* ล็อตเดียวกัน = ม้วนที่รับวันเดียวกัน (ตัดอิสระไม่มีม้วน = เทียบกับถุงที่ไม่มีม้วน) */
+        const _sameLot=b=>{ const rb=rollOfCut(b); return _roll ? !!rb && rb.fabricType===_roll.fabricType && ymd(rb.time)===ymd(_roll.time) : !b.rollId; };
+        if(S.cutBatches.some(b=>CALC.fkey(b.fabricType,b.size)===CALC.fkey(_fabNow,r.size) && +b.batchNo===n && _sameLot(b))) _dupOld.push(r.size+' #'+n);
+      }));
+      if(_dupIn.length){ toast('ใส่เลขถุงซ้ำกันเอง: '+_dupIn.join(', ')); return; }
+      if(_dupOld.length && !await ask('เลขถุงนี้มีอยู่แล้วในล็อตนี้',_fabNow+(_roll?' ล็อตรับ '+thDate(_roll.time):'')+' '+_dupOld.join(', ')+' มีในระบบแล้ว\n\nเลขถุงซ้ำจะทำให้สับสนตอนส่งเย็บ/รับกลับ — ยืนยันใช้เลขนี้หรือไม่?')) return;
+    }
     /* ตัดเกินกว่าที่ม้วนนี้ได้จริง (ดูจากหน้ากว้าง×ความยาวม้วน เป็นนิ้ว) — มักเป็นพิมพ์จำนวนผิด */
     const roll=!isFree && _roll;
     if(roll && roll.widthIn && roll.lengthIn){
@@ -3075,14 +3121,14 @@ window.WPDAUTH = {
     // ใช้เลขถุงที่กำหนดเองได้เฉพาะตอนกรอกอิสระและมีแค่ 1 ไซซ์ (หลายไซซ์มีเลขคนละชุดกัน กำหนดเลขเดียวรวมกันไม่ได้)
     if(customStartBatchNo && rows.length>1) toast('มีหลายไซซ์ — ระบบจะเรียงเลขถุงอัตโนมัติให้ทุกไซซ์แทน (เลขที่กำหนดใช้ได้แค่ตอนมีไซซ์เดียว)');
     const totBags=rowsIn.reduce((a,r)=>a+r.bags,0);
-    if(totBags>1 && rowsIn.some(r=>r.bags>1) && !await ask('ตัดได้ '+totBags+' ถุง?', rowsIn.map(r=>r.size+' — ถุงละ '+r.per+' ชิ้น × '+r.bags+' ถุง = '+(r.per*r.bags)+' ชิ้น').join('\n')+'\n\nระบบจะออกเลขให้ทีละถุง')) return;
+    if(totBags>1 && rowsIn.some(r=>r.bags>1) && !await ask('ตัดได้ '+totBags+' ถุง?', rowsIn.map(r=>r.size+' — ถุงละ '+r.per+' ชิ้น × '+r.bags+' ถุง = '+(r.per*r.bags)+' ชิ้น · ถุง #'+packNosText(r.nos)).join('\n'))) return;
     if(!isFree) S.cuts.push({ id:uid(), time:t, fabricType:fab, rollNo, rollId:_roll?_roll.id:null, rows, note:$('cutNote').value.trim() });
     const newBatchNos=[];
     rowsIn.forEach(row=>{
       const useCustom = customStartBatchNo && rows.length===1;
       const got=[];
       for(let k=0;k<row.bags;k++){
-        const batchNo = useCustom ? +customStartBatchNo+k : CALC.nextCutBatchNo(S.cutBatches,fab,row.size);
+        const batchNo = row.nos[k];   /* เลขที่พนักงานใส่เอง */
         S.cutBatches.push({ id:uid(), batchNo, fabricType:fab, size:row.size, qtyCut:row.per, time:t, rollNo, rollId:_roll?_roll.id:null, note:isFree?'ยอดยกมา — ตัดอิสระ':$('cutNote').value.trim() });
         got.push(batchNo);
       }

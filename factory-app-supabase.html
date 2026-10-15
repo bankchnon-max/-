@@ -531,7 +531,19 @@
     <div class="savechip ok" id="saveState">บันทึกแล้ว ✓</div>
     <div class="savechip" id="wakeChip" style="margin-left:6px; background:var(--w-chip,#eef1f5); color:var(--dim); cursor:pointer;">☀ กันจอดับ: ปิด</div>
     <div class="savechip" id="roleChip" style="margin-left:6px; background:var(--w-chip,#eef1f5); color:var(--dim); cursor:pointer;">👤 พนักงาน</div>
+    <div class="savechip" id="fontChip" style="margin-left:6px; background:var(--w-chip,#eef1f5); color:var(--dim); cursor:pointer;">🔠 ตัวหนังสือ: ใหญ่</div>
   </div>
+<script>
+/* ขนาดตัวหนังสือ (จำแยกแต่ละเครื่อง) — กดที่ชิปวน ปกติ → ใหญ่ → ใหญ่มาก · ค่าเริ่มต้น = ใหญ่ */
+(function(){
+  var K='wpd_font_scale', S=[{v:1,t:'ปกติ'},{v:1.15,t:'ใหญ่'},{v:1.3,t:'ใหญ่มาก'}];
+  function cur(){ var v=null; try{ v=localStorage.getItem(K); }catch(e){} for(var i=0;i<S.length;i++) if(String(S[i].v)===v) return i; return 1; }
+  function apply(i){ document.documentElement.style.zoom=S[i].v; var c=document.getElementById('fontChip'); if(c) c.textContent='🔠 ตัวหนังสือ: '+S[i].t; }
+  apply(cur());
+  var c=document.getElementById('fontChip');
+  if(c) c.onclick=function(){ var i=(cur()+1)%S.length; try{ localStorage.setItem(K,String(S[i].v)); }catch(e){} apply(i); };
+})();
+</script>
 
   <div class="content">
 
@@ -3282,35 +3294,40 @@ window.WPDAUTH = {
       .map(c=>Object.assign({}, c, { left:(+c.pieces||0)-carryUsed(c.id) })).filter(c=>c.left>0)
       .sort((a,b)=>String(a.time).localeCompare(String(b.time)));
   }
+  /* เก็บของค้างไม่ครบแพ็คไว้รวมงานหน้า: ใยแผ่น (แผ่น) และหมอน (ใบ) — ปิกนิกไม่ใช้ */
+  const carryJob=o=>!!o && !isPicnic(o) && ((o.productType||'ใย')==='ใย' || o.productType==='หมอน');
+  /* ใยในของค้าง 1 ชิ้น — หมอนนับเฉพาะใย (ผ้าปลอกหักแยกอยู่แล้ว) ใช้ในสมดุลใยเข้า–ออก */
+  const carryKgEach=o=>o.productType==='หมอน' ? (CALC.fiberKgPerPiece(o.spec||{})||0) : (+((o.spec||{}).weightPerPiece)||0);
   function rCarry(o){
     const box=$('carryBox'); if(!box) return;
-    if(!o || (o.productType||'ใย')!=='ใย'){ box.innerHTML=''; return; }
+    if(!carryJob(o)){ box.innerHTML=''; return; }
+    const U=(o.productType==='หมอน')?'ใบ':'แผ่น';
     const open=carryOpen(o), tot=open.reduce((a,c)=>a+c.left,0), per=+((o.spec||{}).piecesPerPack)||0;
     const keepOn=$('carryUseOn')?$('carryUseOn').checked:false, keepN=$('carryUseN')?$('carryUseN').value:'';
     const mine=(S.carry||[]).filter(c=>c.orderId===o.id).slice().reverse().slice(0,10);
     box.innerHTML=
       (tot>0 ? '<div class="banner" style="display:block; margin:10px 0 0; background:var(--w-tint-ok,#e6f5ec);">'+
-        '🧺 มีแผ่นค้างไม่ครบแพ็คที่เก็บไว้ <b>'+tot+' แผ่น</b> ('+open.map(c=>esc(c.customer||'')+' '+thDate(c.time)+' · '+c.left+' แผ่น').join(', ')+')'+
+        '🧺 มี'+U+'ค้างไม่ครบแพ็คที่เก็บไว้ <b>'+tot+' '+U+'</b> ('+open.map(c=>esc(c.customer||'')+' '+thDate(c.time)+' · '+c.left+' '+U+'').join(', ')+')'+
         '<label style="display:flex; align-items:center; gap:8px; margin-top:8px;"><input type="checkbox" id="carryUseOn" style="width:auto; margin:0;"'+(keepOn?' checked':'')+'>'+
-        '<span>แพ็คถัดไปรวมแผ่นค้าง</span><input id="carryUseN" type="number" inputmode="numeric" min="1" style="max-width:80px;" value="'+(keepN||Math.min(tot,per||tot))+'"><span>แผ่น</span></label></div>' : '')+
-      '<details style="margin-top:12px;"'+(mine.length?' open':'')+'><summary style="cursor:pointer; font-weight:600;">ตัดไลน์แล้วมีแผ่นเหลือไม่ครบแพ็ค? — เก็บไว้รวมงานหน้า</summary>'+
-        '<div class="rf" style="align-items:flex-end;"><div><label>เหลือกี่แผ่น</label><input id="carryN" type="number" inputmode="numeric" min="1" placeholder="เช่น 2"></div>'+
+        '<span>แพ็คถัดไปรวม'+U+'ค้าง</span><input id="carryUseN" type="number" inputmode="numeric" min="1" style="max-width:80px;" value="'+(keepN||Math.min(tot,per||tot))+'"><span>'+U+'</span></label></div>' : '')+
+      '<details style="margin-top:12px;"'+(mine.length?' open':'')+'><summary style="cursor:pointer; font-weight:600;">ตัดไลน์แล้วมี'+U+'เหลือไม่ครบแพ็ค? — เก็บไว้รวมงานหน้า</summary>'+
+        '<div class="rf" style="align-items:flex-end;"><div><label>เหลือกี่'+U+'</label><input id="carryN" type="number" inputmode="numeric" min="1" placeholder="เช่น 2"></div>'+
         '<div><button class="btn sec" id="btnCarry" style="margin-top:0;">🧺 เก็บไว้รวมงานหน้า</button></div></div>'+
-        '<div class="sumline">งานหน้าที่เป็นสินค้ารหัสเดียวกัน ("'+esc(o.code)+'") จะขึ้นให้เอามารวมแพ็คได้ — แผ่นพวกนี้นับเป็นของที่งานนี้ผลิต ไม่นับซ้ำ</div>'+
+        '<div class="sumline">งานหน้าที่เป็นสินค้ารหัสเดียวกัน ("'+esc(o.code)+'") จะขึ้นให้เอามารวมแพ็คได้ — '+U+'พวกนี้นับเป็นของที่งานนี้ผลิต ไม่นับซ้ำ</div>'+
         (mine.length?'<table style="margin-top:6px;"><tr><th>เวลา</th><th>เก็บไว้</th><th>เอาไปรวมแล้ว</th><th></th></tr>'+
-          mine.map(c=>{ const u=carryUsed(c.id); return '<tr><td>'+thDate(c.time)+' '+String(c.time).slice(11,16)+'</td><td>'+c.pieces+' แผ่น</td><td>'+u+' แผ่น</td><td>'+
+          mine.map(c=>{ const u=carryUsed(c.id); return '<tr><td>'+thDate(c.time)+' '+String(c.time).slice(11,16)+'</td><td>'+c.pieces+' '+U+'</td><td>'+u+' '+U+'</td><td>'+
             (u?'':'<button class="x" data-carryrm="'+c.id+'">✕</button>')+'</td></tr>'; }).join('')+'</table>':'')+
       '</details>';
     if($('btnCarry')) $('btnCarry').onclick=async()=>{
       const n=Math.round(+$('carryN').value||0);
-      if(n<=0){ toast('กรอกจำนวนแผ่นที่เหลือ'); return; }
-      if(per && n>=per && !await ask('เหลือ '+n+' แผ่น — ครบแพ็คแล้ว?','แพ็คนี้ใช้ '+per+' แผ่น ถ้าครบแพ็คแล้วให้บันทึกเป็นแพ็คปกติแทน'+NL+NL+'ยืนยันจะเก็บ '+n+' แผ่นไว้รวมงานหน้า?')) return;
+      if(n<=0){ toast('กรอกจำนวน'+U+'ที่เหลือ'); return; }
+      if(per && n>=per && !await ask('เหลือ '+n+' '+U+' — ครบแพ็คแล้ว?','แพ็คนี้ใช้ '+per+' '+U+' ถ้าครบแพ็คแล้วให้บันทึกเป็นแพ็คปกติแทน'+NL+NL+'ยืนยันจะเก็บ '+n+' '+U+'ไว้รวมงานหน้า?')) return;
       S.carry=S.carry||[];
-      S.carry.push({ by:opBy(), id:uid(), time:localISO(), orderId:o.id, code:o.code, customer:o.customer, pieces:n, kgEach:+((o.spec||{}).weightPerPiece)||0 });
-      await saveLine(); $('carryN').value=''; rLine(); toast('เก็บแผ่นค้าง '+n+' แผ่นไว้รวมงานหน้าแล้ว');
+      S.carry.push({ by:opBy(), id:uid(), time:localISO(), orderId:o.id, code:o.code, customer:o.customer, pieces:n, kgEach:carryKgEach(o) });
+      await saveLine(); $('carryN').value=''; rLine(); toast('เก็บ'+U+'ค้าง '+n+' '+U+'ไว้รวมงานหน้าแล้ว');
     };
     box.querySelectorAll('[data-carryrm]').forEach(b=>b.onclick=async()=>{
-      if(!await ask('ลบรายการแผ่นค้างนี้?')) return;
+      if(!await ask('ลบรายการ'+U+'ค้างนี้?')) return;
       S.carry=(S.carry||[]).filter(c=>c.id!==b.dataset.carryrm); await saveLine(); rLine(); toast('ลบแล้ว');
     });
   }
@@ -3968,7 +3985,7 @@ window.WPDAUTH = {
     let note=$('lineNote').value.trim();
     if(gapReason) note=(note?note+' | ':'')+'ห่าง '+gapMin+' นาที: '+gapReason;
     const _lineId=uid();
-    const _carry=((o.productType||'ใย')==='ใย')?takeCarry(o):null;
+    const _carry=carryJob(o)?takeCarry(o):null;
     S.line.push({ by:opBy(), id:_lineId, seq:seq, time:localISO(), orderId:o.id,
       productType:o.productType||'ใย',
       /* ถุง: ไม่ต้องกรอกที่ท้ายไลน์แล้ว — เลขถุงเรียงให้เอง ส่วนกระสอบ/ไซซ์ เติมจากถุงที่หักจริงด้านล่าง (ตาม Standard) */

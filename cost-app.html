@@ -19,6 +19,32 @@
 <meta name="apple-mobile-web-app-title" content="ต้นทุน">
 <meta name="theme-color" content="#ffffff">
 <title>ต้นทุน &amp; ตีราคา — วินโพลีดีไซน์</title>
+<html lang="th" data-wfold-default="open">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ต้นทุน">
+<meta name="theme-color" content="#ffffff">
+<title>ต้นทุน &amp; ตีราคา — วินโพลีดีไซน์</title>
+<html lang="th" data-wfold-default="open">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ต้นทุน">
+<meta name="theme-color" content="#ffffff">
+<title>ต้นทุน &amp; ตีราคา — วินโพลีดีไซน์</title>
+<!-- wpd-pwa -->
+<link rel="manifest" href="/manifest-cost.webmanifest">
+<link rel="icon" type="image/png" href="/icons/cost-192.png">
+<link rel="apple-touch-icon" href="/icons/cost-192.png">
+<script>if("serviceWorker" in navigator && location.protocol==="https:") addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));</script>
+<!-- /wpd-pwa -->
 <!-- wpd-pwa -->
 <link rel="manifest" href="/manifest-cost.webmanifest">
 <link rel="icon" type="image/png" href="/icons/cost-192.png">
@@ -463,7 +489,7 @@
   Element.prototype.scrollIntoView = function(){ try{ scan(); reveal(this); }catch(e){} return _siv.apply(this, arguments); };
   document.addEventListener('DOMContentLoaded', function(){ scan(); setInterval(scan, 2500); });
 })();
-</script><!-- /wpd-fold -->
+</script><!-- /wpd-fold -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- ฟอนต์โหลดเบื้องหลัง ไม่ให้หน้าค้างรอเน็ต (เปิดด้วยฟอนต์เครื่องก่อน แล้วสลับเอง) -->
@@ -1111,7 +1137,7 @@ window.WPDAUTH = {
     }
   };
 })();
-</script><!-- /wpd-store -->
+</script><!-- /wpd-store -->
 <script>
 (function(){
   'use strict';
@@ -2482,14 +2508,15 @@ window.WPDAUTH = {
     if(zero.length) add(1,'ยังไม่ได้ตั้ง '+zero.join(' · '), 'ช่องนี้ในต้นทุนรายวันเป็น 0 → ⚙️ ตั้งค่า');
     { const miss=new Set(); (PROD.caseUse||[]).filter(u=>String(u.time).slice(0,10)>=d30).forEach(u=>{ const z=COST.caseSewSize(S,u); if(z && !COST.sewRate(KSET,z)) miss.add(z); });
       if(miss.size) add(1,'ยังไม่ได้ตั้งค่าเย็บไซซ์ '+[...miss].join(', '), 'ปลอกไซซ์นี้ใช้ผลิตใน 30 วัน แต่ค่าเย็บเป็น 0 → ⚙️ ตั้งค่า → ค่าจ้างเย็บ'); }
-    /* 3) งานต้นทุนต่อชิ้นผิดปกติ (30 วัน) เทียบงานประเภทเดียวกัน */
-    { const rec=jobs.map((o,i)=>({o,c:costs[i]})).filter(x=>x.c.pieces>0 && x.c.span && String(x.c.span.to).slice(0,10)>=d30);
+    /* 3) งานต้นทุนผิดปกติ (30 วัน) — เทียบต้นทุนต่อกิโลของสินค้ากับงานประเภทเดียวกัน (ต่อชิ้นเทียบกันไม่ได้ เพราะไซซ์/น้ำหนักต่างกันมาก) */
+    { const kgOf=id=>(PROD.line||[]).filter(l=>l.orderId===id).reduce((a,l)=>a+((l.actualWeight!=null?+l.actualWeight:+l.stdPerPack)||0),0);
+      const rec=jobs.map((o,i)=>({o,c:costs[i]})).filter(x=>x.c.pieces>0 && x.c.span && String(x.c.span.to).slice(0,10)>=d30).map(x=>Object.assign(x,{kg:kgOf(x.o.id)})).filter(x=>x.kg>0).map(x=>Object.assign(x,{pk:x.c.total/x.kg}));
       const by={}; rec.forEach(x=>{ const k=x.o.category||x.o.productType||'อื่นๆ'; (by[k]=by[k]||[]).push(x); });
       Object.keys(by).forEach(k=>{ const L=by[k]; if(L.length<3) return;
-        const v=L.map(x=>x.c.perPiece).sort((p,q)=>p-q), med=v[Math.floor(v.length/2)];
-        L.filter(x=>med>0 && (x.c.perPiece>med*1.6 || x.c.perPiece<med*0.5)).forEach(x=>{
-          add(x.c.perPiece>med?2:1, (x.c.perPiece>med?'ต้นทุนต่อชิ้นสูงผิดปกติ: ':'ต้นทุนต่อชิ้นต่ำผิดปกติ: ')+x.o.customer+' — '+x.o.code,
-            fmtBaht(x.c.perPiece)+' บาท/ชิ้น · งาน'+k+'ส่วนใหญ่ราว '+fmtBaht(med)+(x.c.missing.length?' · ยังขาด: '+x.c.missing.slice(0,3).join(', '):'')+' → 🧾 ต้นทุนจริง'); }); }); }
+        const v=L.map(x=>x.pk).sort((p,q)=>p-q), med=v[Math.floor(v.length/2)];
+        L.filter(x=>med>0 && (x.pk>med*1.5 || x.pk<med*0.6)).forEach(x=>{
+          add(x.pk>med?2:1, (x.pk>med?'ต้นทุนสูงผิดปกติ: ':'ต้นทุนต่ำผิดปกติ: ')+x.o.customer+' — '+x.o.code,
+            fmtBaht(r2(x.pk))+' บาท/กก.สินค้า ('+fmtBaht(x.c.perPiece)+' บาท/ชิ้น) · งาน'+k+'ส่วนใหญ่ราว '+fmtBaht(r2(med))+' บาท/กก.'+(x.c.missing.length?' · ยังขาด: '+x.c.missing.slice(0,3).join(', '):'')+' → 🧾 ต้นทุนจริง'); }); }); }
     /* 4) ใยเข้า-ออกไม่สมดุล (7 วัน): ใยที่หักจากก้อน − ใยในสินค้า − เศษ */
     { const days={};
       (PROD.use||[]).forEach(u=>{ const d=String(u.time).slice(0,10); if(d<d7||d>=today) return; (days[d]=days[d]||{inn:0,out:0,sc:0}).inn+=+u.kg||0; });

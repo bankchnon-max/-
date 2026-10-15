@@ -635,7 +635,10 @@
         <label>หมายเหตุ</label>
         <input id="wdNote" placeholder="เปลี่ยนก้อนใหม่">
         <button class="btn w" id="btnWd">บันทึกการเบิกใย</button>
-        <div class="scr" style="margin-top:11px;"><table id="tWd"></table></div>
+        <div class="sumline" style="margin-top:11px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <span>รายการเบิกของวันที่</span><input id="wdDay" type="date" style="width:auto; flex:0 0 auto;">
+          <span id="wdDayHint" style="color:var(--dim)"></span></div>
+        <div class="scr" style="margin-top:6px;"><table id="tWd"></table></div>
       </div>
       <div class="card">
         <h3>สรุปใยที่ใช้วันนี้ (ฝั่งป้อนใย)</h3>
@@ -984,8 +987,9 @@
           <input id="ewName" list="dlFiber" placeholder="พิมพ์ชื่อใย" style="display:none;"></div>
       </div>
       <div id="ewWarn" class="sumline"></div>
+      <label>ก้อนไหน (ดูเบอร์บนป้ายก้อน)</label><select id="ewLotSel"></select>
+      <input id="ewLot" placeholder="เบอร์ก้อน" style="display:none;">
       <div class="rf">
-        <div><label>ลอตที่</label><input id="ewLot"></div>
         <div><label>น้ำหนัก (กก.)</label><input id="ewKg" type="number" inputmode="decimal" step="0.01"></div>
       </div>
       <label>หมายเหตุ</label><input id="ewNote">
@@ -2580,13 +2584,24 @@ window.WPDAUTH = {
     /* WPD PATCH: โชว์รายการเบิกที่ออเดอร์ถูกลบไปแล้วด้วย ไม่งั้นจะลบทิ้งไม่ได้เลย แต่ยังหักสต๊อกค้างอยู่ */
     const _oids=new Set((S.orders||[]).map(x=>x.id));
     const _orphanWd=S.wd.filter(w=>!_oids.has(w.orderId));
-    const wds=(o?S.wd.filter(w=>w.orderId===o.id&&dayOf(w.time)===t):[]).concat(_orphanWd);
+    /* เลือกวันย้อนหลังได้ — วันนี้ = ออเดอร์ที่ทำอยู่ · วันอื่น = ทุกออเดอร์ของวันนั้น (ไว้แก้ก้อนที่เบิกผิด) */
+    const _wdDayEl=$('wdDay'); if(_wdDayEl){ _wdDayEl.max=t; if(!_wdDayEl.value) _wdDayEl.value=t; if(!_wdDayEl.onchange) _wdDayEl.onchange=()=>rFeed(); }
+    const wdDay=(_wdDayEl&&_wdDayEl.value)||t, _past=wdDay!==t;
+    const wds=_past ? S.wd.filter(w=>dayOf(w.time)===wdDay).sort((a,b)=>a.time<b.time?-1:1)
+                    : (o?S.wd.filter(w=>w.orderId===o.id&&dayOf(w.time)===t):[]).concat(_orphanWd);
+    if($('wdDayHint')) $('wdDayHint').innerHTML=_past
+      ? 'ย้อนหลัง — ทุกออเดอร์ '+wds.length+' รายการ · <a href="#" id="wdDayToday">กลับวันนี้</a>'
+      : 'วันนี้ — เฉพาะออเดอร์ที่ทำอยู่';
+    if(_past){ const _fd=$('tWd').closest('details'); if(_fd) _fd.open=true; }
+    if($('wdDayToday')) $('wdDayToday').onclick=e=>{ e.preventDefault(); $('wdDay').value=t; rFeed(); };
     $('tWd').innerHTML=wds.length
       ? '<tr><th>ก้อนที่</th><th>เวลา</th><th>ผู้ลง</th><th>ใย</th><th>ลอตที่</th><th>กก.</th><th>หมายเหตุ</th><th></th></tr>'+
         wds.slice().reverse().map(w=>
           '<tr><td>'+esc(w.seq||'—')+'</td><td>'+hhmm(w.time)+'</td>'+byCell(w)+'<td>'+esc(w.fiberName)+
           (w.offRecipe?' <span class="bdg bad">นอกสูตร</span>':'')+
-          (!_oids.has(w.orderId)?' <span class="bdg warn">ออเดอร์ถูกลบแล้ว — ลบรายการนี้ได้เลย</span>':'')+'</td><td>'+esc(w.lot||'—')+'</td><td>'+w.kg+
+          (!_oids.has(w.orderId)?' <span class="bdg warn">ออเดอร์ถูกลบแล้ว — ลบรายการนี้ได้เลย</span>':'')+
+          (_past&&_oids.has(w.orderId)?'<div style="color:var(--dim);font-size:12px">'+esc((orderById(w.orderId)||{}).customer||'')+' '+esc((orderById(w.orderId)||{}).code||'')+'</div>':'')+
+          '</td><td>'+esc(w.lot||'—')+(w.receiptId?'':' <span class="bdg warn">ไม่รู้ก้อน — กดแก้</span>')+'</td><td>'+w.kg+
           '</td><td>'+esc(w.note)+(w.editedAt?' <span style="color:var(--dim)">(แก้ไข)</span>':'')+
           '</td><td><button class="btn sec sm" data-wde="'+w.id+'">แก้</button> '+
           '<button class="x" data-wdd="'+w.id+'">✕</button></td></tr>').join('')
@@ -2850,7 +2865,7 @@ window.WPDAUTH = {
     updateWdLotRemainHint();
   };
   $('wdKg').oninput=updateWdLotRemainHint;
-  bindFiberPicker('ewSel','ewName','ewWarn',()=>{ const w=S.wd.find(x=>x.id===ewId); return w?orderById(w.orderId):null; });
+  bindFiberPicker('ewSel','ewName','ewWarn',()=>{ const w=S.wd.find(x=>x.id===ewId); return w?orderById(w.orderId):null; },(name)=>populateEwLots(name));
 
   $('btnWd').onclick=async()=>{
     const o=activeFeed(); if(!o){ toast('เลือกออเดอร์ก่อน'); return; }
@@ -2888,6 +2903,29 @@ window.WPDAUTH = {
   };
 
   let ewId=null;
+  /* รายการก้อนให้เลือกตอนแก้ — ก้อนที่ยังเหลือ + ก้อนเดิมของรายการนี้ (คิดยอดเหลือโดยไม่นับรายการนี้เอง) */
+  function ewLotRows(name, w){
+    return (STOCKFIBER[name]||[]).map(l=>{
+      const mine = w && w.fiberName===name && (w.receiptId ? w.receiptId===l.id : String(w.lot)===String(l.lotNo));
+      return { l, mine, rem: r3(lotRemaining(name,l.lotNo,+l.kg||0,l.id) + (mine ? (+w.kg||0) : 0)) };
+    }).filter(x=>x.mine || x.rem>0.05);
+  }
+  function populateEwLots(name){
+    const w=S.wd.find(x=>x.id===ewId), sel=$('ewLotSel'), txt=$('ewLot');
+    const rows=ewLotRows(name, w);
+    if(!(STOCKFIBER[name]||[]).length){ sel.style.display='none'; txt.style.display='block'; return; }
+    sel.style.display=''; txt.style.display='none';
+    const cur=rows.find(x=>x.mine && (!w.receiptId || w.receiptId===x.l.id) && rows.filter(y=>y.mine).length===1);
+    sel.innerHTML='<option value="">— เลือกก้อนที่หยิบมาจริง —</option>'+rows.slice().reverse().map(x=>
+      '<option value="'+esc(x.l.id)+'"'+(cur&&cur.l.id===x.l.id?' selected':'')+'>เบอร์ '+esc(x.l.lotNo)+' · รับ '+(x.l.time?thDate(x.l.time):'—')+' · '+x.l.kg+' กก. · เหลือ '+x.rem+' กก.'+
+      (x.mine?(cur&&cur.l.id===x.l.id?' (ก้อนเดิม)':' (เบอร์เดิม — เลือกให้ตรงก้อน)'):'')+'</option>').join('');
+  }
+  $('ewLotSel').onchange=function(){
+    const name=$('ewName').value.trim(), w=S.wd.find(x=>x.id===ewId);
+    const x=ewLotRows(name, w).find(r=>r.l.id===this.value); if(!x) return;
+    /* เปลี่ยนก้อน → เบอร์ก้อนตามป้าย และน้ำหนักเท่าที่ก้อนนั้นเหลือ (แก้ได้) */
+    if(!x.mine){ $('ewSeq').value=String(x.l.lotNo); $('ewKg').value=x.rem; }
+  };
   function openWdEdit(id){
     const w=S.wd.find(x=>x.id===id); if(!w) return; ewId=id;
     $('ewSeq').value=w.seq||''; $('ewName').value=w.fiberName||'';
@@ -2896,6 +2934,7 @@ window.WPDAUTH = {
     $('ewSel').value=known?w.fiberName:'__new__';
     $('ewName').style.display=known?'none':'block';
     $('ewLot').value=w.lot||''; $('ewKg').value=w.kg||''; $('ewNote').value=w.note||'';
+    populateEwLots(w.fiberName);
     wdWarnText(orderById(w.orderId),w.fiberName,'ewWarn');
     openOv('ovWdEdit');
   }
@@ -2907,9 +2946,17 @@ window.WPDAUTH = {
     if(!n||!kg){ toast('กรอกชื่อใยและน้ำหนัก'); return; }
     if(!$('ewSeq').value.trim()){ toast('กรอกหมายเลขก้อนด้วย'); return; }
     const _oldKey=w.fiberName+'|'+w.lot;
-    w.seq=$('ewSeq').value.trim(); w.fiberName=n; w.lot=$('ewLot').value.trim();
-    /* แก้ชื่อใย/เบอร์ก้อน → ผูกกับรายการรับเข้าใหม่ (ถ้าเบอร์นี้มีรับเข้าครั้งเดียว) ไม่งั้นนับตามชื่อ+เบอร์ */
-    if(_oldKey!==w.fiberName+'|'+w.lot){
+    /* เลือกก้อนจากรายการ = ผูกกับรายการรับเข้านั้นตรงๆ (เบอร์ซ้ำที่รับคนละวันไม่ถูกหักซ้ำ) */
+    const _useSel=$('ewLotSel').style.display!=='none';
+    const _pick=_useSel ? ewLotRows(n, w).find(r=>r.l.id===$('ewLotSel').value) : null;
+    if(_useSel && !_pick){ toast('เลือกก้อนที่หยิบมาจริงก่อน'); return; }
+    if(_pick && kg>_pick.rem+1 && !await ask('น้ำหนักเกินที่ก้อนนี้เหลือ — เลือกเบอร์ก้อนผิดหรือเปล่า?',
+      'ก้อนเบอร์ '+_pick.l.lotNo+' ของ '+n+' เหลือในระบบ '+_pick.rem+' กก. แต่รายการนี้ '+kg+' กก.\n\nยืนยันบันทึกหรือไม่?')) return;
+    w.seq=$('ewSeq').value.trim(); w.fiberName=n;
+    if(_pick){ w.lot=String(_pick.l.lotNo); w.receiptId=_pick.l.id; w.lotDate=_pick.l.time||null; }
+    else w.lot=$('ewLot').value.trim();
+    /* พิมพ์เบอร์เอง (ใยที่ยังไม่มีในแอพสต๊อก) → ผูกกับรายการรับเข้าใหม่ (ถ้าเบอร์นี้มีรับเข้าครั้งเดียว) ไม่งั้นนับตามชื่อ+เบอร์ */
+    if(!_pick && _oldKey!==w.fiberName+'|'+w.lot){
       const _m=(STOCKFIBER[n]||[]).filter(l=>String(l.lotNo)===String(w.lot));
       w.receiptId=_m.length===1?_m[0].id:null; w.lotDate=_m.length===1?_m[0].time:null;
     }
@@ -2993,7 +3040,7 @@ window.WPDAUTH = {
       const lots=STOCKFIBER[n];
       if(!n || !lots || !lots.length){ hint.textContent = n ? 'ยังไม่มีข้อมูลรับเข้าใยนี้ในแอพสต๊อก' : ''; return; }
       const withRemain=lots.map(l=>({...l, remaining:lotRemaining(n,l.lotNo,+l.kg||0,l.id)}));
-      const total=r3(withRemain.reduce((s,l)=>s+Math.max(0,l.remaining),0));
+      const total=fiberRemainTotal(n);
       const active=withRemain.filter(l=>l.remaining>0).sort((a,b)=>a.lotNo-b.lotNo)[0];
       const balesLeft=STOCKFIBER_BALES[n];
       const at=baleAtLine(n), wait=baleWaiting(n);
@@ -3637,14 +3684,38 @@ window.WPDAUTH = {
       $(prefix+'Size').setAttribute('list','dl'+prefix+'Size'); f.appendChild(dl);
     });
 
+    /* เบอร์กระสอบใน Standard: ถุงเดียวกันที่เบิกไว้ที่ไลน์แล้วขึ้นก่อน และตั้งเป็นกระสอบเก่าสุดที่ไลน์ให้เลย (ใช้ของเก่าก่อน ไม่ต้องเบิกใหม่)
+       ตามด้วยกระสอบในสต๊อกที่ยังไม่เบิก */
     function refreshBagLotOptionsFor(kind, nameInputId, selId, keepVal){
       const sel=$(selId); if(!sel) return;
       const bagName=$(nameInputId).value.trim();
-      const sacks=STOCKBAG.sacks.filter(s=>s.kind===kind && s.name===bagName && sackHasBag(s));
+      let hint=$(selId+'Hint');
+      if(!hint){ hint=document.createElement('div'); hint.id=selId+'Hint'; hint.className='sumline'; hint.style.marginTop='4px'; sel.insertAdjacentElement('afterend',hint); }
+      hint.innerHTML='';
       if(!bagName){ sel.innerHTML='<option value="">— เลือกถุงก่อน —</option>'; return; }
-      if(!sacks.length){ sel.innerHTML='<option value="">— ไม่มีกระสอบที่พร้อมใช้ในสต๊อก —</option>'; return; }
+      /* ชื่อถุงอยู่ในกระสอบประเภทไหนในสต๊อก ก็ดูประเภทนั้น (เหมือนตอนหักถุง) */
+      const k=(kind==='zip' && !(STOCKBAG.zip||{})[bagName] && (STOCKBAG.pack||{})[bagName]) ? 'pack' : kind;
+      const lineQ=sackQueue(k,bagName).filter(lineHasBag);
+      const lineNos=new Set(lineQ.map(x=>String(x.sackNo)));
+      const sacks=STOCKBAG.sacks.filter(s=>s.kind===k && s.name===bagName && sackHasBag(s) && !lineNos.has(String(s.sackNo)));
+      if(!lineQ.length && !sacks.length){ sel.innerHTML='<option value="">— ไม่มีกระสอบที่พร้อมใช้ในสต๊อก —</option>'; return; }
+      const pick=(lineQ.length && !lineNos.has(String(keepVal||''))) ? String(lineQ[0].sackNo) : String(keepVal||'');
+      const wIn=$(kind==='zip'?(selId==='spBag2Sack'?'spBag2W':'spBagW'):'spPackW');
+      const wOf=x=>x.weightPerBag||(wIn?(+wIn.value||0):0);
       sel.innerHTML='<option value="">— ไม่ระบุ —</option>'+
-        sacks.slice().sort((a,b)=>a.sackNo-b.sackNo).map(s=>'<option value="'+s.sackNo+'"'+(String(s.sackNo)===String(keepVal)?' selected':'')+'>เบอร์กระสอบ #'+s.sackNo+' · รับ '+thDate(s.time)+' — เหลือ '+s.remainingKg+' กก. ('+s.remainingPieces+' ใบ)</option>').join('');
+        (lineQ.length?'<optgroup label="ที่ไลน์ — เบิกไว้แล้ว ใช้ก่อน">'+lineQ.map((x,i)=>'<option value="'+esc(x.sackNo)+'"'+(String(x.sackNo)===pick?' selected':'')+'>#'+esc(x.sackNo)+
+          (x.recvTime?' · รับ '+thDate(x.recvTime):'')+' · เบิกมา '+thDate(x.time)+' — เหลือ '+r3(x.remaining)+' กก.'+(wOf(x)>0?' ('+(x.wEst?'≈ ':'')+piecesOf(x.remaining,wOf(x))+' ใบ)':'')+
+          (i===0?' · ใช้อยู่':' · รอคิว')+'</option>').join('')+'</optgroup>':'')+
+        (sacks.length?'<optgroup label="ในสต๊อก — ยังไม่เบิก">'+sacks.slice().sort((a,b)=>a.sackNo-b.sackNo).map(s=>'<option value="'+s.sackNo+'"'+(String(s.sackNo)===pick?' selected':'')+'>เบอร์กระสอบ #'+s.sackNo+' · รับ '+thDate(s.time)+' — เหลือ '+s.remainingKg+' กก. ('+s.remainingPieces+' ใบ)</option>').join('')+'</optgroup>':'');
+      const upd=()=>{
+        const v=sel.value, onLine=lineNos.has(String(v));
+        hint.innerHTML = lineQ.length
+          ? (onLine ? '<span style="color:var(--accent2)">✓ ใช้กระสอบที่เบิกไว้ที่ไลน์แล้ว — ไม่ต้องเบิกใหม่</span>'
+                    : '<span style="color:var(--yellow)">ที่ไลน์ยังมีกระสอบ #'+esc(lineQ[0].sackNo)+' ของถุงนี้เหลือ — ตอนแพ็คระบบจะหักกระสอบเก่าที่ไลน์ก่อนเสมอ</span>')
+          : (sacks.length ? '<span style="color:var(--dim)">ถุงนี้ยังไม่มีที่ไลน์ — ก่อนแพ็คต้องกดเบิกกระสอบ</span>' : '');
+      };
+      if(!sel._hintBound){ sel._hintBound=1; sel.addEventListener('change',()=>{ if(sel._upd) sel._upd(); }); }
+      sel._upd=upd; upd();
     }
     /* เลือกถุงแล้วดึงไซซ์/น้ำหนักต่อใบจากสต๊อกมาเติมให้เลย ไม่ต้องพิมพ์ใหม่ */
     const autoFilled={};
@@ -3822,6 +3893,8 @@ window.WPDAUTH = {
         fabricType: isPillow && $('spFabType') ? $('spFabType').value.trim() : '',
         fabricSize: isPillow && $('spFabSize') ? normSize($('spFabSize').value) : '',
         tolPct:+$('spTol').value||3 };
+      /* ระหว่างเปิดฟอร์มอยู่ ถ้าโหลดข้อมูลใหม่จากเครื่องอื่น ออเดอร์ในระบบเป็นตัวใหม่แล้ว — ต้องใส่ Standard ให้ตัวนั้นด้วย ไม่งั้นบันทึกค่าเดิมทับ */
+      const _fresh=S.orders.find(x=>x.id===o.id); if(_fresh && _fresh!==o) _fresh.spec=o.spec;
       formDirty=false;
       await saveOrders();
       specOpen=false;
@@ -4063,8 +4136,11 @@ window.WPDAUTH = {
     const dt=l.date||thDate(l.time);
     return 'เบอร์ '+no+' · '+name+' '+(+l.kg||0)+' กก.'+(dt?' · '+dt:'');
   }
+  /* ยอดใยในคลัง = รับเข้า − เบิก ตรงกับแอพสต๊อก (ไม่ปัดก้อนติดลบเป็น 0 — ก้อนที่เบิกซ้ำแปลว่าก้อนจริงที่หยิบไปยังนับอยู่ในก้อนอื่น) */
   function fiberRemainTotal(name){
-    return r3(fiberLotsNow(name).reduce((s,l)=>s+Math.max(0,l.remaining),0));
+    const got=(STOCKFIBER[name]||[]).reduce((s,l)=>s+(+l.kg||0),0);
+    const out=S.wd.filter(w=>w.fiberName===name).reduce((s,w)=>s+(+w.kg||0),0);
+    return r3(got-out);
   }
   function currentBale(o,name){
     if(o.baleTags && o.baleTags[name]) return String(o.baleTags[name]);

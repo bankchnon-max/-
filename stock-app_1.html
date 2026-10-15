@@ -932,7 +932,17 @@
     <!-- 6. SUMMARY / EXPORT -->
     <div class="panel" id="p-sum">
       <div class="card"><h3>ภาพรวมสต๊อกทั้งหมด</h3><div class="sg" id="sumStats"></div></div>
-      <div class="card" data-wfold="no"><h3>⚠ ใกล้หมด</h3><div class="scr"><table id="tLow"></table></div></div>
+      <div class="card" data-wfold="no"><h3>⚠ ใกล้หมด</h3><div class="scr"><table id="tLow"></table></div>
+        <details style="margin-top:10px"><summary style="cursor:pointer;color:var(--dim);font-size:13px">⚙ ตั้งจุดเตือน (ใช้กับตารางนี้ การ์ดสีแดง และแจ้งเตือน LINE ทุกเช้า 08:00)</summary>
+          <div class="rf" style="margin-top:8px">
+            <div><label>ใย ทุกชนิด ต่ำกว่า (กก.)</label><input id="atFiber" type="number" inputmode="decimal" step="1" min="0"></div>
+            <div><label>ผ้า เหลือไม่เกิน (ม้วน)</label><input id="atRolls" type="number" inputmode="numeric" step="1" min="0"></div>
+            <div><label>ถุงแพ็ค แต่ละขนาด ต่ำกว่า (กก.)</label><input id="atPack" type="number" inputmode="decimal" step="1" min="0"></div>
+            <div><label>ถุงซิล แต่ละแบบ ต่ำกว่า (กก.)</label><input id="atZip" type="number" inputmode="decimal" step="1" min="0"></div>
+          </div>
+          <div style="font-size:12px;color:var(--dim);margin:4px 0 8px">ใยชนิดไหนตั้งจุดเตือนแยกไว้ในหน้า "ใย" จะใช้ค่านั้นก่อน · ใส่ 0 = ไม่เตือน</div>
+          <button class="btn sec w" id="btnAlertTh">บันทึกจุดเตือน</button>
+        </details></div>
       <div class="card">
         <h3>ออกไฟล์ข้อมูล (Excel/CSV)</h3>
         <div class="rf">
@@ -1679,6 +1689,7 @@ window.WPDAUTH = {
 
   /* ---------- STATE ---------- */
   let S = { fiberReceipts:[], fiberTh:{}, baleUsage:[], fabricReceipts:[], cuts:[], cutBatches:[], sewSent:[], sewReturns:[], waste:[], prodTypeTh:{},
+            alertTh:{fiberKg:0, fabricRolls:2, packKg:5, zipKg:5},
             sackReceipts:[], gasReceipts:[], shipments:[], deliveries:[], finAdjustments:[],
             tradeItems:[], tradeIn:[], tradeOut:[], tradeAdj:[] };
   let PROD = { orders:[], wd:[], use:[], fabricWd:[], caseUse:[], bagWd:[], bagUse:[], gasSwaps:[], line:[] };
@@ -1765,6 +1776,7 @@ window.WPDAUTH = {
     v3s_fabric: ()=>({receipts:S.fabricReceipts, cuts:S.cuts, cutBatches:S.cutBatches, sewSent:S.sewSent, sewReturns:S.sewReturns, waste:S.waste, prodTypeTh:S.prodTypeTh, sizeMaster:S.sizeMaster||null}),
     v3s_bag:    ()=>({receipts:S.sackReceipts, reuseItems:S.reuseItems||[], reuseIn:S.reuseIn||[], reuseOut:S.reuseOut||[]}),
     v3s_gas:    ()=>({receipts:S.gasReceipts}),
+    v3s_alert:  ()=>S.alertTh,
     v3s_fin:    ()=>({shipments:S.shipments, deliveries:S.deliveries, finAdjustments:S.finAdjustments,
                       tradeItems:S.tradeItems, tradeIn:S.tradeIn, tradeOut:S.tradeOut, tradeAdj:S.tradeAdj})
   };
@@ -1814,30 +1826,35 @@ window.WPDAUTH = {
     const busy = Object.keys(pending).length || Object.keys(inflight).some(k=>inflight[k]);
     if(busy){ e.preventDefault(); e.returnValue=''; return ''; }
   });
+  /* จุดเตือนใกล้หมด — ใยรายชนิดที่ตั้งไว้ (>0) ใช้ก่อน ไม่งั้นใช้ค่ารวม */
+  const fiberThOf=n=>(+S.fiberTh[n]>0? +S.fiberTh[n] : +S.alertTh.fiberKg||0);
+  const rollTh=()=>+S.alertTh.fabricRolls||0;
+  const bagTh=kind=>+(kind==='zip'? S.alertTh.zipKg : S.alertTh.packKg)||0;
   const saveFiber=()=>put('v3s_fiber'), saveFabric=()=>put('v3s_fabric'), saveBag=()=>put('v3s_bag'), saveGas=()=>put('v3s_gas'), saveFin=()=>put('v3s_fin');
 
   /* โหลดพลาดต้องโยน error ขึ้นไป ห้ามคืนค่าว่าง ไม่งั้นแอพจะเข้าใจว่าไม่มีข้อมูล แล้วบันทึกทับของจริง */
   async function rawGet(k){ if(!hasStore) return null; const r=await window.storage.get(k,true); return r?r.value:null; }
   async function readAll(){
     const _seq=wpdWriteSeq, _busy=wpdBusy();
-    const [fi,fa,bg,gs,fn,ord,fd,ln] = await Promise.all([
+    const [fi,fa,bg,gs,fn,ord,fd,ln,al] = await Promise.all([
       rawGet('v3s_fiber'), rawGet('v3s_fabric'), rawGet('v3s_bag'), rawGet('v3s_gas'), rawGet('v3s_fin'),
-      rawGet('v3_orders'), rawGet('v3_feed'), rawGet('v3_line')
+      rawGet('v3_orders'), rawGet('v3_feed'), rawGet('v3_line'), rawGet('v3s_alert')
     ]);
     /* มีการบันทึกเกิดขึ้นระหว่างที่กำลังดึงข้อมูล = ข้อมูลที่ได้มาเก่ากว่าในเครื่อง ห้ามเอามาทับ รอบหน้าค่อยดึงใหม่ */
     if(wpdStale(_seq,_busy)) return lastHash;
-    const hash=[fi,fa,bg,gs,fn,ord,fd,ln].map(x=>x||'').join('|');
+    const hash=[fi,fa,bg,gs,fn,ord,fd,ln,al].map(x=>x||'').join('|');
     const parse=(s,f)=>{ try{ return s?JSON.parse(s):f; }catch(e){ return f; } };
     const Pf=parse(fi,{}), Pa=parse(fa,{}), Pb=parse(bg,{}), Pg=parse(gs,{}), Pn=parse(fn,{});
     S.fiberReceipts=Pf.receipts||[]; S.fiberTh=Pf.th||{}; S.baleUsage=Pf.baleUsage||[];
     S.fabricReceipts=Pa.receipts||[]; S.cuts=Pa.cuts||[]; S.cutBatches=Pa.cutBatches||[]; S.sewSent=Pa.sewSent||[]; S.sewReturns=Pa.sewReturns||[]; S.waste=Pa.waste||[]; S.prodTypeTh=Pa.prodTypeTh||{}; S.sizeMaster=Array.isArray(Pa.sizeMaster)?Pa.sizeMaster:null;
     S.sackReceipts=Pb.receipts||[]; S.reuseItems=Pb.reuseItems||[]; S.reuseIn=Pb.reuseIn||[]; S.reuseOut=Pb.reuseOut||[];
     S.gasReceipts=Pg.receipts||[];
+    S.alertTh=Object.assign({fiberKg:0, fabricRolls:2, packKg:5, zipKg:5}, parse(al,{}));
     S.shipments=Pn.shipments||[]; S.deliveries=Pn.deliveries||[]; S.finAdjustments=Pn.finAdjustments||[];
     S.tradeItems=Pn.tradeItems||[]; S.tradeIn=Pn.tradeIn||[]; S.tradeOut=Pn.tradeOut||[]; S.tradeAdj=Pn.tradeAdj||[];
     const A=parse(ord,{orders:[]}), B=parse(fd,{wd:[]}), C=parse(ln,{line:[]});
     PROD.orders=A.orders||[]; PROD.wd=B.wd||[]; PROD.use=B.use||[]; PROD.fabricWd=B.fabricWd||[]; PROD.caseUse=B.caseUse||[]; PROD.bagWd=B.bagWd||[]; PROD.bagUse=B.bagUse||[]; PROD.gasSwaps=B.gasSwaps||[]; PROD.line=C.line||[];
-    wpdMarkLoaded({v3s_fiber:fi, v3s_fabric:fa, v3s_bag:bg, v3s_gas:gs, v3s_fin:fn});
+    wpdMarkLoaded({v3s_fiber:fi, v3s_fabric:fa, v3s_bag:bg, v3s_gas:gs, v3s_fin:fn, v3s_alert:al});
     return hash;
   }
 
@@ -1977,7 +1994,7 @@ window.WPDAUTH = {
     stock.sort((a,b)=>a.name.localeCompare(b.name,'th'));
     const _atLine=fiberAtLine();
     $('fiberCards').innerHTML = stock.length ? stock.map(s=>{
-      const th=+S.fiberTh[s.name]||0, low=th>0&&s.stock<th, al=_atLine[s.name]||0;
+      const th=fiberThOf(s.name), low=th>0&&s.stock<th, al=_atLine[s.name]||0;
       return '<div class="scard'+(low?' lowstock':'')+'" data-fibercard="'+esc(s.name)+'" style="cursor:pointer;"><div class="nm">'+esc(s.name)+(low?' <span class="bdg bad">ใกล้หมด</span>':'')+'</div>'+
         '<div class="n">'+s.stock+' <span style="font-size:13px;color:var(--dim);">กก.</span></div>'+
         (al>0?'<div class="l" style="color:var(--text);">+ ที่ไลน์อีก <b>'+al+' กก.</b> (เบิกไปแล้ว ยังไม่ได้ป้อน) · รวมทั้งหมด '+r3(s.stock+al)+' กก.</div>':'')+
@@ -2186,6 +2203,11 @@ window.WPDAUTH = {
     toast(multi?'รับเข้า '+nos.length+' ก้อนแล้ว — '+n+' เบอร์ '+packNosText(nos)+' รวม '+total+' กก.':'บันทึกรับเข้าใยแล้ว — '+n+' เบอร์ '+nos[0]+' · '+kgs[0]+' กก.');
   };
 
+  $('btnAlertTh').onclick=async()=>{
+    const v=id=>Math.max(0,+$(id).value||0);
+    S.alertTh={fiberKg:v('atFiber'), fabricRolls:Math.round(v('atRolls')), packKg:v('atPack'), zipKg:v('atZip')};
+    await put('v3s_alert'); rSum(); toast('บันทึกจุดเตือนแล้ว');
+  };
   $('btnTh').onclick=async()=>{ const n=$('thSel').value; if(!n){toast('เลือกใยก่อน');return;} S.fiberTh[n]=+$('thKg').value||0; await saveFiber(); $('thKg').value=''; rFiber(); toast('ตั้งจุดเตือนแล้ว'); };
   let editingFiberId=null;
   async function editFiberReceipt(id){
@@ -2269,7 +2291,7 @@ window.WPDAUTH = {
     $('rollCards').innerHTML=rollsByType.length?rollsByType.map(r=>{
       const ready=CALC.cutBatchStatus(S.cutBatches,S.sewSent,S.sewReturns,PROD.fabricWd)
         .filter(b=>b.fabricType===r.fabricType).reduce((a,b)=>a+Math.max(0,b.readyBalance),0);
-      return '<div class="scard'+(r.avail<=2?' lowstock':'')+'" data-fabcard="'+esc(r.fabricType)+'" style="cursor:pointer;">'+
+      return '<div class="scard'+(r.avail<=rollTh()?' lowstock':'')+'" data-fabcard="'+esc(r.fabricType)+'" style="cursor:pointer;">'+
       '<div class="nm">'+esc(r.fabricType)+'</div>'+
       '<div class="n">'+r.avail+' <span style="font-size:13px;color:var(--dim);">ม้วน</span></div>'+
       '<div class="l">ถุงบรรจุผ้าพร้อมเบิก '+ready+' ชิ้น · แตะดูถุงทั้งหมด ▾</div></div>';
@@ -3468,7 +3490,7 @@ window.WPDAUTH = {
       return 'น้ำหนัก/ใบ <b style="color:var(--yellow)">'+v.weightMin+'–'+v.weightMax+'</b> กก. — แต่ละกระสอบไม่เท่ากัน';
     }
     function bagCardHTML(v, kind, badge){
-      return '<div class="scard'+(v.remainingKg<5?' lowstock':'')+'" data-bagcard="'+kind+'|'+esc(v.name)+'" style="cursor:pointer;">'+
+      return '<div class="scard'+(v.remainingKg<bagTh(kind)?' lowstock':'')+'" data-bagcard="'+kind+'|'+esc(v.name)+'" style="cursor:pointer;">'+
         '<div class="nm">'+esc(v.name)+' '+badge+'</div>'+
         '<div class="n">'+v.remainingKg+' <span style="font-size:13px;color:var(--dim);">กก.</span></div>'+
         '<div class="l">≈ '+v.remainingPieces+' ใบ · '+v.sackCount+' กระสอบ (รับเข้ารวม '+v.receivedKg+' กก.)<br>'+
@@ -4369,11 +4391,13 @@ window.WPDAUTH = {
       })();
 
     const low=[];
-    rawS.forEach(r=>{ const th=+S.fiberTh[r.name]||0; if(th>0&&r.stock<th) low.push({name:'ใย: '+r.name, stock:r.stock+' กก.', th:th+' กก.'}); });
+    rawS.forEach(r=>{ const th=fiberThOf(r.name); if(th>0&&r.stock<th) low.push({name:'ใย: '+r.name, stock:r.stock+' กก.', th:th+' กก.'}); });
     allFabricTypes().forEach(t=>{ const hadRoll=(S.fabricReceipts||[]).some(r=>r.fabricType===t); if(!hadRoll) return;
-      const a=CALC.availableRolls(S.fabricReceipts,S.cuts,t,S.cutBatches).length; if(a<=2) low.push({name:'ผ้า: '+t, stock:a+' ม้วน', th:'2 ม้วน'}); });
-    zipS.forEach(z=>{ if(z.remainingKg<5) low.push({name:'ถุงซิล: '+z.name, stock:z.remainingKg+' กก.', th:'5 กก.'}); });
-    packS.forEach(p=>{ if(p.remainingKg<5) low.push({name:'ถุงแพ็ค: '+p.name, stock:p.remainingKg+' กก.', th:'5 กก.'}); });
+      const a=CALC.availableRolls(S.fabricReceipts,S.cuts,t,S.cutBatches).length; if(rollTh()>0&&a<=rollTh()) low.push({name:'ผ้า: '+t, stock:a+' ม้วน', th:rollTh()+' ม้วน'}); });
+    zipS.forEach(z=>{ if(z.remainingKg<bagTh('zip')) low.push({name:'ถุงซิล: '+z.name, stock:z.remainingKg+' กก.', th:bagTh('zip')+' กก.'}); });
+    packS.forEach(p=>{ if(p.remainingKg<bagTh('pack')) low.push({name:'ถุงแพ็ค: '+p.name, stock:p.remainingKg+' กก.', th:bagTh('pack')+' กก.'}); });
+    if(document.activeElement==null || !/^at(Fiber|Rolls|Pack|Zip)$/.test(document.activeElement.id||'')){
+      $('atFiber').value=S.alertTh.fiberKg; $('atRolls').value=S.alertTh.fabricRolls; $('atPack').value=S.alertTh.packKg; $('atZip').value=S.alertTh.zipKg; }
     /* รวมจุดเตือนของ "ประเภทสินค้า" เข้ามาในตารางใกล้หมดด้วย */
     try{
       const _bs=CALC.cutBatchStatus(S.cutBatches,S.sewSent,S.sewReturns,PROD.fabricWd);

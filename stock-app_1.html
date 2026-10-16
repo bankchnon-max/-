@@ -3121,7 +3121,7 @@ window.WPDAUTH = {
   /* ล็อตผ้าของถุง = วันที่รับม้วนที่ตัด — เลขถุงนับ 1 ใหม่ได้ทุกล็อต จึงโชว์ล็อตคู่กับเลขถุง */
   function rollOfCut(b){ const id=b&&(b.rollId||(Array.isArray(b.parts)&&b.parts[0]&&b.parts[0].rollId)); return id ? (S.fabricReceipts||[]).find(r=>r.id===id)||null : null; }
   /* "ม้วนที่ 1" หรือถุงหลายม้วน "ม้วนที่ 1/5ชิ้น, 6/5ชิ้น" */
-  function rollsText(b){ return (Array.isArray(b.parts)&&b.parts.length) ? 'ม้วนที่ '+b.parts.map(p=>p.rollNo+'/'+p.qty+'ชิ้น').join(', ') : 'ม้วนที่ '+(b.rollNo||'—'); }
+  function rollsText(b){ return (Array.isArray(b.parts)&&b.parts.length) ? b.parts.map(p=>'ม้วนที่ '+p.rollNo+' · '+p.qty+' ชิ้น').join(', ') : 'ม้วนที่ '+(b.rollNo||'—'); }
   function lotTag(batchId){
     const r=rollOfCut((S.cutBatches||[]).find(x=>x.id===batchId)); if(!r) return '';
     const d=ymd(r.time).split('-'); return ' <span style="font-size:11px;color:var(--dim);font-weight:400">ล็อต '+(+d[2])+'/'+(+d[1])+'</span>';

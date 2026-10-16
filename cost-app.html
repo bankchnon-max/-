@@ -9,48 +9,6 @@
 <meta name="apple-mobile-web-app-title" content="ต้นทุน">
 <meta name="theme-color" content="#ffffff">
 <title>ต้นทุน &amp; ตีราคา — วินโพลีดีไซน์</title>
-<html lang="th" data-wfold-default="open">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="ต้นทุน">
-<meta name="theme-color" content="#ffffff">
-<title>ต้นทุน &amp; ตีราคา — วินโพลีดีไซน์</title>
-<html lang="th" data-wfold-default="open">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="ต้นทุน">
-<meta name="theme-color" content="#ffffff">
-<title>ต้นทุน &amp; ตีราคา — วินโพลีดีไซน์</title>
-<html lang="th" data-wfold-default="open">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="ต้นทุน">
-<meta name="theme-color" content="#ffffff">
-<title>ต้นทุน &amp; ตีราคา — วินโพลีดีไซน์</title>
-<!-- wpd-pwa -->
-<link rel="manifest" href="/manifest-cost.webmanifest">
-<link rel="icon" type="image/png" href="/icons/cost-192.png">
-<link rel="apple-touch-icon" href="/icons/cost-192.png">
-<script>if("serviceWorker" in navigator && location.protocol==="https:") addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));</script>
-<!-- /wpd-pwa -->
-<!-- wpd-pwa -->
-<link rel="manifest" href="/manifest-cost.webmanifest">
-<link rel="icon" type="image/png" href="/icons/cost-192.png">
-<link rel="apple-touch-icon" href="/icons/cost-192.png">
-<script>if("serviceWorker" in navigator && location.protocol==="https:") addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));</script>
-<!-- /wpd-pwa -->
 <!-- wpd-pwa -->
 <link rel="manifest" href="/manifest-cost.webmanifest">
 <link rel="icon" type="image/png" href="/icons/cost-192.png">
@@ -489,7 +447,7 @@
   Element.prototype.scrollIntoView = function(){ try{ scan(); reveal(this); }catch(e){} return _siv.apply(this, arguments); };
   document.addEventListener('DOMContentLoaded', function(){ scan(); setInterval(scan, 2500); });
 })();
-</script><!-- /wpd-fold -->
+</script><!-- /wpd-fold -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- ฟอนต์โหลดเบื้องหลัง ไม่ให้หน้าค้างรอเน็ต (เปิดด้วยฟอนต์เครื่องก่อน แล้วสลับเอง) -->
@@ -1137,7 +1095,7 @@ window.WPDAUTH = {
     }
   };
 })();
-</script><!-- /wpd-store -->
+</script><!-- /wpd-store -->
 <script>
 (function(){
   'use strict';
@@ -1207,19 +1165,36 @@ window.WPDAUTH = {
     /* ค่าผ้าต่อ 1 ใบ(ปลอก) = ราคาม้วน แบ่งตามพื้นที่ชิ้นที่ตัดจากม้วนนั้นจริง × จำนวนชิ้นต่อใบ
        ม้วนเดียวตัดหลายไซซ์ ชิ้นใหญ่ (ปิกนิก 40x79) ต้องแพงกว่าชิ้นเล็ก (18x54) · ปิกนิก 2 ผืนประกบ = 2 ชิ้นต่อใบ
        ไซซ์ไหนอ่านไม่ออก → แบ่งตามจำนวนชิ้นเหมือนเดิม */
-    fabricBahtPerPiece(PRICE, cutBatches, batchId, receipts, skipSize){
+    fabricBahtPerPiece(PRICE, cutBatches, batchId, receipts, skipSize, part){
       const b=(cutBatches||[]).find(x=>x.id===batchId);
       if(!b) return { baht:0, src:'none', type:'' };
       const type=b.fabricType||'';
       /* ราคาปลอกตามไซซ์ (บาท/ใบ) ที่ใส่เอง — ใช้ก่อนคิดจากราคาม้วน (ปลอกยกมาที่ไม่มีม้วนต้องใช้แบบนี้) */
       if(!skipSize){ const zp=+((((PRICE||{}).fabric||{})[type]||{}).sizes||{})[COST.sizeKey(b.size)]||0;
         if(zp>0) return { baht:zp, src:'casesize', type:type }; }
-      const p=COST.fabricPricePerRoll(PRICE, type, b.rollNo, b.rollId);
+      /* ถุงเดียวมีผ้าหลายม้วน: คิดแยกทีละม้วนตามชิ้นที่มาจากม้วนนั้น แล้วเฉลี่ย */
+      if(!part && Array.isArray(b.parts) && b.parts.length){
+        let sum=0, n=0, first=null;
+        b.parts.forEach(pt=>{
+          const one=COST.fabricBahtPerPiece(PRICE, cutBatches, batchId, receipts, true, pt);
+          if(!first && one.baht) first=one;
+          sum+=(+one.baht||0)*(+pt.qty||0); n+=(+pt.qty||0);
+        });
+        if(!n || !first) return { baht:0, src:'none', type:type };
+        return { baht:r4(sum/n), src:first.src, type:type, pieces:+b.qtyCut||n, roll:first.roll, piecesPer:+b.piecesPer||1 };
+      }
+      const rNo=part?part.rollNo:b.rollNo, rId=part?part.rollId:b.rollId;
+      const p=COST.fabricPricePerRoll(PRICE, type, rNo, rId);
       if(!p.baht) return { baht:0, src:'none', type:type };
-      let same=[b];
-      if(b.rollNo!=null && b.rollNo!==''){
-        same=(cutBatches||[]).filter(x=>b.rollId ? x.rollId===b.rollId : (x.fabricType===type && String(x.rollNo)===String(b.rollNo) && !x.rollId));
-        if(!same.some(x=>+x.qtyCut)) same=[b];
+      /* ชิ้นทั้งหมดที่ตัดจากม้วนเดียวกัน (ถุงปกติ + ส่วนของถุงหลายม้วน) */
+      const portion=x=>{
+        if(Array.isArray(x.parts) && x.parts.length) return x.parts.filter(q=>rId ? q.rollId===rId : false).map(q=>({ size:x.size, qtyCut:+q.qty||0 }));
+        return (rId ? x.rollId===rId : (x.fabricType===type && String(x.rollNo)===String(rNo) && !x.rollId)) ? [x] : [];
+      };
+      let same=part ? [{ size:b.size, qtyCut:+part.qty||0 }] : [b];
+      if(rNo!=null && rNo!==''){
+        same=[].concat(...(cutBatches||[]).map(portion));
+        if(!same.some(x=>+x.qtyCut)) same=part ? [{ size:b.size, qtyCut:+part.qty||0 }] : [b];
       }
       const pieces=same.reduce((s,x)=>s+(+x.qtyCut||0),0);
       if(!pieces) return { baht:0, src:'noCut', type:type };
@@ -1228,7 +1203,7 @@ window.WPDAUTH = {
       const byArea=same.every(x=>!(+x.qtyCut) || COST.pieceArea(x.size)>0) && areaAll>0;
       let perPiece=byArea ? p.baht*COST.pieceArea(b.size)/areaAll : p.baht/pieces;
       /* ม้วนที่ยังตัดไม่หมด (รู้หน้ากว้าง×ยาว): คิดราคาเฉพาะส่วนที่ใช้ไปแล้วตามความยาว — ตัดหมด/กด "ตัดหมดแล้ว" = ทั้งม้วน (รวมเศษ) */
-      const rec=(receipts||[]).find(r=>b.rollId ? r.id===b.rollId : (r.fabricType===type && String(r.rollNo)===String(b.rollNo)));
+      const rec=(receipts||[]).find(r=>rId ? r.id===rId : (r.fabricType===type && String(r.rollNo)===String(rNo)));
       if(rec && +rec.widthIn && +rec.lengthIn && !rec.retired){
         let used=0, ok=true;
         same.forEach(x=>{ const m=String(x.size||'').match(/(\d+\.?\d*)\s*[xX×*]\s*(\d+\.?\d*)/); if(!m){ ok=false; return; }
@@ -2070,10 +2045,15 @@ window.WPDAUTH = {
       const rolls=S.fabricReceipts.filter(r=>r.fabricType===n)
         .sort((a,b)=>String(b.time).localeCompare(String(a.time)));
       const cutBy={};
-      S.cutBatches.filter(b=>b.fabricType===n).forEach(b=>{ const k=String(b.rollNo); cutBy[k]=(cutBy[k]||0)+(+b.qtyCut||0); });
+      const cutById={};
+      S.cutBatches.filter(b=>b.fabricType===n).forEach(b=>{
+        if(Array.isArray(b.parts) && b.parts.length){ b.parts.forEach(p=>{ cutById[p.rollId]=(cutById[p.rollId]||0)+(+p.qty||0); }); return; }
+        if(b.rollId){ cutById[b.rollId]=(cutById[b.rollId]||0)+(+b.qtyCut||0); return; }
+        const k=String(b.rollNo); cutBy[k]=(cutBy[k]||0)+(+b.qtyCut||0); });
+      const cutOf=l=>(cutById[l.id]||0)+(cutBy[String(l.rollNo)]||0);
       const rows=rolls.slice(0,60).map(l=>
         '<div class="frow"><div style="flex:1;font-size:12.5px">ม้วน #'+esc(l.rollNo)+' · '+thDate(l.time)+
-        (cutBy[String(l.rollNo)]?' · ตัดได้ '+fmtInt(cutBy[String(l.rollNo)])+' ชิ้น':' <span class="bdg warn">ยังไม่ได้ตัด</span>')+
+        (cutOf(l)?' · ตัดได้ '+fmtInt(cutOf(l))+' ชิ้น':' <span class="bdg warn">ยังไม่ได้ตัด</span>')+
         (rolls.filter(x=>String(x.rollNo)===String(l.rollNo)).length>1?' <span class="bdg warn">เลขซ้ำ — คนละวัน</span>':'')+'</div>'+
         '<div style="width:110px">'+(rolls.filter(x=>String(x.rollNo)===String(l.rollNo)).length>1
           ? priceInput('fabric|'+n+'|rollid|'+l.id, (e.rollIds||{})[String(l.id)]!=null?(e.rollIds||{})[String(l.id)]:(e.rolls||{})[String(l.rollNo)], 'ตามมาตรฐาน')

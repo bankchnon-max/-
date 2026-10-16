@@ -2380,7 +2380,7 @@ window.WPDAUTH = {
       :'<tr><td class="empty">ยังไม่มีการตัดผ้า</td></tr>';
     document.querySelectorAll('#tBatchStatus [data-btadj], #tCutBatchList [data-btadj]').forEach(btn=>btn.onclick=async()=>{
       const b=batchStatus.find(x=>x.batchId===btn.dataset.btadj); if(!b) return;
-      { const _cb=S.cutBatches.find(x=>x.id===b.batchId); if(_cb && Array.isArray(_cb.parts) && _cb.parts.length){ await info('ถุงรวมหลายม้วน','ถุงนี้มีผ้าจากหลายม้วน (ม้วนละกี่ชิ้นบันทึกแยกไว้) — แก้จำนวนตรงนี้ไม่ได้ ให้ลบที่ "ประวัติการตัด" แล้วบันทึกถุงใหม่'); return; } }
+      { const _cb=S.cutBatches.find(x=>x.id===b.batchId); if(_cb && Array.isArray(_cb.parts) && _cb.parts.length){ openBag(_cb.id); const _f=$('fsForm'); if(_f) editMixParts(_cb, _f); return; } }
       const input=await askText2('ปรับ "จำนวนที่ตัดได้" ของถุง #'+b.batchNo+' ('+b.fabricType+' '+b.size+' · ตัด '+thDate(b.time)+') เป็นเท่าไหร่ (ชิ้น)\n\nตอนนี้ตัดไว้ '+b.qtyCut+' ชิ้น', b.qtyCut);
       const newQty=await readAdjNumber(input,{current:b.qtyCut,unit:'ชิ้น',what:'ถุง #'+b.batchNo+' ('+b.fabricType+')'});
       if(newQty===null) return;
@@ -2777,11 +2777,50 @@ window.WPDAUTH = {
     });
   }
   /* ฟอร์มแก้ในหน้าต่างรายละเอียด */
+  /* ถุงหลายม้วน: แก้ทีละม้วน — ม้วนไหน กี่ชิ้น */
+  function editMixParts(b, f){
+    const rollsAll=(S.fabricReceipts||[]).filter(r=>r.fabricType===b.fabricType && (!r.retired || b.parts.some(p=>p.rollId===r.id)))
+      .sort((x,y)=>String(x.time).localeCompare(String(y.time))||(x.rollNo||0)-(y.rollNo||0));
+    const opt=sel=>'<option value="">— เลือกม้วน —</option>'+rollsAll.map(r=>'<option value="'+r.id+'"'+(r.id===sel?' selected':'')+'>ม้วนที่ '+r.rollNo+' · รับ '+thDate(r.time)+'</option>').join('');
+    const rowH=p=>'<div class="frow"><select class="pr" style="flex:1 1 auto; min-width:0;">'+opt(p.rollId)+'</select>'+
+      '<input class="pq" type="number" inputmode="numeric" min="1" value="'+(p.qty||'')+'" style="max-width:84px;"><span style="font-size:12px;color:var(--dim);">ชิ้น</span><button class="x">✕</button></div>';
+    f.innerHTML='<div class="fsedit"><b>แก้จำนวนที่ตัดได้ — ทีละม้วน</b><div id="fePartRows">'+b.parts.map(rowH).join('')+'</div>'+
+      '<button class="btn sec sm" id="feAddPart" style="margin-top:8px;">+ เพิ่มม้วน</button><div class="sumline" id="fePartSum"></div>'+
+      '<div class="acts"><button class="btn" id="feSave">บันทึก</button><button class="btn sec" id="feCancel">ยกเลิก</button></div></div>';
+    const rows=()=>[...f.querySelectorAll('#fePartRows .frow')];
+    const read=()=>{ const by={}; rows().forEach(r=>{ const id=r.querySelector('.pr').value, q=Math.round(+r.querySelector('.pq').value||0); if(id&&q>0) by[id]=(by[id]||0)+q; });
+      return Object.keys(by).map(id=>({ rollId:id, rollNo:((S.fabricReceipts||[]).find(x=>x.id===id)||{}).rollNo, qty:by[id] })); };
+    const sum=()=>{ const ps=read(); $('fePartSum').innerHTML='รวม <b>'+ps.reduce((a,p)=>a+p.qty,0)+' ชิ้น</b> จาก '+ps.length+' ม้วน (เดิม '+b.qtyCut+' ชิ้น)'; };
+    const bind=r=>{ r.querySelector('.x').onclick=()=>{ r.remove(); sum(); }; r.querySelector('.pq').oninput=sum; r.querySelector('.pr').onchange=sum; };
+    rows().forEach(bind); sum();
+    $('feAddPart').onclick=()=>{ const t=document.createElement('div'); t.innerHTML=rowH({}); const r=t.firstChild; $('fePartRows').appendChild(r); bind(r); };
+    $('feCancel').onclick=()=>{ f.innerHTML=''; };
+    $('feSave').onclick=async()=>{
+      const ps=read(); if(!ps.length){ toast('ต้องมีอย่างน้อย 1 ม้วน และใส่จำนวนชิ้น'); return; }
+      const tot=ps.reduce((a,p)=>a+p.qty,0), was=b.qtyCut;
+      const sent=(S.sewSent||[]).filter(x=>x.batchId===b.id).reduce((a,x)=>a+(+x.qty||0),0);
+      if(tot<sent && !await ask('น้อยกว่าที่ส่งเย็บไปแล้ว','ถุงนี้ส่งเย็บไปแล้ว '+sent+' ชิ้น แต่แก้เหลือ '+tot+' ชิ้น\n\nยืนยันหรือไม่?')) return;
+      /* ความยาวม้วนไม่พอ (รู้หน้ากว้าง×ยาว) — นับเฉพาะส่วนที่เพิ่มจากเดิม */
+      for(const p of ps){
+        const roll=(S.fabricReceipts||[]).find(x=>x.id===p.rollId); if(!roll || !(roll.widthIn && roll.lengthIn)) continue;
+        const old=(b.parts.find(x=>x.rollId===p.rollId)||{}).qty||0; if(p.qty<=old) continue;
+        const others=CALC.rollPortions(S.cutBatches.filter(x=>x.id!==b.id), roll);
+        const left=CALC.rollRemainingLength(roll, others), need=r2(1e9-CALC.rollRemainingLength({ widthIn:roll.widthIn, lengthIn:1e9 }, [{ size:b.size, qtyCut:p.qty }]));
+        if(need>left && !await ask('ตัดเกินความยาวม้วน?','ม้วนที่ '+roll.rollNo+' (รับ '+thDate(roll.time)+') ไม่พอสำหรับ '+p.qty+' ชิ้นไซซ์ '+b.size+'\n\nจำนวนถูกต้องแน่ใช่ไหม?')) return;
+      }
+      const c0=S.cuts.find(x=>x.mixBatchId===b.id)||{}, t0=c0.time||b.time, note=c0.note||b.note||'';
+      S.cuts=S.cuts.filter(x=>x.mixBatchId!==b.id);
+      ps.forEach(p=>S.cuts.push({ id:uid(), time:t0, fabricType:b.fabricType, rollNo:p.rollNo, rollId:p.rollId, rows:[{ size:b.size, qty:p.qty }], note, mixBatchId:b.id }));
+      b.parts=ps; b.qtyCut=tot;
+      b.adjLog=(b.adjLog||[]); b.adjLog.push({ time:localISO(), from:was, to:tot, parts:ps.map(p=>p.rollNo+'/'+p.qty).join(' ') }); if(b.adjLog.length>50) b.adjLog=b.adjLog.slice(-50);
+      await fabSaved('แก้ถุง #'+b.batchNo+' แล้ว — '+tot+' ชิ้น จาก '+ps.length+' ม้วน');
+    };
+  }
   function editBagRow(b, what){
     const f=$('fsForm'); if(!f) return;
     const inp=(id,label,val,type,extra)=>'<div><label>'+label+'</label><input id="'+id+'" value="'+esc(val==null?'':val)+'"'+(type?' type="'+type+'"':'')+(extra||'')+'></div>';
     if(what==='cut'){
-      if(Array.isArray(b.parts) && b.parts.length){ info('ถุงรวมหลายม้วน','ถุงนี้มีผ้าจากหลายม้วน (ม้วนละกี่ชิ้นบันทึกแยกไว้) — แก้จำนวนตรงนี้ไม่ได้ ให้ลบที่ "ประวัติการตัด" แล้วบันทึกถุงใหม่'); return; }
+      if(Array.isArray(b.parts) && b.parts.length){ editMixParts(b, f); return; }
       f.innerHTML='<div class="fsedit"><b>แก้จำนวนที่ตัดได้ของถุงนี้</b><div class="rf">'+inp('feQty','ตัดได้ (ชิ้น)',b.qtyCut,'number',' inputmode="numeric"')+'</div>'+
         '<div class="acts"><button class="btn" id="feSave">บันทึก</button><button class="btn sec" id="feCancel">ยกเลิก</button></div></div>';
       $('feSave').onclick=async()=>{ const n=+$('feQty').value; if(!(n>=0)){ toast('กรอกจำนวน'); return; }

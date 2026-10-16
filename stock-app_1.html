@@ -593,7 +593,7 @@
       <div class="card" data-step="cut">
         <h3>② ตัดผ้าใส่ถุง</h3>
         <label class="bftoggle"><input type="checkbox" id="cutFreeMode"><span><b>📋 ลงยอดยกมา</b> — ผ้าที่ตัดใส่ถุงไว้แล้ว แต่ไม่มีม้วนในระบบ<small>ใช้ตอนเริ่มใช้แอพครั้งแรกเท่านั้น · ติ๊กออก = กลับไปเลือกถุงตามปกติ</small></span></label>
-        <p class="sumline" style="margin-top:-4px;"><b>ใส่เลขที่เขียนบนถุงเอง</b> ใต้แต่ละแถว — ถุงเดียวใส่ 12 · หลายถุงใส่ 12-14 หรือ 12,15 (จำนวนถุงนับให้ตามเลขที่ใส่) · ถุงนี้จะเดินทางไปช่างเย็บและกลับมาด้วยเลขเดิม</p>
+        <p class="sumline" style="margin-top:-4px;"><b>เลขถุง</b> ใส่ใต้แต่ละแถวตามที่เขียนบนถุง — ถุงเดียวใส่ 12 · หลายถุงใส่ 12-14 หรือ 12,15 · <b>ไม่ใส่ = ระบบรันเลขต่อให้</b> (นับในล็อตเดียวกัน) · ถุงนี้จะเดินทางไปช่างเย็บและกลับมาด้วยเลขเดิม</p>
         <div class="rf" id="cutBatchModeRow">
           <div><label>ชนิดผ้า</label><select id="cutFabSel"></select></div>
           <div><label>ม้วนที่ตัด</label><select id="cutRollSel"></select></div>
@@ -607,7 +607,7 @@
         <div id="cutMixBox" style="display:none;">
           <div class="rf">
             <div id="mixSizeRow"><label>ไซซ์ (นิ้ว กว้าง x ยาว)</label><input class="cs" id="mixSize" placeholder="เช่น 18x54"></div>
-            <div><label>เลขที่เขียนบนถุง</label><input id="mixNo" inputmode="numeric" placeholder="เช่น 5"></div>
+            <div><label>เลขที่เขียนบนถุง</label><input id="mixNo" inputmode="numeric" placeholder="ไม่ใส่ = รันเลขให้"></div>
           </div>
           <label>ผ้าในถุงนี้มาจากม้วนไหน — กี่ชิ้น</label>
           <div id="mixRows"></div>
@@ -2692,9 +2692,10 @@ window.WPDAUTH = {
     if(!fab){ toast('เลือกชนิดผ้าก่อน'); return; }
     const size=normSize($('mixSize').value);
     if(!size){ toast('ใส่ไซซ์ที่ตัด'); return; }
-    const nos=parseBagNos($('mixNo').value);
-    if(!nos || nos.length!==1){ toast('ใส่เลขที่เขียนบนถุง 1 เลข (ถุงเดียว)'); return; }
+    let nos=parseBagNos($('mixNo').value);
+    if(!nos || nos.length>1){ toast('เลขถุงใส่ได้ 1 เลข (ถุงเดียว) หรือเว้นว่างให้ระบบรันเลข'); return; }
     const parts=mixParts();
+    if(parts.length && !nos.length) nos=[nextBagNoInLot(fab, size, (S.fabricReceipts||[]).find(x=>x.id===parts[0].rollId)||null)];
     if(!parts.length){ toast('เลือกม้วนและใส่จำนวนชิ้นอย่างน้อย 1 แถว'); return; }
     if(parts.length===1 && !await ask('มีม้วนเดียว','ถุงนี้มีผ้าจากม้วนเดียว — บันทึกแบบถุงหลายม้วนก็ได้ หรือติ๊กออกแล้วตัดแบบปกติ\n\nบันทึกต่อไหม?')) return;
     /* ตัดเกินความยาวที่ม้วนเหลือ (รู้หน้ากว้าง×ยาว) */
@@ -3193,6 +3194,18 @@ window.WPDAUTH = {
     toast('เพิ่มไซซ์ '+product+(label?' '+label:'')+' แล้ว');
   };
   /* ล็อตผ้าของถุง = วันที่รับม้วนที่ตัด — เลขถุงนับ 1 ใหม่ได้ทุกล็อต จึงโชว์ล็อตคู่กับเลขถุง */
+  /* เลขถุงถัดไปในล็อตเดียวกัน (ชนิดผ้า + ไซซ์ + วันที่รับม้วน · ไม่มีม้วน = กลุ่มถุงที่ไม่มีม้วน) */
+  function nextBagNoInLot(fab, size, lotRoll, taken){
+    let mx=0;
+    S.cutBatches.forEach(b=>{
+      if(CALC.fkey(b.fabricType,b.size)!==CALC.fkey(fab,size)) return;
+      const r=rollOfCut(b);
+      const same=lotRoll ? !!r && r.fabricType===lotRoll.fabricType && ymd(r.time)===ymd(lotRoll.time) : !r;
+      if(same) mx=Math.max(mx, +b.batchNo||0);
+    });
+    (taken||[]).forEach(n=>{ mx=Math.max(mx, +n||0); });
+    return mx+1;
+  }
   function rollOfCut(b){ const id=b&&(b.rollId||(Array.isArray(b.parts)&&b.parts[0]&&b.parts[0].rollId)); return id ? (S.fabricReceipts||[]).find(r=>r.id===id)||null : null; }
   /* "ม้วนที่ 1" หรือถุงหลายม้วน "ม้วนที่ 1/5ชิ้น, 6/5ชิ้น" */
   function rollsText(b){ return (Array.isArray(b.parts)&&b.parts.length) ? b.parts.map(p=>'ม้วนที่ '+p.rollNo+' · '+p.qty+' ชิ้น').join(', ') : 'ม้วนที่ '+(b.rollNo||'—'); }
@@ -3206,7 +3219,7 @@ window.WPDAUTH = {
       '<input class="cq" type="number" inputmode="numeric" placeholder="ชิ้น/ถุง" style="max-width:84px;" value="'+(qty==null?'':qty)+'">'+
       '<input class="cb" type="number" inputmode="numeric" min="1" title="กี่ถุง" style="max-width:58px;" value="'+(bags||1)+'"><span style="font-size:12px;color:var(--dim);">ถุง</span>'+
       '<button class="x">✕</button>'+
-      '<input class="cn" inputmode="text" autocomplete="off" placeholder="เลขที่เขียนบนถุง เช่น 12 หรือ 12-14 หรือ 12,15" style="flex:1 1 100%;">';
+      '<input class="cn" inputmode="text" autocomplete="off" placeholder="เลขบนถุง เช่น 12 หรือ 12-14 (ไม่ใส่ = รันเลขให้)" style="flex:1 1 100%;">';
     d.style.flexWrap='wrap';
     d.querySelector('.x').onclick=()=>d.remove();
     /* ใส่เลขถุงแล้ว จำนวนถุงเท่ากับจำนวนเลขที่ใส่ */
@@ -3249,8 +3262,11 @@ window.WPDAUTH = {
     /* เลขถุง: พนักงานใส่เองตามที่เขียนบนถุง — ระบบไม่รันเลขให้ */
     const _badNo=rowsIn.find(r=>r.nos===null);
     if(_badNo){ toast('เลขถุงของไซซ์ '+_badNo.size+' อ่านไม่ออก — ใส่แบบ 12 หรือ 12-14 หรือ 12,15'); return; }
-    const _noNo=rowsIn.find(r=>!r.nos.length);
-    if(_noNo){ toast('ใส่เลขที่เขียนบนถุงของไซซ์ '+_noNo.size+' ด้วย'); return; }
+    /* ไม่ใส่เลข = รันเลขต่อให้ในล็อตเดียวกัน (ไซซ์เดียวกันหลายแถวก็เรียงต่อกัน) */
+    { const _taken={};
+      rowsIn.forEach(r=>{ if(r.nos.length){ const k=CALC.fkey(fab,r.size); _taken[k]=(_taken[k]||[]).concat(r.nos); } });
+      rowsIn.forEach(r=>{ if(r.nos.length) return; const k=CALC.fkey(fab,r.size); r.nos=[];
+        for(let i=0;i<r.bags;i++){ const n=nextBagNoInLot(fab, r.size, isFree?null:_roll, _taken[k]); r.nos.push(n); _taken[k]=(_taken[k]||[]).concat([n]); } }); }
     const _cnt=rowsIn.find(r=>r.nos.length!==r.bags);
     if(_cnt){ toast('ไซซ์ '+_cnt.size+' ใส่เลขถุง '+_cnt.nos.length+' เลข แต่ช่องจำนวนถุงเป็น '+_cnt.bags+' — แก้ให้ตรงกัน'); return; }
     {

@@ -2755,12 +2755,47 @@ window.WPDAUTH = {
           '<button class="ed" data-fsedit="ret|'+r.id+'">แก้</button> <button class="x" data-fsdel="ret|'+r.id+'">✕</button>')).join('')+
         wds.map(w=>row(w.time,'🏭 ท้ายไลน์เบิก',w.qty+' '+(pp>1?'ใบ':'ชิ้น')+' <span style="color:var(--dim)">(แก้ที่แอพผลิต)</span>','')).join('')+
       '</table></div>'+
+      '<div class="acts" style="margin-top:10px; gap:8px; flex-wrap:wrap;"><button class="btn sec sm" data-fsbagno="1">✏ แก้เลขถุง</button>'+
+        (Array.isArray(b.mergedFrom)&&b.mergedFrom.length?'<button class="btn sec sm" data-fsunmerge="1">↩ แยกกลับเป็นถุงเดิม ('+b.mergedFrom.length+' ถุง)</button>':'')+'</div>'+
+      (Array.isArray(b.mergedFrom)&&b.mergedFrom.length?'<div class="sumline">ถุงนี้ระบบรวมจากถุงย่อยเดิม #'+b.mergedFrom.map(x=>x.batchNo).join(', #')+' — ถ้ารวมผิด กด "แยกกลับเป็นถุงเดิม"</div>':'')+
       '<div id="fsForm"></div>'+
       '<div class="sumline" style="margin-top:10px;">ผ้า <a class="lnk" data-fabopen="'+esc(b.fabricType)+'">'+esc(b.fabricType)+'</a> · แตะ "แก้" ที่แถวไหน แก้ได้เลย ยอดทุกขั้นคิดใหม่ให้เอง</div>';
     fabSheet('ถุง #'+b.batchNo+' · '+b.fabricType+' · '+b.size+fin, html);
     $('fabSheet').dataset.open='bag|'+batchId;
     const body=$('fsBody');
     body.querySelectorAll('[data-fsedit]').forEach(x=>x.onclick=()=>editBagRow(b, x.dataset.fsedit));
+    /* แก้เลขถุง (เลขที่เขียนบนถุงจริง) — รายการส่งเย็บ/รับกลับของถุงนี้เปลี่ยนเลขตาม */
+    const bn=body.querySelector('[data-fsbagno]');
+    if(bn) bn.onclick=()=>{
+      const f=$('fsForm');
+      f.innerHTML='<div class="fsedit"><b>แก้เลขถุง</b><div class="rf"><div><label>เลขที่เขียนบนถุง</label><input id="feBagNo" inputmode="numeric" value="'+esc(b.batchNo)+'"></div></div>'+
+        '<div class="acts"><button class="btn" id="feSave">บันทึก</button><button class="btn sec" id="feCancel">ยกเลิก</button></div></div>';
+      $('feCancel').onclick=()=>{ f.innerHTML=''; };
+      $('feSave').onclick=async()=>{
+        const n=Math.round(+$('feBagNo').value||0);
+        if(!(n>0)){ toast('ใส่เลขถุงเป็นตัวเลข'); return; }
+        if(n===+b.batchNo){ f.innerHTML=''; return; }
+        const lot=rollOfCut(b);
+        const dup=S.cutBatches.some(x=>x.id!==b.id && CALC.fkey(x.fabricType,x.size)===CALC.fkey(b.fabricType,b.size) && +x.batchNo===n &&
+          (function(){ const r=rollOfCut(x); return lot ? !!r && ymd(r.time)===ymd(lot.time) : !r; })());
+        if(dup && !await ask('เลขถุงนี้มีอยู่แล้วในล็อตนี้', b.fabricType+' '+b.size+' #'+n+' มีอยู่แล้ว\n\nยืนยันใช้เลขนี้หรือไม่?')) return;
+        const was=b.batchNo; b.batchNo=n;
+        (S.sewSent||[]).forEach(x=>{ if(x.batchId===b.id) x.batchNo=n; });
+        (S.sewReturns||[]).forEach(x=>{ if(x.batchId===b.id) x.batchNo=n; });
+        b.adjLog=(b.adjLog||[]); b.adjLog.push({ time:localISO(), bagNoFrom:was, bagNoTo:n });
+        await fabSaved('เปลี่ยนเลขถุง #'+was+' → #'+n+' แล้ว'); openBag(b.id);
+      };
+    };
+    /* ถุงที่ระบบรวมจากถุงย่อย — แยกกลับเป็นถุงเดิม (ใช้ได้ถ้ายังไม่รับกลับ/ยังไม่เบิกไปผลิต) */
+    const um=body.querySelector('[data-fsunmerge]');
+    if(um) um.onclick=async()=>{
+      if(rets.length || wds.length){ await info('แยกกลับไม่ได้','ถุงนี้มีรับกลับหรือท้ายไลน์เบิกไปแล้ว — แยกกลับแล้วยอดจะไม่ตรง'); return; }
+      if(!await ask('แยกกลับเป็นถุงเดิม '+b.mergedFrom.length+' ถุง?','จะได้ถุง #'+b.mergedFrom.map(x=>x.batchNo).join(', #')+' คืนมา พร้อมรายการส่งเย็บเดิม'+
+        (sent.length?'\n\nรายการส่งเย็บที่แก้ไว้หลังรวม จะกลับเป็นแบบเดิม':''))) return;
+      S.cutBatches=S.cutBatches.filter(x=>x.id!==b.id).concat(b.mergedFrom.map(x=>Object.assign({}, x)));
+      S.sewSent=(S.sewSent||[]).filter(x=>x.batchId!==b.id).concat((b.mergedSent||[]).map(x=>Object.assign({}, x)));
+      $('fabSheet').dataset.open=''; closeFabSheet(); await saveFabric(); rFabric(); toast('แยกกลับเป็นถุงเดิมแล้ว');
+    };
     const bd=body.querySelector('[data-fsbagdel]');
     if(bd) bd.onclick=async()=>{
       /* ท้ายไลน์เบิกไปแล้ว ห้ามลบ ไม่งั้นรายการเบิกในแอพผลิตจะชี้ไปถุงที่ไม่มีอยู่ */

@@ -651,7 +651,7 @@
       <div class="card"><h3>สรุปต้นทุนตามช่วงเวลา</h3>
         <div class="rf" style="align-items:center;"><div><select id="perMode">
           <option value="day">รายวัน</option><option value="month">รายเดือน</option><option value="year">รายปี</option></select></div>
-          <div><select id="perPlant"><option value="">ทั้งโรงงาน</option><option value="p1">🏭 โรง 1 ใยแผ่น</option><option value="p2">🏭 โรง 2 หมอน</option><option value="pic">ปิกนิก</option></select></div></div>
+          <div><select id="perPlant"><option value="">ทั้งโรงงาน</option><option value="p1">🏭 โรง 1 ใยแผ่น</option><option value="p2">🏭 โรง 2 หมอน</option><option value="pic">ปิกนิก</option><option value="cut">✂️ ตัดผ้า</option></select></div></div>
         <div id="perChart" style="margin-top:10px;"></div>
         <div class="scr" style="margin-top:10px;"><table id="tPeriod"></table></div>
         <div class="sumline" id="perNote"></div></div>
@@ -1408,7 +1408,7 @@ window.WPDAUTH = {
     },
 
     /* ═══ แยกโรง: โรง 1 ใยแผ่น (ใย/ใยปั่น/ใยสาง) · โรง 2 หมอน · ปิกนิกแยกกลุ่ม (ไม่คิดไฟ/ขนส่ง) ═══ */
-    PLANT_TH:{ p1:'โรง 1 ใยแผ่น', p2:'โรง 2 หมอน', pic:'ปิกนิก' },
+    PLANT_TH:{ p1:'โรง 1 ใยแผ่น', p2:'โรง 2 หมอน', pic:'ปิกนิก', cut:'ตัดผ้า' },
     plantOf(o){ const t=(o&&o.productType)||'ใย'; return t==='หมอน'?'p2':t==='ปิกนิก'?'pic':'p1'; },
     /* ตั้งอัตราแยกโรงไว้ (ช่องใดช่องหนึ่ง > 0) → ใช้แทนค่าไฟ/ชม. และค่าส่ง/แพ็ค แบบเดิม */
     plantOn(K){ K=K||{}; return ['p1ElecPerMin','p1ShipPerKg','gasPerMin','p2ElecPerMin','p2ShipPerPiece'].some(k=>+K[k]>0); },
@@ -1510,7 +1510,7 @@ window.WPDAUTH = {
     /* ═══ ต้นทุนรวมของทั้งโรงในช่วงวันที่ (รายวัน/เดือน/ปี) — ใช้สูตรเดียวกับต้นทุนต่องาน แต่ตัดตามวันที่แทนออเดอร์ ═══ */
     /* ค่าแรงจริงของวัน d (จากแอพสแกนหน้า) แบ่งให้งานที่ผลิตวันนั้น:
        คนที่สแกนเข้าหน้างาน "แพ็คปิกนิก" → งานปิกนิก ตามแพ็คที่พนักงานแพ็ค (แพ็คจ้างเหมาคิดค่าเหมาแยก)
-       คนหน้างาน "ตัดผ้า" → งานหมอนของวันนั้น ตามชั่วโมงเดินเครื่อง (ไม่มีหมอน = ไม่แบ่งให้งานอื่น — _cutLeft)
+       คนหน้างาน "ตัดผ้า" → ไม่แบ่งให้งานใด เป็นต้นทุนกลุ่ม "ตัดผ้า" แยก (_cut)
        ที่เหลือ (ไลน์ / อื่นๆ) → งานบนไลน์ ตามชั่วโมงเดินเครื่อง · วันนั้นไม่มีงานไลน์ → ทุกงานตามจำนวนแพ็ค */
     laborAlloc(ctx, d){
       const L=ctx.LABOR&&ctx.LABOR[d]; if(!L) return null;
@@ -1523,11 +1523,9 @@ window.WPDAUTH = {
       const hrs=id=>COST.machineHours(by[id]), staff=id=>by[id].filter(l=>l.packedBy!=='contract').length, cnt=id=>by[id].length;
       const spread=(baht,list,w)=>{ const t=list.reduce((a,id)=>a+w(id),0); if(!(baht>0)) return true; if(!(t>0)) return false; list.forEach(id=>out[id]+=baht*w(id)/t); return true; };
       const pic=+(L.st.picnic||0), cut=+(L.st.cut||0), rest=r2(L.total-pic-cut);
-      const pillowIds=lineIds.filter(id=>COST.plantOf((P.orders||[]).find(x=>x.id===id))==='p2');
       if(!spread(pic,picIds,staff)) if(!spread(pic,lineIds,hrs)) spread(pic,ids,cnt);
       if(!spread(rest,lineIds,hrs)) spread(rest,ids,cnt);
-      const cutDone=spread(cut,pillowIds,hrs);
-      Object.defineProperty(out,'_cutLeft',{ value:cutDone?0:cut, enumerable:false });
+      Object.defineProperty(out,'_cut',{ value:cut, enumerable:false });
       return (memo[d]=out);
     },
     periodCost(ctx, from, to){
@@ -1574,25 +1572,25 @@ window.WPDAUTH = {
       /* ค่าแรงในโรง: วันที่มีข้อมูลแอพสแกนหน้า = ค่าแรงจริงทั้งวัน (รวมวันที่ไม่มีผลิต) · วันที่ไม่มี = ชั่วโมงเดินเครื่อง × ค่าแรงที่ตั้งไว้ */
       let laborDay=0; const _seen={};
       /* ส่วนของโรงนี้ในแต่ละวัน = ชม.เดินเครื่องโรงนี้ ÷ ชม.เดินเครื่องทุกกลุ่มวันนั้น */
-      const _dayShare=dl=>{ if(!plant) return 1; const { h }=COST.plantHours(P, dl), t=h.p1+h.p2+h.pic; return t>0?h[plant]/t:0; };
+      const _dayShare=dl=>{ if(!plant) return 1; const { h }=COST.plantHours(P, dl), t=h.p1+h.p2+h.pic; return t>0?(h[plant]||0)/t:0; };
       if(!plant){
         COST.runDays(lines).forEach(dd=>{ _seen[dd.date]=1; const L=ctx.LABOR&&ctx.LABOR[dd.date]; laborDay+=L?L.total:dd.hours*hrRate*_share; });
         if(ctx.LABOR) Object.keys(ctx.LABOR).forEach(d=>{ if(d>=from && d<=to && !_seen[d]) laborDay+=ctx.LABOR[d].total; });
       } else {
         /* ค่าแรงจริงของวัน แบ่งให้งาน (ตามชั่วโมงเดินเครื่อง · ปิกนิกตามคนแพ็ค) แล้วรวมเฉพาะงานของโรงนี้ */
         COST.runDays(allLines).forEach(dd=>{ _seen[dd.date]=1; const a=COST.laborAlloc(ctx, dd.date);
-          if(a){ Object.keys(a).forEach(id=>{ if(COST.plantOf(_ord[id])===plant) laborDay+=a[id]; }); if(plant==='p2') laborDay+=a._cutLeft||0; }
+          if(a){ Object.keys(a).forEach(id=>{ if(COST.plantOf(_ord[id])===plant) laborDay+=a[id]; }); if(plant==='cut') laborDay+=a._cut||0; }
           else laborDay+=dd.hours*hrRate*_share*_dayShare(allLines.filter(l=>String(l.time).slice(0,10)===dd.date)); });   /* ไม่มีข้อมูลสแกนหน้า: ชม.รวมวันนั้น × ส่วนของโรงนี้ */
         /* วันที่มีค่าแรงแต่ไม่มีผลิต: แบ่งตามสัดส่วนชั่วโมงเดินเครื่องทั้งช่วง */
         if(ctx.LABOR && Object.keys(ctx.LABOR).some(d=>d>=from && d<=to && !_seen[d])){
           /* ช่วงนี้ไม่มีผลิตเลย (เช่นดูรายวัน วันหยุดที่มีคนมาทำงาน) → ใช้สัดส่วน 30 วันก่อนหน้า */
           let ls=allLines; if(!ls.length){ const f=new Date(from+'T00:00:00Z'); f.setUTCDate(f.getUTCDate()-30); const fs=f.toISOString().slice(0,10); ls=(ctx.shareLines||P.line||[]).filter(l=>{ const d=String(l.time||'').slice(0,10); return d>=fs && d<=to; }); }
-          const sh=_dayShare(ls); Object.keys(ctx.LABOR).forEach(d=>{ if(d>=from && d<=to && !_seen[d]){ const L=ctx.LABOR[d], ct=+((L.st||{}).cut||0); laborDay+=(L.total-ct)*sh+(plant==='p2'?ct:0); } }); }
+          const sh=_dayShare(ls); Object.keys(ctx.LABOR).forEach(d=>{ if(d>=from && d<=to && !_seen[d]){ const L=ctx.LABOR[d], ct=+((L.st||{}).cut||0); laborDay+=(L.total-ct)*sh+(plant==='cut'?ct:0); } }); }
       }
       const labor=laborDay+Math.max(0,pieces-_cPieces)*(+K.laborPerPiece||0)+_cBaht;
       /* ✂️ ตัดผ้าในช่วงนี้: ค่าแรงคนหน้างานตัดผ้า (รวมอยู่ในค่าแรงแล้ว — แสดงแยก) + ชิ้น/ม้วน/มูลค่าผ้าที่ตัด (ผ้ายังไม่นับเป็นต้นทุนจนกว่าจะเบิกปลอกไปผลิต) */
       let cutLabor=0, cutPieces=0, cutFabric=0; const _rolls=new Set();
-      if(!plant || plant==='p2'){
+      if(!plant || plant==='cut'){
         if(ctx.LABOR) Object.keys(ctx.LABOR).forEach(d=>{ if(d>=from && d<=to) cutLabor+=+((ctx.LABOR[d].st||{}).cut||0); });
         (S.cutBatches||[]).filter(inD).forEach(b=>{ const q=+b.qtyCut||0; cutPieces+=q;
           cutFabric+=q*COST.fabricBahtPerPiece(PRICE,S.cutBatches,b.id,S.fabricReceipts).baht;
@@ -2817,7 +2815,7 @@ window.WPDAUTH = {
       : '<tr><td class="empty">ยังไม่มีข้อมูลการผลิต</td></tr>';
     { const fx=(KSET.fixed||[]).filter(x=>!/ดอกเบี้ย/.test(String(x.name||'')));
       $('perNote').innerHTML=(plant?'<b>'+COST.PLANT_TH[plant]+'</b>: เฉพาะงานของโรงนี้ · ค่าแรง/ดอกเบี้ย/เงินเดือนแบ่งตามชั่วโมงเดินเครื่องของแต่ละโรงในวันนั้น<br>':'')+'ต้นทุนต่อวัน = ใย + ผ้า+เย็บ (หมอน/ปิกนิก) + ถุงแพ็ค + ถุงซิล (หมอน) + ค่าแรง + ค่าแรงตัดผ้า + ดอกเบี้ย + ขนส่ง + แก๊ส (ใยแผ่น) + ค่าไฟ'+
-        '<br>✂️ ตัดผ้า = ค่าแรงคนที่สแกนเข้าหน้างาน "ตัดผ้า" วันนั้น (นับเป็นของโรง 2 หมอน) · ชิ้น/ม้วน/มูลค่าผ้าที่ตัด แสดงไว้ดูเฉยๆ — ค่าผ้านับเป็นต้นทุนตอนเบิกปลอกไปผลิตหมอน (ช่อง ผ้า+เย็บ)'+
+        '<br>✂️ ตัดผ้า = ค่าแรงคนที่สแกนเข้าหน้างาน "ตัดผ้า" วันนั้น (กลุ่มแยก ไม่รวมในโรง 2 และไม่แบ่งให้งานใด) · ชิ้น/ม้วน/มูลค่าผ้าที่ตัด แสดงไว้ดูเฉยๆ — ค่าผ้านับเป็นต้นทุนตอนเบิกปลอกไปผลิตหมอน (ช่อง ผ้า+เย็บ)'+
         '<br>ค่าแรง = ค่าแรงรายวันจากแอพสแกนหน้า'+(fx.length?' + '+fx.map(x=>esc(x.name)+' '+fmtBaht(+x.baht||0)+'/เดือน').join(' + ')+' (กระจายตามชั่วโมงเดินเครื่อง)':'')+
         '<br>ใยคิดตามราคาก้อนที่ใช้จริง · ปลอก/ถุงคิดตามที่ใช้จริง · ดอกเบี้ยกระจายตามชั่วโมงเดินเครื่อง · ใยแผ่นที่ยกไปแพ็คปิกนิกไม่นับซ้ำ (นับไปแล้ววันที่ผลิตแผ่น)'; }
   }

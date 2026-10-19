@@ -990,6 +990,32 @@
       </div>
     </div>
   </div>
+  <div class="ov" id="ovBaleWeigh">
+    <div class="box">
+      <h3 id="wqTitle">⚖ ชั่งที่เหลือจริง</h3>
+      <div class="sumline" id="wqInfo" style="margin-top:0"></div>
+      <label>ชั่งใยที่เหลือในก้อนนี้ (กก.)</label><input id="wqKg" type="number" inputmode="decimal" step="0.01" placeholder="เช่น 60">
+      <label id="wqMoveWrap" style="display:none;margin-top:10px;align-items:flex-start;gap:8px;font-weight:400;"><input type="checkbox" id="wqMove" checked> <span id="wqMoveT"></span></label>
+      <div class="sumline" id="wqDiff"></div>
+      <div class="sumline" id="wqHist"></div>
+      <div class="ba" style="margin-top:12px;">
+        <button class="btn" id="wqSave">บันทึก</button>
+        <button class="btn sec" id="wqUndo" style="display:none;">↩ ยกเลิกการชั่งครั้งล่าสุด</button>
+        <button class="btn sec" id="wqCancel">ปิด</button>
+      </div>
+    </div>
+  </div>
+  <div class="ov" id="ovBaleEmpty">
+    <div class="box">
+      <h3 id="wxTitle">ก้อนใยหมดในระบบแล้ว</h3>
+      <div class="sumline" id="wxInfo" style="margin-top:0"></div>
+      <div class="ba" style="margin-top:12px;">
+        <button class="btn" id="wxOk">✓ หมดจริงแล้ว</button>
+        <button class="btn sec" id="wxWeigh">⚖ ยังเหลือ — ชั่งใส่</button>
+        <button class="btn sec" id="wxLater">ไว้ทีหลัง</button>
+      </div>
+    </div>
+  </div>
   <div class="ov" id="ovWdEdit">
     <div class="box">
       <h3>แก้ไขรายการเบิกใย</h3>
@@ -2471,7 +2497,7 @@ window.WPDAUTH = {
         bl.innerHTML='<div class="empty">ยังไม่ได้ตั้งสูตร — ตั้งที่การ์ดล่างสุดก่อน</div>';
       } else {
         bl.innerHTML=o.fibers.filter(f=>f.name).map(f=>{
-          const at=baleAtLine(f.name), wait=baleWaiting(f.name);
+          const at=baleAtLine(f.name), wait=baleWaiting(f.name), ex=baleToConfirm(f.name);
           const stock=fiberRemainTotal(f.name);
           const rounds=(at&&(+f.kg||0)>0)?Math.floor((lineTotal(f.name))/(+f.kg))
                                          :0;
@@ -2487,10 +2513,15 @@ window.WPDAUTH = {
                 : '<span style="color:var(--yellow)">ไม่มีก้อนสำรองรอไว้ — ก้อนนี้หมดแล้วต้องเบิกใหม่</span>')+
               (rounds>0?' · ใยที่ไลน์พอทำอีกราว <b>'+rounds+' รอบ</b>':'')+
               '<br><span style="color:var(--dim)">ในสต๊อกยังมี '+stock+' กก.</span>'+
+              (ex?'<div style="margin-top:6px;padding:7px 10px;border:1px dashed var(--yellow);border-radius:10px;">❓ <b>ก้อน '+esc(ex.w.seq||ex.w.lot||'')+'</b> หมดในระบบแล้วตั้งแต่ '+thDate(ex.at)+' '+hhmm(ex.at).slice(0,5)+
+                ' (หักตามสูตรครบ '+r3(+ex.w.kg||0)+' กก.) — <b>ของจริงหมดยัง?</b><br>'+
+                '<button class="btn sec sm" data-fxok="'+ex.w.id+'" style="margin:6px 6px 0 0;">✓ หมดจริงแล้ว</button>'+
+                '<button class="btn sm" data-baleweigh="'+ex.w.id+'" style="margin:6px 0 0;">⚖ ยังเหลือ — ชั่งใส่</button></div>':'')+
             '</div></div>'+
             '<div style="flex:0 0 auto; display:flex; flex-direction:column; gap:6px;">'+
               (at?'<button class="btn sec sm" data-baleout="'+esc(f.name)+'">✓ ก้อนนี้หมดแล้ว · เปลี่ยนก้อนใหม่</button>':'')+
               (at?'<button class="btn sec sm" data-baleswap="'+esc(f.name)+'">⚠ เปลี่ยนก้อน (ยังไม่หมด)</button>':'')+
+              (at?'<button class="btn sec sm" data-baleweigh="'+at.wdId+'">⚖ ชั่งที่เหลือจริง</button>':'')+
               '<button class="btn sm" data-wdgo="'+esc(f.name)+'">➕ เบิกก้อนใหม่</button></div></div>'+
             /* ก้อนที่พักไว้ข้างไลน์ */
             (S.wd||[]).filter(w=>w.hold && w.fiberName===f.name).map(w=>{ const left=r3((+w.kg||0)-baleUsed(w.id));
@@ -2500,6 +2531,8 @@ window.WPDAUTH = {
         }).join('');
         /* ก้อนหมดจริงก่อนที่ระบบคำนวณ (ใช้จริงมากกว่าสูตร) — ปิดก้อนนี้ ส่วนที่เหลือนับเป็นใยที่ใช้กับงานนี้ แล้วสลับไปก้อนที่เบิกรอไว้ */
         bl.querySelectorAll('[data-baleswap]').forEach(b=>b.onclick=()=>openBaleSwap(b.dataset.baleswap));
+        bl.querySelectorAll('[data-baleweigh]').forEach(b=>b.onclick=()=>openBaleWeigh(b.dataset.baleweigh));
+        bl.querySelectorAll('[data-fxok]').forEach(b=>b.onclick=()=>confirmBaleEmpty(b.dataset.fxok));
         bl.querySelectorAll('[data-baleresume]').forEach(b=>b.onclick=async()=>{
           const w=S.wd.find(x=>x.id===b.dataset.baleresume); if(!w) return;
           delete w.hold; w.requeueAt=localISO(); settlePendingFiber(w.fiberName);   /* ป้อนค้างไว้ตอนไม่มีก้อน → หักก้อนนี้ */
@@ -2690,7 +2723,10 @@ window.WPDAUTH = {
       recipe:(o.fibers||[]).map(f=>({name:f.name,kg:+f.kg||0,baleTag:currentBale(o,f.name)})),
       recipeKg:CALC.recipeTotal(o.fibers), recipeVer:o.recipeVer||1 });
     $('ringN').textContent=n+1;
+    const _before=(o.fibers||[]).map(f=>f.name&&baleAtLine(f.name, fiberSide(o))).filter(Boolean);
     const cut=autoCutFiber(o, feedId);
+    /* ก้อนที่หมดในระบบรอบนี้ (หักตามสูตรครบน้ำหนักก้อน) — ถามคนหน้าไลน์ทันทีว่าของจริงหมดยัง */
+    if(cut){ const gone=_before.map(b=>S.wd.find(w=>w.id===b.wdId)).filter(w=>w && !w.emptyOk && baleEmptyAt(w)); if(gone.length) askBaleEmpty(gone); }
     saveFeed().then(()=>{ if(current==='feed') rFeed(); });
     if(cut){
       let msg='รอบที่ '+(n+1)+(cut.msgs.length?' — '+cut.msgs.join(' · '):'');
@@ -4473,6 +4509,133 @@ window.WPDAUTH = {
     const at=caseAtLine(o);
     return { msg:'ปลอกที่ไลน์เหลือ '+at+' ใบ', short: left>0 ? 'ปลอกที่ไลน์ขาดอีก '+left+' ใบ — กดเบิกถุงบรรจุผ้าก่อน' : '' };
   }
+
+  /* ═══ ⚖ ชั่งที่เหลือจริง ═══
+     ระบบหักใยตามสูตรทุกรอบที่กดป้อน (ไม่ได้ชั่ง) ถ้าป้อนจริงน้อยกว่าสูตร ก้อนในระบบจะหมดก่อนของจริง
+     ชั่งที่เหลือ → บันทึกยอดปรับ (adjust) ให้ก้อนเหลือเท่าของจริง · รอบที่ป้อนหลังก้อนหมดในระบบ (ไปหักก้อนอื่น/จดค้าง) ย้ายกลับมาหักก้อนนี้
+     ทุกครั้งเก็บไว้ใน weighLog ยกเลิกย้อนได้ */
+  function baleUsesSorted(wdId){ return (S.use||[]).filter(u=>u.wdId===wdId).sort((a,b)=>String(a.time).localeCompare(String(b.time))); }
+  /* เวลาที่ก้อนนี้หมดในระบบ (ยอดหักสะสมถึงน้ำหนักก้อน) · ยังไม่หมด = null */
+  function baleEmptyAt(w){
+    const kg=+w.kg||0; if(!(kg>0)) return null;
+    let c=0, at=null;
+    for(const u of baleUsesSorted(w.id)){ c=r3(c+(+u.kg||0)); if(c>=kg-0.0001){ if(!at) at=u.time; } else at=null; }
+    return at;
+  }
+  function baleWasClosed(w){ return (S.use||[]).some(u=>u.wdId===w.id && u.closeout); }
+  /* รอบที่ป้อนหลังก้อนนี้หมดในระบบ — ใยชื่อเดียวกัน ฝั่งเดียวกัน ที่ไปหักก้อนอื่นหรือจดค้างไว้ */
+  function usesAfterEmpty(w){
+    const at=baleEmptyAt(w); if(!at) return [];
+    const side=wdSide(w);
+    return (S.use||[]).filter(u=>u.fiberName===w.fiberName && u.wdId!==w.id && String(u.time)>String(at) && !u.closeout && !u.adjust && !u.waste &&
+      (u.wdId ? (()=>{ const x=S.wd.find(y=>y.id===u.wdId); return !!x && wdSide(x)===side; })() : fiberSide(orderById(u.orderId))===side));
+  }
+  /* ก้อนล่าสุดของใยนี้ที่หมดในระบบเองตามสูตร ภายใน 3 วัน และยังไม่มีใครยืนยันว่าหมดจริง */
+  function baleToConfirm(name, side){
+    side=side||feedSide();
+    const since=localISO(new Date(Date.now()-3*864e5));
+    let best=null;
+    (S.wd||[]).forEach(w=>{
+      if(w.fiberName!==name || w.auto || w.hold || w.emptyOk || w.returnedAt || wdSide(w)!==side || baleWasClosed(w)) return;
+      const at=baleEmptyAt(w);
+      if(at && String(at)>=since && (!best || String(at)>String(best.at))) best={ w, at };
+    });
+    return best;
+  }
+  let wxQueue=[];
+  function askBaleEmpty(list){
+    list.forEach(w=>{ if(!wxQueue.some(x=>x.id===w.id)) wxQueue.push(w); });
+    if(!$('ovBaleEmpty').classList.contains('show')) showNextBaleEmpty();
+  }
+  function showNextBaleEmpty(){
+    const w=wxQueue[0]; if(!w) return;
+    const next=baleAtLine(w.fiberName, wdSide(w));
+    $('wxTitle').textContent='ก้อน '+(w.seq||w.lot||'')+' ('+w.fiberName+') หมดในระบบแล้ว';
+    $('wxInfo').innerHTML='ระบบหักตามสูตรครบ <b>'+r3(+w.kg||0)+' กก.</b> แล้ว — <b>ของจริงหมดยัง?</b><br>'+
+      (next?'ถ้าหมดจริง ระบบใช้ <b>ก้อน '+esc(next.no)+'</b> ('+next.remaining+' กก.) ต่อ':'<span style="color:var(--yellow)">ถ้าหมดจริง ต้องเบิกก้อนใหม่ก่อนป้อนรอบต่อไป</span>')+
+      '<br>ถ้ายังเหลือ กด ⚖ แล้วชั่งใส่ ระบบจะใช้ก้อนนี้ต่อให้';
+    openOv('ovBaleEmpty');
+  }
+  function closeBaleEmpty(){ wxQueue.shift(); closeOv('ovBaleEmpty'); if(wxQueue.length) setTimeout(showNextBaleEmpty,150); }
+  async function confirmBaleEmpty(wdId){
+    const w=S.wd.find(x=>x.id===wdId); if(!w) return;
+    w.emptyOk=localISO(); await saveFeed(); rFeed(true); toast('ก้อน '+(w.seq||w.lot||'')+' หมดจริง — บันทึกแล้ว');
+  }
+  $('wxOk').onclick=async()=>{ const w=wxQueue[0]; closeBaleEmpty(); if(w) await confirmBaleEmpty(w.id); };
+  $('wxWeigh').onclick=()=>{ const w=wxQueue[0]; closeBaleEmpty(); if(w) openBaleWeigh(w.id); };
+  $('wxLater').onclick=()=>{ closeBaleEmpty(); toast('ถามไว้ที่การ์ดก้อนใยด้านล่าง กดตอบทีหลังได้'); };
+
+  let wqId=null;
+  function openBaleWeigh(wdId){
+    const w=S.wd.find(x=>x.id===wdId); if(!w) return;
+    wqId=wdId;
+    const used=baleUsed(w.id), left=r3((+w.kg||0)-used), after=usesAfterEmpty(w), afterKg=r3(after.reduce((a,u)=>a+(+u.kg||0),0));
+    $('wqTitle').textContent='⚖ ชั่งที่เหลือจริง — ก้อน '+(w.seq||w.lot||'')+' ('+w.fiberName+')';
+    $('wqInfo').innerHTML='ก้อนนี้หนัก '+r3(+w.kg||0)+' กก. · ระบบหักตามสูตรไปแล้ว '+r3(used)+' กก. · <b>ระบบคิดว่าเหลือ '+Math.max(0,left)+' กก.</b>';
+    $('wqKg').value='';
+    $('wqMoveWrap').style.display=after.length?'flex':'none';
+    $('wqMove').checked=true;
+    $('wqMoveT').innerHTML='หลังก้อนนี้หมดในระบบ ป้อนไปอีก <b>'+after.length+' รายการ ('+afterKg+' กก.)</b> — ใยมาจากก้อนนี้ (ย้ายมาหักก้อนนี้)';
+    const log=w.weighLog||[], last=log[log.length-1];
+    $('wqHist').innerHTML=log.length?'ชั่งไปแล้ว '+log.length+' ครั้ง · ล่าสุด '+thDate(last.time)+' '+hhmm(last.time).slice(0,5)+' ได้ '+last.kg+' กก.'+(last.by?' ('+esc(last.by)+')':''):'';
+    $('wqUndo').style.display=log.length?'':'none';
+    wqDiff(); openOv('ovBaleWeigh');
+    setTimeout(()=>{ try{ $('wqKg').focus(); }catch(e){} },120);
+  }
+  function wqCalc(){
+    const w=S.wd.find(x=>x.id===wqId); if(!w) return null;
+    const k=+$('wqKg').value, ok=$('wqKg').value!=='' && k>=0;
+    const after=$('wqMove').checked?usesAfterEmpty(w):[];
+    const used=r3(baleUsed(w.id)+after.reduce((a,u)=>a+(+u.kg||0),0));
+    return { w, k:r3(k), ok, after, adj:ok?r3(((+w.kg||0)-r3(k))-used):0 };
+  }
+  function wqDiff(){
+    const c=wqCalc(); if(!c) return;
+    $('wqDiff').innerHTML=!c.ok?'':
+      c.k>(+c.w.kg||0)+0.0001?'<span style="color:var(--red)">มากกว่าน้ำหนักก้อนตอนเบิก ('+r3(+c.w.kg||0)+' กก.) — ชั่งใหม่อีกครั้ง</span>':
+      c.adj<-0.0001?'ใช้จริง<b>น้อยกว่า</b>สูตร <b>'+r3(-c.adj)+' กก.</b> — คืนเข้าก้อนนี้ ใช้ต่อได้':
+      c.adj>0.0001?'ใช้จริง<b>มากกว่า</b>สูตร <b>'+c.adj+' กก.</b> — นับเป็นใยที่ใช้ไปกับงาน':'ตรงกับที่ระบบคิด';
+  }
+  $('wqKg').oninput=wqDiff; $('wqMove').onchange=wqDiff;
+  $('wqCancel').onclick=()=>closeOv('ovBaleWeigh');
+  $('wqSave').onclick=async()=>{
+    const c=wqCalc(); if(!c) { closeOv('ovBaleWeigh'); return; }
+    if(!c.ok){ toast('ชั่งใยที่เหลือแล้วใส่น้ำหนัก'); return; }
+    if(c.k>(+c.w.kg||0)+0.0001){ await info('น้ำหนักมากกว่าก้อนตอนเบิก','ก้อนนี้เบิกมา '+r3(+c.w.kg||0)+' กก. — ชั่งใหม่อีกครั้ง'); return; }
+    const w=c.w, t=localISO(), logId=uid(), no=String(w.seq||w.lot||'');
+    const moved=c.after.map(u=>({ id:u.id, wdId:u.wdId||null, baleNo:u.baleNo, lot:u.lot, receiptId:u.receiptId||null, pending:!!u.pending }));
+    c.after.forEach(u=>{ u.wdId=w.id; u.baleNo=no; u.lot=w.lot; u.receiptId=w.receiptId||null; delete u.pending; });
+    const prev={ requeueAt:w.requeueAt||null, emptyOk:w.emptyOk||null };
+    /* ไม่ได้ย้ายรอบหลังจากนั้นมา = ก้อนนี้วางไว้ ใช้ต่อหลังก้อนที่ใช้อยู่ตอนนี้ */
+    if(!$('wqMove').checked && baleEmptyAt(w)) w.requeueAt=t;
+    const ref=baleUsesSorted(w.id).filter(u=>!u.adjust).pop();
+    S.use=S.use||[];
+    if(Math.abs(c.adj)>0.0001) S.use.push({ by:opBy(), id:uid(), time:t, orderId:(ref&&ref.orderId)||((activeFeed()||{}).id)||w.orderId, feedId:null,
+      fiberName:w.fiberName, wdId:w.id, baleNo:no, lot:w.lot, receiptId:w.receiptId||null, kg:c.adj, adjust:true, weighId:logId });
+    if(c.k<=0.0001) w.emptyOk=t; else delete w.emptyOk;
+    w.weighLog=w.weighLog||[];
+    w.weighLog.push({ id:logId, time:t, by:opBy(), kg:c.k, adj:c.adj, moved, prev });
+    usedByRef.c=null;
+    await saveFeed(); closeOv('ovBaleWeigh'); rFeed(true);
+    toast('ก้อน '+no+' เหลือ '+c.k+' กก. — '+(c.adj<-0.0001?'คืนเข้าก้อน '+r3(-c.adj)+' กก.':c.adj>0.0001?'นับใช้เพิ่ม '+c.adj+' กก.':'ตรงกับระบบ')+(moved.length?' · ย้าย '+moved.length+' รายการมาหักก้อนนี้':''));
+  };
+  $('wqUndo').onclick=async()=>{
+    const w=S.wd.find(x=>x.id===wqId); if(!w || !(w.weighLog||[]).length) return;
+    const last=w.weighLog[w.weighLog.length-1];
+    /* หลังชั่งป้อนต่อจากก้อนนี้ไปแล้ว — ยกเลิกแล้วก้อนจะติดลบ ให้ชั่งใหม่แทน */
+    if((S.use||[]).some(u=>u.wdId===w.id && !u.adjust && String(u.time)>String(last.time))){
+      await info('ยกเลิกไม่ได้แล้ว','หลังชั่งครั้งนั้นป้อนใยจากก้อนนี้ไปแล้ว — ถ้าน้ำหนักที่ใส่ไว้ผิด ให้ชั่งใหม่แล้วใส่อีกครั้งแทน'); return; }
+    if(!await ask('ยกเลิกการชั่งครั้งล่าสุด?','ชั่งเมื่อ '+thDate(last.time)+' '+hhmm(last.time).slice(0,5)+' ได้ '+last.kg+' กก.\nยอดก้อนนี้จะกลับไปเป็นเหมือนก่อนชั่ง')) return;
+    S.use=(S.use||[]).filter(u=>u.weighId!==last.id);
+    (last.moved||[]).forEach(m=>{ const u=S.use.find(x=>x.id===m.id); if(!u) return;
+      u.wdId=m.wdId; u.baleNo=m.baleNo; u.lot=m.lot; u.receiptId=m.receiptId; if(m.pending) u.pending=true; });
+    const p=last.prev||{};
+    if(p.requeueAt) w.requeueAt=p.requeueAt; else delete w.requeueAt;
+    if(p.emptyOk) w.emptyOk=p.emptyOk; else delete w.emptyOk;
+    w.weighLog.pop(); if(!w.weighLog.length) delete w.weighLog;
+    usedByRef.c=null;
+    await saveFeed(); closeOv('ovBaleWeigh'); rFeed(true); toast('ยกเลิกการชั่งแล้ว');
+  };
 
   /* ใยที่ป้อนไปตอนยังไม่มีก้อนที่ไลน์ (ลืมกดเบิก) — พอกดเบิกก้อนชื่อเดียวกันแล้ว ให้หักย้อนหลังจากก้อนนั้นทันที */
   function settlePendingFiber(name){

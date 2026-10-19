@@ -447,7 +447,7 @@
   Element.prototype.scrollIntoView = function(){ try{ scan(); reveal(this); }catch(e){} return _siv.apply(this, arguments); };
   document.addEventListener('DOMContentLoaded', function(){ scan(); setInterval(scan, 2500); });
 })();
-</script><!-- /wpd-fold -->
+</script><!-- /wpd-fold -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- ฟอนต์โหลดเบื้องหลัง ไม่ให้หน้าค้างรอเน็ต (เปิดด้วยฟอนต์เครื่องก่อน แล้วสลับเอง) -->
@@ -1120,6 +1120,7 @@ window.WPDAUTH = {
      COST — คิดเงินล้วนๆ ไม่แตะ DOM (มีเทสแยกทุกฟังก์ชัน)
      ราคาทั้งหมดเก็บในแอพนี้เอง (คีย์ v3k_price) ไม่ไปแก้ 2 แอพเดิม
      ═══════════════════════════════════════════════════════════════ */
+  /* <cost-core> */
   const COST = {
     /* ราคาใย บาท/กก. — ถ้าใส่แยกไว้ทีละก้อนใช้ของก้อนนั้น ไม่งั้นใช้ราคามาตรฐาน */
     /* ราคาต่อก้อน: ใส่แยกตามรายการรับเข้า (เบอร์ซ้ำที่รับคนละวัน) ก่อน แล้วค่อยตามเบอร์ก้อน */
@@ -1719,8 +1720,81 @@ window.WPDAUTH = {
         vatPct, sellVat,
         sellVatPerPiece: pieces>0?r2(sellVat/pieces):0
       };
-    }
+    },
+    /* ═══ ใช้ร่วมกับแจ้งเตือน LINE (เซิร์ฟเวอร์ตัดบล็อก COST นี้ไปรันเอง) — กฎ/ตัวเลขชุดเดียวกับหน้าสรุป ═══ */
+    /* ราคาที่ยังไม่ใส่ (ชื่อจากสต๊อก + ชื่อที่เคยใส่ราคา) */
+    priceTodo(ctx){
+      const S=ctx.S||{}, PRICE=ctx.PRICE||{}, uniq=a=>[...new Set(a)], priced=g=>Object.keys(PRICE[g]||{});
+      const todo=[];
+      uniq((S.fiberReceipts||[]).map(r=>r.fiberName).concat(priced('fiber'))).filter(Boolean).sort().forEach(n=>{ const e=(PRICE.fiber||{})[n]||{}; if(!(+e.std>0)) todo.push('ใย '+n); });
+      uniq((S.fabricReceipts||[]).map(r=>r.fabricType).concat((S.cutBatches||[]).map(b=>b.fabricType)).concat(priced('fabric'))).filter(Boolean).sort().forEach(n=>{ const e=(PRICE.fabric||{})[n]||{}; if(!(+e.std>0)) todo.push('ผ้า '+n); });
+      ['zip','pack'].forEach(k=>uniq((S.sackReceipts||[]).filter(r=>r.kind===k).map(r=>r.name).concat(priced(k))).filter(Boolean).sort().forEach(n=>{ const e=((PRICE[k]||{})[n])||{}; if(!(+e.std>0)) todo.push((k==='zip'?'ถุงซิล ':'ถุงแพ็ค ')+n); }));
+      (S.reuseItems||[]).forEach(it=>{ const e=((PRICE.reuse||{})[it.name])||{}; if(!(+e.std>0) || !(+e.cycles>0)) todo.push('ถุงวนใช้ '+it.name); });
+      if(!(+PRICE.gas>0) && (S.gasReceipts||[]).length) todo.push('แก๊ส');
+      return todo;
+    },
+    /* จุดที่ควรดู — คืนรายการ {lv:0-2, t:หัวข้อ, d:รายละเอียด} เรียงจากสำคัญสุด · fmt = {thDate, fmtInt, fmtBaht} */
+    alerts(ctx, today, fmt, jobs, costs){
+      const S=ctx.S||{}, P=ctx.PROD||{}, K=ctx.KSET||{};
+      const thDate=fmt.thDate, fmtInt=fmt.fmtInt, fmtBaht=fmt.fmtBaht;
+      if(!jobs){ const ids=new Set((P.line||[]).map(l=>l.orderId)); jobs=(P.orders||[]).filter(o=>ids.has(o.id)); }
+      if(!costs) costs=jobs.map(o=>COST.jobCost(ctx,o.id));
+    const A=[], add=(lv,t,d)=>A.push({lv,t,d});
+    const dAgo=n=>{ const x=new Date(today+'T00:00:00Z'); x.setUTCDate(x.getUTCDate()-n); return x.toISOString().slice(0,10); };
+    const d30=dAgo(30), d14=dAgo(14), d7=dAgo(7);
+    /* 1) ราคาที่ยังไม่ใส่ */
+    const todo=COST.priceTodo(ctx);
+    if(todo.length) add(2,'ยังไม่ได้ใส่ราคา '+todo.length+' อย่าง — ต้นทุนต่ำกว่าความจริง', todo.slice(0,8).join(' · ')+(todo.length>8?' …':'')+' → 💰 ราคาของ');
+    /* 2) ค่าที่ยังเป็น 0 */
+    const zero=[]; if(!(+K.elecPerHour>0)) zero.push('ค่าไฟ (บาท/ชม.)'); if(!(+K.shipPerPack>0)) zero.push('ค่าขนส่ง (บาท/แพ็ค)');
+    if(zero.length) add(1,'ยังไม่ได้ตั้ง '+zero.join(' · '), 'ช่องนี้ในต้นทุนรายวันเป็น 0 → ⚙️ ตั้งค่า');
+    { const miss=new Set(); (P.caseUse||[]).filter(u=>String(u.time).slice(0,10)>=d30).forEach(u=>{ const z=COST.caseSewSize(S,u); if(z && !COST.sewRate(K,z)) miss.add(z); });
+      if(miss.size) add(1,'ยังไม่ได้ตั้งค่าเย็บไซซ์ '+[...miss].join(', '), 'ปลอกไซซ์นี้ใช้ผลิตใน 30 วัน แต่ค่าเย็บเป็น 0 → ⚙️ ตั้งค่า → ค่าจ้างเย็บ'); }
+    /* 3) งานต้นทุนผิดปกติ (30 วัน) — เทียบต้นทุนต่อกิโลของสินค้ากับงานประเภทเดียวกัน (ต่อชิ้นเทียบกันไม่ได้ เพราะไซซ์/น้ำหนักต่างกันมาก) */
+    { const kgOf=id=>(P.line||[]).filter(l=>l.orderId===id).reduce((a,l)=>a+((l.actualWeight!=null?+l.actualWeight:+l.stdPerPack)||0),0);
+      const rec=jobs.map((o,i)=>({o,c:costs[i]})).filter(x=>x.c.pieces>0 && x.c.span && String(x.c.span.to).slice(0,10)>=d30).map(x=>Object.assign(x,{kg:kgOf(x.o.id)})).filter(x=>x.kg>0).map(x=>Object.assign(x,{pk:x.c.total/x.kg}));
+      const by={}; rec.forEach(x=>{ const k=x.o.category||x.o.productType||'อื่นๆ'; (by[k]=by[k]||[]).push(x); });
+      Object.keys(by).forEach(k=>{ const L=by[k]; if(L.length<3) return;
+        const v=L.map(x=>x.pk).sort((p,q)=>p-q), med=v[Math.floor(v.length/2)];
+        L.filter(x=>med>0 && (x.pk>med*1.5 || x.pk<med*0.6)).forEach(x=>{
+          add(x.pk>med?2:1, (x.pk>med?'ต้นทุนสูงผิดปกติ: ':'ต้นทุนต่ำผิดปกติ: ')+x.o.customer+' — '+x.o.code,
+            fmtBaht(r2(x.pk))+' บาท/กก.สินค้า ('+fmtBaht(x.c.perPiece)+' บาท/ชิ้น) · งาน'+k+'ส่วนใหญ่ราว '+fmtBaht(r2(med))+' บาท/กก.'+(x.c.missing.length?' · ยังขาด: '+x.c.missing.slice(0,3).join(', '):'')+' → 🧾 ต้นทุนจริง'); }); }); }
+    /* 4) ใยเข้า-ออกไม่สมดุล (7 วัน): ใยที่หักจากก้อน − ใยในสินค้า − เศษ */
+    { const days={};
+      (P.use||[]).forEach(u=>{ const d=String(u.time).slice(0,10); if(d<d7||d>=today) return; (days[d]=days[d]||{inn:0,out:0,sc:0}).inn+=+u.kg||0; });
+      (P.line||[]).forEach(l=>{ const d=String(l.time).slice(0,10); if(!days[d] || (l.productType||'')==='ปิกนิก') return; const w=(l.actualWeight!=null?+l.actualWeight:+l.stdPerPack)||0; days[d].out+=Math.max(0, w-(+l.bagKgPerPack||0)-(+l.fabricKgPerPack||0)-(+l.carryKg||0)); });
+      (P.carry||[]).forEach(c=>{ const d=String(c.time).slice(0,10); if(!days[d]) return; days[d].out+=(+c.pieces||0)*(+c.kgEach||0); });
+      (P.scrap||[]).forEach(x=>{ const d=String(x.time).slice(0,10); if(!days[d]) return; days[d].sc+=+x.kg||0; });
+      Object.keys(days).sort().forEach(d=>{ const x=days[d], diff=r2(x.inn-x.out-x.sc);
+        if(Math.abs(diff)>20 && Math.abs(diff)>x.inn*0.05) add(Math.abs(diff)>x.inn*0.1?2:1, 'ใยเข้า-ออกไม่ตรง วันที่ '+thDate(d)+': '+(diff>0?'ใยหายไป ':'ใยออกเกิน ')+fmtInt(Math.abs(diff))+' กก.',
+          'หักจากก้อน '+fmtInt(x.inn)+' · อยู่ในสินค้า '+fmtInt(x.out)+' · เศษ '+fmtInt(x.sc)+' กก. — '+(diff<0?'อาจกดป้อนใยไม่ครบ หรือป้อนตอนยังไม่มีสูตร':'อาจยังชั่งเศษไม่ครบ หรือใยค้างในเครื่อง')); }); }
+    /* 5) กดป้อนใยตอนออเดอร์ยังไม่มีสูตร (14 วัน) */
+    { const by={}; (P.feed||[]).filter(x=>String(x.time).slice(0,10)>=d14 && !(+x.recipeKg>0)).forEach(x=>{ by[x.orderId]=(by[x.orderId]||0)+1; });
+      Object.keys(by).forEach(id=>{ const o=P.orders.find(x=>x.id===id); add(2,'ป้อนใย '+by[id]+' รอบตอนยังไม่มีสูตร: '+(o?o.customer+' — '+o.code:id), 'รอบเหล่านี้นับใยเป็น 0 กก. และไม่หักจากก้อน — ต้องแก้ข้อมูล'); }); }
+    /* 6) ก้อนใยเบิกเกินน้ำหนักรับเข้า (เลือกเบอร์ก้อนผิด) */
+    { const wd={}; (P.wd||[]).forEach(w=>{ if(w.receiptId) wd[w.receiptId]=(wd[w.receiptId]||0)+(+w.kg||0); });
+      const neg=(S.fiberReceipts||[]).filter(r=>wd[r.id] && wd[r.id]>(+r.kg||0)+1).map(r=>r.fiberName+' #'+r.lotNo+' (เกิน '+fmtInt(wd[r.id]-(+r.kg||0))+' กก.)');
+      if(neg.length) add(1,'ก้อนใยถูกเบิกซ้ำ/เกิน '+neg.length+' ก้อน', neg.slice(0,6).join(' · ')+' — ยอดรายก้อนในแอพสต๊อกติดลบ (ยอดรวมต่อชื่อใยยังถูก)'); }
+    /* 7) วันที่ผลิตแต่ไม่มีข้อมูลสแกนหน้า (14 วัน) */
+    if(ctx.LABOR){ const ds=[...new Set((P.line||[]).map(l=>String(l.time).slice(0,10)).filter(d=>d>=d14 && d<today && !ctx.LABOR[d]))].sort();
+      if(ds.length) add(1,'วันที่ผลิตแต่ไม่มีข้อมูลสแกนหน้า: '+ds.map(thDate).join(', '), 'ค่าแรงวันนั้นใช้ค่าที่ตั้งไว้แทน');
+      const nw=Object.keys(ctx.LABOR).filter(d=>d>=d7 && ctx.LABOR[d].noWage>0); if(nw.length) add(1,'แอพสแกนหน้า: มีพนักงานยังไม่ใส่ค่าแรง ('+nw.map(thDate).join(', ')+')', 'ค่าแรงวันนั้นต่ำกว่าจริง → แอพสแกนหน้า หน้าค่าแรง'); }
+    /* 8) แก๊สชุดที่ใช้อยู่ */
+    { const G=ctx.GAS, sw=(P.gasSwaps||[]).filter(g=>g.time).slice().sort((p,q)=>String(p.time).localeCompare(String(q.time))), last=sw[sw.length-1];
+      if(G.rate && G.perSetMin && last){ let m=0; COST.gasMinutesByPack(P).forEach((mm,l)=>{ if(String(l.time)>String(last.time)) m+=mm; });
+        if(m>=G.perSetMin*0.9) add(0,'แก๊สชุดที่ใช้อยู่เดินไลน์ใยแผ่นไปแล้ว '+fmtInt(m)+' นาที','เฉลี่ยชุดละ '+G.perSetMin+' นาที — ใกล้ต้องเปลี่ยนถัง'); } }
+      A.sort((p,q)=>q.lv-p.lv);
+      return A;
+    },
+    /* ต้นทุนของวันเดียว (เหมือนแถวในตาราง "ต้นทุนรายวัน") */
+    dayCost(ctx, day){
+      const P=ctx.PROD||{};
+      const allUseOrders=new Set((P.use||[]).map(u=>u.orderId)), caseTracked=new Set((P.caseUse||[]).map(u=>u.orderId));
+      const L=ctx.LABOR ? Object.fromEntries(Object.entries(ctx.LABOR).filter(([d])=>d===day)) : null;
+      return COST.periodCost(Object.assign({}, ctx, { LABOR:L, allUseOrders, caseTracked }), day, day);
+    },
   };
+  /* </cost-core> */
   /* ---- END COST ---- */
 
   /* ═══════════════════════════════════════════════════════════════
@@ -2477,51 +2551,7 @@ window.WPDAUTH = {
   /* ═══ จุดที่ควรดู (กฎตายตัว ไม่ใช้ AI) ═══ */
   function rAlerts(jobs, costs){
     const box=$('alertList'); if(!box) return;
-    const A=[], add=(lv,t,d)=>A.push({lv,t,d});
-    const today=localISO().slice(0,10), dAgo=n=>{ const x=new Date(today+'T00:00:00'); x.setDate(x.getDate()-n); return localISO(x).slice(0,10); };
-    const d30=dAgo(30), d14=dAgo(14), d7=dAgo(7);
-    /* 1) ราคาที่ยังไม่ใส่ */
-    const todo=priceTodo();
-    if(todo.length) add(2,'ยังไม่ได้ใส่ราคา '+todo.length+' อย่าง — ต้นทุนต่ำกว่าความจริง', todo.slice(0,8).join(' · ')+(todo.length>8?' …':'')+' → 💰 ราคาของ');
-    /* 2) ค่าที่ยังเป็น 0 */
-    const zero=[]; if(!(+KSET.elecPerHour>0)) zero.push('ค่าไฟ (บาท/ชม.)'); if(!(+KSET.shipPerPack>0)) zero.push('ค่าขนส่ง (บาท/แพ็ค)');
-    if(zero.length) add(1,'ยังไม่ได้ตั้ง '+zero.join(' · '), 'ช่องนี้ในต้นทุนรายวันเป็น 0 → ⚙️ ตั้งค่า');
-    { const miss=new Set(); (PROD.caseUse||[]).filter(u=>String(u.time).slice(0,10)>=d30).forEach(u=>{ const z=COST.caseSewSize(S,u); if(z && !COST.sewRate(KSET,z)) miss.add(z); });
-      if(miss.size) add(1,'ยังไม่ได้ตั้งค่าเย็บไซซ์ '+[...miss].join(', '), 'ปลอกไซซ์นี้ใช้ผลิตใน 30 วัน แต่ค่าเย็บเป็น 0 → ⚙️ ตั้งค่า → ค่าจ้างเย็บ'); }
-    /* 3) งานต้นทุนผิดปกติ (30 วัน) — เทียบต้นทุนต่อกิโลของสินค้ากับงานประเภทเดียวกัน (ต่อชิ้นเทียบกันไม่ได้ เพราะไซซ์/น้ำหนักต่างกันมาก) */
-    { const kgOf=id=>(PROD.line||[]).filter(l=>l.orderId===id).reduce((a,l)=>a+((l.actualWeight!=null?+l.actualWeight:+l.stdPerPack)||0),0);
-      const rec=jobs.map((o,i)=>({o,c:costs[i]})).filter(x=>x.c.pieces>0 && x.c.span && String(x.c.span.to).slice(0,10)>=d30).map(x=>Object.assign(x,{kg:kgOf(x.o.id)})).filter(x=>x.kg>0).map(x=>Object.assign(x,{pk:x.c.total/x.kg}));
-      const by={}; rec.forEach(x=>{ const k=x.o.category||x.o.productType||'อื่นๆ'; (by[k]=by[k]||[]).push(x); });
-      Object.keys(by).forEach(k=>{ const L=by[k]; if(L.length<3) return;
-        const v=L.map(x=>x.pk).sort((p,q)=>p-q), med=v[Math.floor(v.length/2)];
-        L.filter(x=>med>0 && (x.pk>med*1.5 || x.pk<med*0.6)).forEach(x=>{
-          add(x.pk>med?2:1, (x.pk>med?'ต้นทุนสูงผิดปกติ: ':'ต้นทุนต่ำผิดปกติ: ')+x.o.customer+' — '+x.o.code,
-            fmtBaht(r2(x.pk))+' บาท/กก.สินค้า ('+fmtBaht(x.c.perPiece)+' บาท/ชิ้น) · งาน'+k+'ส่วนใหญ่ราว '+fmtBaht(r2(med))+' บาท/กก.'+(x.c.missing.length?' · ยังขาด: '+x.c.missing.slice(0,3).join(', '):'')+' → 🧾 ต้นทุนจริง'); }); }); }
-    /* 4) ใยเข้า-ออกไม่สมดุล (7 วัน): ใยที่หักจากก้อน − ใยในสินค้า − เศษ */
-    { const days={};
-      (PROD.use||[]).forEach(u=>{ const d=String(u.time).slice(0,10); if(d<d7||d>=today) return; (days[d]=days[d]||{inn:0,out:0,sc:0}).inn+=+u.kg||0; });
-      (PROD.line||[]).forEach(l=>{ const d=String(l.time).slice(0,10); if(!days[d] || (l.productType||'')==='ปิกนิก') return; const w=(l.actualWeight!=null?+l.actualWeight:+l.stdPerPack)||0; days[d].out+=Math.max(0, w-(+l.bagKgPerPack||0)-(+l.fabricKgPerPack||0)-(+l.carryKg||0)); });
-      (PROD.carry||[]).forEach(c=>{ const d=String(c.time).slice(0,10); if(!days[d]) return; days[d].out+=(+c.pieces||0)*(+c.kgEach||0); });
-      (PROD.scrap||[]).forEach(x=>{ const d=String(x.time).slice(0,10); if(!days[d]) return; days[d].sc+=+x.kg||0; });
-      Object.keys(days).sort().forEach(d=>{ const x=days[d], diff=r2(x.inn-x.out-x.sc);
-        if(Math.abs(diff)>20 && Math.abs(diff)>x.inn*0.05) add(Math.abs(diff)>x.inn*0.1?2:1, 'ใยเข้า-ออกไม่ตรง วันที่ '+thDate(d)+': '+(diff>0?'ใยหายไป ':'ใยออกเกิน ')+fmtInt(Math.abs(diff))+' กก.',
-          'หักจากก้อน '+fmtInt(x.inn)+' · อยู่ในสินค้า '+fmtInt(x.out)+' · เศษ '+fmtInt(x.sc)+' กก. — '+(diff<0?'อาจกดป้อนใยไม่ครบ หรือป้อนตอนยังไม่มีสูตร':'อาจยังชั่งเศษไม่ครบ หรือใยค้างในเครื่อง')); }); }
-    /* 5) กดป้อนใยตอนออเดอร์ยังไม่มีสูตร (14 วัน) */
-    { const by={}; (PROD.feed||[]).filter(x=>String(x.time).slice(0,10)>=d14 && !(+x.recipeKg>0)).forEach(x=>{ by[x.orderId]=(by[x.orderId]||0)+1; });
-      Object.keys(by).forEach(id=>{ const o=PROD.orders.find(x=>x.id===id); add(2,'ป้อนใย '+by[id]+' รอบตอนยังไม่มีสูตร: '+(o?o.customer+' — '+o.code:id), 'รอบเหล่านี้นับใยเป็น 0 กก. และไม่หักจากก้อน — ต้องแก้ข้อมูล'); }); }
-    /* 6) ก้อนใยเบิกเกินน้ำหนักรับเข้า (เลือกเบอร์ก้อนผิด) */
-    { const wd={}; (PROD.wd||[]).forEach(w=>{ if(w.receiptId) wd[w.receiptId]=(wd[w.receiptId]||0)+(+w.kg||0); });
-      const neg=(S.fiberReceipts||[]).filter(r=>wd[r.id] && wd[r.id]>(+r.kg||0)+1).map(r=>r.fiberName+' #'+r.lotNo+' (เกิน '+fmtInt(wd[r.id]-(+r.kg||0))+' กก.)');
-      if(neg.length) add(1,'ก้อนใยถูกเบิกซ้ำ/เกิน '+neg.length+' ก้อน', neg.slice(0,6).join(' · ')+' — ยอดรายก้อนในแอพสต๊อกติดลบ (ยอดรวมต่อชื่อใยยังถูก)'); }
-    /* 7) วันที่ผลิตแต่ไม่มีข้อมูลสแกนหน้า (14 วัน) */
-    if(LABOR){ const ds=[...new Set((PROD.line||[]).map(l=>String(l.time).slice(0,10)).filter(d=>d>=d14 && d<today && !LABOR[d]))].sort();
-      if(ds.length) add(1,'วันที่ผลิตแต่ไม่มีข้อมูลสแกนหน้า: '+ds.map(thDate).join(', '), 'ค่าแรงวันนั้นใช้ค่าที่ตั้งไว้แทน');
-      const nw=Object.keys(LABOR).filter(d=>d>=d7 && LABOR[d].noWage>0); if(nw.length) add(1,'แอพสแกนหน้า: มีพนักงานยังไม่ใส่ค่าแรง ('+nw.map(thDate).join(', ')+')', 'ค่าแรงวันนั้นต่ำกว่าจริง → แอพสแกนหน้า หน้าค่าแรง'); }
-    /* 8) แก๊สชุดที่ใช้อยู่ */
-    { const G=gasRateNow(), sw=(PROD.gasSwaps||[]).filter(g=>g.time).slice().sort((p,q)=>String(p.time).localeCompare(String(q.time))), last=sw[sw.length-1];
-      if(G.rate && G.perSetMin && last){ let m=0; COST.gasMinutesByPack(PROD).forEach((mm,l)=>{ if(String(l.time)>String(last.time)) m+=mm; });
-        if(m>=G.perSetMin*0.9) add(0,'แก๊สชุดที่ใช้อยู่เดินไลน์ใยแผ่นไปแล้ว '+fmtInt(m)+' นาที','เฉลี่ยชุดละ '+G.perSetMin+' นาที — ใกล้ต้องเปลี่ยนถัง'); } }
-    A.sort((p,q)=>q.lv-p.lv);
+    const A=COST.alerts(ctx(), localISO().slice(0,10), { thDate, fmtInt, fmtBaht }, jobs, costs);
     const ic=['ℹ️','🟡','🔴'];
     box.innerHTML = A.length
       ? A.map(x=>'<div style="padding:7px 0;border-bottom:1px solid var(--border,#e2e7ee)"><div style="font-weight:600">'+ic[x.lv]+' '+esc(x.t)+'</div><div class="sumline" style="margin:2px 0 0">'+esc(x.d)+'</div></div>').join('')

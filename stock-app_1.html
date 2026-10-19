@@ -945,6 +945,13 @@
     <!-- 6. SUMMARY / EXPORT -->
     <div class="panel" id="p-sum">
       <div class="card"><h3>ภาพรวมสต๊อกทั้งหมด</h3><div class="sg" id="sumStats"></div></div>
+      <div class="card"><h3>📈 กราฟสต๊อกคงเหลือ</h3>
+        <div class="sumline" style="margin-top:0">แท่ง = คงเหลือในคลัง · ขีดดำ = จุดเตือน · แดง = ต่ำกว่าจุดเตือน · "พอใช้ ~วัน" คิดจากที่เบิกเฉลี่ย 30 วันล่าสุด</div>
+        <div class="wc-h4">🧶 ใย (กก.)</div><div id="chFiberStock"></div>
+        <div class="wc-h4">🧵 ผ้า (ม้วนที่ยังใช้ได้)</div><div id="chRollStock"></div>
+        <div class="wc-h4">📦 ถุงแพ็ค (กก.)</div><div id="chPackStock"></div>
+        <div class="wc-h4">🛍️ ถุงซิล (กก.)</div><div id="chZipStock"></div>
+      </div>
       <div class="card" data-wfold="no"><h3>⚠ ใกล้หมด</h3><div class="scr"><table id="tLow"></table></div>
         <details style="margin-top:10px"><summary style="cursor:pointer;color:var(--dim);font-size:13px">⚙ ตั้งจุดเตือน (ใช้กับตารางนี้ การ์ดสีแดง และแจ้งเตือน LINE ทุกเช้า 08:00)</summary>
           <div class="rf" style="margin-top:8px">
@@ -4598,6 +4605,103 @@ window.WPDAUTH = {
   }
 
   /* ---------- 6. SUMMARY / EXPORT / CLEAR ---------- */
+  /* ═══ <wpd-chart> กราฟเล็กๆ วาดเอง (ไม่โหลดไลบรารี ใช้ออฟไลน์ได้) ═══
+     wcBars  = แท่งตั้งตามวัน/เดือน ซ้อนหลายหมวดได้ · แตะแท่งดูตัวเลข
+     wcHBars = แท่งนอน มีขีดจุดเตือน · signed = แท่งบวก/ลบจากกึ่งกลาง */
+  function wcEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function wcCss(){
+    if(document.getElementById('wcCss')) return;
+    const st=document.createElement('style'); st.id='wcCss';
+    st.textContent='.wc-legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--dim);margin:2px 0 8px}'+
+      '.wc-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}'+
+      '.wc-legend i.ln{height:3px;vertical-align:3px}'+
+      '.wc-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}'+
+      '.wc-plot{position:relative;display:flex;align-items:flex-end;gap:3px;border-bottom:1px solid var(--border);padding-top:6px;box-sizing:border-box}'+
+      '.wc-col{flex:1 1 0;min-width:14px;height:100%;display:flex;align-items:flex-end;cursor:pointer;border-radius:4px}'+
+      '.wc-col.on{background:rgba(127,127,127,.16)}'+
+      '.wc-stack{width:100%;display:flex;flex-direction:column-reverse;border-radius:3px 3px 0 0;overflow:hidden}'+
+      '.wc-stack>div{width:100%}'+
+      '.wc-xs{display:flex;gap:3px;margin-top:3px}.wc-xs>div{flex:1 1 0;min-width:14px;text-align:center;font-size:10px;color:var(--dim);white-space:nowrap;overflow:hidden}'+
+      '.wc-max{position:absolute;top:0;left:0;font-size:10px;color:var(--dim)}'+
+      '.wc-line{position:absolute;left:0;top:6px;width:100%;height:calc(100% - 6px);pointer-events:none;overflow:visible}'+
+      '.wc-cap{font-size:13px;margin-top:8px;min-height:18px;line-height:1.5}'+
+      '.wc-empty{color:var(--dim);font-size:13px;padding:8px 0}'+
+      '.wc-h4{font-size:14px;font-weight:600;margin:14px 0 4px}'+
+      '.wc-hr{display:grid;grid-template-columns:minmax(84px,34%) 1fr auto;gap:8px;align-items:center;margin:8px 0;font-size:13px}'+
+      '.wc-hl{overflow:hidden;text-overflow:ellipsis}.wc-hl small{display:block;color:var(--dim);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'+
+      '.wc-ht{position:relative;height:14px;background:rgba(127,127,127,.14);border-radius:7px}'+
+      '.wc-hb{position:absolute;top:0;bottom:0;border-radius:7px;min-width:2px}'+
+      '.wc-hm{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--text);opacity:.6}'+
+      '.wc-hz{position:absolute;top:-4px;bottom:-4px;left:50%;width:1px;background:var(--dim)}'+
+      '.wc-hv{white-space:nowrap;font-variant-numeric:tabular-nums;font-size:12px;text-align:right}';
+    document.head.appendChild(st);
+  }
+  /* สีตายตัว (ไม่ใช้สีธีม — ธีมส้มทำให้หลายหมวดสีใกล้กันจนแยกไม่ออก) */
+  const WC={ a:'#ee7d33', b:'#3b82c4', y:'#e0b100', g:'#2e9e5b', r:'#d64545', d:'#9aa3ad', p:'#8b6fd6' };
+  /* o = { labels, series:[{name,color,data}], line:{name,color,data}, tip(i), fmt(v), empty, height } */
+  function wcBars(el,o){
+    if(!el) return; wcCss();
+    const n=(o.labels||[]).length;
+    if(!n){ el.innerHTML='<div class="wc-empty">'+wcEsc(o.empty||'ยังไม่มีข้อมูล')+'</div>'; return; }
+    const tot=o.labels.map((_,i)=>o.series.reduce((a,s)=>a+Math.max(0,+s.data[i]||0),0));
+    const max=Math.max(...tot,0)||1, H=o.height||170, mw=n*17+'px';
+    const lmax=o.line?(Math.max(...o.line.data.map(v=>+v||0),0)||1):1;
+    let h='<div class="wc-legend">'+o.series.map(s=>'<span><i style="background:'+s.color+'"></i>'+wcEsc(s.name)+'</span>').join('')+
+      (o.line?'<span><i class="ln" style="background:'+o.line.color+'"></i>'+wcEsc(o.line.name)+'</span>':'')+
+      '<span style="margin-left:auto">แท่งสูงสุด '+wcEsc(o.fmt?o.fmt(max):max)+'</span></div>';
+    h+='<div class="wc-scroll"><div style="min-width:'+mw+'"><div class="wc-plot" style="height:'+H+'px">';
+    h+=o.labels.map((lb,i)=>'<div class="wc-col" data-i="'+i+'"><div class="wc-stack" style="height:'+(tot[i]/max*100)+'%">'+
+      o.series.map(s=>{ const v=Math.max(0,+s.data[i]||0); return v?'<div style="height:'+(v/(tot[i]||1)*100)+'%;background:'+s.color+'"></div>':''; }).join('')+'</div></div>').join('');
+    if(o.line){
+      const pts=o.line.data.map((v,i)=>(v==null||!(+v>0))?null:[((i+0.5)/n*100),(100-(+v)/lmax*90)]);
+      const segs=[]; let cur=[]; pts.forEach(p=>{ if(p) cur.push(p.join(',')); else if(cur.length){ segs.push(cur); cur=[]; } }); if(cur.length) segs.push(cur);
+      h+='<svg class="wc-line" viewBox="0 0 100 100" preserveAspectRatio="none">'+segs.map(sg=>'<polyline points="'+sg.join(' ')+'" fill="none" stroke="'+o.line.color+'" stroke-width="2.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>').join('')+'</svg>';
+    }
+    h+='</div><div class="wc-xs">'+o.labels.map(lb=>'<div>'+wcEsc(lb)+'</div>').join('')+'</div></div></div>';
+    h+='<div class="wc-cap">'+(o.hint||'<span style="color:var(--dim)">แตะที่แท่งเพื่อดูตัวเลขของวันนั้น</span>')+'</div>';
+    el.innerHTML=h;
+    const sc=el.querySelector('.wc-scroll'); if(sc) sc.scrollLeft=sc.scrollWidth;   /* เปิดมาเห็นวันล่าสุด */
+    el.querySelectorAll('.wc-col').forEach(c=>c.onclick=()=>{
+      el.querySelectorAll('.wc-col.on').forEach(x=>x.classList.remove('on')); c.classList.add('on');
+      el.querySelector('.wc-cap').innerHTML=o.tip?o.tip(+c.dataset.i):'';
+    });
+  }
+  /* o = { rows:[{label, sub, value, mark, color, text}], signed, empty, legend:[[color,name]] } */
+  function wcHBars(el,o){
+    if(!el) return; wcCss();
+    const rows=o.rows||[];
+    if(!rows.length){ el.innerHTML='<div class="wc-empty">'+wcEsc(o.empty||'ยังไม่มีข้อมูล')+'</div>'; return; }
+    const max=Math.max(...rows.map(r=>Math.max(Math.abs(+r.value||0),+r.mark||0)),0)||1;
+    el.innerHTML=(o.legend?'<div class="wc-legend">'+o.legend.map(l=>'<span><i style="background:'+l[0]+'"></i>'+wcEsc(l[1])+'</span>').join('')+'</div>':'')+
+      rows.map(r=>{ const v=+r.value||0, c=r.color||WC.a;
+        const bar=o.signed
+          ? '<div class="wc-hz"></div><div class="wc-hb" style="left:'+(v<0?50-Math.abs(v)/max*50:50)+'%;width:'+(Math.abs(v)/max*50)+'%;background:'+c+'"></div>'
+          : '<div class="wc-hb" style="left:0;width:'+(Math.max(0,v)/max*100)+'%;background:'+c+'"></div>'+(r.mark>0?'<div class="wc-hm" style="left:calc('+(r.mark/max*100)+'% - 1px)"></div>':'');
+        return '<div class="wc-hr"><div class="wc-hl">'+wcEsc(r.label)+(r.sub?'<small>'+wcEsc(r.sub)+'</small>':'')+'</div><div class="wc-ht">'+bar+'</div>'+
+          '<div class="wc-hv">'+(r.text!=null?r.text:wcEsc(v))+'</div></div>'; }).join('');
+  }
+  /* ป้ายแกนวัน: เลขวัน (แตะแท่งดูวันที่เต็ม) */
+  function wcDay(d){ return String(+String(d).slice(8,10)); }
+  /* กราฟสต๊อก: คงเหลือ vs จุดเตือน + พอใช้อีกกี่วัน (จากที่เบิกเฉลี่ย 30 วัน) */
+  function rStockCharts(rawS, zipS, packS){
+    const since=sinceDays(30), rate={};
+    (PROD.wd||[]).forEach(w=>{ if(String(w.time)>=since) rate[w.fiberName]=(rate[w.fiberName]||0)+(+w.kg||0)/30; });
+    const daysTxt=(stock,r)=>r>0?('พอใช้ ~'+Math.max(0,Math.floor(stock/r))+' วัน'):'ไม่ได้เบิกใน 30 วัน';
+    const fr=rawS.filter(r=>r.stock>0.001 || fiberThOf(r.name)>0).map(r=>{ const th=fiberThOf(r.name), low=th>0&&r.stock<th, rt=rate[r.name]||0;
+      return { label:r.name, sub:daysTxt(r.stock,rt), value:Math.max(0,r.stock), mark:th, color:low?WC.r:WC.b, text:(low?'<b style="color:'+WC.r+'">':'<b>')+Math.round(r.stock).toLocaleString('en-US')+'</b>',
+        _d:rt>0?r.stock/rt:1e9, _low:low }; })
+      .sort((a,b)=>(b._low-a._low)||(a._d-b._d)||(b.value-a.value));
+    wcHBars($('chFiberStock'), { rows:fr, empty:'ยังไม่มีใยในคลัง' });
+    const rr=allFabricTypes().filter(t=>(S.fabricReceipts||[]).some(r=>r.fabricType===t)).map(t=>{ const a=CALC.availableRolls(S.fabricReceipts,S.cuts,t,S.cutBatches).length, low=rollTh()>0&&a<=rollTh();
+      return { label:t, value:a, mark:rollTh(), color:low?WC.r:WC.b, text:(low?'<b style="color:'+WC.r+'">':'<b>')+a+'</b> ม้วน', _low:low }; })
+      .sort((a,b)=>(b._low-a._low)||(a.value-b.value));
+    wcHBars($('chRollStock'), { rows:rr, empty:'ยังไม่มีม้วนผ้า' });
+    const bag=(list,kind)=>list.filter(x=>x.remainingKg>0.001 || true).map(x=>{ const th=bagTh(kind), low=x.remainingKg<th;
+      return { label:x.name, value:Math.max(0,x.remainingKg), mark:th, color:low?WC.r:WC.b, text:(low?'<b style="color:'+WC.r+'">':'<b>')+r2(x.remainingKg)+'</b>', _low:low }; })
+      .sort((a,b)=>(b._low-a._low)||(a.value-b.value));
+    wcHBars($('chPackStock'), { rows:bag(packS,'pack'), empty:'ยังไม่มีถุงแพ็ค' });
+    wcHBars($('chZipStock'), { rows:bag(zipS,'zip'), empty:'ยังไม่มีถุงซิล' });
+  }
   function rSum(){
     const rawS=CALC.rawStock(S.fiberReceipts,PROD.wd);
     const finS=CALC.finStock(producedByOrder(),S.shipments,S.finAdjustments);
@@ -4622,6 +4726,7 @@ window.WPDAUTH = {
           (neg.length?'<br><span class="bdg bad">'+neg.length+' ออเดอร์ติดลบ รวม '+r2(neg.reduce((s,v)=>s+v,0))+' แพ็ค — ส่งเกินที่ผลิต</span>':'')+'</div></div>';
       })();
 
+    try{ rStockCharts(rawS, zipS, packS); }catch(e){ console.error('chart',e); }
     const low=[];
     rawS.forEach(r=>{ const th=fiberThOf(r.name); if(th>0&&r.stock<th) low.push({name:'ใย: '+r.name, stock:r.stock+' กก.', th:th+' กก.'}); });
     allFabricTypes().forEach(t=>{ const hadRoll=(S.fabricReceipts||[]).some(r=>r.fabricType===t); if(!hadRoll) return;

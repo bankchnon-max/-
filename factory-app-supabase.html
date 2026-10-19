@@ -841,6 +841,14 @@
         <div class="sg" id="sumStats" style="margin-top:11px;"></div>
       </div>
       <div class="card">
+        <h3>📈 กราฟภาพรวม</h3>
+        <div class="wc-h4">ผลิตรายวัน (30 วันที่มีผลิตล่าสุด ถึงวันที่เลือก)</div>
+        <div id="chProd"></div>
+        <div class="wc-h4">ใย: ใช้จริงต่างจากสูตรกี่ % (จากก้อนที่ชั่งหรือยืนยันว่าหมด · 60 วัน)</div>
+        <div id="chFiber"></div>
+        <div class="sumline" id="chFiberNote"></div>
+      </div>
+      <div class="card">
         <h3>สมดุลใย เข้า – ออก</h3>
         <div class="sg" id="balStats"></div>
         <div class="sumline" id="balNote"></div>
@@ -5110,6 +5118,120 @@ window.WPDAUTH = {
       return tot+Math.max(0,minsBetween(en,st)-breakOverlapMinutes(st,en));
     },0);
   }
+  /* ═══ <wpd-chart> กราฟเล็กๆ วาดเอง (ไม่โหลดไลบรารี ใช้ออฟไลน์ได้) ═══
+     wcBars  = แท่งตั้งตามวัน/เดือน ซ้อนหลายหมวดได้ · แตะแท่งดูตัวเลข
+     wcHBars = แท่งนอน มีขีดจุดเตือน · signed = แท่งบวก/ลบจากกึ่งกลาง */
+  function wcEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function wcCss(){
+    if(document.getElementById('wcCss')) return;
+    const st=document.createElement('style'); st.id='wcCss';
+    st.textContent='.wc-legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--dim);margin:2px 0 8px}'+
+      '.wc-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}'+
+      '.wc-legend i.ln{height:3px;vertical-align:3px}'+
+      '.wc-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}'+
+      '.wc-plot{position:relative;display:flex;align-items:flex-end;gap:3px;border-bottom:1px solid var(--border);padding-top:6px;box-sizing:border-box}'+
+      '.wc-col{flex:1 1 0;min-width:14px;height:100%;display:flex;align-items:flex-end;cursor:pointer;border-radius:4px}'+
+      '.wc-col.on{background:rgba(127,127,127,.16)}'+
+      '.wc-stack{width:100%;display:flex;flex-direction:column-reverse;border-radius:3px 3px 0 0;overflow:hidden}'+
+      '.wc-stack>div{width:100%}'+
+      '.wc-xs{display:flex;gap:3px;margin-top:3px}.wc-xs>div{flex:1 1 0;min-width:14px;text-align:center;font-size:10px;color:var(--dim);white-space:nowrap;overflow:hidden}'+
+      '.wc-max{position:absolute;top:0;left:0;font-size:10px;color:var(--dim)}'+
+      '.wc-line{position:absolute;left:0;top:6px;width:100%;height:calc(100% - 6px);pointer-events:none;overflow:visible}'+
+      '.wc-cap{font-size:13px;margin-top:8px;min-height:18px;line-height:1.5}'+
+      '.wc-empty{color:var(--dim);font-size:13px;padding:8px 0}'+
+      '.wc-h4{font-size:14px;font-weight:600;margin:14px 0 4px}'+
+      '.wc-hr{display:grid;grid-template-columns:minmax(84px,34%) 1fr auto;gap:8px;align-items:center;margin:8px 0;font-size:13px}'+
+      '.wc-hl{overflow:hidden;text-overflow:ellipsis}.wc-hl small{display:block;color:var(--dim);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'+
+      '.wc-ht{position:relative;height:14px;background:rgba(127,127,127,.14);border-radius:7px}'+
+      '.wc-hb{position:absolute;top:0;bottom:0;border-radius:7px;min-width:2px}'+
+      '.wc-hm{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--text);opacity:.6}'+
+      '.wc-hz{position:absolute;top:-4px;bottom:-4px;left:50%;width:1px;background:var(--dim)}'+
+      '.wc-hv{white-space:nowrap;font-variant-numeric:tabular-nums;font-size:12px;text-align:right}';
+    document.head.appendChild(st);
+  }
+  /* สีตายตัว (ไม่ใช้สีธีม — ธีมส้มทำให้หลายหมวดสีใกล้กันจนแยกไม่ออก) */
+  const WC={ a:'#ee7d33', b:'#3b82c4', y:'#e0b100', g:'#2e9e5b', r:'#d64545', d:'#9aa3ad', p:'#8b6fd6' };
+  /* o = { labels, series:[{name,color,data}], line:{name,color,data}, tip(i), fmt(v), empty, height } */
+  function wcBars(el,o){
+    if(!el) return; wcCss();
+    const n=(o.labels||[]).length;
+    if(!n){ el.innerHTML='<div class="wc-empty">'+wcEsc(o.empty||'ยังไม่มีข้อมูล')+'</div>'; return; }
+    const tot=o.labels.map((_,i)=>o.series.reduce((a,s)=>a+Math.max(0,+s.data[i]||0),0));
+    const max=Math.max(...tot,0)||1, H=o.height||170, mw=n*17+'px';
+    const lmax=o.line?(Math.max(...o.line.data.map(v=>+v||0),0)||1):1;
+    let h='<div class="wc-legend">'+o.series.map(s=>'<span><i style="background:'+s.color+'"></i>'+wcEsc(s.name)+'</span>').join('')+
+      (o.line?'<span><i class="ln" style="background:'+o.line.color+'"></i>'+wcEsc(o.line.name)+'</span>':'')+
+      '<span style="margin-left:auto">แท่งสูงสุด '+wcEsc(o.fmt?o.fmt(max):max)+'</span></div>';
+    h+='<div class="wc-scroll"><div style="min-width:'+mw+'"><div class="wc-plot" style="height:'+H+'px">';
+    h+=o.labels.map((lb,i)=>'<div class="wc-col" data-i="'+i+'"><div class="wc-stack" style="height:'+(tot[i]/max*100)+'%">'+
+      o.series.map(s=>{ const v=Math.max(0,+s.data[i]||0); return v?'<div style="height:'+(v/(tot[i]||1)*100)+'%;background:'+s.color+'"></div>':''; }).join('')+'</div></div>').join('');
+    if(o.line){
+      const pts=o.line.data.map((v,i)=>(v==null||!(+v>0))?null:[((i+0.5)/n*100),(100-(+v)/lmax*90)]);
+      const segs=[]; let cur=[]; pts.forEach(p=>{ if(p) cur.push(p.join(',')); else if(cur.length){ segs.push(cur); cur=[]; } }); if(cur.length) segs.push(cur);
+      h+='<svg class="wc-line" viewBox="0 0 100 100" preserveAspectRatio="none">'+segs.map(sg=>'<polyline points="'+sg.join(' ')+'" fill="none" stroke="'+o.line.color+'" stroke-width="2.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>').join('')+'</svg>';
+    }
+    h+='</div><div class="wc-xs">'+o.labels.map(lb=>'<div>'+wcEsc(lb)+'</div>').join('')+'</div></div></div>';
+    h+='<div class="wc-cap">'+(o.hint||'<span style="color:var(--dim)">แตะที่แท่งเพื่อดูตัวเลขของวันนั้น</span>')+'</div>';
+    el.innerHTML=h;
+    const sc=el.querySelector('.wc-scroll'); if(sc) sc.scrollLeft=sc.scrollWidth;   /* เปิดมาเห็นวันล่าสุด */
+    el.querySelectorAll('.wc-col').forEach(c=>c.onclick=()=>{
+      el.querySelectorAll('.wc-col.on').forEach(x=>x.classList.remove('on')); c.classList.add('on');
+      el.querySelector('.wc-cap').innerHTML=o.tip?o.tip(+c.dataset.i):'';
+    });
+  }
+  /* o = { rows:[{label, sub, value, mark, color, text}], signed, empty, legend:[[color,name]] } */
+  function wcHBars(el,o){
+    if(!el) return; wcCss();
+    const rows=o.rows||[];
+    if(!rows.length){ el.innerHTML='<div class="wc-empty">'+wcEsc(o.empty||'ยังไม่มีข้อมูล')+'</div>'; return; }
+    const max=Math.max(...rows.map(r=>Math.max(Math.abs(+r.value||0),+r.mark||0)),0)||1;
+    el.innerHTML=(o.legend?'<div class="wc-legend">'+o.legend.map(l=>'<span><i style="background:'+l[0]+'"></i>'+wcEsc(l[1])+'</span>').join('')+'</div>':'')+
+      rows.map(r=>{ const v=+r.value||0, c=r.color||WC.a;
+        const bar=o.signed
+          ? '<div class="wc-hz"></div><div class="wc-hb" style="left:'+(v<0?50-Math.abs(v)/max*50:50)+'%;width:'+(Math.abs(v)/max*50)+'%;background:'+c+'"></div>'
+          : '<div class="wc-hb" style="left:0;width:'+(Math.max(0,v)/max*100)+'%;background:'+c+'"></div>'+(r.mark>0?'<div class="wc-hm" style="left:calc('+(r.mark/max*100)+'% - 1px)"></div>':'');
+        return '<div class="wc-hr"><div class="wc-hl">'+wcEsc(r.label)+(r.sub?'<small>'+wcEsc(r.sub)+'</small>':'')+'</div><div class="wc-ht">'+bar+'</div>'+
+          '<div class="wc-hv">'+(r.text!=null?r.text:wcEsc(v))+'</div></div>'; }).join('');
+  }
+  /* ป้ายแกนวัน: เลขวัน (แตะแท่งดูวันที่เต็ม) */
+  function wcDay(d){ return String(+String(d).slice(8,10)); }
+  /* กราฟผลิตรายวัน: กก. ใยแผ่น/หมอน ซ้อนกัน + เส้นจำนวนแพ็ค */
+  function rProdChart(endDay){
+    const by={};
+    (S.line||[]).forEach(l=>{ const d=dayOf(l.time); if(!d || d>endDay) return;
+      const e=by[d]||(by[d]={ sheet:0, pillow:0, other:0, packs:0, sp:0, pp:0 });
+      const kg=(l.actualWeight!=null?+l.actualWeight:+l.stdPerPack)||0, t=l.productType||(orderById(l.orderId)||{}).productType||'';
+      if(t==='หมอน'){ e.pillow+=kg; e.pp++; } else if(t==='ใย'){ e.sheet+=kg; e.sp++; } else e.other+=kg;
+      e.packs++; });
+    const days=Object.keys(by).sort().slice(-30);
+    wcBars($('chProd'), { labels:days.map(wcDay), empty:'ยังไม่มีการผลิตในช่วงนี้',
+      series:[{ name:'ใยแผ่น (กก.)', color:WC.b, data:days.map(d=>r3(by[d].sheet)) }, { name:'หมอน (กก.)', color:WC.a, data:days.map(d=>r3(by[d].pillow)) },
+              { name:'อื่นๆ (กก.)', color:WC.d, data:days.map(d=>r3(by[d].other)) }].filter(s=>s.data.some(v=>v>0)),
+      line:{ name:'จำนวนแพ็ค', color:WC.p, data:days.map(d=>by[d].packs) }, fmt:v=>Math.round(v)+' กก.',
+      tip:i=>{ const d=days[i], e=by[d]; return '<b>'+thDate(d)+'</b> · ผลิต <b>'+e.packs+' แพ็ค</b> · '+r2(e.sheet+e.pillow+e.other)+' กก.'+
+        (e.sp?'<br>ใยแผ่น '+e.sp+' แพ็ค '+r2(e.sheet)+' กก.':'')+(e.pp?'<br>หมอน '+e.pp+' แพ็ค '+r2(e.pillow)+' กก.':''); } });
+  }
+  /* กราฟใยสูตร vs ใช้จริง: ก้อนที่รู้ยอดจริงแล้ว (ชั่ง ⚖ / กดหมดแล้ว / ยืนยันว่าหมดจริง) */
+  function rFiberChart(){
+    const since=localISO(new Date(Date.now()-60*864e5)), by={};
+    (S.wd||[]).forEach(w=>{
+      if(w.auto) return;
+      const us=(S.use||[]).filter(u=>u.wdId===w.id);
+      const known=(w.weighLog&&w.weighLog.length) || w.emptyOk || us.some(u=>u.closeout && !u.waste);
+      if(!known || !us.some(u=>String(u.time)>=since)) return;
+      const recipe=us.filter(u=>!u.adjust && !u.closeout && !u.waste).reduce((a,u)=>a+(+u.kg||0),0);
+      const actual=recipe+us.filter(u=>u.adjust || (u.closeout && !u.waste)).reduce((a,u)=>a+(+u.kg||0),0);
+      if(!(recipe>0)) return;
+      const e=by[w.fiberName]||(by[w.fiberName]={ recipe:0, actual:0, n:0 }); e.recipe+=recipe; e.actual+=actual; e.n++;
+    });
+    const rows=Object.keys(by).map(k=>{ const e=by[k], pct=r2((e.actual-e.recipe)/e.recipe*100);
+      return { label:k, sub:'สูตร '+Math.round(e.recipe)+' · จริง '+Math.round(e.actual)+' กก. · '+e.n+' ก้อน', value:pct,
+        color:pct>3?WC.r:pct<-3?WC.y:WC.g, text:'<b style="color:'+(pct>3?WC.r:pct<-3?WC.y:WC.g)+'">'+(pct>0?'+':'')+pct+'%</b>' }; })
+      .sort((a,b)=>Math.abs(b.value)-Math.abs(a.value));
+    wcHBars($('chFiber'), { rows, signed:true, empty:'ยังไม่มีก้อนที่รู้ยอดจริง — จะขึ้นเมื่อพนักงานกด ⚖ ชั่งที่เหลือจริง หรือตอบว่าก้อนหมดจริงแล้ว',
+      legend:[[WC.r,'ใช้มากกว่าสูตร >3%'],[WC.g,'ใกล้สูตร ±3%'],[WC.y,'ใช้น้อยกว่าสูตร >3% (สูตรตั้งสูงไป)']] });
+    $('chFiberNote').innerHTML=rows.length?'ใยไหนเป็นสีเหลืองบ่อยๆ แปลว่า กก.ต่อรอบในสูตรตั้งสูงกว่าที่ป้อนจริง — ระบบจะหักก้อนหมดก่อนของจริง ควรลดสูตรลงตาม %':'';
+  }
   function rSum(){
     const di=$('sumDate'); if(!di.value) di.value=todayStr();
     di.onchange=rSum; $('sumRange').onchange=rSum;
@@ -5121,6 +5243,7 @@ window.WPDAUTH = {
     const wd=S.wd.filter(x=>inRange(x,R));
     const sc=S.scrap.filter(x=>inRange(x,R));
     rStoreInfo(); rLockInfo(); rInstallInfo();
+    try{ rProdChart(R.to?String(R.to).slice(0,10):d); rFiberChart(); }catch(e){ console.error('chart',e); }
     if($('dbRows') && !$('dbRows').dataset.init) renderDbRows();
     /* ช่วงห่างเกิน 8 ชม. คือข้อมูลเก่าที่นับข้ามคืน/สลับงานไว้ ไม่ใช่เวลาที่เสียจริง */
     const gaps=line.filter(x=>(x.isDowntime||(x.gapMinutes&&x.gapMinutes>(+S.settings.gapMin||20))) && (+x.gapMinutes||0)<480);

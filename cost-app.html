@@ -447,7 +447,7 @@
   Element.prototype.scrollIntoView = function(){ try{ scan(); reveal(this); }catch(e){} return _siv.apply(this, arguments); };
   document.addEventListener('DOMContentLoaded', function(){ scan(); setInterval(scan, 2500); });
 })();
-</script><!-- /wpd-fold -->
+</script><!-- /wpd-fold -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- ฟอนต์โหลดเบื้องหลัง ไม่ให้หน้าค้างรอเน็ต (เปิดด้วยฟอนต์เครื่องก่อน แล้วสลับเอง) -->
@@ -639,6 +639,7 @@
       <div class="card"><h3>สรุปต้นทุนตามช่วงเวลา</h3>
         <div class="rf" style="align-items:center;"><div><select id="perMode">
           <option value="day">รายวัน</option><option value="month">รายเดือน</option><option value="year">รายปี</option></select></div><div></div></div>
+        <div id="perChart" style="margin-top:10px;"></div>
         <div class="scr" style="margin-top:10px;"><table id="tPeriod"></table></div>
         <div class="sumline" id="perNote"></div></div>
       <div class="card"><h3>ภาพรวม</h3><div class="sg" id="sumStats"></div></div>
@@ -2517,6 +2518,97 @@ window.WPDAUTH = {
      5. สรุป
      ═══════════════════════════════════════════════════════════════ */
   const TH_MON=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  /* ═══ <wpd-chart> กราฟเล็กๆ วาดเอง (ไม่โหลดไลบรารี ใช้ออฟไลน์ได้) ═══
+     wcBars  = แท่งตั้งตามวัน/เดือน ซ้อนหลายหมวดได้ · แตะแท่งดูตัวเลข
+     wcHBars = แท่งนอน มีขีดจุดเตือน · signed = แท่งบวก/ลบจากกึ่งกลาง */
+  function wcEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function wcCss(){
+    if(document.getElementById('wcCss')) return;
+    const st=document.createElement('style'); st.id='wcCss';
+    st.textContent='.wc-legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--dim);margin:2px 0 8px}'+
+      '.wc-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}'+
+      '.wc-legend i.ln{height:3px;vertical-align:3px}'+
+      '.wc-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}'+
+      '.wc-plot{position:relative;display:flex;align-items:flex-end;gap:3px;border-bottom:1px solid var(--border);padding-top:6px;box-sizing:border-box}'+
+      '.wc-col{flex:1 1 0;min-width:14px;height:100%;display:flex;align-items:flex-end;cursor:pointer;border-radius:4px}'+
+      '.wc-col.on{background:rgba(127,127,127,.16)}'+
+      '.wc-stack{width:100%;display:flex;flex-direction:column-reverse;border-radius:3px 3px 0 0;overflow:hidden}'+
+      '.wc-stack>div{width:100%}'+
+      '.wc-xs{display:flex;gap:3px;margin-top:3px}.wc-xs>div{flex:1 1 0;min-width:14px;text-align:center;font-size:10px;color:var(--dim);white-space:nowrap;overflow:hidden}'+
+      '.wc-max{position:absolute;top:0;left:0;font-size:10px;color:var(--dim)}'+
+      '.wc-line{position:absolute;left:0;top:6px;width:100%;height:calc(100% - 6px);pointer-events:none;overflow:visible}'+
+      '.wc-cap{font-size:13px;margin-top:8px;min-height:18px;line-height:1.5}'+
+      '.wc-empty{color:var(--dim);font-size:13px;padding:8px 0}'+
+      '.wc-h4{font-size:14px;font-weight:600;margin:14px 0 4px}'+
+      '.wc-hr{display:grid;grid-template-columns:minmax(84px,34%) 1fr auto;gap:8px;align-items:center;margin:8px 0;font-size:13px}'+
+      '.wc-hl{overflow:hidden;text-overflow:ellipsis}.wc-hl small{display:block;color:var(--dim);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'+
+      '.wc-ht{position:relative;height:14px;background:rgba(127,127,127,.14);border-radius:7px}'+
+      '.wc-hb{position:absolute;top:0;bottom:0;border-radius:7px;min-width:2px}'+
+      '.wc-hm{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--text);opacity:.6}'+
+      '.wc-hz{position:absolute;top:-4px;bottom:-4px;left:50%;width:1px;background:var(--dim)}'+
+      '.wc-hv{white-space:nowrap;font-variant-numeric:tabular-nums;font-size:12px;text-align:right}';
+    document.head.appendChild(st);
+  }
+  /* สีตายตัว (ไม่ใช้สีธีม — ธีมส้มทำให้หลายหมวดสีใกล้กันจนแยกไม่ออก) */
+  const WC={ a:'#ee7d33', b:'#3b82c4', y:'#e0b100', g:'#2e9e5b', r:'#d64545', d:'#9aa3ad', p:'#8b6fd6' };
+  /* o = { labels, series:[{name,color,data}], line:{name,color,data}, tip(i), fmt(v), empty, height } */
+  function wcBars(el,o){
+    if(!el) return; wcCss();
+    const n=(o.labels||[]).length;
+    if(!n){ el.innerHTML='<div class="wc-empty">'+wcEsc(o.empty||'ยังไม่มีข้อมูล')+'</div>'; return; }
+    const tot=o.labels.map((_,i)=>o.series.reduce((a,s)=>a+Math.max(0,+s.data[i]||0),0));
+    const max=Math.max(...tot,0)||1, H=o.height||170, mw=n*17+'px';
+    const lmax=o.line?(Math.max(...o.line.data.map(v=>+v||0),0)||1):1;
+    let h='<div class="wc-legend">'+o.series.map(s=>'<span><i style="background:'+s.color+'"></i>'+wcEsc(s.name)+'</span>').join('')+
+      (o.line?'<span><i class="ln" style="background:'+o.line.color+'"></i>'+wcEsc(o.line.name)+'</span>':'')+
+      '<span style="margin-left:auto">แท่งสูงสุด '+wcEsc(o.fmt?o.fmt(max):max)+'</span></div>';
+    h+='<div class="wc-scroll"><div style="min-width:'+mw+'"><div class="wc-plot" style="height:'+H+'px">';
+    h+=o.labels.map((lb,i)=>'<div class="wc-col" data-i="'+i+'"><div class="wc-stack" style="height:'+(tot[i]/max*100)+'%">'+
+      o.series.map(s=>{ const v=Math.max(0,+s.data[i]||0); return v?'<div style="height:'+(v/(tot[i]||1)*100)+'%;background:'+s.color+'"></div>':''; }).join('')+'</div></div>').join('');
+    if(o.line){
+      const pts=o.line.data.map((v,i)=>(v==null||!(+v>0))?null:[((i+0.5)/n*100),(100-(+v)/lmax*90)]);
+      const segs=[]; let cur=[]; pts.forEach(p=>{ if(p) cur.push(p.join(',')); else if(cur.length){ segs.push(cur); cur=[]; } }); if(cur.length) segs.push(cur);
+      h+='<svg class="wc-line" viewBox="0 0 100 100" preserveAspectRatio="none">'+segs.map(sg=>'<polyline points="'+sg.join(' ')+'" fill="none" stroke="'+o.line.color+'" stroke-width="2.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>').join('')+'</svg>';
+    }
+    h+='</div><div class="wc-xs">'+o.labels.map(lb=>'<div>'+wcEsc(lb)+'</div>').join('')+'</div></div></div>';
+    h+='<div class="wc-cap">'+(o.hint||'<span style="color:var(--dim)">แตะที่แท่งเพื่อดูตัวเลขของวันนั้น</span>')+'</div>';
+    el.innerHTML=h;
+    const sc=el.querySelector('.wc-scroll'); if(sc) sc.scrollLeft=sc.scrollWidth;   /* เปิดมาเห็นวันล่าสุด */
+    el.querySelectorAll('.wc-col').forEach(c=>c.onclick=()=>{
+      el.querySelectorAll('.wc-col.on').forEach(x=>x.classList.remove('on')); c.classList.add('on');
+      el.querySelector('.wc-cap').innerHTML=o.tip?o.tip(+c.dataset.i):'';
+    });
+  }
+  /* o = { rows:[{label, sub, value, mark, color, text}], signed, empty, legend:[[color,name]] } */
+  function wcHBars(el,o){
+    if(!el) return; wcCss();
+    const rows=o.rows||[];
+    if(!rows.length){ el.innerHTML='<div class="wc-empty">'+wcEsc(o.empty||'ยังไม่มีข้อมูล')+'</div>'; return; }
+    const max=Math.max(...rows.map(r=>Math.max(Math.abs(+r.value||0),+r.mark||0)),0)||1;
+    el.innerHTML=(o.legend?'<div class="wc-legend">'+o.legend.map(l=>'<span><i style="background:'+l[0]+'"></i>'+wcEsc(l[1])+'</span>').join('')+'</div>':'')+
+      rows.map(r=>{ const v=+r.value||0, c=r.color||WC.a;
+        const bar=o.signed
+          ? '<div class="wc-hz"></div><div class="wc-hb" style="left:'+(v<0?50-Math.abs(v)/max*50:50)+'%;width:'+(Math.abs(v)/max*50)+'%;background:'+c+'"></div>'
+          : '<div class="wc-hb" style="left:0;width:'+(Math.max(0,v)/max*100)+'%;background:'+c+'"></div>'+(r.mark>0?'<div class="wc-hm" style="left:calc('+(r.mark/max*100)+'% - 1px)"></div>':'');
+        return '<div class="wc-hr"><div class="wc-hl">'+wcEsc(r.label)+(r.sub?'<small>'+wcEsc(r.sub)+'</small>':'')+'</div><div class="wc-ht">'+bar+'</div>'+
+          '<div class="wc-hv">'+(r.text!=null?r.text:wcEsc(v))+'</div></div>'; }).join('');
+  }
+  /* ป้ายแกนวัน: เลขวัน (แตะแท่งดูวันที่เต็ม) */
+  function wcDay(d){ return String(+String(d).slice(8,10)); }
+  /* กราฟต้นทุนตามช่วง: แท่งซ้อนตามหมวด + เส้นบาท/ชิ้น */
+  function rPeriodChart(rows, mode, label){
+    const rs=rows.slice().reverse().slice(mode==='day'?-31:-24);
+    const lab=r=>mode==='day'?wcDay(r.k):mode==='month'?TH_MON[+r.k.slice(5,7)-1]:String(+r.k+543);
+    const other=r=>r2((+r.interest||0)+(+r.ship||0)+(+r.gas||0)+(+r.elec||0));
+    wcBars($('perChart'), { labels:rs.map(lab), empty:'ยังไม่มีข้อมูลการผลิต', height:190, fmt:v=>fmtInt(v)+' บาท',
+      series:[{ name:'ใย', color:WC.b, data:rs.map(r=>r.fiber) }, { name:'ผ้า+เย็บ', color:WC.p, data:rs.map(r=>r.fabric) },
+              { name:'ถุง', color:WC.y, data:rs.map(r=>r2((+r.bagPack||0)+(+r.bagZip||0))) }, { name:'ค่าแรง', color:WC.a, data:rs.map(r=>r.labor) },
+              { name:'ดอกเบี้ย ขนส่ง แก๊ส ไฟ', color:WC.d, data:rs.map(other) }],
+      line:{ name:'บาท/ชิ้น', color:WC.r, data:rs.map(r=>r.pieces?r2(r.total/r.pieces):null) },
+      tip:i=>{ const r=rs[i]; return '<b>'+label(r.k)+'</b> · รวม <b>'+fmtBaht(r.total)+' บาท</b>'+(r.pieces?' · <b>'+fmtBaht(r2(r.total/r.pieces))+' บาท/ชิ้น</b>':'')+
+        '<br>'+fmtInt(r.packs)+' แพ็ค · '+fmtInt(r.pieces)+' ชิ้น · '+r.hours+' ชม.'+
+        '<br>ใย '+fmtBaht(r.fiber)+' · ผ้า+เย็บ '+fmtBaht(r.fabric)+' · ถุง '+fmtBaht(r2((+r.bagPack||0)+(+r.bagZip||0)))+' · ค่าแรง '+fmtBaht(r.labor)+' · อื่นๆ '+fmtBaht(other(r)); } });
+  }
   function rPeriod(){
     const mode=$('perMode').value||'day';
     const dates=new Set();
@@ -2534,6 +2626,7 @@ window.WPDAUTH = {
       const bk=buckets[k]||(buckets[k]={}); (bk[f]||(bk[f]=[])).push(x); }));
     const allUseOrders=new Set((PROD.use||[]).map(u=>u.orderId)), caseTracked=new Set((PROD.caseUse||[]).map(u=>u.orderId));
     const rows=keys.map(k=>({k, ...COST.periodCost(Object.assign({}, c, { LABOR:LABOR?Object.fromEntries(Object.entries(LABOR).filter(([d])=>keyOf(d)===k)):null, allUseOrders, caseTracked, PROD:Object.assign({}, PROD, buckets[k]||{}, Object.fromEntries(['line','carry','use','wd','caseUse','fabricWd','bagUse','sheetUse','gasSwaps'].map(f=>[f,(buckets[k]||{})[f]||[]]))) }), '0000-00-00', '9999-99-99')})).filter(r=>r.packs||r.total);
+    try{ rPeriodChart(rows, mode, label); }catch(e){ console.error('chart',e); }
     const tot=rows.reduce((a,r)=>{ ['packs','pieces','hours','fiberKg','fiber','fabric','bag','bagPack','bagZip','labor','laborDay','gas','elec','ship','interest','fixedOther','fixed','total'].forEach(f=>a[f]=r2((a[f]||0)+r[f])); return a; },{});
     const td=(v,b)=>'<td'+(b?' class="kn"':'')+'>'+v+'</td>';
     const line=(lbl,r,b)=>'<tr>'+td(lbl,b)+td(fmtInt(r.packs),b)+td(fmtInt(r.pieces),b)+td(r.hours,b)+td(r.fiberKg+' กก. · '+fmtBaht(r.fiber),b)+

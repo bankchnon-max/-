@@ -800,9 +800,16 @@
       </div>
       <div class="card">
         <h3>ชั่งเศษ / ของเสีย (ชั่งรวมเป็นครั้งๆ)</h3>
+        <label>ประเภท</label>
+        <div id="scKindRow" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+          <button type="button" class="btn sec sm" data-sckind="edge">✂️ ขอบตัด</button>
+          <button type="button" class="btn sec sm" data-sckind="bad">❌ แผ่นเสีย</button>
+          <button type="button" class="btn sec sm" data-sckind="mix">⚖ ชั่งรวม ขอบตัด+แผ่นเสีย</button>
+          <button type="button" class="btn sec sm" data-sckind="other">อื่นๆ</button>
+        </div>
         <div class="rf">
           <div><label>น้ำหนักเศษ (กก.)</label><input id="scKg" type="number" inputmode="decimal" step="0.01"></div>
-          <div><label>หมายเหตุ</label><input id="scNote" placeholder="เศษตัดขอบ"></div>
+          <div><label>หมายเหตุ (ถ้ามี)</label><input id="scNote" placeholder="เช่น ใยติดเครื่อง"></div>
         </div>
         <div class="rf" id="scPillowRow" style="display:none;">
           <div><label>จำนวนหมอนเสีย (ชิ้น)</label><input id="scPieces" type="number" inputmode="numeric"></div>
@@ -3540,8 +3547,8 @@ window.WPDAUTH = {
     const scs=o?S.scrap.filter(x=>x.orderId===o.id&&dayOf(x.time)===t):[];
     const scPcsTotal=scs.reduce((s,x)=>s+(+x.pieces||0),0);
     $('tScrap').innerHTML=scs.length
-      ? '<tr><th>เวลา</th><th>กก.</th><th>ชิ้นเสีย</th><th>สาเหตุ/หมายเหตุ</th><th></th></tr>'+scs.slice().reverse().map(x=>
-        '<tr><td>'+hhmm(x.time)+'</td><td>'+(x.kg||'—')+'</td><td>'+(x.pieces?x.pieces+' ชิ้น':'—')+'</td><td>'+esc(x.reason?x.reason+' — '+x.note:x.note)+'</td><td><button class="x" data-sc="'+x.id+'">✕</button></td></tr>').join('')+
+      ? '<tr><th>เวลา</th><th>กก.</th><th>ชิ้นเสีย</th><th>ประเภท / หมายเหตุ</th><th></th></tr>'+scs.slice().reverse().map(x=>
+        '<tr><td>'+hhmm(x.time)+'</td><td>'+(x.kg||'—')+'</td><td>'+(x.pieces?x.pieces+' ชิ้น':'—')+'</td><td>'+(x.kind?'<b>'+esc(SC_KIND_TH[x.kind]||x.kind)+'</b>'+(x.note||x.reason?' — ':''):'')+esc(x.reason?x.reason+(x.note?' — '+x.note:''):x.note)+'</td><td><button class="x" data-sc="'+x.id+'">✕</button></td></tr>').join('')+
         '<tr><td class="kn" style="color:var(--accent2)">รวม</td><td class="kn" style="color:var(--accent2)">'+
         r2(scs.reduce((s,x)=>s+(+x.kg||0),0))+'</td><td class="kn" style="color:var(--accent2)">'+(scPcsTotal||'')+'</td><td></td><td></td></tr>'
       : '<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>';
@@ -4744,12 +4751,19 @@ window.WPDAUTH = {
   };
   $('btnPackStd').onclick=()=>{ formDirty=false; startPack(null,$('actPc').value.trim()||null); };
 
+  /* ประเภทของเสีย — กดเลือก (จำอันที่ใช้ล่าสุดไว้ให้) · ชั่งรวม = ขอบตัดกับแผ่นเสียชั่งรวมกันมา แยกไม่ได้ */
+  const SC_KIND_TH={ edge:'ขอบตัด', bad:'แผ่นเสีย', mix:'ชั่งรวม ขอบตัด+แผ่นเสีย', other:'อื่นๆ' };
+  let scKind=null; try{ scKind=localStorage.getItem('wpd_sc_kind')||null; }catch(e){}
+  function paintScKind(){ document.querySelectorAll('[data-sckind]').forEach(b=>{ b.className='btn sm'+(b.dataset.sckind===scKind?'':' sec'); }); }
+  document.querySelectorAll('[data-sckind]').forEach(b=>b.onclick=()=>{ scKind=b.dataset.sckind; try{ localStorage.setItem('wpd_sc_kind',scKind); }catch(e){} paintScKind(); });
+  paintScKind();
   $('btnScrap').onclick=async()=>{
     const o=active(); if(!o){ toast('เลือกออเดอร์ก่อน'); return; }
     const kg=+$('scKg').value||0, pieces=+($('scPieces')?$('scPieces').value:0)||0;
     if(!kg && !pieces){ toast('กรอกน้ำหนักเศษ หรือจำนวนชิ้นเสีย อย่างน้อย 1 อย่าง'); return; }
+    if(!scKind){ toast('เลือกประเภทก่อน: ขอบตัด / แผ่นเสีย / ชั่งรวม / อื่นๆ'); return; }
     const _scId=uid();
-    S.scrap.push({ by:opBy(), id:_scId, time:localISO(), orderId:o.id, kg:kg||null, pieces:pieces||null,
+    S.scrap.push({ by:opBy(), id:_scId, time:localISO(), orderId:o.id, kg:kg||null, pieces:pieces||null, kind:scKind,
       reason:$('scReason')?$('scReason').value.trim():'', note:$('scNote').value.trim() });
     /* หมอนเสียก็ใช้ปลอกไปแล้วจริง ต้องหักปลอกด้วย */
     const _sc=pieces?autoCutCases(o,pieces,{scrapId:_scId}):null;
@@ -4757,7 +4771,7 @@ window.WPDAUTH = {
     await saveLine();
     $('scKg').value=''; $('scNote').value='';
     if($('scPieces')) $('scPieces').value=''; if($('scReason')) $('scReason').value='';
-    rLine(); toast('บันทึกของเสียแล้ว');
+    rLine(); toast('บันทึกของเสียแล้ว — '+SC_KIND_TH[scKind]);
   };
 
   function refreshFwSelects(){

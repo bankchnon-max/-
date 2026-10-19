@@ -1436,10 +1436,14 @@ window.WPDAUTH = {
       return { elec:r2(elec), ship:r2(ship), by };
     },
     /* ═══ ของเสีย: เศษ/แผ่นเสียที่ชั่งท้ายไลน์ (แอพผลิต) ═══
-       ประเภทดูจากหมายเหตุ: มีคำว่า "ขอบ" = ขอบตัด (เศษขอบตัด/เศษตัดขอบ) · "เสีย" = แผ่นเสีย · อื่นๆ/ไม่ระบุ
+       ประเภท: ที่กดเลือกในแอพผลิต (kind) · รายการเก่าดูจากหมายเหตุ — มีทั้ง "ขอบ" และ "เสีย" หรือคำว่า "รวม" = ชั่งรวม · "ขอบ" = ขอบตัด · "เสีย" = แผ่นเสีย · นอกนั้น = อื่นๆ
        มูลค่า = กก. × ราคาใยเฉลี่ยของงานนั้น (จากใยที่หักจริง) — ค่าใยนี้รวมอยู่ในต้นทุนใยแล้ว แสดงให้เห็นเฉยๆ ไม่บวกซ้ำ */
-    SCRAP_TH:{ edge:'ขอบตัด', bad:'แผ่นเสีย', other:'อื่นๆ / ไม่ระบุ' },
-    scrapKind(x){ const t=String(x.note||'')+' '+String(x.reason||''); return /ขอบ/.test(t)?'edge':/เสีย/.test(t)?'bad':'other'; },
+    SCRAP_TH:{ edge:'ขอบตัด', bad:'แผ่นเสีย', mix:'ชั่งรวม (ขอบตัด+แผ่นเสีย)', other:'อื่นๆ / ไม่ระบุ' },
+    scrapKind(x){
+      if(x.kind && COST.SCRAP_TH[x.kind]) return x.kind;
+      const t=String(x.note||'')+' '+String(x.reason||''), e=/ขอบ/.test(t), b=/เสีย/.test(t);
+      return (e&&b)||/รวม/.test(t)?'mix':e?'edge':b?'bad':'other';
+    },
     fiberAvgByOrder(ctx){
       const P=ctx.PROD||{}, PRICE=ctx.PRICE||{}, key=P.use||[], memo=COST._fa||(COST._fa=new WeakMap());
       if(memo.has(key) && memo.get(key).wd===P.wd && memo.get(key).price===PRICE) return memo.get(key).m;
@@ -1452,13 +1456,13 @@ window.WPDAUTH = {
     scrapStats(ctx, from, to, plant){
       const P=ctx.PROD||{}, ord={}; (P.orders||[]).forEach(o=>{ ord[o.id]=o; });
       const ok=x=>{ const d=String(x.time||'').slice(0,10); return d>=from && d<=to && (!plant || COST.plantOf(ord[x.orderId])===plant); };
-      const avg=COST.fiberAvgByOrder(ctx), out={ edge:0, bad:0, other:0, kg:0, baht:0, fiberKg:0, n:0, noPrice:0 };
+      const avg=COST.fiberAvgByOrder(ctx), out={ edge:0, bad:0, mix:0, other:0, kg:0, baht:0, fiberKg:0, n:0, noPrice:0 };
       (P.scrap||[]).filter(ok).forEach(x=>{ const kg=+x.kg||0; if(!kg) return; const k=COST.scrapKind(x), a=avg[x.orderId];
         out[k]+=kg; out.kg+=kg; out.n++; if(a&&a.perKg) out.baht+=kg*a.perKg; else out.noPrice+=kg; });
       const withUse=new Set((P.use||[]).map(u=>u.orderId));
       (P.use||[]).filter(ok).forEach(u=>{ out.fiberKg+=+u.kg||0; });
       (P.wd||[]).filter(w=>ok(w) && !withUse.has(w.orderId)).forEach(w=>{ out.fiberKg+=+w.kg||0; });
-      ['edge','bad','other','kg','baht','fiberKg','noPrice'].forEach(k=>{ out[k]=r2(out[k]); });
+      ['edge','bad','mix','other','kg','baht','fiberKg','noPrice'].forEach(k=>{ out[k]=r2(out[k]); });
       out.pct=out.fiberKg>0?r2(out.kg/out.fiberKg*100):0;
       return out;
     },
@@ -2500,7 +2504,7 @@ window.WPDAUTH = {
       $('jobWarnCard').style.display='none'; return; }
     const c=COST.jobCost(ctx(), id);
     const _sc=COST.scrapStats(Object.assign({}, ctx(), { PROD:Object.assign({}, PROD, { scrap:(PROD.scrap||[]).filter(x=>x.orderId===c.orderId), use:(PROD.use||[]).filter(u=>u.orderId===c.orderId), wd:(PROD.wd||[]).filter(w=>w.orderId===c.orderId) }) }), '0000-00-00', '9999-99-99', null);
-    $('jobMeta').innerHTML=(_sc.kg>0?'🗑️ ของเสีย <b>'+_sc.kg+' กก.</b>'+(_sc.fiberKg?' ('+_sc.pct+'% ของใย)':'')+' ≈ '+fmtBaht(_sc.baht)+' บาท — ขอบตัด '+_sc.edge+' · แผ่นเสีย '+_sc.bad+(_sc.other?' · อื่นๆ '+_sc.other:'')+' กก. (รวมอยู่ในค่าใยแล้ว)<br>':'')+'ผลิตแล้ว <b>'+c.packs+' แพ็ค</b> · <b>'+fmtInt(c.pieces)+' ชิ้น</b> · เดินเครื่องราว <b>'+c.hours+' ชม.</b>'+
+    $('jobMeta').innerHTML=(_sc.kg>0?'🗑️ ของเสีย <b>'+_sc.kg+' กก.</b>'+(_sc.fiberKg?' ('+_sc.pct+'% ของใย)':'')+' ≈ '+fmtBaht(_sc.baht)+' บาท — ขอบตัด '+_sc.edge+' · แผ่นเสีย '+_sc.bad+(_sc.mix?' · ชั่งรวม '+_sc.mix:'')+(_sc.other?' · อื่นๆ '+_sc.other:'')+' กก. (รวมอยู่ในค่าใยแล้ว)<br>':'')+'ผลิตแล้ว <b>'+c.packs+' แพ็ค</b> · <b>'+fmtInt(c.pieces)+' ชิ้น</b> · เดินเครื่องราว <b>'+c.hours+' ชม.</b>'+
       (c.fiber.from==='wd'?'<br><span class="bdg warn">งานนี้ยังไม่มีบันทึกป้อนใยรายรอบ — ใช้ยอดเบิกใยแทน</span>':'');
     renderJobDays(c);
 
@@ -2756,15 +2760,15 @@ window.WPDAUTH = {
     const rng=k=>mode==='day'?[k,k]:[k+'-01',k+'-31'];
     const rows=keys.map(k=>Object.assign({k}, COST.scrapStats(c, rng(k)[0], rng(k)[1], plant))).filter(r=>r.kg>0);
     wcBars($('scChart'), { labels:rows.map(r=>mode==='day'?wcDay(r.k):TH_MON[+r.k.slice(5,7)-1]), empty:'ยังไม่มีบันทึกของเสีย', height:160, fmt:v=>r2(v)+' กก.',
-      series:[{ name:'ขอบตัด', color:WC.y, data:rows.map(r=>r.edge) }, { name:'แผ่นเสีย', color:WC.r, data:rows.map(r=>r.bad) }, { name:'อื่นๆ', color:WC.d, data:rows.map(r=>r.other) }],
+      series:[{ name:'ขอบตัด', color:WC.y, data:rows.map(r=>r.edge) }, { name:'แผ่นเสีย', color:WC.r, data:rows.map(r=>r.bad) }, { name:'ชั่งรวม', color:WC.a, data:rows.map(r=>r.mix) }, { name:'อื่นๆ', color:WC.d, data:rows.map(r=>r.other) }],
       line:{ name:'% ของใยที่ใช้', color:WC.p, data:rows.map(r=>r.pct||null) },
       tip:i=>{ const r=rows[i]; return '<b>'+lab(r.k)+'</b> · ของเสีย <b>'+r.kg+' กก.</b>'+(r.fiberKg?' = <b>'+r.pct+'%</b> ของใยที่ใช้ ('+fmtInt(r.fiberKg)+' กก.)':'')+' · มูลค่า ≈ <b>'+fmtBaht(r.baht)+' บาท</b>'+
-        '<br>ขอบตัด '+r.edge+' · แผ่นเสีย '+r.bad+' · อื่นๆ '+r.other+' กก.'; } });
-    const tot=rows.reduce((a,r)=>{ ['edge','bad','other','kg','baht','fiberKg','n'].forEach(f=>a[f]=r2((a[f]||0)+(+r[f]||0))); return a; },{}); tot.pct=tot.fiberKg>0?r2(tot.kg/tot.fiberKg*100):0;
-    const tr=(lb,r,b)=>{ const B=x=>b?'<b>'+x+'</b>':x; return '<tr><td>'+B(lb)+'</td><td style="text-align:right">'+B(r.edge)+'</td><td style="text-align:right">'+B(r.bad)+'</td><td style="text-align:right">'+B(r.other)+'</td>'+
+        '<br>ขอบตัด '+r.edge+' · แผ่นเสีย '+r.bad+(r.mix?' · ชั่งรวม '+r.mix:'')+' · อื่นๆ '+r.other+' กก.'; } });
+    const tot=rows.reduce((a,r)=>{ ['edge','bad','mix','other','kg','baht','fiberKg','n','noPrice'].forEach(f=>a[f]=r2((a[f]||0)+(+r[f]||0))); return a; },{}); tot.pct=tot.fiberKg>0?r2(tot.kg/tot.fiberKg*100):0;
+    const tr=(lb,r,b)=>{ const B=x=>b?'<b>'+x+'</b>':x; return '<tr><td>'+B(lb)+'</td><td style="text-align:right">'+B(r.edge)+'</td><td style="text-align:right">'+B(r.bad)+'</td><td style="text-align:right">'+B(r.mix)+'</td><td style="text-align:right">'+B(r.other)+'</td>'+
       '<td style="text-align:right">'+B(r.kg)+'</td><td style="text-align:right">'+(r.fiberKg?B(r.pct+'%'):'—')+'</td><td style="text-align:right">'+B(fmtBaht(r.baht))+'</td></tr>'; };
     $('tScrap').innerHTML=rows.length
-      ? '<tr><th>'+(mode==='day'?'วันที่':'เดือน')+'</th><th style="text-align:right">ขอบตัด (กก.)</th><th style="text-align:right">แผ่นเสีย (กก.)</th><th style="text-align:right">อื่นๆ (กก.)</th><th style="text-align:right">รวม (กก.)</th><th style="text-align:right">% ของใยที่ใช้</th><th style="text-align:right">มูลค่า ≈ (บาท)</th></tr>'+
+      ? '<tr><th>'+(mode==='day'?'วันที่':'เดือน')+'</th><th style="text-align:right">ขอบตัด (กก.)</th><th style="text-align:right">แผ่นเสีย (กก.)</th><th style="text-align:right">ชั่งรวม ขอบตัด+แผ่นเสีย (กก.)</th><th style="text-align:right">อื่นๆ (กก.)</th><th style="text-align:right">รวม (กก.)</th><th style="text-align:right">% ของใยที่ใช้</th><th style="text-align:right">มูลค่า ≈ (บาท)</th></tr>'+
         rows.slice().reverse().map(r=>tr(lab(r.k),r)).join('')+(rows.length>1?tr('รวม',tot,true):'')
       : '<tr><td class="empty">ยังไม่มีบันทึกของเสีย'+(plant?'ของ'+COST.PLANT_TH[plant]:'')+'</td></tr>';
     /* งานที่เสียมาก 30 วัน */
@@ -2775,10 +2779,10 @@ window.WPDAUTH = {
       return st.kg>0 ? { o, id, st } : null; }).filter(Boolean).sort((a,b)=>(b.st.pct-a.st.pct)||(b.st.kg-a.st.kg)).slice(0,10);
     $('tScrapJobs').innerHTML=jobs.length
       ? '<tr><th>งาน</th><th style="text-align:right">ของเสีย (กก.)</th><th style="text-align:right">% ของใยที่ใช้</th><th style="text-align:right">มูลค่า ≈</th><th>ส่วนใหญ่</th></tr>'+
-        jobs.map(j=>{ const k=['edge','bad','other'].sort((a,b)=>j.st[b]-j.st[a])[0];
+        jobs.map(j=>{ const k=['edge','bad','mix','other'].sort((a,b)=>j.st[b]-j.st[a])[0];
           return '<tr><td>'+esc(j.o?orderLabel(j.o):'(งานถูกลบแล้ว)')+'</td><td style="text-align:right">'+j.st.kg+'</td><td style="text-align:right">'+(j.st.fiberKg?'<b>'+j.st.pct+'%</b>':'—')+'</td><td style="text-align:right">'+fmtBaht(j.st.baht)+'</td><td>'+COST.SCRAP_TH[k]+'</td></tr>'; }).join('')
       : '<tr><td class="empty">30 วันล่าสุดไม่มีของเสีย</td></tr>';
-    $('scNote').innerHTML='ข้อมูลจากแอพผลิต หน้าท้ายไลน์ ช่อง "เศษ/ของเสีย" · ประเภทดูจากหมายเหตุ (มีคำว่า "ขอบ" = ขอบตัด · "เสีย" = แผ่นเสีย)'+
+    $('scNote').innerHTML='ข้อมูลจากแอพผลิต หน้าท้ายไลน์ ช่อง "ชั่งเศษ / ของเสีย" · ประเภทตามปุ่มที่กดเลือก (รายการเก่าดูจากหมายเหตุ) · <b>ชั่งรวม</b> = ขอบตัดกับแผ่นเสียชั่งมาด้วยกัน แยกไม่ได้'+
       '<br>% = ของเสีย ÷ ใยที่หักจากก้อนในช่วงเดียวกัน · มูลค่า = กก. × ราคาใยเฉลี่ยของงานนั้น — <b>รวมอยู่ในค่าใยของต้นทุนแล้ว</b> แสดงให้เห็นว่าเสียไปเท่าไหร่ ไม่ได้บวกเพิ่ม'+
       (tot.noPrice>0?'<br><span class="bdg warn">'+tot.noPrice+' กก. ยังคิดมูลค่าไม่ได้</span> งานนั้นยังไม่มีราคาใย':'');
   }

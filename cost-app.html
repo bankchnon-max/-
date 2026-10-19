@@ -654,7 +654,9 @@
           <div><select id="perPlant"><option value="">ทั้งโรงงาน</option><option value="p1">🏭 โรง 1 ใยแผ่น</option><option value="p2">🏭 โรง 2 หมอน</option><option value="pic">ปิกนิก</option><option value="cut">✂️ ตัดผ้า</option></select></div></div>
         <div id="perChart" style="margin-top:10px;"></div>
         <div class="scr" style="margin-top:10px;"><table id="tPeriod"></table></div>
-        <div class="sumline" id="perNote"></div></div>
+        <div class="sumline" id="perNote"></div>
+        <button class="btn sec w" id="btnPerCsv" style="margin-top:10px;">⤓ ออกไฟล์ Excel (ตามที่เลือกด้านบน)</button>
+        <label style="display:flex;gap:8px;align-items:center;margin-top:6px;font-weight:400;font-size:13px;"><input type="checkbox" id="perCsvAll"> ใส่ทุกโรงในไฟล์เดียว (ทั้งโรงงาน · โรง 1 · โรง 2 · ปิกนิก · ตัดผ้า)</label></div>
       <div class="card"><h3>🗑️ ของเสีย (เศษขอบตัด · แผ่นเสีย)</h3>
         <div class="rf" style="align-items:center;"><div><select id="scMode"><option value="day">รายวัน</option><option value="month">รายเดือน</option></select></div>
           <div><select id="scPlant"><option value="">ทั้งโรงงาน</option><option value="p1">🏭 โรง 1 ใยแผ่น</option><option value="p2">🏭 โรง 2 หมอน</option><option value="pic">ปิกนิก</option></select></div></div>
@@ -2784,6 +2786,38 @@ window.WPDAUTH = {
       '<br>% = ของเสีย ÷ ใยที่หักจากก้อนในช่วงเดียวกัน · มูลค่า = กก. × ราคาใยเฉลี่ยของงานนั้น — <b>รวมอยู่ในค่าใยของต้นทุนแล้ว</b> แสดงให้เห็นว่าเสียไปเท่าไหร่ ไม่ได้บวกเพิ่ม'+
       (tot.noPrice>0?'<br><span class="bdg warn">'+tot.noPrice+' กก. ยังคิดมูลค่าไม่ได้</span> งานนั้นยังไม่มีราคาใย':'');
   }
+  /* ═══ ออกไฟล์ Excel (CSV — เปิดด้วย Excel ได้เลย ภาษาไทยไม่เพี้ยน) ═══ */
+  let PER_LAST=null;
+  function csvCell(v){ const t=(v==null?'':String(v)); return /[",\n\r]/.test(t) ? '"'+t.replace(/"/g,'""')+'"' : t; }
+  function downloadCsv(name, rows){
+    try{
+      const blob=new Blob(['\ufeff'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8;'});
+      const url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click();
+      setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },500); return true;
+    }catch(e){ console.error(e); toast('ออกไฟล์ไม่สำเร็จบนเครื่องนี้'); return false; }
+  }
+  function exportPeriodCsv(){
+    if(!PER_LAST){ toast('ยังไม่มีข้อมูล'); return; }
+    const { mode, keys, range, compute }=PER_LAST, all=$('perCsvAll').checked;
+    const groups=all?[null,'p1','p2','pic','cut']:[PER_LAST.plant];
+    const c=ctx(), n=v=>Math.round((+v||0)*100)/100;
+    const head=[mode==='day'?'วันที่':mode==='month'?'เดือน':'ปี','กลุ่ม','แพ็ค','ชิ้น','กก.สินค้า','ชม.เดินเครื่อง','ใย (กก.)','ใย (บาท)','ผ้า+เย็บ','ถุงแพ็ค','ถุงซิล',
+      'ค่าแรง (ไม่รวมตัดผ้า)','ค่าแรงตัดผ้า','ดอกเบี้ย','ขนส่ง','แก๊ส','ค่าไฟ','รวม (บาท)','บาท/ชิ้น','บาท/กก.',
+      'ตัดผ้า (ชิ้น)','ตัดผ้า (ม้วน)','มูลค่าผ้าที่ตัด (ไม่รวมในยอด)','ของเสีย ขอบตัด (กก.)','ของเสีย แผ่นเสีย (กก.)','ของเสีย ชั่งรวม (กก.)','ของเสีย อื่นๆ (กก.)','ของเสีย รวม (กก.)','ของเสีย % ของใย','ของเสีย มูลค่า (บาท)'];
+    const out=[head];
+    keys.slice().sort().forEach(k=>groups.forEach(g=>{
+      const r=compute(k,g); const [a,b]=range(k); const w=g==='cut'?null:COST.scrapStats(c,a,b,g);
+      if(!(r.packs||r.total||r.cutPieces||(w&&w.kg))) return;
+      const kg=+r.kg||0;
+      out.push([k, g?COST.PLANT_TH[g]:'ทั้งโรงงาน', r.packs, r.pieces, n(kg), r.hours, n(r.fiberKg), n(r.fiber), n(r.fabric), n(r.bagPack), n(r.bagZip),
+        n(r.labor-(+r.cutLabor||0)), n(r.cutLabor), n(r.interest), n(r.ship), n(r.gas), n(r.elec), n(r.total), r.pieces?n(r.total/r.pieces):'', kg?n(r.total/kg):'',
+        r.cutPieces||'', r.cutRolls||'', r.cutFabric?n(r.cutFabric):'',
+        w?n(w.edge):'', w?n(w.bad):'', w?n(w.mix):'', w?n(w.other):'', w?n(w.kg):'', w&&w.fiberKg?w.pct:'', w?n(w.baht):'']);
+    }));
+    if(out.length<2){ toast('ช่วงนี้ไม่มีข้อมูล'); return; }
+    const pl=all?'ทุกโรง':(PER_LAST.plant?COST.PLANT_TH[PER_LAST.plant]:'ทั้งโรงงาน');
+    if(downloadCsv('ต้นทุน'+(mode==='day'?'รายวัน':mode==='month'?'รายเดือน':'รายปี')+'_'+pl.replace(/\s+/g,'')+'_'+localISO().slice(0,10)+'.csv', out)) toast('ออกไฟล์แล้ว '+(out.length-1)+' แถว');
+  }
   function rPeriod(){
     const mode=$('perMode').value||'day', plant=($('perPlant')&&$('perPlant').value)||null;
     const dates=new Set();
@@ -2801,6 +2835,8 @@ window.WPDAUTH = {
       const d=String(x.time||'').slice(0,10); if(!d) return; const k=keyOf(d); if(!want.has(k)) return;
       const bk=buckets[k]||(buckets[k]={}); (bk[f]||(bk[f]=[])).push(x); }));
     const allUseOrders=new Set((PROD.use||[]).map(u=>u.orderId)), caseTracked=new Set((PROD.caseUse||[]).map(u=>u.orderId));
+    const _calc=(k,pl)=>COST.periodCost(Object.assign({}, c, { plant:pl, shareLines:PROD.line, LABOR:LABOR?Object.fromEntries(Object.entries(LABOR).filter(([d])=>keyOf(d)===k)):null, allUseOrders, caseTracked, PROD:Object.assign({}, PROD, buckets[k]||{}, Object.fromEntries(['line','carry','use','wd','caseUse','fabricWd','bagUse','sheetUse','gasSwaps'].map(f=>[f,(buckets[k]||{})[f]||[]]))) }), range(k)[0], range(k)[1]);
+    PER_LAST={ mode, plant, keys, range, compute:_calc };
     const rows=keys.map(k=>({k, ...COST.periodCost(Object.assign({}, c, { plant, shareLines:PROD.line, LABOR:LABOR?Object.fromEntries(Object.entries(LABOR).filter(([d])=>keyOf(d)===k)):null, allUseOrders, caseTracked, PROD:Object.assign({}, PROD, buckets[k]||{}, Object.fromEntries(['line','carry','use','wd','caseUse','fabricWd','bagUse','sheetUse','gasSwaps'].map(f=>[f,(buckets[k]||{})[f]||[]]))) }), mode==='day'?k:mode==='month'?k+'-01':k+'-01-01', mode==='day'?k:mode==='month'?k+'-31':k+'-12-31')})).filter(r=>r.packs||r.total||r.cutPieces);
     try{ rPeriodChart(rows, mode, label); }catch(e){ console.error('chart',e); }
     const tot=rows.reduce((a,r)=>{ ['packs','pieces','hours','fiberKg','fiber','fabric','bag','bagPack','bagZip','labor','laborDay','gas','elec','ship','interest','fixedOther','fixed','total','cutLabor','cutPieces','cutRolls','cutFabric'].forEach(f=>a[f]=r2((a[f]||0)+(+r[f]||0))); return a; },{});
@@ -2830,6 +2866,7 @@ window.WPDAUTH = {
   }
   function rSum(){
     $('perMode').onchange=rPeriod; if($('perPlant')) $('perPlant').onchange=rPeriod; rPeriod();
+    $('btnPerCsv').onclick=exportPeriodCsv;
     $('scMode').onchange=rScrap; $('scPlant').onchange=rScrap; try{ rScrap(); }catch(e){ console.error('scrap',e); }
     const jobs=jobsWithWork();
     const costs=jobs.map(o=>COST.jobCost(ctx(),o.id));

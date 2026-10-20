@@ -1809,7 +1809,11 @@ window.WPDAUTH = {
       const hpm=+K._hoursPerMonth||0;
       const fixedRate=COST.fixedPerHour(K.fixed, hpm);
       const fixed=r2(hours*fixedRate);
-      if(fixed) detail.push({cat:'ค่าคงที่', what:'เฉลี่ยตามชั่วโมงเดินเครื่อง', qty:hours+' ชม.', unit:fixedRate, baht:fixed, src:'set'});
+      /* แยกให้เห็น: ดอกเบี้ย (รายการที่ชื่อมีคำว่า ดอกเบี้ย) กับค่าคงที่อื่น — ยอดรวมเท่าเดิม */
+      const _isInt=x=>/ดอกเบี้ย/.test(String(x.name||'')), intRate=COST.fixedPerHour((K.fixed||[]).filter(_isInt), hpm);
+      const interest=r2(Math.min(fixed, hours*intRate)), fixedOther=r2(fixed-interest);
+      if(interest) detail.push({cat:'ดอกเบี้ย', what:'เฉลี่ยตามชั่วโมงเดินเครื่อง', qty:hours+' ชม.', unit:intRate, baht:interest, src:'set'});
+      if(fixedOther) detail.push({cat:'ค่าคงที่', what:'ค่าใช้จ่ายคงที่อื่น เฉลี่ยตามชั่วโมงเดินเครื่อง', qty:hours+' ชม.', unit:r2(fixedRate-intRate), baht:fixedOther, src:'set'});
       if(!hpm && (K.fixed||[]).length) miss.push('ยังไม่รู้ชั่วโมงเดินเครื่องต่อเดือน — ค่าคงที่ยังไม่ถูกเฉลี่ยลงงาน');
 
       const total=r2(fiberBaht+sheetBaht+fabBaht+bagBaht+sewBaht+laborTime+laborPiece+gasBaht+elec+ship+fixed);
@@ -1823,7 +1827,7 @@ window.WPDAUTH = {
         labor:{time:laborTime, piece:laborPiece, baht:r2(laborTime+laborPiece)},
         gas:{tanks:gasTanks, baht:gasBaht},
         elec:{baht:elec}, ship:{baht:ship},
-        fixed:{baht:fixed, perHour:fixedRate},
+        fixed:{baht:fixed, perHour:fixedRate, interest, other:fixedOther, interestPerHour:intRate},
         total,
         perPiece: pieces>0 ? r2(total/pieces) : 0,
         perPack: packs>0 ? r2(total/packs) : 0,
@@ -2548,8 +2552,8 @@ window.WPDAUTH = {
       ['แก๊ส', c.gas.tanks+' ถัง', c.gas.baht],
       ['ค่าไฟ', (c.plants&&c.plants[c.plant])?Math.round(c.plants[c.plant].min)+' นาที ('+COST.PLANT_TH[c.plant]+')':c.hours+' ชม.', c.elec.baht],
       ['ค่าส่ง', (c.plants&&c.plants[c.plant])?(c.plant==='p1'?c.plants.p1.kg+' กก.':c.plant==='p2'?c.plants.p2.pcs+' ชิ้น':'—'):c.packs+' แพ็ค', c.ship.baht],
-      ['ค่าใช้จ่ายคงที่', c.hours+' ชม. × '+fmtBaht(c.fixed.perHour), c.fixed.baht]
-    ];
+      ['🏦 ดอกเบี้ย', c.hours+' ชม. × '+fmtBaht(c.fixed.interestPerHour||0), c.fixed.interest||0]
+    ].concat((c.fixed.other||0)>0.004?[['ค่าใช้จ่ายคงที่อื่น', c.hours+' ชม. × '+fmtBaht(r2(c.fixed.perHour-(c.fixed.interestPerHour||0))), c.fixed.other]]:[]);
     $('tJobBreak').innerHTML='<tr><th>รายการ</th><th>ปริมาณ</th><th style="text-align:right">บาท</th><th style="text-align:right">ต่อชิ้น</th><th style="text-align:right">%</th></tr>'+
       rows.map(([a,b,v])=>'<tr><td>'+a+'</td><td style="color:var(--w-dim,#667385)">'+b+'</td><td style="text-align:right">'+fmtBaht(v)+'</td><td style="text-align:right">'+
         (c.pieces>0?fmtBaht(v/c.pieces):'—')+'</td><td style="text-align:right">'+(c.total>0?Math.round(v/c.total*100):0)+'%</td></tr>').join('')+
@@ -2655,7 +2659,7 @@ window.WPDAUTH = {
       '<div class="stat"><div class="v">'+fmtBaht(c.sell)+'</div><div class="l">ยอดเสนอรวม (บาท)</div></div>'+
       '<div class="stat"><div class="v" style="color:var(--green)">'+fmtBaht(c.profit)+'</div><div class="l">กำไรทั้งงาน (บาท)</div></div>';
     const rows=[['ใย',c.fiber],['ผ้าปลอก',c.fabric],['ถุงซิล',c.zip],['ถุงแพ็ค',c.pack],
-                ['ค่าจ้างเย็บ',c.sew],['ค่าแรงในโรง',c.labor],['ค่าไฟ',c.elec],['ค่าส่ง',c.ship]].concat(c.gas?[['แก๊ส',c.gas]]:[]).concat([['ค่าใช้จ่ายคงที่',c.fixed]]);
+                ['ค่าจ้างเย็บ',c.sew],['ค่าแรงในโรง',c.labor],['ค่าไฟ',c.elec],['ค่าส่ง',c.ship]].concat(c.gas?[['แก๊ส',c.gas]]:[]).concat([['ดอกเบี้ย / ค่าใช้จ่ายคงที่',c.fixed]]);
     $('tQuoteBreak').innerHTML='<tr><th>รายการ</th><th style="text-align:right">บาท</th><th style="text-align:right">ต่อชิ้น</th></tr>'+
       rows.map(([a,v])=>'<tr><td>'+a+'</td><td style="text-align:right">'+fmtBaht(v)+'</td><td style="text-align:right">'+(c.pieces>0?fmtBaht(v/c.pieces):'—')+'</td></tr>').join('')+
       '<tr><td><b>ต้นทุนรวม</b></td><td style="text-align:right"><b>'+fmtBaht(c.total)+'</b></td><td style="text-align:right"><b>'+fmtBaht(c.perPiece)+'</b></td></tr>'+

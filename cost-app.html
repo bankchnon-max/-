@@ -2555,7 +2555,7 @@ window.WPDAUTH = {
       ['🏦 ดอกเบี้ย', c.hours+' ชม. × '+fmtBaht(c.fixed.interestPerHour||0), c.fixed.interest||0]
     ].concat((c.fixed.other||0)>0.004?[['ค่าใช้จ่ายคงที่อื่น', c.hours+' ชม. × '+fmtBaht(r2(c.fixed.perHour-(c.fixed.interestPerHour||0))), c.fixed.other]]:[]);
     $('tJobBreak').innerHTML='<tr><th>รายการ</th><th>ปริมาณ</th><th style="text-align:right">บาท</th><th style="text-align:right">ต่อชิ้น</th><th style="text-align:right">%</th></tr>'+
-      rows.map(([a,b,v])=>'<tr><td>'+a+'</td><td style="color:var(--w-dim,#667385)">'+b+'</td><td style="text-align:right">'+fmtBaht(v)+'</td><td style="text-align:right">'+
+      rows.filter(([a,b,v])=>(Math.abs(+v||0)>0.004)).map(([a,b,v])=>'<tr><td>'+a+'</td><td style="color:var(--w-dim,#667385)">'+b+'</td><td style="text-align:right">'+fmtBaht(v)+'</td><td style="text-align:right">'+
         (c.pieces>0?fmtBaht(v/c.pieces):'—')+'</td><td style="text-align:right">'+(c.total>0?Math.round(v/c.total*100):0)+'%</td></tr>').join('')+
       '<tr><td><b>รวม</b></td><td></td><td style="text-align:right"><b>'+fmtBaht(c.total)+'</b></td><td style="text-align:right"><b>'+fmtBaht(c.perPiece)+'</b></td><td style="text-align:right">100%</td></tr>';
 
@@ -2661,7 +2661,7 @@ window.WPDAUTH = {
     const rows=[['ใย',c.fiber],['ผ้าปลอก',c.fabric],['ถุงซิล',c.zip],['ถุงแพ็ค',c.pack],
                 ['ค่าจ้างเย็บ',c.sew],['ค่าแรงในโรง',c.labor],['ค่าไฟ',c.elec],['ค่าส่ง',c.ship]].concat(c.gas?[['แก๊ส',c.gas]]:[]).concat([['ดอกเบี้ย / ค่าใช้จ่ายคงที่',c.fixed]]);
     $('tQuoteBreak').innerHTML='<tr><th>รายการ</th><th style="text-align:right">บาท</th><th style="text-align:right">ต่อชิ้น</th></tr>'+
-      rows.map(([a,v])=>'<tr><td>'+a+'</td><td style="text-align:right">'+fmtBaht(v)+'</td><td style="text-align:right">'+(c.pieces>0?fmtBaht(v/c.pieces):'—')+'</td></tr>').join('')+
+      rows.filter(([a,v])=>(Math.abs(+v||0)>0.004)).map(([a,v])=>'<tr><td>'+a+'</td><td style="text-align:right">'+fmtBaht(v)+'</td><td style="text-align:right">'+(c.pieces>0?fmtBaht(v/c.pieces):'—')+'</td></tr>').join('')+
       '<tr><td><b>ต้นทุนรวม</b></td><td style="text-align:right"><b>'+fmtBaht(c.total)+'</b></td><td style="text-align:right"><b>'+fmtBaht(c.perPiece)+'</b></td></tr>'+
       '<tr><td>บวกกำไร '+c.marginPct+'%</td><td style="text-align:right">'+fmtBaht(c.profit)+'</td><td style="text-align:right">'+(c.pieces>0?fmtBaht(c.profit/c.pieces):'—')+'</td></tr>'+
       '<tr><td><b>ราคาเสนอ</b></td><td style="text-align:right"><b style="color:var(--green)">'+fmtBaht(c.sell)+'</b></td><td style="text-align:right"><b style="color:var(--green)">'+fmtBaht(c.sellPerPiece)+'</b></td></tr>'+
@@ -2773,11 +2773,11 @@ window.WPDAUTH = {
     wcBars($('perChart'), { labels:rs.map(lab), empty:'ยังไม่มีข้อมูลการผลิต', height:190, fmt:v=>fmtInt(v)+' บาท',
       series:[{ name:'ใย', color:WC.b, data:rs.map(r=>r.fiber) }, { name:'ผ้า+เย็บ', color:WC.p, data:rs.map(r=>r.fabric) },
               { name:'ถุง', color:WC.y, data:rs.map(r=>r2((+r.bagPack||0)+(+r.bagZip||0))) }, { name:'ค่าแรง', color:WC.a, data:rs.map(r=>r2(r.labor-(+r.cutLabor||0))) }, { name:'ตัดผ้า', color:WC.g, data:rs.map(r=>+r.cutLabor||0) },
-              { name:'ดอกเบี้ย ขนส่ง แก๊ส ไฟ', color:WC.d, data:rs.map(other) }],
+              { name:'ดอกเบี้ย ขนส่ง แก๊ส ไฟ', color:WC.d, data:rs.map(other) }].filter(sr=>sr.data.some(v=>Math.abs(+v||0)>0.004)),
       line:{ name:'บาท/ชิ้น', color:WC.r, data:rs.map(r=>r.pieces?r2(r.total/r.pieces):null) },
       tip:i=>{ const r=rs[i]; return '<b>'+label(r.k)+'</b> · รวม <b>'+fmtBaht(r.total)+' บาท</b>'+(r.pieces?' · <b>'+fmtBaht(r2(r.total/r.pieces))+' บาท/ชิ้น</b>':'')+
         '<br>'+fmtInt(r.packs)+' แพ็ค · '+fmtInt(r.pieces)+' ชิ้น · '+r.hours+' ชม.'+((p=>p?' · 👷 '+peopleTxtPlain(p):'')(peopleOf(r,PER_LAST&&PER_LAST.plant)))+
-        '<br>ใย '+fmtBaht(r.fiber)+' · ผ้า+เย็บ '+fmtBaht(r.fabric)+' · ถุง '+fmtBaht(r2((+r.bagPack||0)+(+r.bagZip||0)))+' · ค่าแรง '+fmtBaht(r2(r.labor-(+r.cutLabor||0)))+' · อื่นๆ '+fmtBaht(other(r))+
+        '<br>'+[['ใย',r.fiber],['ผ้า+เย็บ',r.fabric],['ถุง',r2((+r.bagPack||0)+(+r.bagZip||0))],['ค่าแรง',r2(r.labor-(+r.cutLabor||0))],['อื่นๆ',other(r)]].filter(x=>Math.abs(+x[1]||0)>0.004).map(x=>x[0]+' '+fmtBaht(x[1])).join(' · ')+
         (r.cutPieces||r.cutLabor?'<br>✂️ ตัดผ้า '+fmtInt(r.cutPieces)+' ชิ้น'+(r.cutRolls?' ('+r.cutRolls+' ม้วน)':'')+(r.cutFabric?' · มูลค่าผ้า '+fmtBaht(r.cutFabric):'')+' · ค่าแรงคนตัด '+fmtBaht(r.cutLabor)+(r.cutPieces&&r.cutLabor?' ('+fmtBaht(r2(r.cutLabor/r.cutPieces))+' บาท/ชิ้น)':''):''); } });
   }
   function rCut(){
@@ -2916,11 +2916,19 @@ window.WPDAUTH = {
     const tot=rows.reduce((a,r)=>{ ['packs','pieces','hours','fiberKg','fiber','fabric','bag','bagPack','bagZip','labor','laborDay','gas','elec','ship','interest','fixedOther','fixed','total','cutLabor','cutPieces','cutRolls','cutFabric','people','cutPeople','laborAtt','cutLaborAll','laborDays','linePeople','picPeople','otherPeople','lineWage','laborExcl','nonePeople'].forEach(f=>a[f]=r2((a[f]||0)+(+r[f]||0))); return a; },{});
     const cutTd=(r,b)=>td(r.cutPieces||r.cutLabor?fmtBaht(r.cutLabor)+'<div class="sumline" style="margin:0;white-space:nowrap">'+fmtInt(r.cutPieces)+' ชิ้น'+(r.cutRolls?' · '+r.cutRolls+' ม้วน':'')+(r.cutFabric?' · ผ้า '+fmtInt(r.cutFabric)+' บ.':'')+(r.cutPieces&&r.cutLabor?' · '+fmtBaht(r2(r.cutLabor/r.cutPieces))+' บ./ชิ้น':'')+((!plant||plant==='cut')&&r.cutPeople?' · 👷 '+r.cutPeople+(r.laborDays>1?' คน·วัน':' คน'):'')+'</div>':'—',b);
     const td=(v,b)=>'<td'+(b?' class="kn"':'')+'>'+v+'</td>';
-    const line=(lbl,r,b)=>'<tr>'+td(lbl,b)+td(fmtInt(r.packs),b)+td(fmtInt(r.pieces),b)+td(r.hours,b)+td(r.fiberKg+' กก. · '+fmtBaht(r.fiber),b)+
-      td(fmtBaht(r.fabric),b)+td(fmtBaht(r.bagPack),b)+td(fmtBaht(r.bagZip),b)+td(fmtBaht(r2(r.labor-(+r.cutLabor||0)))+(plant==='cut'?'':(p=>p?'<div class="sumline" style="margin:0;white-space:nowrap">👷 '+peopleTxt(p)+'</div>':'')(peopleOf(r,plant))),b)+cutTd(r,b)+td(fmtBaht(r.interest),b)+td(fmtBaht(r.ship),b)+td(fmtBaht(r.gas),b)+td(fmtBaht(r.elec),b)+
-      td('<b>'+fmtBaht(r.total)+'</b>',b)+td(r.pieces?fmtBaht(r2(r.total/r.pieces)):'—',b)+'</tr>';
+    /* คอลัมน์: v = ตัวเลขไว้ดูว่าเป็น 0 ทั้งช่วงไหม (0 ทุกแถว = ไม่เกี่ยวกับช่วง/โรงที่ดู → ไม่โชว์) */
+    const COLS=[
+      { h:'แพ็ค', v:r=>r.packs, c:r=>fmtInt(r.packs) }, { h:'ชิ้น', v:r=>r.pieces, c:r=>fmtInt(r.pieces) }, { h:'ชม.เดินเครื่อง', v:r=>r.hours, c:r=>r.hours },
+      { h:'ใย', v:r=>r.fiber||r.fiberKg, c:r=>r.fiberKg+' กก. · '+fmtBaht(r.fiber) }, { h:'ผ้า+เย็บ', v:r=>r.fabric, c:r=>fmtBaht(r.fabric) },
+      { h:'ถุงแพ็ค', v:r=>r.bagPack, c:r=>fmtBaht(r.bagPack) }, { h:'ถุงซิล', v:r=>r.bagZip, c:r=>fmtBaht(r.bagZip) },
+      { h:'ค่าแรง', v:r=>r2(r.labor-(+r.cutLabor||0)), c:r=>fmtBaht(r2(r.labor-(+r.cutLabor||0)))+(plant==='cut'?'':(p=>p?'<div class="sumline" style="margin:0;white-space:nowrap">👷 '+peopleTxt(p)+'</div>':'')(peopleOf(r,plant))) },
+      { h:'✂️ ตัดผ้า (ค่าแรง)', v:r=>(+r.cutLabor||0)+(+r.cutPieces||0), cell:cutTd }, { h:'ดอกเบี้ย', v:r=>r.interest, c:r=>fmtBaht(r.interest) },
+      { h:'ขนส่ง', v:r=>r.ship, c:r=>fmtBaht(r.ship) }, { h:'แก๊ส', v:r=>r.gas, c:r=>fmtBaht(r.gas) }, { h:'ค่าไฟ', v:r=>r.elec, c:r=>fmtBaht(r.elec) },
+      { h:'รวม (บาท)', keep:true, c:r=>'<b>'+fmtBaht(r.total)+'</b>' }, { h:'บาท/ชิ้น', keep:true, c:r=>r.pieces?fmtBaht(r2(r.total/r.pieces)):'—' }];
+    const shown=COLS.filter(k=>k.keep || rows.some(r=>Math.abs(+k.v(r)||0)>0.004));
+    const line=(lbl,r,b)=>'<tr>'+td(lbl,b)+shown.map(k=>k.cell?k.cell(r,b):td(k.c(r),b)).join('')+'</tr>';
     $('tPeriod').innerHTML=rows.length
-      ? '<tr><th>'+(mode==='day'?'วันที่':mode==='month'?'เดือน':'ปี')+'</th><th>แพ็ค</th><th>ชิ้น</th><th>ชม.เดินเครื่อง</th><th>ใย</th><th>ผ้า+เย็บ (หมอน/ปิกนิก)</th><th>ถุงแพ็ค</th><th>ถุงซิล (หมอน)</th><th>ค่าแรง</th><th>✂️ ตัดผ้า (ค่าแรง)</th><th>ดอกเบี้ย</th><th>ขนส่ง</th><th>แก๊ส (ใยแผ่น)</th><th>ค่าไฟ</th><th>รวม (บาท)</th><th>บาท/ชิ้น</tr>'+
+      ? '<tr><th>'+(mode==='day'?'วันที่':mode==='month'?'เดือน':'ปี')+'</th>'+shown.map(k=>'<th>'+k.h+'</th>').join('')+'</tr>'+
         rows.map(r=>line(label(r.k),r)).join('')+(rows.length>1?line('รวม',tot,true):'')
       : '<tr><td class="empty">ยังไม่มีข้อมูลการผลิต</td></tr>';
     { const fx=(KSET.fixed||[]).filter(x=>!/ดอกเบี้ย/.test(String(x.name||'')));

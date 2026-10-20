@@ -447,7 +447,7 @@
   Element.prototype.scrollIntoView = function(){ try{ scan(); reveal(this); }catch(e){} return _siv.apply(this, arguments); };
   document.addEventListener('DOMContentLoaded', function(){ scan(); setInterval(scan, 2500); });
 })();
-</script><!-- /wpd-fold -->
+</script><!-- /wpd-fold -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- ฟอนต์โหลดเบื้องหลัง ไม่ให้หน้าค้างรอเน็ต (เปิดด้วยฟอนต์เครื่องก่อน แล้วสลับเอง) -->
@@ -582,6 +582,15 @@
         <div class="scr" style="margin-top:8px;"><table id="tJobDays"></table></div>
       </div>
       <div class="card"><h3>ต้นทุนต่อหน่วย</h3><div class="sg" id="jobStats"></div></div>
+      <div class="card"><h3>💵 ราคาขาย · กำไร</h3>
+        <div class="rf">
+          <div><label>ราคาขาย (บาท)</label><input id="jobSalePrice" type="number" inputmode="decimal" step="0.01" min="0" placeholder="เช่น 45"></div>
+          <div><label>คิดต่อ</label><select id="jobSaleUnit"><option value="piece">ชิ้น</option><option value="pack">แพ็ค</option><option value="kg">กก. (น้ำหนักสินค้า ไม่รวมถุง)</option></select></div>
+          <div style="flex:0 0 auto;min-width:0"><button class="btn sm" id="btnJobSale">บันทึกราคาขาย</button></div>
+        </div>
+        <div class="sg" id="jobProfit" style="margin-top:10px"></div>
+        <div class="sumline" id="jobProfitNote"></div>
+      </div>
       <div class="card"><h3>แยกรายการ</h3><div class="scr"><table id="tJobBreak"></table></div></div>
       <div class="card"><h3>ที่มาของตัวเลข</h3><div class="scr"><table id="tJobDetail"></table></div></div>
     </div>
@@ -2537,9 +2546,44 @@ window.WPDAUTH = {
     if(prev && jobs.some(o=>o.id===prev)) sel.value=prev;
     renderJobCost();
   }
+  /* 💵 ราคาขายของงาน (PRICE.sale[orderId] = { baht, unit }) → ยอดขาย − ต้นทุนรวม = กำไร */
+  let _saleJob=null, _saleCost=null;
+  function jobSaleQty(c, unit){
+    if(unit==='pack') return { q:+c.packs||0, u:'แพ็ค' };
+    if(unit==='kg') return { q:r2((PROD.line||[]).filter(l=>l.orderId===c.orderId).reduce((a,l)=>a+Math.max(0,((l.actualWeight!=null?+l.actualWeight:+l.stdPerPack)||0)-(+l.bagKgPerPack||0)),0)), u:'กก.' };
+    return { q:+c.pieces||0, u:'ชิ้น' };
+  }
+  function renderJobSale(c){
+    if(c){ _saleCost=c;
+      if(_saleJob!==c.orderId || document.activeElement!==$('jobSalePrice')){
+        const sv=(PRICE.sale||{})[c.orderId]||{};
+        $('jobSalePrice').value=+sv.baht>0?sv.baht:''; $('jobSaleUnit').value=sv.unit||'piece'; }
+      _saleJob=c.orderId; }
+    c=_saleCost; if(!c) return;
+    const price=+$('jobSalePrice').value||0, unit=$('jobSaleUnit').value, { q, u }=jobSaleQty(c, unit);
+    if(!(price>0)){ $('jobProfit').innerHTML=''; $('jobProfitNote').innerHTML='ใส่ราคาขายต่อ'+u+' แล้วระบบหักต้นทุนรวมให้เห็นกำไรของงานนี้'; return; }
+    const sales=r2(price*q), profit=r2(sales-c.total), pct=sales>0?Math.round(profit/sales*1000)/10:0, col=profit<0?'var(--w-bad,#d33)':'var(--w-green,#16a34a)';
+    $('jobProfit').innerHTML=
+      '<div class="stat"><div class="v">'+fmtBaht(sales)+'</div><div class="l">ยอดขาย (บาท) = '+fmtInt(q)+' '+u+' × '+fmtBaht(price)+'</div></div>'+
+      '<div class="stat"><div class="v">'+fmtBaht(c.total)+'</div><div class="l">หัก ต้นทุนรวม (บาท)</div></div>'+
+      '<div class="stat"><div class="v" style="color:'+col+'">'+(profit<0?'−':'')+fmtBaht(Math.abs(profit))+'</div><div class="l">'+(profit<0?'ขาดทุน':'กำไร')+' (บาท) · '+pct+'% ของยอดขาย</div></div>'+
+      (c.pieces>0?'<div class="stat"><div class="v" style="color:'+col+'">'+(profit<0?'−':'')+fmtBaht(Math.abs(r2(profit/c.pieces)))+'</div><div class="l">'+(profit<0?'ขาดทุน':'กำไร')+'/ชิ้น (ขาย '+fmtBaht(r2(sales/c.pieces))+' − ต้นทุน '+fmtBaht(c.perPiece)+')</div></div>':'');
+    const sv=(PRICE.sale||{})[c.orderId]||{};
+    $('jobProfitNote').innerHTML=(+sv.baht!==price || (sv.unit||'piece')!==unit ? '<span class="bdg warn">ยังไม่ได้บันทึกราคาขาย</span> ' : '')+
+      'คิดจากที่ผลิตแล้ว '+fmtInt(q)+' '+u+(c.missing&&c.missing.length?' · ⚠ ต้นทุนยังคิดไม่ครบ (ดูกล่องเตือนด้านบน) กำไรจริงอาจต่ำกว่านี้':'')+' · ราคาขายตามที่ใส่ (ถ้ารวม VAT ให้ใส่ราคาก่อน VAT)';
+  }
+  $('jobSalePrice').addEventListener('input', ()=>renderJobSale());
+  $('jobSaleUnit').addEventListener('change', ()=>renderJobSale());
+  $('btnJobSale').onclick=async ()=>{
+    const id=$('jobSel').value; if(!id) return;
+    const baht=+$('jobSalePrice').value||0;
+    PRICE.sale=PRICE.sale||{};
+    if(baht>0) PRICE.sale[id]={ baht, unit:$('jobSaleUnit').value, at:localISO() }; else delete PRICE.sale[id];
+    await savePrice(); renderJobSale(); toast(baht>0?'บันทึกราคาขายแล้ว':'ลบราคาขายแล้ว');
+  };
   function renderJobCost(){
     const id=$('jobSel').value;
-    if(!id){ $('jobMeta').textContent=''; $('jobStats').innerHTML=''; $('tJobBreak').innerHTML=''; $('tJobDetail').innerHTML='';
+    if(!id){ $('jobMeta').textContent=''; $('jobStats').innerHTML=''; $('tJobBreak').innerHTML=''; $('tJobDetail').innerHTML=''; $('jobProfit').innerHTML=''; $('jobProfitNote').innerHTML=''; _saleCost=null;
       $('jobWarnCard').style.display='none'; return; }
     const c=COST.jobCost(ctx(), id);
     const _sc=COST.scrapStats(Object.assign({}, ctx(), { PROD:Object.assign({}, PROD, { scrap:(PROD.scrap||[]).filter(x=>x.orderId===c.orderId), use:(PROD.use||[]).filter(u=>u.orderId===c.orderId), wd:(PROD.wd||[]).filter(w=>w.orderId===c.orderId) }) }), '0000-00-00', '9999-99-99', null);
@@ -2552,6 +2596,7 @@ window.WPDAUTH = {
       '<div class="stat"><div class="v">'+fmtBaht(c.perPack)+'</div><div class="l">บาท/แพ็ค</div></div>'+
       '<div class="stat"><div class="v">'+fmtBaht(c.total)+'</div><div class="l">ต้นทุนรวมทั้งงาน (บาท)</div></div>'+
       '<div class="stat"><div class="v">'+fmtInt(c.pieces)+'</div><div class="l">ชิ้นที่ทำได้</div></div>';
+    renderJobSale(c);
 
     const rows=[
       ['ใย', c.fiber.kg+' กก.', c.fiber.baht],

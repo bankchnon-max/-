@@ -792,7 +792,7 @@
         </div>
         <div class="rf">
           <div><label>ไซซ์ถุง</label><input id="bagSize" placeholder="เช่น 40x70"></div>
-          <div><label>น้ำหนักต่อกระสอบ (กก.)</label><input id="bagSackKg" type="number" inputmode="decimal" step="0.1" value="25"></div>
+          <div><label>น้ำหนักต่อกระสอบ (กก. ที่ชั่งได้ · ระบบหักกระสอบเปล่า 0.15 กก. ให้เอง)</label><input id="bagSackKg" type="number" inputmode="decimal" step="0.1" value="25"></div>
         </div>
         <label>น้ำหนักต่อใบ (กก.) — ใช้แปลงเป็นจำนวนใบให้อัตโนมัติ</label>
         <input id="bagWeightPer" type="number" inputmode="decimal" step="0.001" placeholder="เช่น 0.05">
@@ -1615,15 +1615,26 @@ window.WPDAUTH = {
     },
     nextSackNo(sackReceipts, kind, name){ const mine=(sackReceipts||[]).filter(s=>s.kind===kind && s.name===name); let mx=0; mine.forEach(s=>{ const n=parseInt(s.sackNo,10); if(!isNaN(n)&&n>mx) mx=n; }); return mx + 1; },
     sackPieces(kg, weightPerBag){ if(!weightPerBag) return 0; return Math.round(kg/weightPerBag); },
+    /* น้ำหนักที่ชั่งรับเข้ารวมตัวกระสอบด้วย → หักกระสอบเปล่า (sackTareKg ของกระสอบนั้น ไม่มี = 0.15 กก.) ก่อนคิดถุง */
+    SACK_TARE:0.15,
+    sackTare(s){ return (s && s.sackTareKg!=null && s.sackTareKg!=='') ? Math.max(0,+s.sackTareKg||0) : CALC.SACK_TARE; },
+    /* คงเหลือ = ที่ชั่งรับ − เบิก − กระสอบเปล่า · เหลือแค่ตัวกระสอบ (เบิกไปทั้งกระสอบก่อนมีการหัก) = 0 · เบิกเกินจริงยังติดลบให้เห็น */
+    sackLeft(gross, used, tare){ const rem=(+gross||0)-(+used||0); return rem>tare ? rem-tare : (rem>=0 ? 0 : rem); },
     sackStatus(sackReceipts, sackWithdraw){
-      const wdBySack={};
-      (sackWithdraw||[]).forEach(w=>(w.picks||[]).forEach(p=>{ wdBySack[p.sackId]=(wdBySack[p.sackId]||0)+(+p.kg||0); }));
+      /* ชั่งจริงตอนเบิก (picks[].weighedKg) → น้ำหนักกระสอบจริง = ที่เบิกไปก่อนหน้า + ที่ชั่งได้ (ใช้แทนตอนรับเข้า เว้นแต่ปรับยอดในแอพสต๊อกทีหลัง) */
+      const wdBySack={}, weighBySack={};
+      (sackWithdraw||[]).slice().sort((a,b)=>String(a.time||'').localeCompare(String(b.time||''))).forEach(w=>(w.picks||[]).forEach(p=>{
+        const before=wdBySack[p.sackId]||0;
+        if(+p.weighedKg>0) weighBySack[p.sackId]={ gross:r3(before+(+p.weighedKg)), time:String(w.time||'') };
+        wdBySack[p.sackId]=before+(+p.kg||0); }));
       return (sackReceipts||[]).map(s=>{
-        const used=wdBySack[s.id]||0;
+        const wq=weighBySack[s.id], adjT=(s.adjLog&&s.adjLog.length)?String(s.adjLog[s.adjLog.length-1].time||''):'';
+        const weighed=!!wq && !(adjT && adjT>wq.time), gross=weighed?wq.gross:(+s.sackWeightKg||0);
+        const used=wdBySack[s.id]||0, tare=CALC.sackTare(s), left=CALC.sackLeft(gross, used, tare);
         return { sackId:s.id, sackNo:s.sackNo, kind:s.kind, name:s.name, size:s.size,
-          sackWeightKg:s.sackWeightKg, weightPerBag:s.weightPerBag, time:s.time,
-          used:r3(used), remainingKg:r3(s.sackWeightKg-used),
-          remainingPieces: CALC.sackPieces(Math.max(0,s.sackWeightKg-used), s.weightPerBag) };
+          sackWeightKg:gross, recvKg:s.sackWeightKg, weighed, tareKg:tare, netKg:r3(Math.max(0,gross-tare)), weightPerBag:s.weightPerBag, time:s.time,
+          used:r3(used), remainingKg:r3(left),
+          remainingPieces: CALC.sackPieces(Math.max(0,left), s.weightPerBag) };
       });
     },
     // เบิกกระสอบแบบ FIFO ข้ามหลายใบจนครบ (เหมือนที่ใช้กับผ้า)
@@ -1644,7 +1655,7 @@ window.WPDAUTH = {
       sackStatusList.filter(s=>s.kind===kind).forEach(s=>{
         m[s.name]=m[s.name]||{name:s.name,receivedKg:0,remainingKg:0,weightPerBag:s.weightPerBag,
                               sackCount:0, weights:[], sizes:[], lastTime:''};
-        m[s.name].receivedKg=r3(m[s.name].receivedKg+s.sackWeightKg);
+        m[s.name].receivedKg=r3(m[s.name].receivedKg+(s.netKg!=null?s.netKg:s.sackWeightKg));   /* ถุงสุทธิ (หักกระสอบเปล่าแล้ว) */
         m[s.name].remainingKg=r3(m[s.name].remainingKg+s.remainingKg);
         m[s.name].sackCount++;
         const w=+s.weightPerBag||0;
@@ -3778,7 +3789,7 @@ window.WPDAUTH = {
         return '<tr><td>#'+s.sackNo+_adj+'</td><td>'+(s.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+'</td><td>'+esc(s.name)+'</td><td>'+esc(s.size||'—')+
         '</td><td class="kn"><b style="color:'+(wpb? (mixed?'var(--yellow)':'var(--accent2)') :'var(--dim)')+'">'+(wpb?wpb+' กก.':'—')+'</b></td>'+
         '<td class="kn">'+thDate(s.time)+'</td>'+
-        '<td>'+s.sackWeightKg+' กก.</td><td>'+s.used+' กก.</td><td><b style="color:'+(s.remainingKg>0?'var(--accent2)':'var(--dim)')+'">'+s.remainingKg+' กก.</b></td><td>'+s.remainingPieces+
+        '<td>'+s.sackWeightKg+' กก.'+(s.weighed?' <span class="bdg ok" title="ชั่งจริงตอนเบิกที่แอพผลิต">⚖ ชั่งจริง</span><div style="font-size:11.5px;color:var(--dim)">รับเข้าใส่ไว้ '+s.recvKg+' กก.</div>':'')+'<div style="font-size:11.5px;color:var(--dim)">ถุงสุทธิ '+s.netKg+' (หักกระสอบ '+s.tareKg+')</div></td><td>'+s.used+' กก.</td><td><b style="color:'+(s.remainingKg>0?'var(--accent2)':'var(--dim)')+'">'+s.remainingKg+' กก.</b></td><td>'+s.remainingPieces+
         '</td><td><button class="ed" data-skadj="'+s.sackId+'">ปรับยอดคงเหลือ</button> '+
         '<button class="x" data-skdel="'+s.sackId+'">✕</button></td></tr>'; }).join('')
       :'<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>';
@@ -3796,7 +3807,7 @@ window.WPDAUTH = {
       if(newRemaining===null) return;
       const r=S.sackReceipts.find(x=>x.id===s.sackId); if(!r) return;
       const _before=r.sackWeightKg;
-      r.sackWeightKg=r3(s.used+newRemaining);
+      r.sackWeightKg=r3(s.used+newRemaining+(newRemaining>0?CALC.sackTare(r):0));   /* + กระสอบเปล่า (คงเหลือคิดหลังหักแล้ว) */
       r.adjLog=(r.adjLog||[]); r.adjLog.push({ time:localISO(), from:_before, to:r.sackWeightKg, remainingTo:newRemaining });
       if(r.adjLog.length>50) r.adjLog=r.adjLog.slice(-50);
       await saveBag(); rBag(); toast('ปรับยอดกระสอบ #'+s.sackNo+' เหลือ '+newRemaining+' กก. แล้ว (เดิมกระสอบ '+_before+' กก.)');
@@ -3847,7 +3858,7 @@ window.WPDAUTH = {
           '<span>ใช้น้ำหนักนี้กับ<b>ทุกกระสอบ '+esc(r.name)+'</b> ที่ยังไม่ได้ใส่ ('+_same.length+' กระสอบ: #'+_same.map(x=>x.sackNo).join(', #')+')'+
           '<br><span style="color:var(--dim);font-size:12px;">กระสอบที่ใส่น้ำหนักไว้แล้วไม่เปลี่ยน · ถ้าถุงคนละล็อตหนักไม่เท่ากัน เอาติ๊กออกแล้วแก้ทีละกระสอบ</span></span></label>':'')+
         '<button class="btn w" id="bgeSave" style="margin-top:12px;">บันทึก</button>');
-      const prev=()=>{ const w=+$('bgeW').value||0; $('bgePrev').innerHTML=w>0?'กระสอบนี้ ≈ <b>'+Math.round((+r.sackWeightKg||0)/w)+' ใบ</b>':''; };
+      const prev=()=>{ const w=+$('bgeW').value||0; $('bgePrev').innerHTML=w>0?'กระสอบนี้ ≈ <b>'+Math.round(Math.max(0,(+r.sackWeightKg||0)-CALC.sackTare(r))/w)+' ใบ</b> (หักกระสอบเปล่า '+CALC.sackTare(r)+' กก.)':''; };
       $('bgeW').oninput=prev; prev();
       $('bgeSave').onclick=async()=>{
         const w=+$('bgeW').value||0; if(!(w>0)){ toast('กรอกน้ำหนักต่อใบ'); return; }
@@ -3973,7 +3984,7 @@ window.WPDAUTH = {
       _w.add('ครั้งก่อนถุง "'+n+'" บันทึกไว้ '+_refW+' กก./ใบ แต่ครั้งนี้กรอก '+weightPerBag+' กก./ใบ');
     nos.forEach((no,i)=>{ const sk=kgs[i], pre=multi?'กระสอบ #'+no+' ':'กระสอบนี้';
       if(weightPerBag>0 && weightPerBag>=sk) _w.add('น้ำหนักถุง 1 ใบ ('+weightPerBag+' กก.) มากกว่าหรือเท่ากับน้ำหนักทั้งกระสอบ ('+sk+' กก.)');
-      if(weightPerBag>0){ const pcs=CALC.sackPieces(sk,weightPerBag);
+      if(weightPerBag>0){ const pcs=CALC.sackPieces(Math.max(0,sk-CALC.SACK_TARE),weightPerBag);
         if(pcs<3) _w.add(pre+' จะได้ถุงแค่ '+pcs+' ใบ ดูน้อยผิดปกติ');
         if(pcs>200000) _w.add(pre+' จะได้ถุงถึง '+pcs+' ใบ ดูเยอะผิดปกติ'); }
       if(sk>200) _w.add((multi?pre:'')+'น้ำหนักกระสอบ '+sk+' กก. ดูหนักผิดปกติ');
@@ -3984,7 +3995,7 @@ window.WPDAUTH = {
     const total=r3(kgs.reduce((a,b)=>a+b,0));
     if(multi && !dup.length && !await ask('รับเข้า '+nos.length+' กระสอบรวดเดียว?','ถุง: '+n+'\nเลขกระสอบ: #'+packNosText(nos)+'\nรวม: '+total+' กก.'+([...new Set(kgs)].length===1?' (กระสอบละ '+kgs[0]+' กก.)':'')+'\nวันที่รับ: '+thDate(dateVal))) return;
     const size=normSize($('bagSize').value), note=$('bagNote').value.trim();
-    nos.forEach((no,i)=>S.sackReceipts.push({ id:uid(), time:dateVal, kind, name:n, size, sackNo:no, sackWeightKg:kgs[i], weightPerBag, note }));
+    nos.forEach((no,i)=>S.sackReceipts.push({ id:uid(), time:dateVal, kind, name:n, size, sackNo:no, sackWeightKg:kgs[i], sackTareKg:CALC.SACK_TARE, weightPerBag, note }));
     await saveBag(); $('bagNote').value=''; $('bagSackNo').value=''; $('bagSackCount').value='1'; noGridReset('bagGrid');
     /* ไซซ์ถุง / น้ำหนักกระสอบ / น้ำหนักต่อใบ ค้างไว้ เพราะมักรับเข้าแบบเดิมซ้ำๆ */
     // ประเภท+ชื่อถุงค้างไว้ จนกว่าจะเปลี่ยนเอง (มักรับเข้ากระสอบเดิมหลายรอบติดกัน)

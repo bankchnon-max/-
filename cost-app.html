@@ -1263,6 +1263,18 @@ window.WPDAUTH = {
       return { baht:r4(perPiece*pp), src:p.src, type:type, pieces:pieces, roll:p.baht, piecesPer:pp };
     },
 
+    /* น้ำหนักที่ชั่งรับเข้ารวมตัวกระสอบ → หักกระสอบเปล่า (sackTareKg ของกระสอบนั้น ไม่มี = 0.15 กก.) ก่อนคิดจำนวนใบ/ราคาต่อใบ */
+    SACK_TARE:0.15,
+    sackNetKg(r){ const t=(r && r.sackTareKg!=null && r.sackTareKg!=='') ? Math.max(0,+r.sackTareKg||0) : COST.SACK_TARE; return Math.max(0,(+(r&&r.sackWeightKg)||0)-t); },
+    /* ชั่งกระสอบจริงตอนเบิก (แอพผลิต · bagWd picks[].weighedKg) → น้ำหนักกระสอบจริง = เบิกก่อนหน้า + ที่ชั่งได้ (แบบเดียวกับแอพสต๊อก) */
+    sackActual(receipts, bagWd){
+      const used={}, wq={};
+      (bagWd||[]).slice().sort((a,b)=>String(a.time||'').localeCompare(String(b.time||''))).forEach(w=>(w.picks||[]).forEach(p=>{
+        const before=used[p.sackId]||0; if(+p.weighedKg>0) wq[p.sackId]={ gross:r3(before+(+p.weighedKg)), time:String(w.time||'') };
+        used[p.sackId]=before+(+p.kg||0); }));
+      return (receipts||[]).map(r=>{ const q=wq[r.id], adjT=(r.adjLog&&r.adjLog.length)?String(r.adjLog[r.adjLog.length-1].time||''):'';
+        return q && !(adjT && adjT>q.time) ? Object.assign({}, r, { sackWeightKg:q.gross, recvKg:r.sackWeightKg, weighed:true }) : r; });
+    },
     /* จำนวนถุงต่อกระสอบ (ปัดลง เหมือนแอพสต๊อก) */
     sackPieces(sackKg, perBag){
       const k=+sackKg||0, w=+perBag||0;
@@ -1320,7 +1332,7 @@ window.WPDAUTH = {
       const src=(+bySack>0 || +byDate>0)?'sack':'std';
       const ref=exact||rows.sort((a,b)=>String(b.time).localeCompare(String(a.time)))[0];
       if(!ref) return { baht:0, src:'noSack' };
-      const pcs=COST.sackPieces(ref.sackWeightKg, ref.weightPerBag);
+      const pcs=COST.sackPieces(COST.sackNetKg(ref), ref.weightPerBag);
       if(!pcs) return { baht:0, src:'noSack' };
       return { baht:r4(perSack/pcs), src:src, pieces:pcs, perSack:perSack };
     },
@@ -2168,6 +2180,7 @@ window.WPDAUTH = {
     PROD.active={ line:A.activeId||null, pic:A.activePicnicId||null, feed:A.activeFeedId||null };   /* งานที่แอพผลิตกำลังทำอยู่ */
     PROD.wd=B.wd||[]; PROD.use=B.use||[]; PROD.fabricWd=B.fabricWd||[]; PROD.caseUse=B.caseUse||[]; PROD.bagWd=B.bagWd||[];
     PROD.bagUse=B.bagUse||[]; PROD.gasSwaps=B.gasSwaps||[];
+    S.sackReceipts=COST.sackActual(S.sackReceipts, PROD.bagWd);   /* น้ำหนักกระสอบที่ชั่งจริงตอนเบิก */
     PROD.sheetWd=B.sheetWd||[]; PROD.sheetUse=B.sheetUse||[];
     PROD.line=C.line||[]; PROD.carry=C.carry||[]; PROD.scrap=C.scrap||[]; PROD.feed=B.feed||[];
     const K=parse(st,null);
@@ -2367,8 +2380,8 @@ window.WPDAUTH = {
           .sort((a,b)=>String(b.time).localeCompare(String(a.time)));
         const c=COST.bagBahtPerPiece(PRICE,S.sackReceipts,kind,n,null);
         const rows=sacks.slice(0,60).map(l=>{
-          const pcs=COST.sackPieces(l.sackWeightKg,l.weightPerBag);
-          return '<div class="frow"><div style="flex:1;font-size:12.5px">กระสอบ #'+esc(l.sackNo)+' · '+l.sackWeightKg+' กก.'+
+          const pcs=COST.sackPieces(COST.sackNetKg(l),l.weightPerBag);
+          return '<div class="frow"><div style="flex:1;font-size:12.5px">กระสอบ #'+esc(l.sackNo)+' · '+l.sackWeightKg+' กก. (ถุงสุทธิ '+r3(COST.sackNetKg(l))+')'+
             (pcs?' ≈ '+fmtInt(pcs)+' ใบ':' <span class="bdg warn">ไม่รู้จำนวนใบ</span>')+'</div>'+
             '<div style="width:110px">'+priceInput(kind+'|'+n+'|sack|'+l.sackNo, (e.sacks||{})[String(l.sackNo)], 'ตามมาตรฐาน')+'</div></div>';
         }).join('');

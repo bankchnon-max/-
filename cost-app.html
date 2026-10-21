@@ -2150,6 +2150,7 @@ window.WPDAUTH = {
     S.sackReceipts=Pb.receipts||[]; S.reuseItems=Pb.reuseItems||[]; S.gasReceipts=Pg.receipts||[];
     const A=parse(ord,{}), B=parse(fd,{}), C=parse(ln,{});
     PROD.orders=A.orders||[];
+    PROD.active={ line:A.activeId||null, pic:A.activePicnicId||null, feed:A.activeFeedId||null };   /* งานที่แอพผลิตกำลังทำอยู่ */
     PROD.wd=B.wd||[]; PROD.use=B.use||[]; PROD.fabricWd=B.fabricWd||[]; PROD.caseUse=B.caseUse||[]; PROD.bagWd=B.bagWd||[];
     PROD.bagUse=B.bagUse||[]; PROD.gasSwaps=B.gasSwaps||[];
     PROD.sheetWd=B.sheetWd||[]; PROD.sheetUse=B.sheetUse||[];
@@ -2537,13 +2538,21 @@ window.WPDAUTH = {
   /* ═══════════════════════════════════════════════════════════════
      3. ต้นทุนจริง
      ═══════════════════════════════════════════════════════════════ */
+  let _jobAuto=true;   /* true = ยังไม่ได้เลือกงานเอง → ตามงานที่กำลังทำอยู่ */
   function rJob(){
-    const jobs=jobsWithWork();
+    const jobs=jobsWithWork(), act=PROD.active||{}, byId=id=>PROD.orders.find(o=>o.id===id);
+    const now=[['line','ท้ายไลน์'],['pic','แพ็คปิกนิก'],['feed','ป้อนใย']].map(([k,t])=>({ o:byId(act[k]), t }))
+      .filter((x,i,a)=>x.o && x.o.status!=='done' && a.findIndex(y=>y.o&&y.o.id===x.o.id)===i);
+    const nowIds=new Set(now.map(x=>x.o.id)), rest=jobs.filter(o=>!nowIds.has(o.id)).reverse();
+    const opt=(o,tag)=>'<option value="'+o.id+'">'+(tag?'🟢 ':'')+esc(orderLabel(o))+(tag?' · กำลังทำ ('+tag+')':'')+'</option>';
     const sel=$('jobSel'); const prev=sel.value;
-    sel.innerHTML = jobs.length
-      ? jobs.slice().reverse().map(o=>'<option value="'+o.id+'">'+esc(orderLabel(o))+'</option>').join('')
+    sel.innerHTML = (now.length||rest.length)
+      ? (now.length?'<optgroup label="กำลังทำอยู่ตอนนี้">'+now.map(x=>opt(x.o,x.t)).join('')+'</optgroup>':'')+
+        (rest.length?(now.length?'<optgroup label="งานอื่น (ล่าสุดก่อน)">':'')+rest.map(o=>opt(o)).join('')+(now.length?'</optgroup>':''):'')
       : '<option value="">— ยังไม่มีงานที่บันทึกการผลิตไว้ —</option>';
-    if(prev && jobs.some(o=>o.id===prev)) sel.value=prev;
+    const want=now.length?now[0].o.id:(rest[0]&&rest[0].id);
+    if(prev && !_jobAuto && [...sel.options].some(x=>x.value===prev)) sel.value=prev;
+    else if(want){ sel.value=want; _jobAuto=true; }
     renderJobCost();
   }
   /* 💵 ราคาขายของงาน (PRICE.sale[orderId] = { baht, unit }) → ยอดขาย − ต้นทุนรวม = กำไร */
@@ -3156,7 +3165,7 @@ window.WPDAUTH = {
     $('fixName').value=''; $('fixBaht').value=''; formDirty=false;
     await saveSet(); rSet(); toast('เพิ่ม "'+n+'" แล้ว');
   };
-  $('jobSel').onchange=renderJobCost;
+  $('jobSel').onchange=()=>{ _jobAuto=false; renderJobCost(); };
   ['qType','qPieces','qPerPack','qFiber','qFiberKg','qFabric','qFabBaht','qZip','qZipN','qPack','qPackN','qSew','qHours','qMargin']
     .forEach(id=>{ const el=$(id); if(el){ el.addEventListener('input',rQuote); el.addEventListener('change',rQuote); } });
   $('btnSaveQuote').onclick=async()=>{

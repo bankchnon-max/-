@@ -569,6 +569,15 @@
     <!-- ══════════ 3. ต้นทุนจริง ══════════ -->
     <div class="panel" id="p-job">
       <div class="card">
+        <h3>📅 ปิดงบรายวัน</h3>
+        <div class="rf">
+          <div><label>วันที่</label><input id="dcDay" type="date"></div>
+          <div style="flex:0 0 auto;min-width:0"><button class="btn sm" id="btnDcCsv">📥 ออก Excel</button></div>
+        </div>
+        <div class="scr" style="margin-top:8px"><table id="tDayClose"></table></div>
+        <div class="sumline" id="dcNote"></div>
+      </div>
+      <div class="card">
         <h3>เลือกงานที่จะดูต้นทุน</h3>
         <select id="jobSel"></select>
         <div class="sumline" id="jobMeta"></div>
@@ -1550,9 +1559,12 @@ window.WPDAUTH = {
     },
     periodCost(ctx, from, to){
       const S=ctx.S||{}, P=ctx.PROD||{}, K=ctx.KSET||{}, PRICE=ctx.PRICE||{};
-      /* ctx.plant = 'p1' | 'p2' | 'pic' → เฉพาะงานของโรงนั้น (ไม่ใส่ = ทั้งโรงงาน) */
+      /* ctx.plant = 'p1' | 'p2' | 'pic' → เฉพาะงานของโรงนั้น (ไม่ใส่ = ทั้งโรงงาน)
+         ctx.job = orderId → เฉพาะงานนั้น (ปิดงบรายวัน) — ค่าแรง/ค่าคงที่แบ่งตามชั่วโมงเดินเครื่องของงานในวันนั้น · วันไม่มีผลิตไม่แบ่งให้งาน */
       const _ord={}; (P.orders||[]).forEach(o=>{ _ord[o.id]=o; });
-      const plant=ctx.plant||null, inP=x=>!plant || COST.plantOf(_ord[x.orderId])===plant;
+      const job=ctx.job||null, plant=ctx.plant||(job?'job':null);
+      const _mine=id=>job ? id===job : COST.plantOf(_ord[id])===plant;
+      const inP=x=>!plant || _mine(x.orderId);
       const inD=x=>{ const d=String(x.time||'').slice(0,10); return d>=from && d<=to; };
       const inR=x=>inD(x) && inP(x);
       const allLines=(P.line||[]).filter(inD);
@@ -1592,18 +1604,21 @@ window.WPDAUTH = {
       /* ค่าแรงในโรง: วันที่มีข้อมูลแอพสแกนหน้า = ค่าแรงจริงทั้งวัน (รวมวันที่ไม่มีผลิต) · วันที่ไม่มี = ชั่วโมงเดินเครื่อง × ค่าแรงที่ตั้งไว้ */
       let laborDay=0; const _seen={};
       /* ช่วงนี้ไม่มีผลิตเลย (เช่นดูรายวัน วันหยุดที่มีคนมาทำงาน) → ใช้สัดส่วน 30 วันก่อนหน้า */
-      let _ish=null; const _idleShare=()=>{ if(_ish!=null) return _ish;
+      let _ish=null; const _idleShare=()=>{ if(_ish!=null) return _ish; if(job) return (_ish=0);
         let ls=allLines; if(!ls.length){ const f=new Date(from+'T00:00:00Z'); f.setUTCDate(f.getUTCDate()-30); const fs=f.toISOString().slice(0,10); ls=(ctx.shareLines||P.line||[]).filter(l=>{ const d=String(l.time||'').slice(0,10); return d>=fs && d<=to; }); }
         return (_ish=_dayShare(ls)); };
       /* ส่วนของโรงนี้ในแต่ละวัน = ชม.เดินเครื่องโรงนี้ ÷ ชม.เดินเครื่องทุกกลุ่มวันนั้น */
-      const _dayShare=dl=>{ if(!plant) return 1; const { h }=COST.plantHours(P, dl), t=h.p1+h.p2+h.pic; return t>0?(h[plant]||0)/t:0; };
+      const _dayShare=dl=>{ if(!plant) return 1;
+        if(job){ const by={}; dl.forEach(l=>(by[l.orderId]=by[l.orderId]||[]).push(l)); let t=0; Object.keys(by).forEach(id=>{ t+=COST.machineHours(by[id]); });
+          return t>0 && by[job] ? COST.machineHours(by[job])/t : 0; }
+        const { h }=COST.plantHours(P, dl), t=h.p1+h.p2+h.pic; return t>0?(h[plant]||0)/t:0; };
       if(!plant){
         COST.runDays(lines).forEach(dd=>{ _seen[dd.date]=1; const L=ctx.LABOR&&ctx.LABOR[dd.date]; laborDay+=L?COST.laborCounted(L):dd.hours*hrRate*_share; });
         if(ctx.LABOR) Object.keys(ctx.LABOR).forEach(d=>{ if(d>=from && d<=to && !_seen[d]) laborDay+=COST.laborCounted(ctx.LABOR[d]); });
       } else {
         /* ค่าแรงจริงของวัน แบ่งให้งาน (ตามชั่วโมงเดินเครื่อง · ปิกนิกตามคนแพ็ค) แล้วรวมเฉพาะงานของโรงนี้ */
         COST.runDays(allLines).forEach(dd=>{ _seen[dd.date]=1; const a=COST.laborAlloc(ctx, dd.date);
-          if(a){ Object.keys(a).forEach(id=>{ if(COST.plantOf(_ord[id])===plant) laborDay+=a[id]; }); if(plant==='cut') laborDay+=a._cut||0; }
+          if(a){ Object.keys(a).forEach(id=>{ if(_mine(id)) laborDay+=a[id]; }); if(plant==='cut') laborDay+=a._cut||0; }
           else laborDay+=dd.hours*hrRate*_share*_dayShare(allLines.filter(l=>String(l.time).slice(0,10)===dd.date)); });   /* ไม่มีข้อมูลสแกนหน้า: ชม.รวมวันนั้น × ส่วนของโรงนี้ */
         /* วันที่มีค่าแรงแต่ไม่มีผลิต: แบ่งตามสัดส่วนชั่วโมงเดินเครื่องทั้งช่วง */
         if(ctx.LABOR && Object.keys(ctx.LABOR).some(d=>d>=from && d<=to && !_seen[d])){
@@ -1617,7 +1632,7 @@ window.WPDAUTH = {
         Object.keys(ctx.LABOR).filter(d=>d>=from && d<=to).forEach(d=>{ const so=ctx.LABOR[d].sto||{}, oc=+so.cut||0;
           if(!plant || plant==='cut') cutOt+=oc;
           if(!plant){ otLabor+=COST.laborCounted({ st:so }); return; }
-          if(_seen[d]){ const a=COST.laborAlloc(_oc, d); if(a){ Object.keys(a).forEach(id=>{ if(COST.plantOf(_ord[id])===plant) otLabor+=a[id]; }); if(plant==='cut') otLabor+=a._cut||0; } }
+          if(_seen[d]){ const a=COST.laborAlloc(_oc, d); if(a){ Object.keys(a).forEach(id=>{ if(_mine(id)) otLabor+=a[id]; }); if(plant==='cut') otLabor+=a._cut||0; } }
           else otLabor+=(COST.laborCounted({ st:so })-oc)*_idleShare()+(plant==='cut'?oc:0); });
       }
       /* ✂️ ตัดผ้าในช่วงนี้: ค่าแรงคนหน้างานตัดผ้า (รวมอยู่ในค่าแรงแล้ว — แสดงแยก) + ชิ้น/ม้วน/มูลค่าผ้าที่ตัด (ผ้ายังไม่นับเป็นต้นทุนจนกว่าจะเบิกปลอกไปผลิต) */
@@ -1971,11 +1986,11 @@ window.WPDAUTH = {
       return A;
     },
     /* ต้นทุนของวันเดียว (เหมือนแถวในตาราง "ต้นทุนรายวัน") */
-    dayCost(ctx, day, plant){
+    dayCost(ctx, day, plant, job){
       const P=ctx.PROD||{};
       const allUseOrders=new Set((P.use||[]).map(u=>u.orderId)), caseTracked=new Set((P.caseUse||[]).map(u=>u.orderId));
       const L=ctx.LABOR ? Object.fromEntries(Object.entries(ctx.LABOR).filter(([d])=>d===day)) : null;
-      return COST.periodCost(Object.assign({}, ctx, { LABOR:L, allUseOrders, caseTracked, plant:plant||null }), day, day);
+      return COST.periodCost(Object.assign({}, ctx, { LABOR:L, allUseOrders, caseTracked, plant:plant||null, job:job||null }), day, day);
     },
   };
   /* </cost-core> */
@@ -2538,6 +2553,50 @@ window.WPDAUTH = {
   /* ═══════════════════════════════════════════════════════════════
      3. ต้นทุนจริง
      ═══════════════════════════════════════════════════════════════ */
+  /* ═══ 📅 ปิดงบรายวัน: งานที่ผลิตในวันนั้น — ต้นทุนของวัน (แบ่งตามชั่วโมงเดินเครื่อง) · ยอดขาย (ราคาขายตามไซซ์) · กำไร
+         ส่วนกลาง = ต้นทุนรวมของวัน − ผลรวมของงาน (ค่าแรงตัดผ้า ฯลฯ) → ยอดรวมตรงกับตารางรายวันในหน้าสรุป ═══ */
+  function dayCloseData(day){
+    const c=ctx(), ids=[...new Set(PROD.line.filter(l=>String(l.time).slice(0,10)===day).map(l=>l.orderId))];
+    const jobs=ids.map(id=>{ const o=PROD.orders.find(x=>x.id===id), r=COST.dayCost(c, day, null, id), sv=saleOf(o), unit=sv.unit||'piece';
+      const q=unit==='pack'?r.packs:unit==='kg'?((r.plants&&r.plants.p1&&+r.plants.p1.kg>0)?r2(+r.plants.p1.kg):r2(PROD.line.filter(l=>l.orderId===id&&String(l.time).slice(0,10)===day).reduce((a,l)=>a+Math.max(0,((l.actualWeight!=null?+l.actualWeight:+l.stdPerPack)||0)-(+l.bagKgPerPack||0)),0))):r.pieces;
+      const price=+sv.baht||0, sales=price>0?r2(price*q):null;
+      return { id, o, r, price, unit, q, sales, profit:sales==null?null:r2(sales-r.total) }; })
+      .sort((a,b)=>b.r.total-a.r.total);
+    const tot=COST.dayCost(c, day), jobSum=r2(jobs.reduce((a,x)=>a+x.r.total,0)), other=r2(tot.total-jobSum);
+    const sales=r2(jobs.reduce((a,x)=>a+(x.sales||0),0)), noPrice=jobs.filter(x=>x.sales==null);
+    return { day, jobs, tot, other, sales, profit:r2(sales-tot.total), noPrice };
+  }
+  const UNIT_TH={ piece:'ชิ้น', pack:'แพ็ค', kg:'กก.' };
+  function renderDayClose(){
+    const inp=$('dcDay');
+    if(!inp.value){ const today=localISO().slice(0,10), ds=PROD.line.map(l=>String(l.time).slice(0,10)).filter(d=>d<=today).sort(); inp.value=ds.length?ds[ds.length-1]:today; }
+    const d=dayCloseData(inp.value), R_=v=>'<td style="text-align:right">'+v+'</td>';
+    const pc=v=>v==null?'—':'<span style="color:'+(v<0?'var(--w-bad,#d33)':'var(--w-green,#16a34a)')+'">'+(v<0?'−':'')+fmtBaht(Math.abs(v))+'</span>';
+    if(!d.jobs.length && !(d.tot.total>0)){ $('tDayClose').innerHTML='<tr><td class="empty">วันที่ '+thDate(d.day)+' ไม่มีการผลิต</td></tr>'; $('dcNote').innerHTML=''; return; }
+    $('tDayClose').innerHTML='<tr><th>งาน / ไซซ์</th><th style="text-align:right">ผลิต</th><th style="text-align:right">ต้นทุน</th><th style="text-align:right">ต้นทุน/ชิ้น</th><th style="text-align:right">ราคาขาย</th><th style="text-align:right">ยอดขาย</th><th style="text-align:right">กำไร</th></tr>'+
+      d.jobs.map(x=>'<tr data-dcjob="'+x.id+'" style="cursor:pointer"><td>'+esc(orderLabel(x.o))+'</td>'+R_(fmtInt(x.r.packs)+' แพ็ค · '+fmtInt(x.r.pieces)+' ชิ้น')+R_(fmtBaht(x.r.total))+R_(x.r.pieces?fmtBaht(r2(x.r.total/x.r.pieces)):'—')+
+        R_(x.price>0?fmtBaht(x.price)+'/'+UNIT_TH[x.unit]:'<span class="bdg warn">ยังไม่ใส่</span>')+R_(x.sales==null?'—':fmtBaht(x.sales))+
+        R_(x.profit==null?'—':pc(x.profit)+(x.sales>0?' <span style="color:var(--w-dim,#667385)">('+Math.round(x.profit/x.sales*1000)/10+'%)</span>':''))+'</tr>').join('')+
+      (Math.abs(d.other)>0.5?'<tr style="color:var(--w-dim,#667385)"><td>ส่วนกลางที่ไม่ได้แบ่งให้งาน'+(+d.tot.cutLabor>0?' (ค่าแรงตัดผ้า '+fmtBaht(d.tot.cutLabor)+' ฯลฯ)':'')+'</td>'+R_('')+R_(fmtBaht(d.other))+R_('')+R_('')+R_('')+R_(pc(-d.other))+'</tr>':'')+
+      '<tr style="border-top:2px solid var(--w-border,#ccd)"><td><b>รวมทั้งวัน</b></td>'+R_('<b>'+fmtInt(d.tot.packs)+' แพ็ค · '+fmtInt(d.tot.pieces)+' ชิ้น</b>')+R_('<b>'+fmtBaht(d.tot.total)+'</b>')+R_('')+R_('')+
+        R_(d.noPrice.length===d.jobs.length?'—':'<b>'+fmtBaht(d.sales)+'</b>')+R_(d.noPrice.length?'<span class="bdg warn">ใส่ราคาไม่ครบ</span>':'<b>'+pc(d.profit)+'</b>'+(d.sales>0?' <span style="color:var(--w-dim,#667385)">('+Math.round(d.profit/d.sales*1000)/10+'%)</span>':''))+'</tr>';
+    $('dcNote').innerHTML=thDate(d.day)+' · '+d.jobs.length+' งาน · ต้นทุนของแต่ละงานคิดเฉพาะวันนี้ (ใย ถุง ผ้า ค่าแรง ไฟ ส่ง แก๊ส ดอกเบี้ย แบ่งตามชั่วโมงเดินเครื่อง) · ยอดขาย = ที่ผลิตวันนี้ × ราคาขายของไซซ์ · แตะแถวเพื่อดูต้นทุนทั้งงาน'+
+      (d.noPrice.length?'<br><span class="bdg warn">ยังไม่ใส่ราคาขาย '+d.noPrice.length+' งาน</span> ใส่ราคาให้ครบก่อนถึงจะเห็นกำไรรวมของวัน (แตะแถวงานนั้น แล้วใส่ราคาที่ตารางแยกรายการด้านล่าง)':'');
+  }
+  $('dcDay').addEventListener('change', renderDayClose);
+  $('tDayClose').addEventListener('click', e=>{ const tr=e.target.closest('[data-dcjob]'); if(!tr) return;
+    const sel=$('jobSel'); if(![...sel.options].some(o=>o.value===tr.dataset.dcjob)) return;
+    sel.value=tr.dataset.dcjob; _jobAuto=false; renderJobCost(); sel.scrollIntoView({ behavior:'smooth', block:'start' }); });
+  $('btnDcCsv').onclick=()=>{
+    const day=$('dcDay').value; if(!day) return;
+    const d=dayCloseData(day), n=v=>v==null?'':Math.round((+v||0)*100)/100;
+    const out=[['ปิดงบรายวัน', day], [], ['งาน','ลูกค้า','ไซซ์','แพ็ค','ชิ้น','ต้นทุน (บาท)','ต้นทุน/ชิ้น','ราคาขาย','ต่อ','จำนวนที่ขาย','ยอดขาย','กำไร','% กำไร']];
+    d.jobs.forEach(x=>out.push([orderLabel(x.o), x.o?x.o.customer:'', x.o?x.o.code:'', x.r.packs, x.r.pieces, n(x.r.total), x.r.pieces?n(x.r.total/x.r.pieces):'', x.price>0?n(x.price):'', x.price>0?UNIT_TH[x.unit]:'', x.price>0?n(x.q):'', n(x.sales), n(x.profit), x.sales>0?Math.round(x.profit/x.sales*1000)/10:'']));
+    if(Math.abs(d.other)>0.5) out.push(['ส่วนกลางที่ไม่ได้แบ่งให้งาน (ค่าแรงตัดผ้า ฯลฯ)','','','','',n(d.other),'','','','','',n(-d.other),'']);
+    out.push(['รวมทั้งวัน','','',d.tot.packs,d.tot.pieces,n(d.tot.total),'','','','',n(d.sales),d.noPrice.length?'ใส่ราคาไม่ครบ':n(d.profit),!d.noPrice.length&&d.sales>0?Math.round(d.profit/d.sales*1000)/10:'']);
+    if(d.noPrice.length) out.push([], ['⚠ ยังไม่ใส่ราคาขาย: '+d.noPrice.map(x=>orderLabel(x.o)).join(', ')]);
+    if(downloadCsv('ปิดงบรายวัน_'+day+'.csv', out)) toast('ออกไฟล์แล้ว — เปิดด้วย Excel ได้เลย');
+  };
   let _jobAuto=true;   /* true = ยังไม่ได้เลือกงานเอง → ตามงานที่กำลังทำอยู่ */
   function rJob(){
     const jobs=jobsWithWork(), act=PROD.active||{}, byId=id=>PROD.orders.find(o=>o.id===id);
@@ -2553,6 +2612,7 @@ window.WPDAUTH = {
     const want=now.length?now[0].o.id:(rest[0]&&rest[0].id);
     if(prev && !_jobAuto && [...sel.options].some(x=>x.value===prev)) sel.value=prev;
     else if(want){ sel.value=want; _jobAuto=true; }
+    renderDayClose();
     renderJobCost();
   }
   /* 💵 ราคาขาย → ยอดขาย − ต้นทุนรวม = กำไร

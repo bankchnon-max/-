@@ -2081,9 +2081,10 @@ window.WPDAUTH = {
       ov.appendChild(bx); document.body.appendChild(ov); setTimeout(function(){inp.focus();inp.select();},30);
     });
   }
-  function ask(title,msg){
+  function ask(title,msg,btn){
     return new Promise(res=>{
       $('cfTitle').textContent=title; $('cfMsg').textContent=msg||'';
+      $('cfYes').textContent=(btn&&btn.yes)||'ยืนยัน'; $('cfNo').textContent=(btn&&btn.no)||'ยกเลิก';
       openOv('ovConfirm');
       const done=v=>{ closeOv('ovConfirm'); $('cfYes').onclick=null; $('cfNo').onclick=null; res(v); };
       $('cfYes').onclick=()=>done(true); $('cfNo').onclick=()=>done(false);
@@ -2579,20 +2580,13 @@ window.WPDAUTH = {
           const _usedNow=r3((+at.kg||0)-(+at.remaining||0)), _fresh=_usedNow < Math.max(5, 0.1*(+at.kg||0));
           const _old=baleToConfirm(name);
           if(_fresh && _old){
-            if(await ask('จะบอกว่า ก้อน '+(_old.w.seq||_old.w.lot||'')+' (ก้อนเก่า) หมด ใช่ไหม?',
-              'ตอนนี้ระบบใช้ก้อน '+at.no+' อยู่ (เพิ่งเริ่ม ใช้ไป '+_usedNow+' จาก '+at.kg+' กก.)\n'+
-              'ส่วนก้อน '+(_old.w.seq||_old.w.lot||'')+' ระบบนับว่าหมดไปแล้ว\n\n'+
-              'กด "ยืนยัน" = บันทึกว่าก้อน '+(_old.w.seq||_old.w.lot||'')+' หมดจริง (ก้อน '+at.no+' ใช้ต่อตามปกติ)\n'+
-              'กด "ยกเลิก" = จะบอกว่าก้อน '+at.no+' ที่เพิ่งเริ่มนี้หมด')){ await confirmBaleEmpty(_old.w.id); return; }
+            const _on=_old.w.seq||_old.w.lot||'';
+            if(await ask('ก้อนไหนหมด?', 'ก้อน '+_on+' = ก้อนเก่า\nก้อน '+at.no+' = เพิ่งเริ่มใช้',
+              { yes:'ก้อน '+_on+' หมด', no:'ก้อน '+at.no+' หมด' })){ await confirmBaleEmpty(_old.w.id); return; }
           }
-          if(_fresh && !await ask('ก้อน '+at.no+' เพิ่งเริ่มใช้ — หมดจริงหรือ?',
-            'ก้อน '+at.no+' ('+name+') ใช้ไปแค่ '+_usedNow+' จาก '+at.kg+' กก.\n\n'+
-            'ถ้าจะบอกว่าก้อนก่อนหน้าหมด ไม่ต้องกดปุ่มนี้ — ระบบเปลี่ยนมาใช้ก้อน '+at.no+' ให้แล้ว\n'+
-            'กด "ยืนยัน" เฉพาะเมื่อก้อน '+at.no+' หมดจริงๆ (ส่วนที่เหลือ '+at.remaining+' กก. จะนับเป็นใช้ไปแล้ว)')) return;
-          if(!await ask('ก้อน '+at.no+' ('+name+') หมดแล้ว?',
-            'ระบบคำนวณตามสูตรว่าก้อนนี้ยังเหลือ '+at.remaining+' กก.\n'+
-            'ถ้าหมดจริงแล้ว ส่วนนี้จะนับเป็นใยที่ใช้ไปกับงาน "'+fo.code+'" (ใช้จริงมากกว่าสูตร)\n\n'+
-            (next?'แล้วเปลี่ยนไปใช้ก้อน '+next.no+' ('+next.remaining+' กก.) ที่เบิกรอไว้ทันที':'ยังไม่มีก้อนสำรองที่ไลน์ — กดยืนยันแล้วเบิกก้อนใหม่ต่อได้เลย'))) return;
+          if(_fresh){ if(!await ask('ก้อน '+at.no+' เพิ่งเริ่มใช้ หมดจริง?', 'ใช้ไปแค่ '+_usedNow+' จาก '+at.kg+' กก.', { yes:'หมดจริง', no:'ไม่ใช่' })) return; }
+          else if(!await ask('ก้อน '+at.no+' หมดแล้ว?', 'ที่ระบบคิดว่าเหลือ '+at.remaining+' กก. จะนับเป็นใช้ไปแล้ว'+(next?'\nแล้วใช้ก้อน '+next.no+' ต่อ':''),
+            { yes:'หมดแล้ว', no:'ยกเลิก' })) return;
           const useId=uid(), t=localISO();
           S.use=S.use||[];
           S.use.push({ by:opBy(), id:useId, time:t, orderId:fo.id, feedId:null, fiberName:name, wdId:at.wdId,
@@ -2696,7 +2690,7 @@ window.WPDAUTH = {
     $('tWd').querySelectorAll('[data-wdreopen]').forEach(b=>b.onclick=async()=>{
       const _id=b.dataset.wdreopen, _w=S.wd.find(x=>x.id===_id); if(!_w) return;
       const _cl=(S.use||[]).filter(u=>u.wdId===_id && u.closeout && !u.reason), _kg=r3(_cl.reduce((a,u)=>a+(+u.kg||0),0));
-      if(!await ask('ยกเลิก "ก้อนหมด" ของก้อน '+(_w.seq||_w.lot||'')+'?','ก้อนจะกลับมาใช้ต่อที่ไลน์ และไม่นับ '+_kg+' กก. เป็นใยที่ใช้แล้ว\n(ใช้เมื่อกด "ก้อนหมด" ผิดก้อน — ไม่ต้องรับเข้าหรือเบิกใหม่)')) return;
+      if(!await ask('ก้อน '+(_w.seq||_w.lot||'')+' ยังไม่หมด?', 'ก้อนกลับมาใช้ต่อที่ไลน์', { yes:'ใช้ต่อ', no:'ไม่ใช่' })) return;
       const _ids=_cl.map(u=>u.id);
       S.use=(S.use||[]).filter(u=>_ids.indexOf(u.id)<0);
       (S.orders||[]).forEach(oo=>{ if(oo.lotLog) oo.lotLog=oo.lotLog.filter(x=>_ids.indexOf(x.useId)<0); });

@@ -633,6 +633,12 @@
         <p class="sumline" style="margin-top:-4px;">หยิบก้อนไหนก็ได้ ขอให้ชื่อใยตรงกับสูตร แล้วกรอกเบอร์ที่เขียนบนก้อนนั้น<br>
         <span style="color:var(--muted)">ก้อนที่ใช้อยู่หมดเมื่อไหร่ ก้อนที่เบิกรอไว้จะมาแทนที่ให้เอง</span></p>
         <div class="sumline" id="wdDupWarn" style="margin-bottom:6px;"></div>
+        <label>🔎 ค้นหาเบอร์ก้อน — พิมพ์เลขบนป้ายก้อน แล้วแตะก้อนที่ตรง</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="wdFind" inputmode="numeric" autocomplete="off" placeholder="เช่น 17" style="flex:1;font-size:20px;font-weight:600">
+          <button class="btn sec sm" id="wdFindRefresh" type="button" title="ดึงก้อนที่เพิ่งรับเข้าจากแอพสต๊อก" style="margin:0;white-space:nowrap">🔄 ก้อนล่าสุด</button>
+        </div>
+        <div id="wdFindRes" style="margin:6px 0 10px"></div>
         <div class="rf">
           <div><label>เบอร์ก้อนที่หยิบมา</label><input id="wdSeq" inputmode="text" placeholder="เลขที่เขียนบนก้อน"></div>
           <div><label>ชื่อใย</label><select id="wdSel"></select>
@@ -2926,7 +2932,7 @@ window.WPDAUTH = {
     }
     sel.disabled=false;
     sel.innerHTML='<option value="">— เลือกก้อนที่หยิบมา (ดูเบอร์บนป้ายก้อน) —</option>'+
-      open.slice().reverse().map(l=>{
+      open.slice().sort((a,b)=>(parseFloat(a.lotNo)||0)-(parseFloat(b.lotNo)||0)||String(a.time||'').localeCompare(String(b.time||''))).map(l=>{
         const rem=lotRemaining(fiberName,l.lotNo,+l.kg||0,l.id);
         /* เลือกตามรายการรับเข้า (ชื่อ + เบอร์ + วันที่รับ) — เบอร์ซ้ำที่รับคนละวันเลือกแยกกันได้ */
         return '<option value="'+esc(l.id||l.lotNo)+'">เบอร์ '+esc(l.lotNo)+' · รับ '+(l.time?thDate(l.time):'—')+' · '+l.kg+' กก. · เหลือ '+rem+' กก.</option>';
@@ -2968,6 +2974,63 @@ window.WPDAUTH = {
     txt.oninput=()=>{ formDirty=true; wdWarnText(getOrder(),txt.value,warnId); if(onFiberChange) onFiberChange(txt.value); };
   }
   bindFiberPicker('wdSel','wdName','wdWarn',()=>activeFeed(),(name)=>populateWdLotOptions(name));
+  /* ดึงรายการรับเข้าใยล่าสุดจากแอพสต๊อก — ใช้ตอนค้นหา/เลือกก้อน (ระหว่างกรอกฟอร์มระบบหยุดดึงข้อมูลทั้งก้อน) */
+  let _sfAt=0, _sfBusy=null;
+  async function refreshStockFiber(force){
+    if(!force && Date.now()-_sfAt<20000) return false;
+    if(_sfBusy) return _sfBusy;
+    _sfBusy=(async()=>{ try{
+      const raw=await rawGet('v3s_fiber'); if(raw==null) return false;
+      const SF=JSON.parse(raw)||{}, before=JSON.stringify(STOCKFIBER);
+      STOCKFIBER={};
+      (SF.receipts||[]).forEach(r=>{ (STOCKFIBER[r.fiberName]=STOCKFIBER[r.fiberName]||[]).push({id:r.id,lotNo:r.lotNo,kg:r.kg,time:r.time,baleCount:r.baleCount}); });
+      _sfAt=Date.now(); return JSON.stringify(STOCKFIBER)!==before;
+    }catch(e){ return false; } finally{ _sfBusy=null; } })();
+    return _sfBusy;
+  }
+  /* 🔎 ค้นหาเบอร์ก้อนจากทุกชื่อใย — ใยในสูตรของออเดอร์ที่ป้อนอยู่ขึ้นก่อน */
+  function wdFindRender(){
+    const box=$('wdFindRes'), q=String($('wdFind').value||'').trim().replace(/^#/,'');
+    if(!q){ box.innerHTML=''; return; }
+    const o=activeFeed(), rec=(o&&o.fibers||[]).map(x=>x.name);
+    const all=[], gone=[];
+    Object.keys(STOCKFIBER).forEach(name=>(STOCKFIBER[name]||[]).forEach(l=>{
+      if(String(l.lotNo).trim()!==q) return;
+      const rem=lotRemaining(name,l.lotNo,+l.kg||0,l.id);
+      (rem>0.05?all:gone).push({ name, l, rem, inRec:rec.includes(name) });
+    }));
+    all.sort((a,b)=>(b.inRec-a.inRec)||String(a.l.time||'').localeCompare(String(b.l.time||'')));
+    const pill=(t,c)=>'<span style="font-size:12px;padding:1px 8px;border-radius:99px;background:'+c[0]+';color:'+c[1]+';margin-left:6px">'+t+'</span>';
+    box.innerHTML=(all.length
+      ? all.slice(0,12).map(x=>'<button type="button" class="btn sec" data-wdfind="'+esc(x.l.id)+'" data-wdfname="'+esc(x.name)+'" style="display:block;width:100%;text-align:left;margin:6px 0 0;padding:10px 12px">'+
+          '<b style="font-size:16px">เบอร์ '+esc(x.l.lotNo)+' · '+esc(x.name)+'</b>'+(x.inRec?pill('ในสูตร',['var(--w-tint-ok)','var(--green)']):pill('นอกสูตร',['var(--w-tint-warn)','var(--w-warn-text)']))+
+          '<br><span style="color:var(--dim)">รับ '+(x.l.time?thDate(x.l.time):'—')+' · '+(+x.l.kg||0)+' กก. · เหลือ <b style="color:var(--text)">'+x.rem+' กก.</b></span></button>').join('')
+      : '<div class="sumline" style="color:var(--red)">ไม่เจอเบอร์ '+esc(q)+' ที่ยังเหลือในสต๊อก</div>')+
+      (gone.length?'<div class="sumline">เบอร์ '+esc(q)+' ที่เบิกไปหมดแล้ว: '+gone.slice(0,5).map(x=>esc(x.name)+' (รับ '+(x.l.time?thDate(x.l.time):'—')+')').join(' · ')+'</div>':'')+
+      (all.length?'':'<div class="sumline">เพิ่งรับเข้า? กด <b>🔄 ก้อนล่าสุด</b> · ถ้ายังไม่เจอ ต้องรับเข้าที่แอพสต๊อกก่อน</div>');
+    box.querySelectorAll('[data-wdfind]').forEach(b=>b.onclick=()=>wdFindPick(b.dataset.wdfname, b.dataset.wdfind));
+  }
+  /* แตะก้อนที่เจอ → เลือกชื่อใย ก้อน เบอร์ น้ำหนักให้ครบ */
+  function wdFindPick(name, rid){
+    const sel=$('wdSel'), txt=$('wdName');
+    sel.value=name;
+    if(sel.value!==name){ sel.value='__new__'; }
+    if(sel.onchange) sel.onchange();
+    if(sel.value==='__new__'){ txt.value=name; if(txt.oninput) txt.oninput(); }
+    const lot=$('wdLot'); lot.value=rid;
+    const row=fiberLotsNow(name).find(l=>String(l.id)===String(rid));
+    $('wdSeq').value=String(row?row.lot:''); $('wdKg').value=row?row.remaining:'';
+    if(lot.onchange) lot.onchange();
+    formDirty=true;
+    $('wdFindRes').innerHTML='<div class="sumline" style="color:var(--green);font-weight:600">✓ เลือกแล้ว: เบอร์ '+esc(row?row.lot:'')+' · '+esc(name)+' · '+(row?row.remaining:'')+' กก. — กด "บันทึกการเบิกใย"</div>';
+    const b=$('btnWd'); if(b&&b.scrollIntoView) b.scrollIntoView({block:'center',behavior:'smooth'});
+  }
+  /* ไม่เจอ = ดึงก้อนล่าสุดจากแอพสต๊อกทันที (เผื่อเพิ่งรับเข้า) */
+  $('wdFind').oninput=async()=>{ formDirty=true; wdFindRender(); const _found=!!document.querySelector('#wdFindRes [data-wdfind]'); if(await refreshStockFiber(!_found)) wdFindRender(); };
+  $('wdFindRefresh').onclick=async()=>{ const b=$('wdFindRefresh'); b.disabled=true; await refreshStockFiber(true); b.disabled=false;
+    const n=$('wdName').value.trim(); if(n) populateWdLotOptions(n); wdFindRender(); toast('ดึงก้อนล่าสุดจากแอพสต๊อกแล้ว'); };
+  /* เลือกชื่อใยแล้ว → ดึงก้อนล่าสุดเบื้องหลัง ถ้ามีก้อนใหม่ก็เติมรายการให้ */
+  $('wdSel').addEventListener('change', async()=>{ if(await refreshStockFiber()){ const n=$('wdName').value.trim(); if(n) populateWdLotOptions(n); } });
   $('wdLot').onchange=function(){
     /* เลือกก้อนแล้วเติมเบอร์ก้อนกับน้ำหนักที่เหลือให้เลย จะได้ไม่ต้องพิมพ์ */
     const lot=this.value;
@@ -3013,7 +3076,7 @@ window.WPDAUTH = {
     const backKg=settlePendingFiber(n);
     await saveFeed();
     await rememberFiber(n);
-    $('wdKg').value=''; $('wdNote').value=''; $('wdSeq').value=''; formDirty=false;
+    $('wdKg').value=''; $('wdNote').value=''; $('wdSeq').value=''; if($('wdFind')){ $('wdFind').value=''; $('wdFindRes').innerHTML=''; } formDirty=false;
     // ชื่อใย+ลอตที่เลือกไว้ค้างต่อเนื่องไปเรื่อยๆ จนกว่าจะเปลี่ยนเอง (มักเบิกล็อตเดิมซ้ำหลายรอบติดกัน)
     rFeed(); toast('บันทึกการเบิกใย — ก้อน '+bale+' เข้าคิวที่ไลน์แล้ว'+(backKg>0?' · หักย้อนหลัง '+backKg+' กก. ที่ป้อนไปก่อนเบิก':''));
   };
@@ -5804,8 +5867,8 @@ window.WPDAUTH = {
     }
     syncBusy=true;
     try{
-      const p=await rawGet('v3_pulse');
-      if(p!==null && p===lastPulse && !wpdNeedReload){ pollFails=0; pollMs=3000; syncBusy=false; return; }
+      const p=((await rawGet('v3_pulse'))||'')+'|'+((await rawGet('v3s_pulse'))||'');   /* แอพผลิต | แอพสต๊อก */
+      if(p!=='|' && p===lastPulse && !wpdNeedReload){ pollFails=0; pollMs=3000; syncBusy=false; return; }
       const h=await readAll();
       lastPulse=p;
       pollFails=0; pollMs=3000;
@@ -5831,7 +5894,7 @@ window.WPDAUTH = {
 
   (async function init(){
     lastHash=await wpdLoadFirst(readAll);
-    try{ lastPulse=await rawGet('v3_pulse'); }catch(e){}
+    try{ lastPulse=((await rawGet('v3_pulse'))||'')+'|'+((await rawGet('v3s_pulse'))||''); }catch(e){}
     if(!hasStore){
       storeDown=true; setSaveState('bad','ไม่รองรับ');
       toast('อุปกรณ์นี้บันทึกข้อมูลกลางไม่ได้ — ใช้งานได้แต่ต้องกดออกไฟล์เก็บเอง');

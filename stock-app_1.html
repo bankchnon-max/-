@@ -174,10 +174,10 @@
   html {
     --w-bg:#f2f4f7; --w-panel:#ffffff; --w-panel2:#f6f8fa; --w-input:#ffffff; --w-input-border:#d5dce6;
     --w-border:#e2e7ee; --w-line:#edf0f4;
-    --w-text:#1b2430; --w-dim:#667385; --w-label:#465262; --w-muted:#8a95a5; --w-placeholder:#a3adba;
+    --w-text:#1b2430; --w-dim:#4c5869; --w-label:#2d3846; --w-muted:#687384; --w-placeholder:#a3adba;
     --w-accent:#ff8a3d; --w-accent2:#c4570c; --w-on-accent:#2a1403;
-    --w-green:#15864f; --w-red:#cf3e45; --w-yellow:#a86608; --w-blue:#2566b0;
-    --w-top:#ffffff; --w-nav:#ffffff; --w-nb:#7b8797; --w-chip:#eef1f5;
+    --w-green:#15864f; --w-red:#cf3e45; --w-yellow:#94570a; --w-blue:#2566b0;
+    --w-top:#ffffff; --w-nav:#ffffff; --w-nb:#5d6878; --w-chip:#eef1f5;
     --w-tint-accent:#fff7f0; --w-tint-accent-bd:#fbd9bd; --w-tint-accent-strong:#fff1e6; --w-accent-muted:#7a6555;
     --w-tint-ok:#e6f5ec; --w-tint-warn:#fff4df; --w-warn-text:#8a5300; --w-tint-warn-bd:#f5d9a4;
     --w-tint-bad:#fdecec; --w-bad-text:#b3262e; --w-tint-bad-bd:#f4c1c4; --w-low-bg:#fff7f7; --w-low-bd:#f0a3a7;
@@ -192,10 +192,10 @@
     color-scheme:dark;
     --w-bg:#12171d; --w-panel:#1a2028; --w-panel2:#212833; --w-input:#141a21; --w-input-border:#364252;
     --w-border:#2a3340; --w-line:#252e39;
-    --w-text:#e6eaef; --w-dim:#9aa6b4; --w-label:#c0c9d3; --w-muted:#7d8a99; --w-placeholder:#6c7888;
+    --w-text:#e6eaef; --w-dim:#b3bdc9; --w-label:#d7dee6; --w-muted:#99a5b3; --w-placeholder:#6c7888;
     --w-accent:#ff8a3d; --w-accent2:#ffa767; --w-on-accent:#2a1403;
     --w-green:#4cc38a; --w-red:#f07077; --w-yellow:#e7b54a; --w-blue:#72aaf0;
-    --w-top:#1a2028; --w-nav:#1a2028; --w-nb:#8c98a7; --w-chip:#252d38;
+    --w-top:#1a2028; --w-nav:#1a2028; --w-nb:#a7b2bf; --w-chip:#252d38;
     --w-tint-accent:rgba(255,138,61,.10); --w-tint-accent-bd:rgba(255,138,61,.35); --w-tint-accent-strong:rgba(255,138,61,.16); --w-accent-muted:#c9b3a2;
     --w-tint-ok:rgba(76,195,138,.14); --w-tint-warn:rgba(231,181,74,.14); --w-warn-text:#e7b54a; --w-tint-warn-bd:rgba(231,181,74,.35);
     --w-tint-bad:rgba(240,112,119,.14); --w-bad-text:#f07077; --w-tint-bad-bd:rgba(240,112,119,.4); --w-low-bg:rgba(240,112,119,.08); --w-low-bd:rgba(240,112,119,.5);
@@ -1925,6 +1925,24 @@ window.WPDAUTH = {
     return r2(tot);
   }
   function producedByOrder(){ const m={}; PROD.line.forEach(l=>{ m[l.orderId]=(m[l.orderId]||0)+1; }); return m; }
+
+  /* 🎨 สีในหน้าต่างถาม/แจ้ง (ข้อความเดิมเป็นตัวหนังสือธรรมดา — escape ก่อนแล้วค่อยใส่สี) */
+  const DLG_UNIT='กก\\.|ใบ|แพ็ค|ชิ้น|บาท|ม้วน|กระสอบ|ก้อน|นาที|รอบ|วัน|คน|%';
+  function dlgHtml(t, isTitle){
+    const e=String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const inl=x=>x
+      .replace(/(ก้อน|กระสอบ|ม้วน|เบอร์|ถุง)\s*(#?\d+[A-Za-z]?)/g,'<b style="color:var(--w-accent2,#e8590c);background:rgba(232,89,12,.12);padding:0 5px;border-radius:6px">$1 $2</b>')
+      .replace(new RegExp('(-?\\d[\\d,]*(?:\\.\\d+)?)\\s*('+DLG_UNIT+')(?![ก-๙])','g'),'<b style="color:var(--w-text,#1b2430)">$1 $2</b>')
+      .replace(/&quot;([^&]{1,40})&quot;/g,'<b style="color:var(--w-text,#1b2430)">“$1”</b>');
+    if(isTitle) return inl(e);
+    return e.split('\n').map(line=>{
+      const l=inl(line);
+      if(/^\s*(⚠|❌|⛔)|ลบ|ทิ้ง|กู้คืนไม่ได้|ไม่ได้|ผิดปกติ|เกิน/.test(line)) return '<span style="color:var(--w-red,#cf3e45)">'+l+'</span>';
+      if(/^\s*(→|✓|✅)/.test(line)) return '<span style="color:var(--w-green,#15864f);font-weight:600">'+l+'</span>';
+      return l;
+    }).join('\n');
+  }
+  const DLG_DANGER=/ลบ|ทิ้ง|หมด|ยกเลิกทั้ง|ล้าง/;
   function ask(title, detail, opts){
     opts=opts||{};
     return new Promise(function(res){
@@ -1932,11 +1950,12 @@ window.WPDAUTH = {
       ov.style.cssText='position:fixed;inset:0;background:var(--w-overlay,rgba(20,28,38,.45));z-index:99998;display:flex;align-items:center;justify-content:center;padding:18px';
       var bx=document.createElement('div');
       bx.style.cssText='background:var(--w-panel,#ffffff);color:var(--w-text,#1b2430);border:1px solid var(--w-border,#e2e7ee);border-radius:14px;max-width:430px;width:100%;padding:18px;box-shadow:0 12px 40px rgba(16,24,40,.18)';
-      var h=document.createElement('div'); h.style.cssText="font:600 17px 'Kanit',sans-serif;margin-bottom:8px"; h.textContent=title||'';
-      var p=document.createElement('div'); p.style.cssText="font:400 14px/1.65 'Sarabun',sans-serif;white-space:pre-line;color:var(--w-label,#465262);margin-bottom:16px"; p.textContent=detail||'';
+      var h=document.createElement('div'); h.style.cssText="font:600 20px/1.35 'Kanit',sans-serif;margin-bottom:8px"+(/^\s*(⚠|❌|⛔)|ลบ/.test(String(title||''))?';color:var(--w-red,#cf3e45)':''); h.innerHTML=dlgHtml(title,true);
+      var p=document.createElement('div'); p.style.cssText="font:500 16.5px/1.65 'Sarabun',sans-serif;white-space:pre-line;color:var(--w-text,#1b2430);margin-bottom:16px"; p.innerHTML=dlgHtml(detail||'');
       var row=document.createElement('div'); row.style.cssText='display:flex;gap:10px';
       var ok=document.createElement('button'); ok.textContent=opts.okText||'ยืนยัน'; ok.setAttribute('data-noguard','1');
-      ok.style.cssText="flex:1;padding:13px;border:0;border-radius:10px;background:#ff8a3d;color:#12181f;font:600 15px 'Kanit',sans-serif";
+      var _bad=!opts.infoOnly && DLG_DANGER.test(String(opts.okText||'')+' '+String(title||''));
+      ok.style.cssText="flex:1;padding:13px;border:0;border-radius:10px;background:"+(_bad?'var(--w-red,#cf3e45);color:#fff':"#ff8a3d;color:#12181f")+";font:600 15px 'Kanit',sans-serif";
       var no=document.createElement('button'); no.textContent=opts.cancelText||'ยกเลิก'; no.setAttribute('data-noguard','1');
       no.style.cssText="flex:1;padding:13px;border:1px solid var(--w-border,#e2e7ee);border-radius:10px;background:var(--w-panel2,#f1f4f8);color:var(--w-text,#1b2430);font:600 15px 'Kanit',sans-serif";
       function done(v){ try{ document.body.removeChild(ov); }catch(e){} res(v); }

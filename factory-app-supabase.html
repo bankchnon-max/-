@@ -191,10 +191,10 @@
   html {
     --w-bg:#f2f4f7; --w-panel:#ffffff; --w-panel2:#f6f8fa; --w-input:#ffffff; --w-input-border:#d5dce6;
     --w-border:#e2e7ee; --w-line:#edf0f4;
-    --w-text:#1b2430; --w-dim:#667385; --w-label:#465262; --w-muted:#8a95a5; --w-placeholder:#a3adba;
+    --w-text:#1b2430; --w-dim:#4c5869; --w-label:#2d3846; --w-muted:#687384; --w-placeholder:#a3adba;
     --w-accent:#ff8a3d; --w-accent2:#c4570c; --w-on-accent:#2a1403;
-    --w-green:#15864f; --w-red:#cf3e45; --w-yellow:#a86608; --w-blue:#2566b0;
-    --w-top:#ffffff; --w-nav:#ffffff; --w-nb:#7b8797; --w-chip:#eef1f5;
+    --w-green:#15864f; --w-red:#cf3e45; --w-yellow:#94570a; --w-blue:#2566b0;
+    --w-top:#ffffff; --w-nav:#ffffff; --w-nb:#5d6878; --w-chip:#eef1f5;
     --w-tint-accent:#fff7f0; --w-tint-accent-bd:#fbd9bd; --w-tint-accent-strong:#fff1e6; --w-accent-muted:#7a6555;
     --w-tint-ok:#e6f5ec; --w-tint-warn:#fff4df; --w-warn-text:#8a5300; --w-tint-warn-bd:#f5d9a4;
     --w-tint-bad:#fdecec; --w-bad-text:#b3262e; --w-tint-bad-bd:#f4c1c4; --w-low-bg:#fff7f7; --w-low-bd:#f0a3a7;
@@ -209,10 +209,10 @@
     color-scheme:dark;
     --w-bg:#12171d; --w-panel:#1a2028; --w-panel2:#212833; --w-input:#141a21; --w-input-border:#364252;
     --w-border:#2a3340; --w-line:#252e39;
-    --w-text:#e6eaef; --w-dim:#9aa6b4; --w-label:#c0c9d3; --w-muted:#7d8a99; --w-placeholder:#6c7888;
+    --w-text:#e6eaef; --w-dim:#b3bdc9; --w-label:#d7dee6; --w-muted:#99a5b3; --w-placeholder:#6c7888;
     --w-accent:#ff8a3d; --w-accent2:#ffa767; --w-on-accent:#2a1403;
     --w-green:#4cc38a; --w-red:#f07077; --w-yellow:#e7b54a; --w-blue:#72aaf0;
-    --w-top:#1a2028; --w-nav:#1a2028; --w-nb:#8c98a7; --w-chip:#252d38;
+    --w-top:#1a2028; --w-nav:#1a2028; --w-nb:#a7b2bf; --w-chip:#252d38;
     --w-tint-accent:rgba(255,138,61,.10); --w-tint-accent-bd:rgba(255,138,61,.35); --w-tint-accent-strong:rgba(255,138,61,.16); --w-accent-muted:#c9b3a2;
     --w-tint-ok:rgba(76,195,138,.14); --w-tint-warn:rgba(231,181,74,.14); --w-warn-text:#e7b54a; --w-tint-warn-bd:rgba(231,181,74,.35);
     --w-tint-bad:rgba(240,112,119,.14); --w-bad-text:#f07077; --w-tint-bad-bd:rgba(240,112,119,.4); --w-low-bg:rgba(240,112,119,.08); --w-low-bd:rgba(240,112,119,.5);
@@ -1065,8 +1065,8 @@
   <!-- generic confirm -->
   <div class="ov" id="ovConfirm">
     <div class="box">
-      <h3 id="cfTitle">ยืนยัน</h3>
-      <p id="cfMsg" style="white-space:pre-line"></p>
+      <h3 id="cfTitle" style="font-size:20px;line-height:1.35;color:var(--w-text,#1b2430)">ยืนยัน</h3>
+      <p id="cfMsg" style="white-space:pre-line;font-size:16.5px;line-height:1.65;font-weight:500;color:var(--w-text,#1b2430)"></p>
       <div class="ba">
         <button class="btn" id="cfYes">ยืนยัน</button>
         <button class="btn sec" id="cfNo">ยกเลิก</button>
@@ -2081,10 +2081,32 @@ window.WPDAUTH = {
       ov.appendChild(bx); document.body.appendChild(ov); setTimeout(function(){inp.focus();inp.select();},30);
     });
   }
+
+  /* 🎨 สีในหน้าต่างถาม/แจ้ง (ข้อความเดิมเป็นตัวหนังสือธรรมดา — escape ก่อนแล้วค่อยใส่สี) */
+  const DLG_UNIT='กก\\.|ใบ|แพ็ค|ชิ้น|บาท|ม้วน|กระสอบ|ก้อน|นาที|รอบ|วัน|คน|%';
+  function dlgHtml(t, isTitle){
+    const e=String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const inl=x=>x
+      .replace(/(ก้อน|กระสอบ|ม้วน|เบอร์|ถุง)\s*(#?\d+[A-Za-z]?)/g,'<b style="color:var(--w-accent2,#e8590c);background:rgba(232,89,12,.12);padding:0 5px;border-radius:6px">$1 $2</b>')
+      .replace(new RegExp('(-?\\d[\\d,]*(?:\\.\\d+)?)\\s*('+DLG_UNIT+')(?![ก-๙])','g'),'<b style="color:var(--w-text,#1b2430)">$1 $2</b>')
+      .replace(/&quot;([^&]{1,40})&quot;/g,'<b style="color:var(--w-text,#1b2430)">“$1”</b>');
+    if(isTitle) return inl(e);
+    return e.split('\n').map(line=>{
+      const l=inl(line);
+      if(/^\s*(⚠|❌|⛔)|ลบ|ทิ้ง|กู้คืนไม่ได้|ไม่ได้|ผิดปกติ|เกิน/.test(line)) return '<span style="color:var(--w-red,#cf3e45)">'+l+'</span>';
+      if(/^\s*(→|✓|✅)/.test(line)) return '<span style="color:var(--w-green,#15864f);font-weight:600">'+l+'</span>';
+      return l;
+    }).join('\n');
+  }
+  const DLG_DANGER=/ลบ|ทิ้ง|หมด|ยกเลิกทั้ง|ล้าง/;
   function ask(title,msg,btn){
     return new Promise(res=>{
-      $('cfTitle').textContent=title; $('cfMsg').textContent=msg||'';
+      $('cfTitle').innerHTML=dlgHtml(title,true); $('cfMsg').innerHTML=dlgHtml(msg||'');
       $('cfYes').textContent=(btn&&btn.yes)||'ยืนยัน'; $('cfNo').textContent=(btn&&btn.no)||'ยกเลิก';
+      /* ปุ่มยืนยันที่ลบ/ทิ้ง/ปิดก้อน = สีแดง ให้รู้ว่าย้อนยาก */
+      const _tone=btn&&btn.tone ? btn.tone : (DLG_DANGER.test(String((btn&&btn.yes)||'')+' '+String(title||''))?'danger':'');   /* tone: danger แดง · ok เขียว */
+      $('cfYes').style.background=_tone==='danger'?'var(--w-red,#cf3e45)':_tone==='ok'?'var(--w-green,#15864f)':''; $('cfYes').style.color=_tone?'#fff':'';
+      $('cfTitle').style.color=/^\s*(⚠|❌|⛔)|ลบ/.test(String(title||''))?'var(--w-red,#cf3e45)':'var(--w-text,#1b2430)';
       openOv('ovConfirm');
       const done=v=>{ closeOv('ovConfirm'); $('cfYes').onclick=null; $('cfNo').onclick=null; res(v); };
       $('cfYes').onclick=()=>done(true); $('cfNo').onclick=()=>done(false);
@@ -2092,7 +2114,9 @@ window.WPDAUTH = {
   }
   function info(title,msg){
     return new Promise(res=>{
-      $('cfTitle').textContent=title; $('cfMsg').textContent=msg||'';
+      $('cfTitle').innerHTML=dlgHtml(title,true); $('cfMsg').innerHTML=dlgHtml(msg||'');
+      $('cfYes').style.background=''; $('cfYes').style.color='';
+      $('cfTitle').style.color=/^\s*(⚠|❌|⛔)/.test(String(title||''))?'var(--w-red,#cf3e45)':'var(--w-text,#1b2430)';
       const no=$('cfNo'), yes=$('cfYes');
       const prevNo=no.style.display, prevTxt=yes.textContent;
       no.style.display='none'; yes.textContent='ตกลง';
@@ -2532,7 +2556,7 @@ window.WPDAUTH = {
             '<div><div class="kn" style="font-size:15px;">'+esc(f.name)+' <span style="color:var(--dim); font-size:12px;">'+f.kg+' กก./รอบ</span></div>'+
             '<div class="sumline" style="margin-top:2px;">'+
               (at
-                ? 'กำลังใช้ <b style="color:var(--accent2)">ก้อน '+esc(at.no)+'</b> ('+at.kg+' กก.'+(at.rdate?' · รับ '+thDate(at.rdate):'')+') — เหลือ '+
+                ? '<span style="background:var(--w-tint-ok);color:var(--green);font-weight:600;padding:1px 9px;border-radius:99px;white-space:nowrap">● กำลังใช้ ก้อน '+esc(at.no)+'</span> ('+at.kg+' กก.'+(at.rdate?' · รับ '+thDate(at.rdate):'')+') — เหลือ '+
                   '<b style="color:'+(at.remaining<=0?'var(--red)':'var(--accent2)')+'">'+at.remaining+' กก.</b>'
                 : '<span class="bdg bad">ยังไม่มีก้อนที่ไลน์ — กดเบิกใยก่อน</span>')+
               '<br>'+(wait.length
@@ -2582,7 +2606,7 @@ window.WPDAUTH = {
           if(_fresh && _old){
             const _on=_old.w.seq||_old.w.lot||'';
             if(await ask('ก้อนไหนหมด?', 'ก้อน '+_on+' = ก้อนเก่า\nก้อน '+at.no+' = เพิ่งเริ่มใช้',
-              { yes:'ก้อน '+_on+' หมด', no:'ก้อน '+at.no+' หมด' })){ await confirmBaleEmpty(_old.w.id); return; }
+              { yes:'ก้อน '+_on+' หมด', no:'ก้อน '+at.no+' หมด', tone:'ok' })){ await confirmBaleEmpty(_old.w.id); return; }
           }
           if(_fresh){ if(!await ask('ก้อน '+at.no+' เพิ่งเริ่มใช้ หมดจริง?', 'ใช้ไปแค่ '+_usedNow+' จาก '+at.kg+' กก.', { yes:'หมดจริง', no:'ไม่ใช่' })) return; }
           else if(!await ask('ก้อน '+at.no+' หมดแล้ว?', 'ที่ระบบคิดว่าเหลือ '+at.remaining+' กก. จะนับเป็นใช้ไปแล้ว'+(next?'\nแล้วใช้ก้อน '+next.no+' ต่อ':''),
@@ -2690,7 +2714,7 @@ window.WPDAUTH = {
     $('tWd').querySelectorAll('[data-wdreopen]').forEach(b=>b.onclick=async()=>{
       const _id=b.dataset.wdreopen, _w=S.wd.find(x=>x.id===_id); if(!_w) return;
       const _cl=(S.use||[]).filter(u=>u.wdId===_id && u.closeout && !u.reason), _kg=r3(_cl.reduce((a,u)=>a+(+u.kg||0),0));
-      if(!await ask('ก้อน '+(_w.seq||_w.lot||'')+' ยังไม่หมด?', 'ก้อนกลับมาใช้ต่อที่ไลน์', { yes:'ใช้ต่อ', no:'ไม่ใช่' })) return;
+      if(!await ask('ก้อน '+(_w.seq||_w.lot||'')+' ยังไม่หมด?', 'ก้อนกลับมาใช้ต่อที่ไลน์', { yes:'ใช้ต่อ', no:'ไม่ใช่', tone:'ok' })) return;
       const _ids=_cl.map(u=>u.id);
       S.use=(S.use||[]).filter(u=>_ids.indexOf(u.id)<0);
       (S.orders||[]).forEach(oo=>{ if(oo.lotLog) oo.lotLog=oo.lotLog.filter(x=>_ids.indexOf(x.useId)<0); });
@@ -3138,7 +3162,7 @@ window.WPDAUTH = {
       const at=baleAtLine(n), wait=baleWaiting(n);
       hint.innerHTML='ในสต๊อกยังมี <b style="color:'+(total<=0?'var(--red)':'var(--accent2)')+'">'+total+' กก.</b>'+
         '<br>'+(at
-          ? 'ที่ไลน์กำลังใช้ <b style="color:var(--accent2)">ก้อน '+esc(at.no)+'</b> — เหลือ <b style="color:var(--accent2)">'+at.remaining+' กก.</b>'+
+          ? '<span style="background:var(--w-tint-ok);color:var(--green);font-weight:600;padding:1px 9px;border-radius:99px;white-space:nowrap">● ที่ไลน์กำลังใช้ ก้อน '+esc(at.no)+'</span> — เหลือ <b style="color:var(--accent2)">'+at.remaining+' กก.</b>'+
             (wait.length?' · เบิกรอไว้อีก '+wait.length+' ก้อน ('+wait.map(b=>'#'+b.no+' '+b.remaining+' กก.').join(', ')+')'
                         :' <span class="bdg warn">ไม่มีก้อนสำรองรอไว้</span>')
           : '<span class="bdg bad">ยังไม่มีก้อนที่ไลน์ — กดเบิกใยก่อน</span>')+

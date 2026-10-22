@@ -2541,11 +2541,11 @@ window.WPDAUTH = {
               '<br><span style="color:var(--dim)">ในสต๊อกยังมี '+stock+' กก.</span>'+
               (ex?'<div style="margin-top:6px;padding:7px 10px;border:1px dashed var(--yellow);border-radius:10px;">❓ <b>ก้อน '+esc(ex.w.seq||ex.w.lot||'')+'</b> หมดในระบบแล้วตั้งแต่ '+thDate(ex.at)+' '+hhmm(ex.at).slice(0,5)+
                 ' (หักตามสูตรครบ '+r3(+ex.w.kg||0)+' กก.) — <b>ของจริงหมดยัง?</b><br>'+
-                '<button class="btn sec sm" data-fxok="'+ex.w.id+'" style="margin:6px 6px 0 0;">✓ หมดจริงแล้ว</button>'+
+                '<button class="btn sec sm" data-fxok="'+ex.w.id+'" style="margin:6px 6px 0 0;">✓ ก้อน '+esc(ex.w.seq||ex.w.lot||'')+' หมดจริงแล้ว</button>'+
                 '<button class="btn sm" data-baleweigh="'+ex.w.id+'" style="margin:6px 0 0;">⚖ ยังเหลือ — ชั่งใส่</button></div>':'')+
             '</div></div>'+
             '<div style="flex:0 0 auto; display:flex; flex-direction:column; gap:6px;">'+
-              (at?'<button class="btn sec sm" data-baleout="'+esc(f.name)+'">✓ ก้อนนี้หมดแล้ว · เปลี่ยนก้อนใหม่</button>':'')+
+              (at?'<button class="btn sec sm" data-baleout="'+esc(f.name)+'">✓ ก้อน '+esc(at.no)+' (ที่กำลังใช้) หมดแล้ว</button>':'')+
               (at?'<button class="btn sec sm" data-baleswap="'+esc(f.name)+'">⚠ เปลี่ยนก้อน (ยังไม่หมด)</button>':'')+
               (at?'<button class="btn sec sm" data-baleweigh="'+at.wdId+'">⚖ ชั่งที่เหลือจริง</button>':'')+
               '<button class="btn sm" data-wdgo="'+esc(f.name)+'">➕ เบิกก้อนใหม่</button></div></div>'+
@@ -2575,6 +2575,20 @@ window.WPDAUTH = {
           const name=b.dataset.baleout, fo=activeFeed(), at=baleAtLine(name), next=baleWaiting(name)[0];
           if(!fo){ toast('เลือกออเดอร์ที่กำลังป้อนใยก่อน'); return; }
           if(!at){ toast('ไม่มีก้อน '+name+' ที่ไลน์'); return; }
+          /* ก้อนที่เพิ่งเริ่มใช้ (ใช้ไปไม่ถึง 10%) — ส่วนมากตั้งใจบอกว่า "ก้อนเก่า" หมด ซึ่งระบบเปลี่ยนให้แล้ว */
+          const _usedNow=r3((+at.kg||0)-(+at.remaining||0)), _fresh=_usedNow < Math.max(5, 0.1*(+at.kg||0));
+          const _old=baleToConfirm(name);
+          if(_fresh && _old){
+            if(await ask('จะบอกว่า ก้อน '+(_old.w.seq||_old.w.lot||'')+' (ก้อนเก่า) หมด ใช่ไหม?',
+              'ตอนนี้ระบบใช้ก้อน '+at.no+' อยู่ (เพิ่งเริ่ม ใช้ไป '+_usedNow+' จาก '+at.kg+' กก.)\n'+
+              'ส่วนก้อน '+(_old.w.seq||_old.w.lot||'')+' ระบบนับว่าหมดไปแล้ว\n\n'+
+              'กด "ยืนยัน" = บันทึกว่าก้อน '+(_old.w.seq||_old.w.lot||'')+' หมดจริง (ก้อน '+at.no+' ใช้ต่อตามปกติ)\n'+
+              'กด "ยกเลิก" = จะบอกว่าก้อน '+at.no+' ที่เพิ่งเริ่มนี้หมด')){ await confirmBaleEmpty(_old.w.id); return; }
+          }
+          if(_fresh && !await ask('ก้อน '+at.no+' เพิ่งเริ่มใช้ — หมดจริงหรือ?',
+            'ก้อน '+at.no+' ('+name+') ใช้ไปแค่ '+_usedNow+' จาก '+at.kg+' กก.\n\n'+
+            'ถ้าจะบอกว่าก้อนก่อนหน้าหมด ไม่ต้องกดปุ่มนี้ — ระบบเปลี่ยนมาใช้ก้อน '+at.no+' ให้แล้ว\n'+
+            'กด "ยืนยัน" เฉพาะเมื่อก้อน '+at.no+' หมดจริงๆ (ส่วนที่เหลือ '+at.remaining+' กก. จะนับเป็นใช้ไปแล้ว)')) return;
           if(!await ask('ก้อน '+at.no+' ('+name+') หมดแล้ว?',
             'ระบบคำนวณตามสูตรว่าก้อนนี้ยังเหลือ '+at.remaining+' กก.\n'+
             'ถ้าหมดจริงแล้ว ส่วนนี้จะนับเป็นใยที่ใช้ไปกับงาน "'+fo.code+'" (ใช้จริงมากกว่าสูตร)\n\n'+
@@ -2674,10 +2688,20 @@ window.WPDAUTH = {
           (_past&&_oids.has(w.orderId)?'<div style="color:var(--dim);font-size:12px">'+esc((orderById(w.orderId)||{}).customer||'')+' '+esc((orderById(w.orderId)||{}).code||'')+'</div>':'')+
           '</td><td>'+esc(w.lot||'—')+(w.receiptId?'':' <span class="bdg warn">ไม่รู้ก้อน — กดแก้</span>')+'</td><td>'+w.kg+
           '</td><td>'+esc(w.note)+(w.editedAt?' <span style="color:var(--dim)">(แก้ไข)</span>':'')+
+          ((S.use||[]).some(u=>u.wdId===w.id && u.closeout && !u.reason)?' <span class="bdg warn">กดก้อนหมดแล้ว</span> <button class="btn sec sm" data-wdreopen="'+w.id+'">ยกเลิกก้อนหมด</button>':'')+
           '</td><td><button class="btn sec sm" data-wde="'+w.id+'">แก้</button> '+
           '<button class="x" data-wdd="'+w.id+'">✕</button></td></tr>').join('')
       : '<tr><td class="empty">ยังไม่มีการเบิกใยวันนี้</td></tr>';
     $('tWd').querySelectorAll('[data-wde]').forEach(b=>b.onclick=()=>openWdEdit(b.dataset.wde));
+    $('tWd').querySelectorAll('[data-wdreopen]').forEach(b=>b.onclick=async()=>{
+      const _id=b.dataset.wdreopen, _w=S.wd.find(x=>x.id===_id); if(!_w) return;
+      const _cl=(S.use||[]).filter(u=>u.wdId===_id && u.closeout && !u.reason), _kg=r3(_cl.reduce((a,u)=>a+(+u.kg||0),0));
+      if(!await ask('ยกเลิก "ก้อนหมด" ของก้อน '+(_w.seq||_w.lot||'')+'?','ก้อนจะกลับมาใช้ต่อที่ไลน์ และไม่นับ '+_kg+' กก. เป็นใยที่ใช้แล้ว\n(ใช้เมื่อกด "ก้อนหมด" ผิดก้อน — ไม่ต้องรับเข้าหรือเบิกใหม่)')) return;
+      const _ids=_cl.map(u=>u.id);
+      S.use=(S.use||[]).filter(u=>_ids.indexOf(u.id)<0);
+      (S.orders||[]).forEach(oo=>{ if(oo.lotLog) oo.lotLog=oo.lotLog.filter(x=>_ids.indexOf(x.useId)<0); });
+      await Promise.all([saveFeed(), saveOrders()]); rFeed(true); toast('ยกเลิกก้อนหมดแล้ว — ก้อน '+(_w.seq||_w.lot||'')+' กลับมาใช้ต่อ');
+    });
     $('tWd').querySelectorAll('[data-wdd]').forEach(b=>b.onclick=async()=>{
       const _id=b.dataset.wdd, _w=S.wd.find(x=>x.id===_id);
       const _uses=(S.use||[]).filter(u=>u.wdId===_id && !u.closeout), _usedKg=r3(_uses.reduce((a,u)=>a+(+u.kg||0),0));

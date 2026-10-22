@@ -2220,9 +2220,18 @@ window.WPDAUTH = {
     const dup=customLot?nos.filter(no=>S.fiberReceipts.some(r=>r.fiberName===n && String(r.lotNo)===String(no))):[];
     if(dup.length){
       const when=[...new Set(S.fiberReceipts.filter(r=>r.fiberName===n && dup.some(d=>String(d)===String(r.lotNo))).map(r=>thDate(r.time)))].join(', ');
-      if(!await ask('เบอร์ก้อน '+packNosText(dup)+' ของ '+n+' มีอยู่แล้ว','เคยรับเข้าเมื่อ '+when+'\n\nถ้าเป็นก้อนใหม่ที่เข้าคนละวัน กดยืนยันได้เลย — ระบบแยกให้ตาม "ชื่อ + เบอร์ + วันที่รับเข้า" ตอนเบิกจะเห็นวันที่รับให้เลือกถูกก้อน\n\nยืนยันจะรับเข้าเบอร์นี้หรือไม่?')) return;
+      /* ก้อนเดิม (ชื่อ เบอร์ น้ำหนักเท่ากัน) ที่เพิ่งถูกเบิกไป → มักเป็นเพราะไปกด "ก้อนหมด" ผิดที่แอพผลิต ไม่ใช่ก้อนใหม่ */
+      const _same=S.fiberReceipts.filter(r=>r.fiberName===n && dup.some(d=>String(d)===String(r.lotNo)) && kgs.some(k=>Math.abs((+r.kg||0)-k)<0.05));
+      const _recentWd=_same.some(r=>(PROD.wd||[]).some(w=>w.receiptId===r.id && String(w.time||'')>=localISO(new Date(Date.now()-3*864e5))));
+      if(_same.length && !await ask('⚠ ก้อนนี้เคยรับเข้าแล้ว — รับซ้ำหรือเปล่า?',
+        n+' เบอร์ '+packNosText(dup)+' น้ำหนักเท่ากันเป๊ะ เคยรับเข้าเมื่อ '+when+(_recentWd?' และเพิ่งเบิกไปใช้ไม่กี่วันนี้':'')+
+        '\n\nถ้าเบิกไปแล้วแต่ไม่ขึ้นในหน้าป้อนใย อย่ารับเข้าใหม่ — ไปที่แอพผลิต → ป้อนใย → รายการเบิก แล้วกด "ยกเลิกก้อนหมด" แทน'+
+        '\n\nกด "ยืนยัน" เฉพาะเมื่อเป็นก้อนใหม่จริงๆ (ของเข้ามาใหม่อีกก้อน)')) return;
+      if(!_same.length && !await ask('เบอร์ก้อน '+packNosText(dup)+' ของ '+n+' มีอยู่แล้ว','เคยรับเข้าเมื่อ '+when+'\n\nถ้าเป็นก้อนใหม่ที่เข้าคนละวัน กดยืนยันได้เลย — ระบบแยกให้ตาม "ชื่อ + เบอร์ + วันที่รับเข้า" ตอนเบิกจะเห็นวันที่รับให้เลือกถูกก้อน\n\nยืนยันจะรับเข้าเบอร์นี้หรือไม่?')) return;
     }
     const dateVal=$('rwDate').value?$('rwDate').value+'T'+localISO().slice(11):localISO();
+    if($('rwDate').value && $('rwDate').value < localISO(new Date(Date.now()-3*864e5)).slice(0,10) &&
+      !await ask('วันที่รับเข้าเป็น '+thDate($('rwDate').value)+' — ถูกไหม?','ย้อนหลังหลายวัน (ช่องวันที่อาจค้างจากครั้งก่อน)\n\nกด "ยืนยัน" ถ้าของเข้าวันนั้นจริง · กด "ยกเลิก" แล้วแก้วันที่ให้เป็นวันนี้')) return;
     const _w=new Set();
     const _ref=lastOf(S.fiberReceipts,r=>r.fiberName===n,'kg');
     nos.forEach((no,i)=>{ const k=kgs[i], pre=multi?'ก้อน #'+no+' ':'';

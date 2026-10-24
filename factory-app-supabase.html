@@ -5057,11 +5057,28 @@ window.WPDAUTH = {
     const keys=[...new Set((S.bagWd||[]).filter(w=>!w.auto).map(w=>w.kind+'\u0000'+w.name))];
     const rows=[];
     keys.forEach(k=>{ const [kind,name]=k.split('\u0000'); sackQueue(kind,name).filter(lineHasBag).forEach((x,i)=>rows.push({kind,name,x,inUse:i===0})); });
-    t.innerHTML=rows.length?'<tr><th>ถุง</th><th>กระสอบ</th><th>เหลือ</th><th>เบิกมาเมื่อ</th></tr>'+
+    t.innerHTML=rows.length?'<tr><th>ถุง</th><th>กระสอบ</th><th>เหลือ</th><th>เบิกมาเมื่อ</th><th></th></tr>'+
       rows.map(r=>'<tr><td>'+(r.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+' '+esc(r.name)+'</td><td>#'+esc(r.x.sackNo)+(r.inUse?' <span class="bdg ok">กำลังใช้</span>':' <span class="bdg warn">รอคิว</span>')+'</td>'+
         '<td><b>'+(r.x.weightPerBag>0?(r.x.wEst?'≈ ':'')+piecesOf(r.x.remaining,r.x.weightPerBag):'?')+'</b> ใบ <span style="color:var(--dim)">('+r.x.remaining+' กก.)</span>'+
-        (r.x.wEst?'<br><span class="bdg warn">ยังไม่ได้ใส่น้ำหนัก/ใบ ในแอพสต๊อก'+(r.x.weightPerBag>0?' — คิดจาก '+r.x.weightPerBag+' กก./ใบ':'')+'</span>':'')+'</td><td>'+thDate(r.x.time)+'</td></tr>').join('')
+        (r.x.wEst?'<br><span class="bdg warn">ยังไม่ได้ใส่น้ำหนัก/ใบ ในแอพสต๊อก'+(r.x.weightPerBag>0?' — คิดจาก '+r.x.weightPerBag+' กก./ใบ':'')+'</span>':'')+'</td><td>'+thDate(r.x.time)+'</td><td>'+(r.inUse?'<button class="btn sec sm" data-bagout="'+esc(r.x.bwId)+'" style="white-space:nowrap;margin:0">✓ หมดแล้ว</button>':'')+'</td></tr>').join('')
       :'<tr><td class="empty">ไม่มีถุงค้างที่ไลน์</td></tr>';
+    /* กระสอบหมดจริง แต่ระบบยังเหลือ → นับที่เหลือเป็นถุงที่ใช้ไปกับงานที่ทำอยู่ (ถุงขาด/ใบเบากว่าที่คิด) แล้วใช้กระสอบถัดไป */
+    t.querySelectorAll('[data-bagout]').forEach(b=>b.onclick=async()=>{
+      const r=rows.find(x=>x.x.bwId===b.dataset.bagout); if(!r) return;
+      const x=r.x, pcs=x.weightPerBag>0?piecesOf(x.remaining,x.weightPerBag):0, next=rows.find(y=>y.kind===r.kind && y.name===r.name && !y.inUse);
+      const lastUse=(S.bagUse||[]).filter(u=>u.bwId===x.bwId).slice(-1)[0];
+      const o=active() || (lastUse&&S.orders.find(y=>y.id===lastUse.orderId)) || null;
+      if(!o){ toast('ยังไม่มีออเดอร์ที่กำลังทำ'); return; }
+      const fresh=(+x.used||0) < 0.1*(+x.kg||0);
+      if(!await ask('กระสอบ #'+x.sackNo+' หมดแล้ว?',
+        (fresh?'⚠ เพิ่งเริ่มใช้ (ใช้ไป '+r3(+x.used||0)+' จาก '+x.kg+' กก.)\n':'')+
+        'ระบบคิดว่ายังเหลือ '+(pcs?pcs+' ใบ ':'')+'('+x.remaining+' กก.)\nจะนับเป็นถุงที่ใช้ไปกับงาน "'+o.code+'"'+(next?'\n→ ใช้กระสอบ #'+next.x.sackNo+' ต่อ':''),
+        { yes:'หมดแล้ว', no:'ยกเลิก', tone:'danger' })) return;
+      S.bagUse.push({ by:opBy(), id:uid(), time:localISO(), orderId:o.id, lineId:null, kind:r.kind, name:r.name, bwId:x.bwId, sackNo:String(x.sackNo),
+        pieces:pcs, kg:r3(x.remaining), closeout:true });
+      await saveFeed(); refreshBwSelects();
+      toast('ปิดกระสอบ #'+x.sackNo+' แล้ว'+(pcs?' (นับเพิ่ม '+pcs+' ใบ)':'')+(next?' — ใช้กระสอบ #'+next.x.sackNo+' ต่อ':' — เบิกกระสอบใหม่ได้เลย'));
+    });
   }
   function refreshBwSelects(){
     renderBagAtLine(); renderBagStat(active());   /* เบิก/ลบ/แก้ถุงแล้ว กล่องสถานะถุงอัปเดตทันที */
@@ -5075,9 +5092,17 @@ window.WPDAUTH = {
     const hist=S.bagWd.slice().reverse().slice(0,30);
     $('tBagWdHist').innerHTML=hist.length?'<tr><th>เวลา</th><th>ประเภท</th><th>ชื่อ</th><th>กก.</th><th>หยิบจากกระสอบ</th><th></th></tr>'+
       hist.map(w=>'<tr><td>'+(w.time||'').slice(0,16).replace('T',' ')+'</td><td>'+(w.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+'</td><td>'+esc(w.name)+'</td><td>'+w.kg+
-        '</td><td>'+(w.picks||[]).map(p=>'#'+p.sackNo+':'+(p.kg!=null?p.kg:p.take)+' กก.').join(', ')+'</td><td style="white-space:nowrap"><button class="btn sec sm" data-bwe="'+w.id+'">แก้</button> <button class="x" data-bwd="'+w.id+'">✕</button></td></tr>').join('')
+        '</td><td>'+(w.picks||[]).map(p=>'#'+p.sackNo+':'+(p.kg!=null?p.kg:p.take)+' กก.').join(', ')+
+        ((S.bagUse||[]).some(u=>u.bwId===w.id && u.closeout)?' <span class="bdg warn">กดหมดแล้ว</span> <button class="btn sec sm" data-bwreopen="'+w.id+'">ยกเลิกหมด</button>':'')+'</td><td style="white-space:nowrap"><button class="btn sec sm" data-bwe="'+w.id+'">แก้</button> <button class="x" data-bwd="'+w.id+'">✕</button></td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีการเบิก</td></tr>';
     $('tBagWdHist').querySelectorAll('[data-bwe]').forEach(b=>b.onclick=()=>openBwEdit(b.dataset.bwe));
+    $('tBagWdHist').querySelectorAll('[data-bwreopen]').forEach(b=>b.onclick=async()=>{
+      const id=b.dataset.bwreopen, w=S.bagWd.find(x=>x.id===id); if(!w) return;
+      const no=((w.picks||[])[0]||{}).sackNo||'';
+      if(!await ask('กระสอบ #'+no+' ยังไม่หมด?', 'กระสอบกลับมาใช้ต่อที่ไลน์', { yes:'ใช้ต่อ', no:'ไม่ใช่', tone:'ok' })) return;
+      S.bagUse=(S.bagUse||[]).filter(u=>!(u.bwId===id && u.closeout));
+      await saveFeed(); refreshBwSelects(); toast('ยกเลิกแล้ว — กระสอบ #'+no+' กลับมาใช้ต่อ');
+    });
     $('tBagWdHist').querySelectorAll('[data-bwd]').forEach(b=>b.onclick=async()=>{
       const _pcs=(S.bagUse||[]).filter(u=>u.bwId===b.dataset.bwd).reduce((a,u)=>a+(+u.pieces||0),0);
       if(_pcs>0){ await info('ลบไม่ได้ — ใช้ถุงจากรายการนี้ไปแล้ว','แพ็คไปแล้ว '+_pcs+' ใบจากรายการเบิกนี้\n\nถ้าเบิกผิดชนิดถุง/ผิดกระสอบ/น้ำหนักผิด ให้กด "แก้" แทน แพ็คที่ใช้ไปแล้วจะเปลี่ยนตามให้'); return; }

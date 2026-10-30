@@ -630,7 +630,7 @@
       </div>
       <div class="card" id="cardWd">
         <h3>เบิกใย — ยกก้อนใหม่มาที่ไลน์</h3>
-        <p class="sumline" style="margin-top:-4px;">หยิบก้อนไหนก็ได้ ขอให้ชื่อใยตรงกับสูตร แล้วกรอกเบอร์ที่เขียนบนก้อนนั้น<br>
+        <p class="sumline" style="margin-top:-4px;">หยิบก้อนไหนก็ได้ ขอให้ชื่อใยตรงกับสูตร แล้วเลือกก้อนให้ตรงเบอร์บนป้าย — เบอร์กับน้ำหนักขึ้นเอง<br>
         <span style="color:var(--muted)">ก้อนที่ใช้อยู่หมดเมื่อไหร่ ก้อนที่เบิกรอไว้จะมาแทนที่ให้เอง</span></p>
         <div class="sumline" id="wdDupWarn" style="margin-bottom:6px;"></div>
         <label>🔎 ค้นหาเบอร์ก้อน — พิมพ์เลขบนป้ายก้อน แล้วแตะก้อนที่ตรง</label>
@@ -640,14 +640,14 @@
         </div>
         <div id="wdFindRes" style="margin:6px 0 10px"></div>
         <div class="rf">
-          <div><label>เบอร์ก้อนที่หยิบมา</label><input id="wdSeq" inputmode="text" placeholder="เลขที่เขียนบนก้อน"></div>
+          <div><label>เบอร์ก้อน (จากก้อนที่เลือก)</label><input id="wdSeq" readonly tabindex="-1" placeholder="เลือกก้อนด้านล่าง" style="background:var(--w-chip);font-weight:600"></div>
           <div><label>ชื่อใย</label><select id="wdSel"></select>
             <input id="wdName" list="dlFiber" placeholder="พิมพ์ชื่อใย" style="display:none;"><datalist id="dlFiber"></datalist></div>
         </div>
         <div id="wdWarn" class="sumline"></div>
         <div class="rf">
           <div><label>ก้อนไหนในสต๊อก (เลือกให้ตรงกับเบอร์ที่หยิบมา)</label><select id="wdLot"><option value="">— เลือกใยก่อน —</option></select></div>
-          <div><label>น้ำหนักก้อนนี้ (กก.)</label><input id="wdKg" type="number" inputmode="decimal" step="0.01" placeholder="เลือกก้อนแล้วเติมให้อัตโนมัติ"></div>
+          <div><label>น้ำหนักก้อนนี้ (กก. จากแอพสต๊อก)</label><input id="wdKg" type="number" readonly tabindex="-1" placeholder="เลือกก้อนแล้วขึ้นเอง" style="background:var(--w-chip);font-weight:600"></div>
         </div>
         <div class="sumline" id="wdLotHint"></div>
         <label>หมายเหตุ</label>
@@ -2512,12 +2512,17 @@ window.WPDAUTH = {
     if(feedSel){
       const openOrders=S.orders.filter(x=>x.status!=='done');
       const keep=feedSel.value;
-      feedSel.innerHTML=sideOptions(openOrders, x=>esc(x.customer)+' — '+esc(x.code)+(x.id===S.activeId?' (ท้ายไลน์กำลังทำอยู่)':''));
+      /* ออเดอร์ชื่อซ้ำ (ลูกค้า+รหัสเดียวกัน) → ใส่วันที่สร้างให้แยกออก (29 ต.ค. ป้อนใยเข้าใบเก่า ท้ายไลน์แพ็คใบใหม่) */
+      const _same=x=>openOrders.filter(y=>y.code===x.code && y.customer===x.customer).length>1;
+      feedSel.innerHTML=sideOptions(openOrders, x=>esc(x.customer)+' — '+esc(x.code)+(_same(x)?' · สร้าง '+thDate(x.createdAt||x.startedAt):'')+(x.id===S.activeId?' (ท้ายไลน์กำลังทำอยู่)':''));
       const wantId = S.activeFeedId||S.activeId;
       if(openOrders.some(x=>x.id===wantId)) feedSel.value=wantId;
       else if(openOrders.some(x=>x.id===keep)) feedSel.value=keep;
       const note=$('feedOrderNote');
-      if(note){
+      const _fo=orderById(S.activeFeedId), _lo=orderById(S.activeId);
+      if(note && _fo && _lo && _fo.id!==_lo.id && _fo.code===_lo.code)
+        note.innerHTML='<span class="bdg" style="background:var(--w-red,#cf3e45);color:#fff">⚠ ป้อนใยคนละใบกับท้ายไลน์ (ชื่อเดียวกัน) — เลือกใบที่ "ท้ายไลน์กำลังทำอยู่"</span>';
+      else if(note){
         note.innerHTML = (S.activeFeedId && S.activeFeedId!==S.activeId)
           ? '<span class="bdg warn">กำลังป้อนใยล่วงหน้าให้ออเดอร์ใหม่ — ท้ายไลน์ยังทำออเดอร์เดิมอยู่ พอกด "จบงาน" ท้ายไลน์จะสลับมาที่ออเดอร์นี้ให้เอง</span>'
           : 'ค่าเริ่มต้น = ออเดอร์เดียวกับท้ายไลน์ เปลี่ยนได้ล่วงหน้าถ้าจะขึ้นงานใหม่ก่อนออเดอร์เดิมจบ';
@@ -2542,9 +2547,9 @@ window.WPDAUTH = {
     if($('wdDupWarn')){
       if($('baleSideTag')) $('baleSideTag').textContent = o ? SIDE_TH[fiberSide(o)] : '';
       const need=(o?(o.fibers||[]):[]).filter(f=>f.name&&(+f.kg||0)>0&&!baleAtLine(f.name)).map(f=>f.name);
-      $('wdDupWarn').innerHTML = need.length
+      $('wdDupWarn').innerHTML = (need.length
         ? '<span class="bdg bad">ยังไม่มีก้อนที่ไลน์: '+need.map(esc).join(', ')+' — เบิกก่อนถึงจะป้อนใยได้</span>'
-        : '';
+        : '')+waitBanner(o);
     }
     /* การ์ดก้อนใยที่กำลังใช้ */
     if($('baleList')){
@@ -2553,7 +2558,7 @@ window.WPDAUTH = {
       if(!o || !(o.fibers||[]).length){
         bl.innerHTML='<div class="empty">ยังไม่ได้ตั้งสูตร — ตั้งที่การ์ดล่างสุดก่อน</div>';
       } else {
-        bl.innerHTML=o.fibers.filter(f=>f.name).map(f=>{
+        bl.innerHTML=waitBanner(o)+o.fibers.filter(f=>f.name).map(f=>{
           const at=baleAtLine(f.name), wait=baleWaiting(f.name), ex=baleToConfirm(f.name);
           const stock=fiberRemainTotal(f.name);
           const rounds=(at&&(+f.kg||0)>0)?Math.floor((lineTotal(f.name))/(+f.kg))
@@ -2565,10 +2570,11 @@ window.WPDAUTH = {
                 ? '<span style="background:var(--w-tint-ok);color:var(--green);font-weight:600;padding:1px 9px;border-radius:99px;white-space:nowrap">● กำลังใช้ ก้อน '+esc(at.no)+'</span> ('+at.kg+' กก.'+(at.rdate?' · รับ '+thDate(at.rdate):'')+') — เหลือ '+
                   '<b style="color:'+(at.remaining<=0?'var(--red)':'var(--accent2)')+'">'+at.remaining+' กก.</b>'
                 : '<span class="bdg bad">ยังไม่มีก้อนที่ไลน์ — กดเบิกใยก่อน</span>')+
-              '<br>'+(wait.length
-                ? 'เบิกรอไว้อีก <b style="color:var(--accent2)">'+wait.length+' ก้อน</b> — '+wait.map(b=>'#'+esc(b.no)+' ('+b.remaining+' กก.'+(b.rdate?' · รับ '+thDate(b.rdate):'')+')').join(', ')
-                : '<span style="color:var(--yellow)">ไม่มีก้อนสำรองรอไว้ — ก้อนนี้หมดแล้วต้องเบิกใหม่</span>')+
-              (rounds>0?' · ใยที่ไลน์พอทำอีกราว <b>'+rounds+' รอบ</b>':'')+
+              /* ก้อนที่เบิกรอไว้ = ป้ายสีฟ้าตัวใหญ่ (เดิมเป็นตัวหนังสือในบรรทัด คนป้อนใยไม่ค่อยเห็น เลยเบิกซ้ำ) */
+              '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:7px 0 3px">'+(wait.length
+                ? wait.map(waitChip).join('')
+                : '<span style="background:var(--w-tint-warn);color:var(--w-warn-text);font-weight:600;padding:3px 11px;border-radius:99px;white-space:nowrap">ไม่มีก้อนรอ — ก้อนนี้หมดต้องเบิกใหม่</span>')+'</div>'+
+              (rounds>0?'ใยที่ไลน์พอทำอีกราว <b>'+rounds+' รอบ</b>':'')+
               '<br><span style="color:var(--dim)">ในสต๊อกยังมี '+stock+' กก.</span>'+
               (ex?'<div style="margin-top:6px;padding:7px 10px;border:1px dashed var(--yellow);border-radius:10px;">❓ <b>ก้อน '+esc(ex.w.seq||ex.w.lot||'')+'</b> หมดในระบบแล้วตั้งแต่ '+thDate(ex.at)+' '+hhmm(ex.at).slice(0,5)+
                 ' (หักตามสูตรครบ '+r3(+ex.w.kg||0)+' กก.) — <b>ของจริงหมดยัง?</b><br>'+
@@ -2579,7 +2585,9 @@ window.WPDAUTH = {
               (at?'<button class="btn sec sm" data-baleout="'+esc(f.name)+'">✓ ก้อน '+esc(at.no)+' (ที่กำลังใช้) หมดแล้ว</button>':'')+
               (at?'<button class="btn sec sm" data-baleswap="'+esc(f.name)+'">⚠ เปลี่ยนก้อน (ยังไม่หมด)</button>':'')+
               (at?'<button class="btn sec sm" data-baleweigh="'+at.wdId+'">⚖ ชั่งที่เหลือจริง</button>':'')+
-              '<button class="btn sm" data-wdgo="'+esc(f.name)+'">➕ เบิกก้อนใหม่</button></div></div>'+
+              (wait.length
+                ? '<button class="btn sec sm" data-wdgo="'+esc(f.name)+'">➕ เบิกเพิ่ม (มีรอแล้ว '+wait.length+' ก้อน)</button>'
+                : '<button class="btn sm" data-wdgo="'+esc(f.name)+'">➕ เบิกก้อนใหม่</button>')+'</div></div>'+
             /* ก้อนที่พักไว้ข้างไลน์ */
             (S.wd||[]).filter(w=>w.hold && w.fiberName===f.name).map(w=>{ const left=r3((+w.kg||0)-baleUsed(w.id));
               return '<div class="sumline" style="margin-top:6px;padding:7px 10px;border:1px dashed var(--yellow);border-radius:10px;">⏸ พักไว้ข้างไลน์: <b>ก้อน '+esc(w.seq||w.lot||'')+'</b> เหลือ <b>'+left+' กก.</b>'+
@@ -2780,7 +2788,11 @@ window.WPDAUTH = {
   }
 
   if($('feedOrderSel')) $('feedOrderSel').onchange=async function(){
-    S.activeFeedId = this.value || null;
+    const _pick=orderById(this.value), _lo=orderById(S.activeId);
+    if(_pick && _lo && _pick.id!==_lo.id && _pick.code===_lo.code && _pick.customer===_lo.customer &&
+       !await ask('⚠ เลือกใบเก่าหรือเปล่า?', 'ท้ายไลน์ใช้ใบที่สร้าง '+thDate(_lo.createdAt||_lo.startedAt)+'\nใบนี้สร้าง '+thDate(_pick.createdAt||_pick.startedAt),
+         { yes:'ใช้ใบนี้จริง', no:'ใช้ใบเดียวกับท้ายไลน์', tone:'ok' })){ this.value=_lo.id; }
+    S.activeFeedId = (this.value && this.value!==S.activeId) ? this.value : null;
     await saveOrders();
     rFeed(true);
     toast(S.activeFeedId && S.activeFeedId!==S.activeId ? 'ป้อนใยเปลี่ยนไปออเดอร์ใหม่แล้ว — ท้ายไลน์ยังทำออเดอร์เดิมอยู่' : 'ป้อนใยกลับมาที่ออเดอร์เดียวกับท้ายไลน์แล้ว');
@@ -2912,6 +2924,7 @@ window.WPDAUTH = {
   }
   function populateWdLotOptions(fiberName){
     const sel=$('wdLot'), hint=$('wdLotHint'); if(!sel) return;
+    const _keep=sel.value;
     const lots=(fiberName && STOCKFIBER[fiberName]) ? STOCKFIBER[fiberName] : [];
     if(!fiberName){
       sel.innerHTML='<option value="">— เลือกใยก่อน —</option>'; sel.disabled=true;
@@ -2937,6 +2950,9 @@ window.WPDAUTH = {
         /* เลือกตามรายการรับเข้า (ชื่อ + เบอร์ + วันที่รับ) — เบอร์ซ้ำที่รับคนละวันเลือกแยกกันได้ */
         return '<option value="'+esc(l.id||l.lotNo)+'">เบอร์ '+esc(l.lotNo)+' · รับ '+(l.time?thDate(l.time):'—')+' · '+l.kg+' กก. · เหลือ '+rem+' กก.</option>';
       }).join('');
+    /* วาดรายการใหม่ (เช่นดึงก้อนล่าสุด) — ก้อนที่เลือกไว้ยังอยู่ก็คงไว้ ไม่งั้นล้างเบอร์/น้ำหนักที่ค้าง */
+    if(_keep && [...sel.options].some(op=>op.value===_keep)){ sel.value=_keep; if(sel.onchange) sel.onchange(); }
+    else { if($('wdSeq')) $('wdSeq').value=''; if($('wdKg')) $('wdKg').value=''; }
     if(hint) hint.textContent='';
     updateWdLotRemainHint();
   }
@@ -3038,9 +3054,10 @@ window.WPDAUTH = {
       const name=($('wdName')?$('wdName').value.trim():'');
       /* ตัวเลือกคือรายการรับเข้า (รหัส) — เบอร์ก้อนที่เติมให้คือเบอร์บนก้อน */
       const _ls=fiberLotsNow(name), row=_ls.find(l=>String(l.id)===String(lot))||_ls.find(l=>String(l.lot)===String(lot));
-      if($('wdSeq') && !$('wdSeq').value.trim()) $('wdSeq').value=String(row?row.lot:lot);
-      if(row && $('wdKg') && !$('wdKg').value) $('wdKg').value=row.remaining;
-    }
+      /* เปลี่ยนก้อนที่เลือก = เปลี่ยนเบอร์/น้ำหนักตามทุกครั้ง (เดิมเติมเฉพาะตอนช่องว่าง เลยค้างค่าก้อนก่อนหน้า) */
+      if($('wdSeq')) $('wdSeq').value=row?String(row.lot):'';
+      if($('wdKg')) $('wdKg').value=row?row.remaining:'';
+    } else { if($('wdSeq')) $('wdSeq').value=''; if($('wdKg')) $('wdKg').value=''; }
     updateWdLotRemainHint();
   };
   $('wdKg').oninput=updateWdLotRemainHint;
@@ -3048,29 +3065,40 @@ window.WPDAUTH = {
 
   $('btnWd').onclick=async()=>{
     const o=activeFeed(); if(!o){ toast('เลือกออเดอร์ก่อน'); return; }
-    const n=$('wdName').value.trim(), kg=+$('wdKg').value, bale=$('wdSeq').value.trim();
-    if(!n||!kg){ toast('กรอกชื่อใยและน้ำหนัก'); return; }
-    if(!bale){ toast('กรอกหมายเลขก้อนด้วย'); return; }
+    const n=$('wdName').value.trim();
+    if(!n){ toast('เลือกชื่อใยก่อน'); return; }
+    /* เบอร์ก้อน + น้ำหนัก มาจากก้อนที่เลือกในแอพสต๊อกเท่านั้น ไม่ให้พิมพ์เอง
+       (24 ต.ค. พิมพ์น้ำหนักสลับกัน 2 ก้อน: LM #4 280 ↔ 15D64HC #3 254.3) */
     const _pick=$('wdLot').value;
     const _rcpt=(STOCKFIBER[n]||[]).find(l=>String(l.id)===String(_pick))||(STOCKFIBER[n]||[]).find(l=>String(l.lotNo)===String(_pick));
-    const lot=_rcpt?String(_rcpt.lotNo):_pick;
-    if(!lot){ toast('เลือกลอตที่เบิกจากรายการ — ถ้ายังไม่มีให้ไปรับเข้าใยที่แอพสต๊อกก่อน'); return; }
-    if(_rcpt){
-      const _rem=lotRemaining(n,_rcpt.lotNo,+_rcpt.kg||0,_rcpt.id);
-      if(_rem<=0.05){ await info('ก้อนนี้เบิกไปหมดแล้ว','ก้อนเบอร์ '+_rcpt.lotNo+' ของ '+n+' เบิกไปครบแล้ว — ดูเบอร์บนป้ายก้อนที่หยิบมาอีกครั้ง แล้วเลือกให้ตรง'); return; }
-      if(kg>_rem+1 && !await ask('น้ำหนักเกินที่ก้อนนี้เหลือ — เลือกเบอร์ก้อนผิดหรือเปล่า?',
-        'ก้อนเบอร์ '+_rcpt.lotNo+' ของ '+n+' เหลือในระบบ '+_rem+' กก. แต่จะเบิก '+kg+' กก.\n\nดูเบอร์บนป้ายก้อนจริงอีกครั้ง — ถ้าเบอร์ถูกและชั่งได้จริงเท่านี้ กดยืนยัน')) return;
+    if(!_rcpt){ toast('เลือกก้อนจากรายการ — ถ้าไม่มี ต้องรับเข้าที่แอพสต๊อกก่อน'); return; }
+    const lot=String(_rcpt.lotNo), bale=lot;
+    const kg=lotRemaining(n,_rcpt.lotNo,+_rcpt.kg||0,_rcpt.id);
+    if(kg<=0.05){ await info('ก้อนนี้เบิกไปหมดแล้ว','ก้อนเบอร์ '+_rcpt.lotNo+' ของ '+n+' เบิกไปครบแล้ว — ดูเบอร์บนป้ายก้อนที่หยิบมาอีกครั้ง แล้วเลือกให้ตรง'); return; }
+    /* กันเบิกซ้ำ (ต.ค. เคยเบิก LM #3 สองรอบ 700 กก. จากก้อน 350 · 7D64HCS #17 ซ้ำ แล้วต้องกดหมดทิ้ง)
+       1) ก้อนเบอร์เดียวกันยังอยู่ที่ไลน์ → ต้องเป็นอีกก้อนจริง (รับเข้าคนละวัน) ถึงจะเบิกได้ */
+    const _atLine=baleQueue(n, fiberSide(o)).filter(b=>b.remaining>0.05 && String(b.lot||b.no)===lot);
+    if(_atLine.length){
+      const _b=_atLine[0];
+      if(_b.receiptId && _b.receiptId===_rcpt.id){ await info('⚠ '+n+' ก้อน '+lot+' อยู่ที่ไลน์แล้ว', 'เบิกไปเมื่อ '+thDate(_b.time)+' ยังเหลือ '+_b.remaining+' กก.\nไม่ต้องเบิกซ้ำ'); return; }
+      if(!await ask('⚠ '+n+' ก้อน '+lot+' อยู่ที่ไลน์แล้ว', 'ที่ไลน์: รับเข้า '+(_b.rdate?thDate(_b.rdate):'—')+' เหลือ '+_b.remaining+' กก.\nที่จะเบิก: รับเข้า '+(_rcpt.time?thDate(_rcpt.time):'—')+'\nเป็นอีกก้อนจริงไหม?',
+        { yes:'อีกก้อนจริง', no:'ยกเลิก', tone:'ok' })) return;
     }
-    if(S.wd.some(w=>w.orderId===o.id&&String(w.seq)===bale&&w.fiberName===n)){
-      if(!await ask('หมายเลขก้อนซ้ำ','ก้อน "'+bale+'" ของ '+n+' เคยบันทึกไปแล้วในออเดอร์นี้\n\nยืนยันจะบันทึกซ้ำหรือไม่?')) return;
-    }
+    /* 1b) ใยนี้มีก้อนเบิกรอไว้ที่ไลน์แล้ว → ถามก่อนเบิกเพิ่ม (คนป้อนใยมักไม่เห็นก้อนที่รอ) */
+    const _wait=baleWaiting(n, fiberSide(o));
+    if(_wait.length && !await ask('⚠ '+n+' มีก้อนรอที่ไลน์แล้ว', _wait.map(b=>'ก้อน '+b.no+' · '+b.remaining+' กก.').join('\n')+'\nเบิกเพิ่มอีกจริงไหม?',
+      { yes:'เบิกเพิ่มจริง', no:'ไม่เบิก', tone:'ok' })) return;
+    /* 2) ก้อนนี้เคยเบิกไปบางส่วนแล้ว (เช่นยกมาตอนเริ่มใช้ระบบ) → ที่เหลือในระบบมักไม่มีของจริง ถามก่อน */
+    const _prev=S.wd.filter(w=>w.receiptId===_rcpt.id);
+    if(_prev.length && !await ask('⚠ '+n+' ก้อน '+lot+' เคยเบิกไปแล้ว', 'เบิกเมื่อ '+_prev.map(w=>thDate(w.time)+' ('+w.kg+' กก.)').join(', ')+'\nระบบว่ายังเหลือ '+kg+' กก. — มีของจริงอยู่ไหม?',
+      { yes:'มีจริง เบิก '+kg+' กก.', no:'ยกเลิก', tone:'ok' })) return;
     if(!inRecipe(o,n)){
       if(!await ask('ใยไม่ตรงกับสูตร',
         '"'+n+'" ไม่อยู่ในสูตรของ '+o.customer+'\nสูตรคือ '+(o.fibers.length?o.fibers.map(f=>f.name).join(', '):'ยังไม่ได้ตั้ง')+
         '\n\nยืนยันจะบันทึกการเบิกนี้หรือไม่?')) return;
     }
     S.wd.push({ by:opBy(), id:uid(), time:localISO(), orderId:o.id, side:fiberSide(o),   /* เบิกไปฝั่งไหน (หมอน / ใยแผ่น) */
-      seq:$('wdSeq').value.trim(),
+      seq:bale,
       fiberName:n, lot:lot, receiptId:_rcpt?_rcpt.id:null, lotDate:_rcpt?_rcpt.time:null, kg:kg, note:$('wdNote').value.trim(),
       offRecipe:!inRecipe(o,n) });
     const backKg=settlePendingFiber(n);
@@ -4289,6 +4317,19 @@ window.WPDAUTH = {
     const ls=STOCKFIBER[w.fiberName]||[];
     const r=(w.receiptId&&ls.find(l=>l.id===w.receiptId))||ls.filter(l=>String(l.lotNo)===String(w.lot)).pop();
     return r?r.time:null;
+  }
+  /* ก้อนที่เบิกรอไว้ที่ไลน์ — ป้ายสีฟ้า + กรอบสรุปบนสุด ให้เห็นก่อนกดเบิกเพิ่ม */
+  function waitChip(b){
+    return '<span style="background:rgba(37,99,235,.13);color:var(--w-blue,#2563eb);border:1.5px solid var(--w-blue,#2563eb);font-weight:700;font-size:14px;padding:3px 11px;border-radius:99px;white-space:nowrap">⏳ รอคิว ก้อน '+esc(b.no)+' · '+b.remaining+' กก.</span>';
+  }
+  function waitBanner(o){
+    if(!o) return '';
+    const names=[...new Set((o.fibers||[]).map(f=>f.name).filter(Boolean))];
+    const rows=names.map(n=>({ n, w:baleWaiting(n, fiberSide(o)) })).filter(x=>x.w.length);
+    if(!rows.length) return '';
+    return '<div style="margin:4px 0 10px;padding:10px 12px;border:2px solid var(--w-blue,#2563eb);border-radius:12px;background:rgba(37,99,235,.07)">'+
+      '<div style="font-weight:700;color:var(--w-blue,#2563eb);font-size:15px;margin-bottom:6px">⏳ มีใยเบิกรอที่ไลน์แล้ว — ใช้ก้อนนี้ก่อน ไม่ต้องเบิกเพิ่ม</div>'+
+      rows.map(x=>'<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px"><b style="min-width:84px">'+esc(x.n)+'</b>'+x.w.map(waitChip).join('')+'</div>').join('')+'</div>';
   }
   function baleAtLine(fiberName, side){
     return baleQueue(fiberName, side).find(b=>b.remaining>0.0000001)||null;
@@ -5943,13 +5984,14 @@ window.WPDAUTH = {
 /* เลขหมายทุกตัว (ถุง ม้วน กระสอบ ก้อน) แสดงเป็นเลขในวงกลม — ทำตอนแสดงผล ข้อมูลที่บันทึกยังเป็นตัวเลขเดิม
    ในช่องเลือก (dropdown) ใส่ HTML ไม่ได้ ใช้ตัวอักษรวงกลม ①–㊿ แทน (เกิน 50 คงเป็น #เลข) */
 (function(){
-  var RX=/(#|ม้วนที่ ?|เบอร์ ?|ก้อนที่ ?)(\d{1,4})(?:-(\d{1,4}))?/g;
+  /* + "ก้อน 6" (เลขก้อนใย) — ถ้าตามด้วยทศนิยม/กก. คือน้ำหนัก ไม่ใช่เลขก้อน */
+  var RX=/(#|ม้วนที่ ?|เบอร์ ?|ก้อนที่ ?|ก้อน ?)(\d{1,4})(?:-(\d{1,4}))?(?![\d.,]|\s*กก)/g;
   var SKIP={SCRIPT:1,STYLE:1,TEXTAREA:1,INPUT:1,SELECT:1,OPTION:1,OPTGROUP:1,NOSCRIPT:1};
   function uc(n){ n=+n; if(n>=1&&n<=20) return String.fromCharCode(0x245F+n); if(n>=21&&n<=35) return String.fromCharCode(0x3250+n-20); if(n>=36&&n<=50) return String.fromCharCode(0x32B0+n-35); return null; }
   function optText(t){ return t.replace(RX,function(m,p,a,b){ var x=uc(a), y=b!=null?uc(b):''; if(!x||y===null) return m; return (p==='#'?'':p)+x+(b!=null?'-'+y:''); }); }
   function span(n){ var s=document.createElement('span'); s.className='numc'; s.textContent=n; return s; }
   function doText(tn){
-    var t=tn.nodeValue; if(!t || t.indexOf('#')<0 && !/ม้วนที่|เบอร์|ก้อนที่/.test(t)) return;
+    var t=tn.nodeValue; if(!t || t.indexOf('#')<0 && !/ม้วนที่|เบอร์|ก้อน/.test(t)) return;
     RX.lastIndex=0; if(!RX.test(t)) return; RX.lastIndex=0;
     var frag=document.createDocumentFragment(), last=0, m;
     while((m=RX.exec(t))){

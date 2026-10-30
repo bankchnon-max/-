@@ -1313,6 +1313,33 @@ window.WPDAUTH = {
       if(!cyc) return { baht:0, src:'noCycles', per };
       return { baht:r4(per/cyc), src:'std', per, cycles:cyc };
     },
+    /* ราคาปลอกโดยประมาณ (บาท/ใบ) ของหมอนที่ไม่มีบันทึกใช้ปลอก:
+       ราคาปลอกตามไซซ์ที่ตั้งไว้ → เฉลี่ยถุงผ้าที่ตัด (ชนิดผ้า + ไซซ์เดียวกัน) 10 ถุงล่าสุด → ไซซ์เดียวกันผ้าชนิดไหนก็ได้ */
+    caseEstPerPiece(PRICE, S, o){
+      const sp=(o&&o.spec)||{}, type=sp.fabricType||'', size=COST.pillowSize(o);
+      const zp=+((((PRICE||{}).fabric||{})[type]||{}).sizes||{})[size]||0;
+      if(zp>0) return { baht:zp, src:'casesize', type:type, size:size };
+      const bs=((S||{}).cutBatches||[]).filter(b=>COST.sizeKey(b.sizeFinished||b.size)===size).sort((a,b)=>String(b.time||'').localeCompare(String(a.time||'')));
+      const avg=list=>{ const v=[]; for(const b of list){ const c=COST.fabricBahtPerPiece(PRICE,S.cutBatches,b.id,S.fabricReceipts); if(c.baht>0) v.push(c.baht); if(v.length>=10) break; } return v.length ? r4(v.reduce((a,x)=>a+x,0)/v.length) : 0; };
+      let b=avg(bs.filter(x=>x.fabricType===type)), how='est';
+      if(!b){ b=avg(bs); how='estSize'; }
+      return b ? { baht:b, src:how, type:type, size:size } : { baht:0, src:'none', type:type, size:size };
+    },
+    /* หมอน: ถุงที่ควรใช้ตามสเปค เทียบกับที่บันทึกใช้จริง → ส่วนที่ขาด [{kind,name,n}]
+       (กระสอบที่ไลน์หมดในระบบ / ไม่ได้เบิกกระสอบ / ปิดหักถุงอัตโนมัติ — ใช้ถุงจริงแต่ไม่มีบันทึก) */
+    bagShort(S, PRICE, o, packs, uses){
+      const sp=(o&&o.spec)||{}, out=[];
+      if(!packs || (o.productType||'')!=='หมอน') return out;
+      const got=name=>(uses||[]).filter(u=>u.name===name).reduce((a,u)=>a+(+u.pieces||0),0);
+      const zipKind=name=>(((PRICE||{}).pack||{})[name] && !((PRICE||{}).zip||{})[name]) ? 'pack' : 'zip';
+      const want={};
+      if(sp.bagName){ const n=(sp.zipPerPack!=null && sp.zipPerPack!=='') ? (+sp.zipPerPack||0) : (sp.bagPerPiece ? (+sp.piecesPerPack||0) : 1); if(n>0) want[sp.bagName]={ kind:zipKind(sp.bagName), n:n*packs }; }
+      if(sp.hasBag2 && sp.bagName2){ const n=+sp.zipPerPack2||1; want[sp.bagName2]={ kind:zipKind(sp.bagName2), n:(want[sp.bagName2]?want[sp.bagName2].n:0)+n*packs }; }
+      if(sp.packBagName && !(COST.reuseUsesPerPack(S, sp)>0)){ const n=(sp.packPerPack!=null && sp.packPerPack!=='') ? (+sp.packPerPack||0) : ((+sp.packBagWeight||0)>0 ? 1 : 0);
+        if(n>0) want[sp.packBagName]={ kind:'pack', n:(want[sp.packBagName]?want[sp.packBagName].n:0)+n*packs }; }
+      Object.keys(want).forEach(name=>{ const short=Math.round(want[name].n-got(name)); if(short>0) out.push({ kind:want[name].kind, name:name, n:short }); });
+      return out;
+    },
     /* แพ็คนี้ใช้ถุงวนใช้กี่ใบ (0 = ไม่ได้ใช้) */
     reuseUsesPerPack(S, spec){
       const sp=spec||{}; if(!sp.packBagName || !(S.reuseItems||[]).some(x=>x.name===sp.packBagName)) return 0;
@@ -1598,7 +1625,8 @@ window.WPDAUTH = {
         const ls=lines.filter(l=>l.orderId===o.id); if(!ls.length) return;
         const made=COST.madePieces(ls, (P.carry||[]).filter(c=>c.orderId===o.id && inR(c)));
         const got=COST.caseRowsFor(P,o.id,inR,tracked).reduce((a,c)=>a+(+c.pieces||0),0);
-        if(made>got) sew+=(made-got)*COST.sewRate(K, COST.pillowSize(o));
+        if(made>got){ sew+=(made-got)*COST.sewRate(K, COST.pillowSize(o));
+          fab+=(made-got)*COST.caseEstPerPiece(PRICE, S, o).baht; }   /* ไม่มีบันทึกใช้ปลอก → ค่าผ้าประมาณ */
       });
       /* ถุงซิลนับเฉพาะงานหมอน — งานอื่นที่หักจากกระสอบถุงซิล นับเป็นถุงแพ็ค */
       const _ptOf=id=>{ const o=(P.orders||[]).find(x=>x.id===id); return o?(o.productType||'ใย'):''; };
@@ -1606,6 +1634,12 @@ window.WPDAUTH = {
       (P.bagUse||[]).filter(inR).forEach(b=>{ const v=(+b.pieces||0)*COST.bagBahtPerPiece(PRICE,S.sackReceipts,b.kind,b.name,b.sackNo).baht;
         if(b.kind==='zip' && _ptOf(b.orderId)==='หมอน') bagZip+=v; else bagPack+=v; });
       lines.forEach(l=>{ const o=(P.orders||[]).find(x=>x.id===l.orderId); const per=o?COST.reuseUsesPerPack(S,o.spec):0; if(per>0) bagPack+=per*COST.reuseBahtPerUse(PRICE,o.spec.packBagName).baht; });
+      /* หมอนที่บันทึกใช้ถุงไม่ครบตามสเปค → คิดส่วนที่ขาด (ประมาณ) */
+      (P.orders||[]).filter(o=>(o.productType||'')==='หมอน' && inP({orderId:o.id})).forEach(o=>{
+        const n=lines.filter(l=>l.orderId===o.id).length; if(!n) return;
+        COST.bagShort(S, PRICE, o, n, (P.bagUse||[]).filter(b=>b.orderId===o.id && inR(b))).forEach(x=>{
+          const v=x.n*COST.bagBahtPerPiece(PRICE,S.sackReceipts,x.kind,x.name,null).baht; if(x.kind==='zip') bagZip+=v; else bagPack+=v; });
+      });
       const bag=bagPack+bagZip;
       let sheet=0; (P.sheetUse||[]).filter(inR).forEach(u=>{ sheet+=(+u.qty||0)*COST.sheetCostPerPiece(ctx,u.srcOrderId,0).baht; });
       const hrRate=(+K.laborHoursPerDay>0)?(+K.laborDaily||0)/(+K.laborHoursPerDay):0;
@@ -1756,6 +1790,15 @@ window.WPDAUTH = {
         groupRows.push({cat:'ผ้า', what:(c.type||cu.fabricType)+' ถุง #'+cu.batchNo+(c.piecesPer>1?' ('+c.piecesPer+' ผืน/ใบ)':''), n:q, u:(c.piecesPer>1?'ใบ':'ชิ้น'), unit:c.baht, baht:r2(q*c.baht), src:c.src});
       });
 
+      /* หมอนที่ผลิตแต่ไม่มีบันทึกใช้ปลอก (ไม่ได้เบิกปลอกมาไลน์) → ค่าผ้าประมาณ ใบละเท่าราคาปลอกไซซ์นี้ */
+      if(order && (order.productType||'')==='หมอน' && pieces>fabPieces){
+        const short=pieces-fabPieces, c=COST.caseEstPerPiece(PRICE, S, order);
+        fabPieces+=short; fabBaht=r2(fabBaht+short*c.baht);
+        if(!c.baht) miss.push('ผ้าปลอก "'+(c.type||'?')+'" ไซซ์ '+c.size+' ยังไม่มีราคา — ใส่ราคาปลอกตามไซซ์ในหน้าราคา');
+        else miss.push('ผ้าปลอก '+short+' ใบ ไม่มีบันทึกเบิกปลอกที่ไลน์ — คิดราคาประมาณ '+c.baht+' บาท/ใบ');
+        groupRows.push({cat:'ผ้า', what:(c.type||'ผ้าปลอก')+' ไซซ์ '+c.size+' (ประมาณ — ไม่มีบันทึกใช้ปลอก)', n:short, u:'ชิ้น', unit:c.baht, baht:r2(short*c.baht), src:c.src});
+      }
+
       /* ---- ถุง ---- */
       let bagBaht=0, zipPcs=0, packPcs=0;
       (P.bagUse||[]).filter(b=>b.orderId===orderId).forEach(b=>{
@@ -1773,6 +1816,16 @@ window.WPDAUTH = {
           if(c.src==='none') miss.push('ถุงวนใช้ "'+order.spec.packBagName+'" ยังไม่ได้ใส่ราคา');
           else if(c.src==='noCycles') miss.push('ถุงวนใช้ "'+order.spec.packBagName+'" ยังไม่ได้ใส่ว่าใช้ได้กี่รอบ');
           groupRows.push({cat:'ถุง', what:'♻ '+(/วนใช้/.test(order.spec.packBagName)?'':'ถุงวนใช้ ')+order.spec.packBagName+(c.cycles?' (ใบละ '+c.per+' ÷ '+c.cycles+' รอบ)':''), n:uses, u:'รอบ', unit:c.baht, baht:r2(uses*c.baht), src:c.src}); } }
+
+      /* หมอนที่บันทึกใช้ถุงไม่ครบตามสเปค → คิดส่วนที่ขาด (ประมาณ) */
+      if(order) COST.bagShort(S, PRICE, order, packs, (P.bagUse||[]).filter(b=>b.orderId===orderId)).forEach(x=>{
+        const c=COST.bagBahtPerPiece(PRICE, S.sackReceipts, x.kind, x.name, null);
+        if(x.kind==='zip') zipPcs+=x.n; else packPcs+=x.n;
+        bagBaht=r2(bagBaht+x.n*c.baht);
+        if(!c.baht) miss.push('ถุง "'+x.name+'" ยังไม่ได้ใส่ราคา');
+        else miss.push((x.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+' "'+x.name+'" '+x.n+' ใบ ไม่มีบันทึกใช้ที่ไลน์ — คิดตามสเปค (ประมาณ)');
+        groupRows.push({cat:'ถุง', what:(x.kind==='zip'?'ถุงซิล ':'ถุงแพ็ค ')+x.name+' (ประมาณจากสเปค — บันทึกใช้ไม่ครบ)', n:x.n, u:'ใบ', unit:c.baht, baht:r2(x.n*c.baht), src:c.baht?'est':'none'});
+      });
 
       /* ---- ค่าจ้างเย็บ ---- */
       let sewPieces=0, sewBaht=0;
@@ -2256,12 +2309,12 @@ window.WPDAUTH = {
     return K;
   }
   const SRCTXT = { lot:'ราคาก้อนนั้น', roll:'ราคาม้วนนั้น', sack:'ราคากระสอบนั้น',
-                   std:'ราคามาตรฐาน', set:'ค่าที่ตั้งไว้', att:'แอพสแกนหน้า', gasrate:'คิดจากประวัติเปลี่ยนถัง', casesize:'ราคาปลอกตามไซซ์',
+                   std:'ราคามาตรฐาน', set:'ค่าที่ตั้งไว้', att:'แอพสแกนหน้า', gasrate:'คิดจากประวัติเปลี่ยนถัง', casesize:'ราคาปลอกตามไซซ์', est:'ประมาณ', estSize:'ประมาณ (ไซซ์เดียวกัน ผ้าอื่น)',
                    none:'ยังไม่ได้ใส่ราคา', noCut:'ไม่รู้จำนวนที่ตัดได้', noSack:'ไม่รู้จำนวนใบ/กระสอบ',
                    job:'ต้นทุนจริงของงานที่ผลิตแผ่นนั้น', noProd:'งานต้นทางยังไม่มีบันทึกผลิต' };
   function srcBadge(s){
     if(s==='none'||s==='noCut'||s==='noSack'||s==='noProd') return '<span class="bdg bad">'+(SRCTXT[s]||s)+'</span>';
-    if(s==='std') return '<span class="bdg warn">'+SRCTXT[s]+'</span>';
+    if(s==='std'||s==='est'||s==='estSize') return '<span class="bdg warn">'+SRCTXT[s]+'</span>';
     return '<span class="bdg ok">'+(SRCTXT[s]||s)+'</span>';
   }
   function orderLabel(o){ return o ? (o.customer+' — '+o.code) : '(ออเดอร์ถูกลบแล้ว)'; }

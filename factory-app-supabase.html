@@ -3729,9 +3729,17 @@ window.WPDAUTH = {
       j.push({ kind:'pack', name:sp.packBagName, n:CALC.packBagPerPack(sp), w:+sp.packBagWeight||0, label:'ถุงแพ็ค' });
     return j;
   }
+  /* หมอน: ปลอกที่ไลน์ — ไม่พอ 1 แพ็ค = แดง (ลงแพ็คไม่ได้จนกว่าจะเบิก) */
+  function caseLineStatus(o){
+    const sp=o.spec||{}, need=+sp.piecesPerPack||0;
+    if(!sp.fabricType) return '<div class="bagst bad">⛔ ออเดอร์นี้ยังไม่ได้ตั้งชนิดผ้าปลอก — ลงแพ็คไม่ได้ (แจ้งออฟฟิศ)</div>';
+    const have=caseAtLine(o);
+    if(have>=need) return '<div class="bagst ok">✓ ปลอก <b>'+esc(sp.fabricType)+'</b> ที่ไลน์เหลือ <b>'+have+' ใบ</b> · พอ ~'+Math.floor(have/(need||1))+' แพ็ค</div>';
+    return '<div class="bagst bad">⛔ ปลอกที่ไลน์'+(have?' เหลือ '+have+' ใบ ไม่พอ 1 แพ็ค':' ยังไม่ได้เบิก')+' — เบิกถุงบรรจุผ้าก่อน ถึงจะลงแพ็คได้</div>';
+  }
   function bagLineStatus(o){
     if(!o || !o.spec || isPicnic(o) || !(CALC.stdPerPack(o.spec)>0)) return '';
-    return bagLineJobs(o.spec).map(j=>{
+    return (o.productType==='หมอน' ? caseLineStatus(o) : '')+bagLineJobs(o.spec).map(j=>{
       const q=sackQueue(j.kind,j.name).filter(lineHasBag), at=q[0];
       const left=q.reduce((a,x)=>a+piecesOf(x.remaining,x.weightPerBag||j.w),0);
       if(at && left>=j.n){
@@ -4140,6 +4148,17 @@ window.WPDAUTH = {
         os.start(c.currentTime+d/1000); os.stop(c.currentTime+(d+140)/1000); });
       setTimeout(()=>{ try{c.close();}catch(e){} },1200);
     }catch(e){}
+  }
+  /* เสียงเตือนดัง (ห้ามทำต่อ) — เสียงสูง-ต่ำสลับ 3 รอบ + สั่น */
+  function alarm(){
+    try{
+      const A=window.AudioContext||window.webkitAudioContext; if(!A) return;
+      const c=new A(); const g=c.createGain(); g.gain.value=0.35; g.connect(c.destination);
+      for(let i=0;i<6;i++){ const os=c.createOscillator(); os.type='square'; os.frequency.value=i%2?660:1100; os.connect(g);
+        os.start(c.currentTime+i*0.25); os.stop(c.currentTime+i*0.25+0.22); }
+      setTimeout(()=>{ try{c.close();}catch(e){} },2000);
+    }catch(e){}
+    try{ if(navigator.vibrate) navigator.vibrate([300,120,300,120,300]); }catch(e){}
   }
   function checkIdle(){
     const o=active();
@@ -4841,6 +4860,19 @@ window.WPDAUTH = {
     if(pillowZipFix(o)) saveOrders();
     const std=CALC.stdPerPack(o.spec);
     if(!std){ toast('ตั้งค่าน้ำหนัก Standard ก่อน'); return; }
+    /* หมอน: ต้องเบิกปลอก (ถุงบรรจุผ้า) มาไลน์ก่อน ถึงจะลงแพ็คได้ — ไม่งั้นค่าผ้าไม่ถูกนับ
+       (29 ต.ค. แพ็คไป 110 ใบก่อนเบิกปลอก · ต.ค. หมอน 5,890 ใบไม่มีบันทึกปลอก) */
+    if(o.productType==='หมอน'){
+      const _sp=o.spec||{}, _need=+_sp.piecesPerPack||0, _have=_sp.fabricType?caseAtLine(o):0;
+      if(!_sp.fabricType || _have<_need){
+        alarm();
+        await info('⛔ ยังไม่ได้เบิกปลอก — ลงแพ็คไม่ได้',
+          !_sp.fabricType ? 'ออเดอร์นี้ยังไม่ได้ตั้งชนิดผ้าปลอก\n→ แจ้งออฟฟิศตั้งในออเดอร์ก่อน'
+            : 'แพ็คนี้ใช้ปลอก '+_need+' ใบ แต่ที่ไลน์มี '+_have+' ใบ\n→ เบิกถุงบรรจุผ้า ('+_sp.fabricType+(_sp.fabricSize?' '+_sp.fabricSize:'')+') ก่อน');
+        const _c=$('cardFabWd'); if(_c){ _c.classList.remove('folded'); _c.scrollIntoView({block:'start',behavior:'smooth'}); _c.style.outline='3px solid var(--w-red,#cf3e45)'; setTimeout(()=>{ _c.style.outline=''; },4000); }
+        return;
+      }
+    }
     if(isPicnic(o)){
       const left=CALC.sheetLineTotal(S.sheetWd,S.sheetUse,o.id);
       const _need=sheetsPerPack(o);

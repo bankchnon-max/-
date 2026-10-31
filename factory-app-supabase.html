@@ -1740,8 +1740,16 @@ window.WPDAUTH = {
       if(spec.packPerPack!=null && spec.packPerPack!=='') return +spec.packPerPack||0;
       return (+spec.packBagWeight||0) > 0 ? 1 : 0;
     },
+    /* ถุงแพ็คใบที่ 2 (คนละไซซ์ — งานใยแผ่นบางงานห่อ 2 ชั้น) */
+    pack2PerPack(spec){
+      if(!spec || !spec.packBagName2) return 0;
+      if(spec.packPerPack2!=null && spec.packPerPack2!=='') return +spec.packPerPack2||0;
+      return 1;
+    },
     zipKgPerPack(spec){ return r3((+((spec||{}).bagWeight)||0) * CALC.zipPerPack(spec)); },
-    packKgPerPack(spec){ return r3((+((spec||{}).packBagWeight)||0) * CALC.packBagPerPack(spec)); },
+    pack1KgPerPack(spec){ return r3((+((spec||{}).packBagWeight)||0) * CALC.packBagPerPack(spec)); },
+    pack2KgPerPack(spec){ return r3((+((spec||{}).packBagWeight2)||0) * CALC.pack2PerPack(spec)); },
+    packKgPerPack(spec){ return r3(CALC.pack1KgPerPack(spec) + CALC.pack2KgPerPack(spec)); },
     stdPerPack(spec){
       if (!spec) return 0;
       const w = +spec.weightPerPiece||0, n = +spec.piecesPerPack||0;
@@ -2368,7 +2376,9 @@ window.WPDAUTH = {
     sp=sp||{}; const parts=[];
     const zipKg=CALC.zipKgPerPack(sp), packKg=CALC.packKgPerPack(sp);
     if(zipKg>0) parts.push('ถุง'+(sp.packBagName?'ซิล ':' ')+(sp.bagName?esc(sp.bagName)+' ':'')+zipKg+' กก.');
-    if(packKg>0) parts.push((isReuseBag(sp.packBagName)?(/วนใช้/.test(sp.packBagName)?'♻ ':'♻ ถุงวนใช้ '):'ถุงแพ็ค ')+(sp.packBagName?esc(sp.packBagName)+' ':'')+packKg+' กก.');
+    const p1=CALC.pack1KgPerPack(sp), p2=CALC.pack2KgPerPack(sp);
+    if(p1>0) parts.push((isReuseBag(sp.packBagName)?(/วนใช้/.test(sp.packBagName)?'♻ ':'♻ ถุงวนใช้ '):'ถุงแพ็ค ')+(sp.packBagName?esc(sp.packBagName)+' ':'')+p1+' กก.');
+    if(p2>0) parts.push((isReuseBag(sp.packBagName2)?'♻ ':'ถุงแพ็ค ')+esc(sp.packBagName2)+' '+p2+' กก.');
     return parts.length ? parts.join(' + ') : 'ถุง 0 กก.';
   }
   function rSpecLib(){
@@ -3727,6 +3737,8 @@ window.WPDAUTH = {
       j.push({ kind:k, name:sp.bagName, n:CALC.zipPerPack(sp), w:+sp.bagWeight||0, label:k==='zip'?'ถุงซิล':'ถุงแพ็ค' }); }
     if(sp.packBagName && CALC.packBagPerPack(sp)>0 && !isReuseBag(sp.packBagName))
       j.push({ kind:'pack', name:sp.packBagName, n:CALC.packBagPerPack(sp), w:+sp.packBagWeight||0, label:'ถุงแพ็ค' });
+    if(sp.packBagName2 && CALC.pack2PerPack(sp)>0 && !isReuseBag(sp.packBagName2))
+      j.push({ kind:'pack', name:sp.packBagName2, n:CALC.pack2PerPack(sp), w:+sp.packBagWeight2||0, label:'ถุงแพ็คใบที่ 2' });
     return j;
   }
   /* หมอน: ปลอกที่ไลน์ — ไม่พอ 1 แพ็ค = แดง (ลงแพ็คไม่ได้จนกว่าจะเบิก) */
@@ -3776,6 +3788,8 @@ window.WPDAUTH = {
     if(z) out.push('ถุงซิล '+esc(sp.bagName)+' — กระสอบ #'+z.sackNo+' (รับ '+thDate(z.time)+') เหลือ '+z.remainingPieces+' ใบ ('+z.remainingKg+' กก.)');
     const p=sp.packBagName?findSack('pack',sp.packBagName,sp.packBagLotRef):null;
     if(p) out.push('ถุงแพ็ค '+esc(sp.packBagName)+' — กระสอบ #'+p.sackNo+' (รับ '+thDate(p.time)+') เหลือ '+p.remainingPieces+' ใบ ('+p.remainingKg+' กก.)');
+    const p2=sp.packBagName2?findSack('pack',sp.packBagName2,sp.packBagLotRef2):null;
+    if(p2) out.push('ถุงแพ็คใบที่ 2 '+esc(sp.packBagName2)+' — กระสอบ #'+p2.sackNo+' (รับ '+thDate(p2.time)+') เหลือ '+p2.remainingPieces+' ใบ ('+p2.remainingKg+' กก.)');
     if(!out.length) return '';
     return '<br><span style="color:var(--accent2)">คงเหลือในกระสอบ: '+out.join(' · ')+'</span>';
   }
@@ -3835,7 +3849,7 @@ window.WPDAUTH = {
         '<datalist id="dlFabSize">'+[...new Set(fabBatchesNow().filter(b=>!sp.fabricType||b.fabricType===sp.fabricType).map(b=>b.size))].map(n=>'<option value="'+esc(n)+'">').join('')+'</datalist></div></div>'+
         packBagHTML('ถุงแพ็ค')
       ) : isPillow ? bagBlockHTML('spBag','','zip',sp,isPillow,'ถุงซิล')
-                : packBagHTML('ถุงแพ็คที่ใช้ห่อ (งานใยแผ่นไม่ใช้ถุงซิล)')+
+                : packBagHTML('ถุงแพ็คที่ใช้ห่อ (งานใยแผ่นไม่ใช้ถุงซิล)')+pack2HTML()+
                   '<div class="sumline" style="margin-top:2px;">น้ำหนักถุงแพ็ค × จำนวนใบ ระบบบวกเข้า Standard ให้เอง · บันทึกแพ็คแล้วหักถุงจากกระสอบที่เบิกมาไว้ที่ไลน์</div>')+
       (isPillow && !_isPicnic ? (
         '<div class="rf"><div><label>ถุงซิลต่อ 1 แพ็ค (หมอน = ใบละ 1 ถุง)</label>'+
@@ -3863,6 +3877,24 @@ window.WPDAUTH = {
     /* ปิกนิก: เลือกกระสอบที่การ์ด "แพ็คปิกนิก" แทน ไม่ต้องตั้งเบอร์กระสอบใน Standard */
     if((_isPicnic || isReuseBag(packNameVal)) && $('spPackBagLot')){ const _c=$('spPackBagLot').closest('div'); if(_c) _c.style.display='none'; }
 
+    /* ถุงแพ็คใบที่ 2 — คนละไซซ์กับใบแรก (ไม่ใช้ = เลือก "ไม่ใช้") */
+    function pack2HTML(){
+      const packNames=Object.keys(STOCKBAG.pack||{}).sort();
+      const reuseNames=(STOCKBAG.reuse||[]).map(x=>x.name).filter(n=>!packNames.includes(n)).sort();
+      const v=sp.packBagName2||'', isNew=!!v && !packNames.includes(v) && !reuseNames.includes(v);
+      return '<div class="sumline" style="margin-top:14px; font-weight:600;">ถุงแพ็คใบที่ 2 — ถ้างานนี้ห่อถุงแพ็คอีกใบคนละไซซ์</div>'+
+        '<div class="rf"><div><label>ถุงแพ็คใบที่ 2</label><select id="spPack2BagSel">'+
+        '<option value="">— ไม่ใช้ —</option>'+packNames.map(n=>'<option value="'+esc(n)+'"'+(n===v?' selected':'')+'>'+esc(n)+'</option>').join('')+
+        (reuseNames.length?'<optgroup label="♻ ถุงวนใช้ (ไม่หักสต๊อกทุกแพ็ค)">'+reuseNames.map(n=>'<option value="'+esc(n)+'"'+(n===v?' selected':'')+'>♻ '+esc(n)+'</option>').join('')+'</optgroup>':'')+
+        '<option value="__new__"'+(isNew?' selected':'')+'>+ พิมพ์ชื่อใหม่…</option></select>'+
+        '<input id="spPack2Bag" value="'+esc(v)+'" placeholder="เช่น 60x100" style="'+(isNew?'':'display:none;')+' margin-top:6px;"></div>'+
+        '<div><label>เบอร์กระสอบถุงแพ็คใบที่ 2</label>'+
+        '<select id="spPack2BagLot"><option value="">— เลือกถุงก่อน —</option></select></div></div>'+
+        '<div class="rf" id="spPack2Row" style="'+(v?'':'display:none;')+'"><div><label>น้ำหนักถุงแพ็คใบที่ 2 ต่อใบ (กก.)</label>'+
+        '<input id="spPack2W" type="number" inputmode="decimal" step="0.001" value="'+(sp.packBagWeight2||'')+'" placeholder="เช่น 0.26"></div>'+
+        '<div><label>ใช้ถุงใบที่ 2 กี่ใบต่อ 1 แพ็ค</label>'+
+        '<input id="spPack2N" type="number" inputmode="numeric" min="0" step="1" value="'+(v?CALC.pack2PerPack(sp):1)+'" placeholder="ปกติ 1"></div></div>';
+    }
     function packBagHTML(title){
       const packNames=Object.keys(STOCKBAG.pack||{}).sort();
       const reuseNames=(STOCKBAG.reuse||[]).map(x=>x.name).filter(n=>!packNames.includes(n)).sort();
@@ -3920,7 +3952,7 @@ window.WPDAUTH = {
       const sacks=STOCKBAG.sacks.filter(s=>s.kind===k && s.name===bagName && sackHasBag(s) && !lineNos.has(String(s.sackNo)));
       if(!lineQ.length && !sacks.length){ sel.innerHTML='<option value="">— ไม่มีกระสอบที่พร้อมใช้ในสต๊อก —</option>'; return; }
       const pick=(lineQ.length && !lineNos.has(String(keepVal||''))) ? String(lineQ[0].sackNo) : String(keepVal||'');
-      const wIn=$(kind==='zip'?(selId==='spBag2Sack'?'spBag2W':'spBagW'):'spPackW');
+      const wIn=$(kind==='zip'?(selId==='spBag2Sack'?'spBag2W':'spBagW'):(selId==='spPack2BagLot'?'spPack2W':'spPackW'));
       const wOf=x=>x.weightPerBag||(wIn?(+wIn.value||0):0);
       sel.innerHTML='<option value="">— ไม่ระบุ —</option>'+
         (lineQ.length?'<optgroup label="ที่ไลน์ — เบิกไว้แล้ว ใช้ก่อน">'+lineQ.map((x,i)=>'<option value="'+esc(x.sackNo)+'"'+(String(x.sackNo)===pick?' selected':'')+'>#'+esc(x.sackNo)+
@@ -3964,6 +3996,7 @@ window.WPDAUTH = {
     function refreshBagLotOptions(){ refreshBagLotOptionsFor('zip','spBag','spBagSack',sp.bagSackNo); }
     function refreshBag2LotOptions(){ if($('spBag2Sack')) refreshBagLotOptionsFor('zip','spBag2','spBag2Sack',sp.bagSackNo2); }
     function refreshPackBagLotOptions(){ refreshBagLotOptionsFor('pack','spPackBag','spPackBagLot',packLotVal); }
+    function refreshPack2LotOptions(){ if($('spPack2BagLot')) refreshBagLotOptionsFor('pack','spPack2Bag','spPack2BagLot',sp.packBagLotRef2||''); }
     function wireAutoFill(){
       if($('spBagSel')) $('spBagSel').addEventListener('change',()=>setTimeout(()=>{
         refreshBagLotOptions(); fillFromStock('zip','spBag','spBagSize','spBagW','spBagSack'); },0));
@@ -3975,6 +4008,8 @@ window.WPDAUTH = {
         refreshPackBagLotOptions(); fillFromStock('pack','spPackBag',null,'spPackW','spPackBagLot'); },0));
       if($('spPackBagLot')) $('spPackBagLot').addEventListener('change',()=>
         fillFromStock('pack','spPackBag',null,'spPackW','spPackBagLot',true));
+      if($('spPack2BagLot')) $('spPack2BagLot').addEventListener('change',()=>
+        fillFromStock('pack','spPack2Bag',null,'spPack2W','spPack2BagLot',true));
     }
     function wireBagNameSel(prefix){
       const sel=$(prefix+'Sel'), txt=$(prefix); if(!sel||!txt) return;
@@ -3987,10 +4022,23 @@ window.WPDAUTH = {
           const _ru=(STOCKBAG.reuse||[]).find(x=>x.name===txt.value); if(_ru && +_ru.weightPerBag>0 && $('spPackW')) $('spPackW').value=_ru.weightPerBag;
           if($('spPackBagLot')){ const _c=$('spPackBagLot').closest('div'); if(_c) _c.style.display=(_isPicnic||_ru)?'none':''; }
           prev(); }
+        if(prefix==='spPack2Bag'){ refreshPack2LotOptions(); fillFromStock('pack','spPack2Bag',null,'spPack2W','spPack2BagLot');
+          const _ru=(STOCKBAG.reuse||[]).find(x=>x.name===txt.value); if(_ru && +_ru.weightPerBag>0 && $('spPack2W')) $('spPack2W').value=_ru.weightPerBag;
+          if($('spPack2BagLot')){ const _c=$('spPack2BagLot').closest('div'); if(_c) _c.style.display=_ru?'none':''; }
+          if($('spPack2Row')) $('spPack2Row').style.display=txt.value.trim()?'':'none';
+          prev(); }
       };
-      txt.oninput=()=>{ formDirty=true; if(prefix==='spBag') refreshBagLotOptions(); if(prefix==='spBag2') refreshBag2LotOptions(); };
+      txt.oninput=()=>{ formDirty=true; if(prefix==='spBag') refreshBagLotOptions(); if(prefix==='spBag2') refreshBag2LotOptions();
+        if(prefix==='spPack2Bag'){ refreshPack2LotOptions(); if($('spPack2Row')) $('spPack2Row').style.display=txt.value.trim()?'':'none'; prev(); } };
     }
-    wireBagNameSel('spBag'); wireBagNameSel('spBag2'); wireBagNameSel('spPackBag');
+    wireBagNameSel('spBag'); wireBagNameSel('spBag2'); wireBagNameSel('spPackBag'); wireBagNameSel('spPack2Bag');
+    /* ช่องถุงแพ็คใบที่ 2 → ค่าใน spec (ไม่มีช่อง = งานที่ไม่ใช่ใยแผ่น เก็บค่าเดิมไว้) */
+    const pack2Of=()=>{
+      if(!$('spPack2Bag')) return { packBagName2:sp.packBagName2||'', packBagWeight2:+sp.packBagWeight2||0, packPerPack2:sp.packBagName2?CALC.pack2PerPack(sp):0, packBagLotRef2:sp.packBagLotRef2||'' };
+      const nm=normSize($('spPack2Bag').value);
+      return nm ? { packBagName2:nm, packBagWeight2:+$('spPack2W').value||0, packPerPack2:+$('spPack2N').value||0, packBagLotRef2:$('spPack2BagLot')?$('spPack2BagLot').value:'' }
+                : { packBagName2:'', packBagWeight2:0, packPerPack2:0, packBagLotRef2:'' };
+    };
     const prev=()=>{
       const s=isPillow ? {
         weightPerPiece:+$('spW').value||0, piecesPerPack:+$('spN').value||0,
@@ -4006,8 +4054,9 @@ window.WPDAUTH = {
         packBagWeight:$('spPackW')?(+$('spPackW').value||0):0,
         packPerPack:$('spPackN')?(+$('spPackN').value||0):0
       };
+      Object.assign(s, pack2Of());
       const t=CALC.stdPerPack(s);
-      const zipKg=CALC.zipKgPerPack(s), packKg=CALC.packKgPerPack(s);
+      const zipKg=CALC.zipKgPerPack(s), packKg=CALC.pack1KgPerPack(s), pack2Kg=CALC.pack2KgPerPack(s);
       $('spPreview').innerHTML=t
         ? '<div class="v">'+t+' กก.</div><div class="l">น้ำหนัก Standard ต่อแพ็ค (เฉลี่ยต่อชิ้น '+CALC.stdPerPiece(s)+' กก.)'+
           '<br>'+(_isPicnic?'ปิกนิก':isPillow?'หมอน':'ใย')+': '+s.weightPerPiece+' กก./ชิ้น × '+s.piecesPerPack+' ชิ้น = '+r3(s.weightPerPiece*s.piecesPerPack)+' กก.'+
@@ -4017,6 +4066,7 @@ window.WPDAUTH = {
             : (isPillow ? '<br><span style="color:var(--yellow)">— ยังไม่ได้กรอกน้ำหนักผ้าปลอก หน้าสรุปจะนับทั้งชิ้นเป็นใย</span>' : ''))+
           (zipKg?'<br>ถุงซิล: '+s.bagWeight+' กก./ใบ × '+CALC.zipPerPack(s)+' ใบ = '+zipKg+' กก.':'')+
           (packKg?'<br>ถุงแพ็ค: '+s.packBagWeight+' กก./ใบ × '+CALC.packBagPerPack(s)+' ใบ = '+packKg+' กก.':'')+
+          (pack2Kg?'<br>ถุงแพ็คใบที่ 2 ('+esc(s.packBagName2)+'): '+s.packBagWeight2+' กก./ใบ × '+CALC.pack2PerPack(s)+' ใบ = '+pack2Kg+' กก.':'')+
           (function(){ const ws=specWarnings(s); return ws.length
             ? '<br><span class="bdg warn" style="margin-top:6px; display:inline-block;">⚠ ตรวจตัวเลขอีกครั้ง</span><br><span style="color:var(--yellow)">· '+ws.map(esc).join('<br>· ')+'</span>' : ''; })()+'</div>'
         : '<div class="l">กรอกน้ำหนักต่อชิ้นและจำนวนชิ้นต่อแพ็ค แล้วระบบจะคำนวณให้</div>';
@@ -4040,7 +4090,7 @@ window.WPDAUTH = {
     }
     if($('spFabKg'))   $('spFabKg').oninput  =()=>{ formDirty=true; syncSplit('fab');   prev(); };
     if($('spFiberKg')) $('spFiberKg').oninput=()=>{ formDirty=true; syncSplit('fiber'); prev(); };
-    ['spW','spN','spBagW','spZipN','spPackW','spPackN'].forEach(id=>{ if($(id)) $(id).oninput=()=>{ formDirty=true; if(id==='spW') syncSplit('w');
+    ['spW','spN','spBagW','spZipN','spPackW','spPackN','spPack2W','spPack2N'].forEach(id=>{ if($(id)) $(id).oninput=()=>{ formDirty=true; if(id==='spW') syncSplit('w');
       if(id==='spN' && $('spZipN') && $('spZipN').readOnly) $('spZipN').value=$('spN').value;   /* หมอน: ถุงซิล = จำนวนชิ้น */
       prev(); }; });
     wireAutoFill();
@@ -4063,6 +4113,7 @@ window.WPDAUTH = {
       if($('spBag2Size')) o.spec.bagSize2=normSize($('spBag2Size').value);
       if($('spBag2Sack')) o.spec.bagSackNo2=$('spBag2Sack').value;
       if($('spPackBag')) o.spec.packBagName=normSize($('spPackBag').value);
+      if($('spPack2Bag')) Object.assign(o.spec, pack2Of());
       if($('spFabType')) o.spec.fabricType=$('spFabType').value.trim();
       if($('spFabSize')) o.spec.fabricSize=normSize($('spFabSize').value);
       if($('spTol')) o.spec.tolPct=+$('spTol').value||3;
@@ -4076,7 +4127,8 @@ window.WPDAUTH = {
       keepTypedSpec(); o.spec.hasBag2=false; o.spec.bagName2=''; o.spec.bagWeight2=0; o.spec.bagSize2=''; o.spec.bagSackNo2='';
       formDirty=false; buildSpecForm(); formDirty=true;
     };
-    prev(); refreshBagLotOptions(); refreshBag2LotOptions(); refreshPackBagLotOptions();
+    prev(); refreshBagLotOptions(); refreshBag2LotOptions(); refreshPackBagLotOptions(); refreshPack2LotOptions();
+    if($('spPack2BagLot') && isReuseBag(sp.packBagName2||'')){ const _c=$('spPack2BagLot').closest('div'); if(_c) _c.style.display='none'; }
 
     if($('spCancel')) $('spCancel').onclick=()=>{ formDirty=false; specOpen=false; buildSpecForm(); };
     $('spSave').onclick=async()=>{
@@ -4088,6 +4140,8 @@ window.WPDAUTH = {
         packBagName: $('spPackBag') ? normSize($('spPackBag').value) : '',
         packBagWeight: $('spPackW') ? (+$('spPackW').value||0) : 0,
         packPerPack: $('spPackN') ? (+$('spPackN').value||0) : 0 };
+      Object.assign(_draft, pack2Of());
+      if(_draft.packBagName2 && !_draft.packBagWeight2 && !await ask('ยังไม่ได้ใส่น้ำหนักถุงแพ็คใบที่ 2','ถุง "'+_draft.packBagName2+'" ยังไม่มีน้ำหนักต่อใบ — Standard จะไม่รวมน้ำหนักถุงใบที่ 2 และหักถุงจากสต๊อกไม่ได้ · ยืนยันจะบันทึกแบบนี้?')) return;
       /* เลือกถุงแพ็คแล้วแต่ไม่มีน้ำหนักต่อใบ = Standard ขาดน้ำหนักถุง */
       if(_draft.packBagName && !_draft.packBagWeight && !await ask('ยังไม่ได้ใส่น้ำหนักถุงแพ็คต่อใบ','ถุง "'+_draft.packBagName+'" ยังไม่มีน้ำหนักต่อใบ — Standard จะไม่รวมน้ำหนักถุง และหักถุงจากสต๊อกไม่ได้ · ยืนยันจะบันทึกแบบนี้?')) return;
       const _ws=specWarnings(_draft);
@@ -4110,6 +4164,7 @@ window.WPDAUTH = {
         bagName2: sp.bagName2||'', bagWeight2: sp.bagWeight2||0, bagSize2: sp.bagSize2||'', bagSackNo2: sp.bagSackNo2||'',
         packBagName:_draft.packBagName,
         packBagLotRef: $('spPackBagLot') ? $('spPackBagLot').value : '',
+        packBagName2:_draft.packBagName2, packBagWeight2:_draft.packBagWeight2, packPerPack2:_draft.packPerPack2, packBagLotRef2:_draft.packBagLotRef2,
         fabricType: isPillow && $('spFabType') ? $('spFabType').value.trim() : '',
         fabricSize: isPillow && $('spFabSize') ? normSize($('spFabSize').value) : '',
         tolPct:+$('spTol').value||3 };
@@ -4463,6 +4518,8 @@ window.WPDAUTH = {
     };
     chk('zip', sp.bagName, +sp.bagWeight||0, 'ถุงซิล');
     chk('pack', sp.packBagName, +sp.packBagWeight||0, 'ถุงแพ็ค');
+    chk('pack', sp.packBagName2, +sp.packBagWeight2||0, 'ถุงแพ็คใบที่ 2');
+    if(sp.packBagName2 && sp.packBagName2===sp.packBagName) out.push('ถุงแพ็คใบที่ 2 เป็นถุงเดียวกับใบแรก — ถ้าไซซ์เดียวกัน ให้ใส่ "กี่ใบต่อ 1 แพ็ค" ของใบแรกเป็น 2 แทน');
     const zn=CALC.zipPerPack(sp), pn=CALC.packBagPerPack(sp);
     if(zn>200) out.push('ใช้ถุงซิล '+zn+' ใบต่อ 1 แพ็ค ดูเยอะผิดปกติ');
     if(pn>50) out.push('ใช้ถุงแพ็ค '+pn+' ใบต่อ 1 แพ็ค ดูเยอะผิดปกติ');
@@ -4501,8 +4558,9 @@ window.WPDAUTH = {
   function estBagW(w){
     let kg=0, pc=0; (S.bagUse||[]).forEach(u=>{ if(u.bwId===w.id && +u.pieces>0){ kg+=+u.kg||0; pc+=+u.pieces; } });
     if(pc>0 && kg>0) return r3(kg/pc);
-    const os=(S.orders||[]).filter(o=>o.spec && ((o.spec.packBagName===w.name && +o.spec.packBagWeight>0) || (o.spec.bagName===w.name && +o.spec.bagWeight>0)));
+    const os=(S.orders||[]).filter(o=>o.spec && ((o.spec.packBagName===w.name && +o.spec.packBagWeight>0) || (o.spec.packBagName2===w.name && +o.spec.packBagWeight2>0) || (o.spec.bagName===w.name && +o.spec.bagWeight>0)));
     const o=os.find(x=>x.id===S.activeId)||os[os.length-1]; if(!o) return 0;
+    if(o.spec.packBagName2===w.name && +o.spec.packBagWeight2>0) return +o.spec.packBagWeight2;
     return (o.spec.packBagName===w.name && +o.spec.packBagWeight>0) ? +o.spec.packBagWeight : +o.spec.bagWeight;
   }
   function sackAtLine(kind,name){ return sackQueue(kind,name).find(lineHasBag)||null; }
@@ -4620,6 +4678,8 @@ window.WPDAUTH = {
     }
     if(sp.packBagName && CALC.packBagPerPack(sp)>0 && !isReuseBag(sp.packBagName))
       jobs.push({kind:'pack', label:'ถุงแพ็ค', name:sp.packBagName, n:CALC.packBagPerPack(sp), wKey:'packBagWeight', sackKey:'packBagLotRef'});
+    if(sp.packBagName2 && CALC.pack2PerPack(sp)>0 && !isReuseBag(sp.packBagName2))
+      jobs.push({kind:'pack', label:'ถุงแพ็คใบที่ 2', name:sp.packBagName2, n:CALC.pack2PerPack(sp), wKey:'packBagWeight2', sackKey:'packBagLotRef2'});
     if(!jobs.length) return null;
     S.bagUse=S.bagUse||[];
     o.bagLog=o.bagLog||[];

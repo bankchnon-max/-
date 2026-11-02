@@ -1349,7 +1349,9 @@ window.WPDAUTH = {
       if(sp.bagName){ const n=(+pieces>0) ? +pieces : packs*(+sp.piecesPerPack||1); want[sp.bagName]={ kind:zipKind(sp.bagName), n:n }; }
       if(sp.packBagName && !(COST.reuseUsesPerPack(S, sp)>0)){ const n=(sp.packPerPack!=null && sp.packPerPack!=='') ? (+sp.packPerPack||0) : ((+sp.packBagWeight||0)>0 ? 1 : 0);
         if(n>0) want[sp.packBagName]={ kind:'pack', n:(want[sp.packBagName]?want[sp.packBagName].n:0)+n*packs }; }
-      Object.keys(want).forEach(name=>{ const short=Math.round(want[name].n-got(name)); if(short>0) out.push({ kind:want[name].kind, name:name, n:short }); });
+      /* ถุงแพ็คคนละไซซ์ที่หยิบมาใช้แทน (บันทึกเป็นถุงแพ็คชื่ออื่น) นับแทนถุงแพ็คตามสเปค ไม่คิดส่วนขาดซ้ำ */
+      const sub=sp.packBagName&&want[sp.packBagName] ? (uses||[]).filter(u=>u.kind==='pack' && !want[u.name]).reduce((a,u)=>a+(+u.pieces||0),0) : 0;
+      Object.keys(want).forEach(name=>{ const short=Math.round(want[name].n-got(name)-(name===sp.packBagName?sub:0)); if(short>0) out.push({ kind:want[name].kind, name:name, n:short }); });
       return out;
     },
     /* แพ็คนี้ใช้ถุงวนใช้กี่ใบ (0 = ไม่ได้ใช้) */

@@ -4442,14 +4442,22 @@ window.WPDAUTH = {
   function srcPP(src){ const o=src.orderId?orderById(src.orderId):null; if(o&&o.spec&&+o.spec.piecesPerPack) return +o.spec.piecesPerPack;
     const a=S.finAdjustments.filter(x=>sameSrc(x,src) && +x.piecesPerPack).pop(); return a?+a.piecesPerPack:0; }
   /* แพ็คที่ยังไม่ได้ส่ง (มีเบอร์): ผลิตจากไลน์ + ยอดยกมาที่ลงเบอร์ไว้ เรียงวันผลิตเก่าก่อน (FIFO)
-     key: แพ็คจากไลน์ = เลขลำดับ (เหมือนบิลเดิม), แพ็คยกมา = "b"+id รายการยกมา+"#"+เบอร์ (เบอร์ซ้ำกับไลน์ได้ ไม่ปนกัน) */
+     key: แพ็คจากไลน์ = วันที่ผลิต+"#"+เลขลำดับ (ไลน์เริ่มเบอร์ 1 ใหม่ทุกวัน — ออเดอร์ข้ามวันเบอร์ซ้ำได้ ต้องดูวันคู่กัน),
+     แพ็คยกมา = "b"+id รายการยกมา+"#"+เบอร์ (เบอร์ซ้ำกับไลน์ได้ ไม่ปนกัน)
+     เที่ยวรถเก่าที่เก็บ key เป็นเลขอย่างเดียว: ใช้วันจาก packs ที่บันทึกไว้ ถ้าไม่มีก็ถือว่าเป็นเบอร์นั้นของทุกวันในช่วงที่อ้างอิง */
   function packPool(src, extraTaken){
     const opp=srcPP(src), pool=[];
-    if(src.orderId) PROD.line.filter(l=>l.orderId===src.orderId).forEach(l=>pool.push({ k:l.seq, no:l.seq, date:ymd(l.time), t:l.time, pp:opp }));
+    const lines=src.orderId?PROD.line.filter(l=>l.orderId===src.orderId):[];
+    lines.forEach(l=>pool.push({ k:ymd(l.time)+'#'+l.seq, no:l.seq, date:ymd(l.time), t:l.time, pp:opp }));
     S.finAdjustments.filter(a=>sameSrc(a,src) && (a.packNos||[]).length).forEach(a=>{ const d=a.prodDate||ymd(a.time);
       a.packNos.forEach(n=>pool.push({ k:'b'+a.id+'#'+n, no:n, date:d, t:d+'T00:00:00', pp:+a.piecesPerPack||opp, bf:1 })); });
     const taken=new Set(extraTaken||[]);
-    S.deliveries.forEach(d=>d.items.forEach(it=>{ if(it.kind!=='trade' && sameSrc(it,src)) (it.seqs||[]).forEach(k=>taken.add(k)); }));
+    S.deliveries.forEach(d=>d.items.forEach(it=>{ if(it.kind!=='trade' && sameSrc(it,src)) (it.seqs||[]).forEach(k=>{
+      if(typeof k==='string'){ taken.add(k); return; }
+      const p=(it.packs||[]).find(x=>x.k===k && x.date);
+      if(p){ taken.add(p.date+'#'+k); return; }
+      lines.forEach(l=>{ const dd=ymd(l.time); if(l.seq===k && (!it.refDateFrom||dd>=it.refDateFrom) && (!it.refDateTo||dd<=it.refDateTo)) taken.add(dd+'#'+k); });
+    }); }));
     return pool.filter(p=>!taken.has(p.k)).sort((a,b)=>a.t<b.t?-1:a.t>b.t?1:(+a.no||0)-(+b.no||0));
   }
   /* "เบอร์ 1-50 (5/1/2569) · 51-60 (2/10/2569)" */

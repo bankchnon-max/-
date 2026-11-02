@@ -4248,7 +4248,10 @@ window.WPDAUTH = {
   function addPack(gapReason,gapMin,flagged,actual,actualPc){
     const o=active(); const std=CALC.stdPerPack(o.spec);
     const t=todayStr();
-    const seq=S.line.filter(l=>l.orderId===o.id&&dayOf(l.time)===t).length+1;
+    /* เลขแพ็คนับต่อจากสินค้าตัวเดียวกันที่ทำวันนี้ (เปิดออเดอร์ใหม่ทำต่อ ไม่เริ่ม 1 ซ้ำ — ตอนเช็คขึ้นรถไม่สับสน) */
+    const _code=String(o.code||'').trim();
+    const seq=S.line.filter(l=>dayOf(l.time)===t && (l.orderId===o.id || (_code && String((orderById(l.orderId)||{}).code||'').trim()===_code)))
+      .reduce((m,l)=>Math.max(m,+l.seq||0),0)+1;
     const prevRows=S.line.filter(l=>l.orderId===o.id);
     const cumPrev=prevRows.reduce((s,l)=>s+(+l.stdPerPack||0),0);
     const cumActPrev=prevRows.reduce((s,l)=>s+((l.actualWeight!=null?+l.actualWeight:+l.stdPerPack)||0),0);

@@ -2927,8 +2927,17 @@ window.WPDAUTH = {
       : '<span class="bdg bad">ไม่ตรงกับสูตร</span> "'+esc(name)+'" ไม่อยู่ในสูตรของ '+esc(o?o.customer:'ออเดอร์นี้')+
         ' — สูตรคือ '+((o&&o.fibers.length)?o.fibers.map(f=>esc(f.name)).join(' · '):'ยังไม่ได้ตั้ง');
   }
+  /* ก้อนที่ลงรับเข้าซ้ำในแอพสต๊อก (ชื่อ + เบอร์ + น้ำหนัก + วันรับเข้า ตรงกัน = ก้อนเดียวกัน) — เบิกตัวไหนไปแล้ว ตัวที่ซ้ำก็ถือว่าเบิกแล้วด้วย
+     เบอร์/น้ำหนักซ้ำกันได้ถ้ารับเข้าคนละวัน (คนละก้อนจริง) */
+  function baleTwinIds(fiberName, receiptId){
+    const ls=STOCKFIBER[fiberName]||[], me=ls.find(l=>l.id===receiptId);
+    if(!me) return [receiptId];
+    const d=String(me.time||'').slice(0,10), kg=+me.kg||0;
+    return ls.filter(l=>l.id===receiptId || (d && String(l.lotNo)===String(me.lotNo) && String(l.time||'').slice(0,10)===d && Math.abs((+l.kg||0)-kg)<0.005)).map(l=>l.id);
+  }
   function lotRemaining(fiberName, lotNo, lotKg, receiptId){
-    const used = S.wd.filter(w=>w.receiptId ? (receiptId!=null && w.receiptId===receiptId)
+    const ids = receiptId!=null ? baleTwinIds(fiberName, receiptId) : [];
+    const used = S.wd.filter(w=>w.receiptId ? ids.includes(w.receiptId)
       : (w.fiberName===fiberName && String(w.lot)===String(lotNo))).reduce((s,w)=>s+(+w.kg||0),0);
     return Math.round((lotKg-used)*1000)/1000;
   }

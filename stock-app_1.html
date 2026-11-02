@@ -2043,7 +2043,7 @@ window.WPDAUTH = {
     S.fiberReceipts.forEach(r=>set.add(r.fiberName));
     return Array.from(set).filter(Boolean).sort((a,b)=>a.localeCompare(b,'th'));
   }
-  let fiberLotFilter=null;
+  let fiberLotFilter=null, showEmptyLots=false;
   let prodTypeFilter=null;
   function rFiber(){
     if(!$('rwDate').value) $('rwDate').value=todayStr();
@@ -2073,13 +2073,19 @@ window.WPDAUTH = {
     updateRwLotPreview();
 
     let lots=CALC.fiberLotStock(S.fiberReceipts, PROD.wd);
-    if($('fiberLotFilterBar')){
-      $('fiberLotFilterBar').innerHTML = fiberLotFilter
-        ? 'กำลังดูเฉพาะ: <b style="color:var(--accent2)">'+esc(fiberLotFilter)+'</b> <button class="x" id="btnClearFiberFilter">✕ ล้างตัวกรอง (ดูทั้งหมด)</button>'
-        : '';
-      if($('btnClearFiberFilter')) $('btnClearFiberFilter').onclick=()=>{ fiberLotFilter=null; rFiber(); };
-    }
     if(fiberLotFilter) lots=lots.filter(l=>l.fiberName===fiberLotFilter);
+    /* ล็อตที่หมดแล้ว (เหลือ 0 — เบิกหมด หรือปรับยอดเป็น 0) ไม่ต้องโชว์ · ติดลบยังโชว์ไว้ (ต้องแก้) */
+    const lotEmpty=l=>Math.abs(+l.remaining||0)<=0.05;
+    const nEmpty=lots.filter(lotEmpty).length;
+    if(!showEmptyLots) lots=lots.filter(l=>!lotEmpty(l));
+    if($('fiberLotFilterBar')){
+      $('fiberLotFilterBar').innerHTML = (fiberLotFilter
+        ? 'กำลังดูเฉพาะ: <b style="color:var(--accent2)">'+esc(fiberLotFilter)+'</b> <button class="x" id="btnClearFiberFilter">✕ ล้างตัวกรอง (ดูทั้งหมด)</button> '
+        : '')+
+        (nEmpty ? '<button class="ed" id="btnEmptyLots">'+(showEmptyLots?'ซ่อนล็อตที่หมดแล้ว':'ดูล็อตที่หมดแล้ว ('+nEmpty+')')+'</button>' : '');
+      if($('btnClearFiberFilter')) $('btnClearFiberFilter').onclick=()=>{ fiberLotFilter=null; rFiber(); };
+      if($('btnEmptyLots')) $('btnEmptyLots').onclick=()=>{ showEmptyLots=!showEmptyLots; rFiber(); };
+    }
     const baleStatus=CALC.baleStatus(S.fiberReceipts,S.baleUsage);
     const baleByLot={}; baleStatus.forEach(b=>{ baleByLot[b.fiberName+'||'+b.lotNo]=b; });
     $('tFiberLots').innerHTML=lots.length?'<tr><th>ใย</th><th>ล็อต</th><th>รับเข้า</th><th>เบิกใช้</th><th>คงเหลือ</th><th>จำนวนก้อน</th><th>วันที่รับ</th><th></th></tr>'+
@@ -2096,7 +2102,7 @@ window.WPDAUTH = {
         '</td><td><button class="ed" data-fladj="'+esc(l.id||'')+'">ปรับยอดคงเหลือ</button> '+
         '<button class="x" data-fldel="'+esc(l.id||'')+'">✕</button></td></tr>';
       }).join('')
-      :'<tr><td class="empty">'+(fiberLotFilter?'ใยนี้ยังไม่มีล็อต':'ยังไม่มีข้อมูล')+'</td></tr>';
+      :'<tr><td class="empty">'+(nEmpty?'ไม่มีล็อตที่ยังเหลือ — หมดแล้ว '+nEmpty+' ล็อต':(fiberLotFilter?'ใยนี้ยังไม่มีล็อต':'ยังไม่มีข้อมูล'))+'</td></tr>';
     $('tFiberLots').querySelectorAll('[data-flwhy]').forEach(b=>b.onclick=async()=>{
       const lot=lots.find(l=>l.id===b.dataset.flwhy); if(!lot) return;
       const rows=PROD.wd.filter(w=>w.fiberName===lot.fiberName && String(w.lot)===String(lot.lotNo))
@@ -4477,6 +4483,7 @@ window.WPDAUTH = {
       (it.ref.count?' <span class="bdg ok">'+(it.pickedDate?'วันที่เลือก':'FIFO อัตโนมัติ')+': เบอร์ '+esc(packsText(it.ref.packs))+'</span>':'')+
       (it.ref.short?' <span class="bdg warn">ไม่มีเบอร์แพ็ค '+it.ref.short+' แพ็ค</span>':'')+
       ' <button class="x" data-rm="'+i+'">✕</button>'+
+      ((it.ref.packs||[]).length?'<div class="sumline" id="dpCnt'+i+'" style="margin-top:4px;">'+dpTickText(it)+'</div>':'')+
       '<div style="margin-top:6px;">'+(it.ref.packs||[]).map((p,j)=>'<label class="chkrow"><input type="checkbox" data-chk="'+i+'|'+j+'" '+((it.checkedSeqs||[]).includes(p.k)?'checked':'')+'> เบอร์ '+esc(p.no)+(p.bf?' <small style="color:var(--dim)">ยกมา</small>':'')+'</label>').join('')+'</div>'+
       '</div>').join('')
       : '<div class="empty">ยังไม่มีรายการในเที่ยวนี้</div>';
@@ -4486,6 +4493,7 @@ window.WPDAUTH = {
       it.checkedSeqs=it.checkedSeqs||[];
       if(b.checked){ if(!it.checkedSeqs.includes(sqn)) it.checkedSeqs.push(sqn); }
       else { it.checkedSeqs=it.checkedSeqs.filter(x=>x!==sqn); }
+      if($('dpCnt'+idx)) $('dpCnt'+idx).innerHTML=dpTickText(it);
     });
 
     $('dpHistory').innerHTML = S.deliveries.length ? S.deliveries.slice().reverse().map(d=>
@@ -4508,6 +4516,12 @@ window.WPDAUTH = {
       await saveFin(); rShip(); toast('ลบแล้ว');
     });
   }
+  /* ส่งตามที่ติ๊กจริง: แพ็คที่มีเบอร์ = เฉพาะที่ติ๊ก · แพ็คไม่มีเบอร์ (ยกมา/ปรับยอด) ติ๊กไม่ได้ นับตามที่ใส่ */
+  function dpTicked(it){ const ps=(it.ref&&it.ref.packs)||[], ck=it.checkedSeqs||[]; return ps.filter(p=>ck.includes(p.k)); }
+  function dpSendQty(it){ return ((it.ref&&it.ref.packs)||[]).length ? dpTicked(it).length+(+it.ref.short||0) : it.qty; }
+  function dpTickText(it){ const n=(it.ref.packs||[]).length, t=dpTicked(it).length;
+    return t===n ? '<span style="color:var(--green)">✓ ติ๊กครบ '+n+' แพ็ค</span>'
+                 : '<span style="color:var(--yellow)">ติ๊กแล้ว <b>'+t+'</b> / '+n+' แพ็ค — บันทึกแล้วส่งเฉพาะที่ติ๊ก</span>'; }
   $('btnAddDpItem').onclick=async()=>{
     const v=$('dpOrdSel').value, qty=+$('dpQty').value, pickedDate=$('dpDateSel').value;
     if(!v||!qty){ toast('เลือกสินค้าและกรอกจำนวน'); return; }
@@ -4570,8 +4584,21 @@ window.WPDAUTH = {
   };
   $('btnSaveDelivery').onclick=async()=>{
     if(!dpItems.length){ toast('ยังไม่มีรายการในเที่ยวรถ'); return; }
-    const incomplete=dpItems.filter(it=>it.kind!=='trade' && !CALC.checklistComplete(it));
-    if(incomplete.length && !window.confirm('มี '+incomplete.length+' รายการที่ยังเช็คลิสต์ไม่ครบ ยืนยันจะบันทึกเที่ยวรถนี้เลยหรือไม่?')) return;
+    /* ติ๊กเท่าไหร่ ส่งเท่านั้น — แพ็คที่ไม่ได้ติ๊กยังอยู่ในสต๊อก */
+    const _part=dpItems.filter(it=>it.kind!=='trade' && dpSendQty(it)!==it.qty);
+    if(_part.length){
+      const _tx=_part.map(it=>{ const left=(it.ref.packs||[]).filter(p=>!(it.checkedSeqs||[]).includes(p.k));
+        return '• '+srcLabel(it)+' — ใส่ไว้ '+it.qty+' ติ๊ก '+dpSendQty(it)+' → ส่ง '+dpSendQty(it)+' แพ็ค'+(left.length?' (เบอร์ '+packsText(left)+' ยังอยู่ในสต๊อก)':''); }).join('\n');
+      if(!await ask('ส่งตามที่ติ๊กจริง', _tx+'\n\nบิลและสต๊อกจะนับตามที่ติ๊ก', { okText:'บันทึกตามที่ติ๊ก', cancelText:'กลับไปติ๊กต่อ' })) return;
+    }
+    dpItems=dpItems.filter(it=>it.kind==='trade' || dpSendQty(it)>0);
+    if(!dpItems.length){ toast('ยังไม่ได้ติ๊กแพ็คที่ขึ้นรถเลย'); rShip(); return; }
+    dpItems.forEach(it=>{ if(it.kind==='trade' || !(it.ref.packs||[]).length) return;
+      const packs=dpTicked(it), nums=packs.map(p=>+p.no).filter(n=>!isNaN(n)), ds=packs.map(p=>p.date).filter(Boolean).sort();
+      it.qty=dpSendQty(it);
+      it.ref=Object.assign({}, it.ref, { packs, seqs:packs.map(p=>p.k), count:packs.length,
+        seqFrom:nums.length?Math.min(...nums):null, seqTo:nums.length?Math.max(...nums):null, dateFrom:ds[0]||null, dateTo:ds[ds.length-1]||null });
+      it.checkedSeqs=packs.map(p=>p.k); });
     const delivery={ id:uid(), date:$('dpDate').value||todayStr(), truck:$('dpTruck').value.trim(), poNumber:$('dpPO').value.trim(), createdAt:localISO(),
       items:dpItems.map(it=>it.kind==='trade'
         ? ({ kind:'trade', itemId:it.itemId, name:it.name, unit:it.unit, qty:it.qty, customer:it.customer })

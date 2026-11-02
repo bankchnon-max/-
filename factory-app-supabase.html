@@ -4144,6 +4144,9 @@ window.WPDAUTH = {
       if(_draft.packBagName2 && !_draft.packBagWeight2 && !await ask('ยังไม่ได้ใส่น้ำหนักถุงแพ็คใบที่ 2','ถุง "'+_draft.packBagName2+'" ยังไม่มีน้ำหนักต่อใบ — Standard จะไม่รวมน้ำหนักถุงใบที่ 2 และหักถุงจากสต๊อกไม่ได้ · ยืนยันจะบันทึกแบบนี้?')) return;
       /* เลือกถุงแพ็คแล้วแต่ไม่มีน้ำหนักต่อใบ = Standard ขาดน้ำหนักถุง */
       if(_draft.packBagName && !_draft.packBagWeight && !await ask('ยังไม่ได้ใส่น้ำหนักถุงแพ็คต่อใบ','ถุง "'+_draft.packBagName+'" ยังไม่มีน้ำหนักต่อใบ — Standard จะไม่รวมน้ำหนักถุง และหักถุงจากสต๊อกไม่ได้ · ยืนยันจะบันทึกแบบนี้?')) return;
+      /* ชื่อผ้าต้องตรงกับในสต๊อก ไม่งั้นปลอกที่เบิกมาไม่นับ ลงแพ็คไม่ได้ */
+      const _ft=isPillow && $('spFabType') ? $('spFabType').value.trim() : '';
+      if(_ft && (STOCKFABRIC.types||[]).length && !STOCKFABRIC.types.includes(_ft) && !await ask('ไม่มีผ้า "'+_ft+'" ในสต๊อก', 'ชื่อผ้าต้องตรงกับในแอพสต๊อก — เลือกจากรายการที่ขึ้นตอนพิมพ์\nในสต๊อกมี: '+STOCKFABRIC.types.join(', ')+'\n\nบันทึกชื่อนี้ไปเลยไหม?')) return;
       const _ws=specWarnings(_draft);
       if(_ws.length && !await ask('ตัวเลขดูผิดปกติ — ตรวจอีกครั้งก่อนบันทึก',
         _ws.map(x=>'• '+x).join('\n')+'\n\nระบบจะหักถุงออกจากสต๊อกตามตัวเลขนี้ทุกแพ็ค ถ้าผิดสต๊อกจะเพี้ยนสะสม\n\nยืนยันว่าตัวเลขถูกต้องแล้ว?')) return;
@@ -4736,7 +4739,8 @@ window.WPDAUTH = {
     const used={}; (S.caseUse||[]).forEach(u=>{ const k=u.fwId+'\u0000'+u.batchId; used[k]=(used[k]||0)+(+u.pieces||0); });
     const lots=[];
     const since=trackSince(S.caseUse), tracked=new Set((S.caseUse||[]).map(u=>u.fwId));
-    (S.fabricWd||[]).filter(w=>w.fabricType===fab && (String(w.time)>=since || tracked.has(w.id))).slice().sort((a,b)=>String(a.time).localeCompare(String(b.time))).forEach(w=>{
+    /* ปลอกที่เบิกให้ออเดอร์นี้นับเสมอ แม้ชื่อผ้าในสเปคพิมพ์ไม่ตรงกับชื่อในสต๊อก (เช่น ผ้าขาวริ้ว90 / ผ้าริ้ว90g) */
+    (S.fabricWd||[]).filter(w=>(w.fabricType===fab || w.orderId===o.id) && (String(w.time)>=since || tracked.has(w.id))).slice().sort((a,b)=>String(a.time).localeCompare(String(b.time))).forEach(w=>{
       (w.picks||[]).forEach(p=>{
         if(want && normSize(w.size)!==want && !sizeOf(p.batchId).includes(want)) return;
         const rem=(+p.qty||0)-(used[w.id+'\u0000'+p.batchId]||0);

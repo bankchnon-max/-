@@ -3760,27 +3760,43 @@ window.WPDAUTH = {
   }
   function bagLineStatus(o){
     if(!o || !o.spec || isPicnic(o) || !(CALC.stdPerPack(o.spec)>0)) return '';
+    const side=fiberSide(o);
     return (o.productType==='หมอน' ? caseLineStatus(o) : '')+bagLineJobs(o.spec).map(j=>{
-      const q=sackQueue(j.kind,j.name).filter(lineHasBag), at=q[0];
+      const q=sackQueue(j.kind,j.name,side).filter(lineHasBag), at=q[0];
+      /* กระสอบถุงเดียวกันที่อยู่อีกฝั่ง — ถ้าไปหยิบมาจากฝั่งนั้นจริง กดย้ายมาฝั่งนี้ได้ */
+      const other=sackQueue(j.kind,j.name).filter(x=>lineHasBag(x) && x.side && x.side!==side);
+      const otherH=other.length?'<br><span style="color:var(--dim)">'+other.map(x=>'กระสอบ #'+esc(x.sackNo)+' อยู่'+SIDE_TH[x.side]+' (เหลือ '+(x.wEst?'≈ ':'')+piecesOf(x.remaining,x.weightPerBag||j.w)+' ใบ)').join(' · ')+'</span>'+
+        other.map(x=>' <button class="btn sec sm" data-bwmove="'+esc(x.bwId)+'">หยิบ #'+esc(x.sackNo)+' มาใช้'+SIDE_TH[side]+'</button>').join(''):'';
       const left=q.reduce((a,x)=>a+piecesOf(x.remaining,x.weightPerBag||j.w),0);
       if(at && left>=j.n){
         const atLeft=piecesOf(at.remaining,at.weightPerBag||j.w);
-        return '<div class="bagst ok">✓ '+j.label+' <b>'+esc(j.name)+'</b> — ใช้กระสอบ <b>#'+esc(at.sackNo)+'</b>'+(at.recvTime?' (รับเข้า '+thDate(at.recvTime)+')':'')+
+        return '<div class="bagst ok">✓ '+j.label+' <b>'+esc(j.name)+'</b> — ใช้กระสอบ <b>#'+esc(at.sackNo)+'</b> '+SIDE_TH[side]+(at.recvTime?' (รับเข้า '+thDate(at.recvTime)+')':'')+
           ' · ที่ไลน์เหลือ <b>'+(at.wEst?'≈ ':'')+atLeft+' ใบ</b>'+
           (q.length>1?' · รอคิวอีก '+(q.length-1)+' กระสอบ (#'+q.slice(1).map(x=>esc(x.sackNo)).join(', #')+')':'')+
           ' · พอ ~'+Math.floor(left/j.n)+' แพ็ค</div>';
       }
+      if(other.length && !at) return '<div class="bagst bad">⚠ '+j.label+' <b>'+esc(j.name)+'</b> ไม่มีที่ไลน์'+SIDE_TH[side]+' — เบิกกระสอบใหม่ หรือถ้าหยิบกระสอบของอีกฝั่งมาใช้ กดปุ่มหยิบมาใช้ด้านล่าง'+otherH+
+        '<br><button class="btn sm" data-bwgo="'+esc(j.kind+':'+encodeURIComponent(j.name))+'">เบิกกระสอบใหม่</button></div>';
       const old=sackStatusNow().filter(x=>x.kind===j.kind && x.name===j.name && sackHasBag(x))
         .sort((a,b)=>String(a.time).localeCompare(String(b.time))||(+a.sackNo||0)-(+b.sackNo||0))[0];
-      return '<div class="bagst bad">⚠ '+j.label+' <b>'+esc(j.name)+'</b> '+(at?'ที่ไลน์เหลือ '+left+' ใบ ไม่พอแพ็คถัดไป (ใช้ '+j.n+' ใบ/แพ็ค)':'ไม่มีที่ไลน์')+' — <b>ต้องเบิกก่อนแพ็ค</b> ไม่งั้นถุงไม่ถูกหัก'+
+      return '<div class="bagst bad">⚠ '+j.label+' <b>'+esc(j.name)+'</b> '+(at?'ที่ไลน์เหลือ '+left+' ใบ ไม่พอแพ็คถัดไป (ใช้ '+j.n+' ใบ/แพ็ค)':'ไม่มีที่ไลน์'+SIDE_TH[side])+' — <b>ต้องเบิกก่อนแพ็ค</b> ไม่งั้นถุงไม่ถูกหัก'+
         (old?'<br>กระสอบเก่าสุดในสต๊อก: <b>#'+esc(old.sackNo)+'</b> (รับเข้า '+thDate(old.time)+') เหลือ '+old.remainingKg+' กก.'+(+old.weightPerBag>0?' ≈ '+old.remainingPieces+' ใบ':'')
             :'<br>ในสต๊อกไม่มีกระสอบถุงนี้เหลือแล้ว — แจ้งสต๊อกรับเข้า')+
-        '<br><button class="btn sm" data-bwgo="'+esc(j.kind+':'+encodeURIComponent(j.name))+'"'+(old?' data-bwsack="'+esc(old.sackId)+'"':'')+'>เบิกเลย</button></div>';
+        '<br><button class="btn sm" data-bwgo="'+esc(j.kind+':'+encodeURIComponent(j.name))+'"'+(old?' data-bwsack="'+esc(old.sackId)+'"':'')+'>เบิกเลย</button>'+otherH+'</div>';
     }).join('');
   }
   function renderBagStat(o){
     const el=$('bagStat'); if(!el) return;
     const h=bagLineStatus(o); if(el.dataset.h===h) return; el.dataset.h=h; el.innerHTML=h;
+    el.querySelectorAll('[data-bwmove]').forEach(b=>b.onclick=async()=>{
+      const w=(S.bagWd||[]).find(x=>x.id===b.dataset.bwmove); if(!w || !o) return;
+      const from=bagSide(w), to=fiberSide(o), no=((w.picks||[])[0]||{}).sackNo;
+      if(!await ask('หยิบกระสอบ #'+no+' มาใช้'+SIDE_TH[to]+'?', (w.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+' '+w.name+' กระสอบ #'+no+' ตอนนี้อยู่'+(SIDE_TH[from]||'ที่ไลน์')+'\nย้ายแล้วจะหักถุงให้งาน'+SIDE_TH[to]+' และ'+(SIDE_TH[from]||'อีกฝั่ง')+'จะไม่เห็นกระสอบนี้',
+        { yes:'ย้ายมา'+SIDE_TH[to], no:'ยกเลิก', tone:'ok' })) return;
+      w.side=to; (w.sideLog=w.sideLog||[]).push({ time:localISO(), by:opBy(), from:from||null, to:to, orderId:o.id });
+      await saveFeed(); el.dataset.h=''; refreshBwSelects();
+      toast('ย้ายกระสอบ #'+no+' มา'+SIDE_TH[to]+'แล้ว');
+    });
     el.querySelectorAll('[data-bwgo]').forEach(b=>b.onclick=()=>{
       const v=b.dataset.bwgo, i=v.indexOf(':'), kind=v.slice(0,i), name=decodeURIComponent(v.slice(i+1));
       $('bwKindSel').value=kind; $('bwKindSel').dispatchEvent(new Event('change'));
@@ -3956,7 +3972,7 @@ window.WPDAUTH = {
       if(!bagName){ sel.innerHTML='<option value="">— เลือกถุงก่อน —</option>'; return; }
       /* ชื่อถุงอยู่ในกระสอบประเภทไหนในสต๊อก ก็ดูประเภทนั้น (เหมือนตอนหักถุง) */
       const k=(kind==='zip' && !(STOCKBAG.zip||{})[bagName] && (STOCKBAG.pack||{})[bagName]) ? 'pack' : kind;
-      const lineQ=sackQueue(k,bagName).filter(lineHasBag);
+      const lineQ=sackQueue(k,bagName,fiberSide(o)).filter(lineHasBag);
       const lineNos=new Set(lineQ.map(x=>String(x.sackNo)));
       const sacks=STOCKBAG.sacks.filter(s=>s.kind===k && s.name===bagName && sackHasBag(s) && !lineNos.has(String(s.sackNo)));
       if(!lineQ.length && !sacks.length){ sel.innerHTML='<option value="">— ไม่มีกระสอบที่พร้อมใช้ในสต๊อก —</option>'; return; }
@@ -4551,17 +4567,21 @@ window.WPDAUTH = {
   function lineSince(){ const d=new Date(); d.setDate(d.getDate()-14); return localISO(d); }
   /* วันที่เริ่มบันทึกการใช้จริง (รายการใช้แรกสุด) — เบิกหลังจากนั้นค้างที่ไลน์จนใช้หมด · ยังไม่เคยมีบันทึกการใช้ = 14 วันล่าสุด */
   function trackSince(list){ let m=null; (list||[]).forEach(u=>{ const t=String(u.time||''); if(t && (!m || t<m)) m=t; }); return m ? m.slice(0,10) : lineSince(); }
-  function sackQueue(kind,name){
+  /* กระสอบถุงที่ยกมาไลน์อยู่ฝั่งไหน (หมอน / ใยแผ่น) — เบิกตอนทำงานฝั่งไหนก็อยู่ฝั่งนั้น
+     ของเก่าที่ไม่ได้จดฝั่ง ดูจากงานที่เบิก · ไม่รู้ว่าเบิกให้งานไหน = ใช้ได้ทั้ง 2 ฝั่ง */
+  function bagSide(w){ if(!w) return null; if(w.side) return w.side; const o=w.orderId?orderById(w.orderId):null; return o?fiberSide(o):null; }
+  /* side = ดูเฉพาะกระสอบฝั่งนั้น (ไม่ส่ง = ทุกฝั่ง) — ถุงฝั่งหมอนไม่ถูกหักไปให้งานฝั่งใย (3 พ.ย. งานใยปั่นไปหักถุง 40x70 ฝั่งหมอน) */
+  function sackQueue(kind,name,side){
     const st=sackStatusNow(), since=trackSince(S.bagUse);
     const tracked=new Set((S.bagUse||[]).map(u=>u.bwId));
     return (S.bagWd||[])
-      .filter(w=>!w.auto && w.kind===kind && w.name===name && (String(w.time)>=since || tracked.has(w.id)))
+      .filter(w=>!w.auto && w.kind===kind && w.name===name && (String(w.time)>=since || tracked.has(w.id)) && (!side || !bagSide(w) || bagSide(w)===side))
       .slice().sort((a,b)=>String(a.time).localeCompare(String(b.time)))
       .map(w=>{
         const used=sackUsed(w.id);
         const first=(w.picks&&w.picks[0])||{};
         const info=st.find(x=>x.sackId===first.sackId)||{};
-        return { bwId:w.id, sackNo:(first.sackNo!=null?first.sackNo:''), sackId:first.sackId,
+        return { bwId:w.id, side:bagSide(w), sackNo:(first.sackNo!=null?first.sackNo:''), sackId:first.sackId,
                  kg:r3(+w.kg||0), used:used, remaining:r3((+w.kg||0)-used),
                  weightPerBag:+info.weightPerBag||estBagW(w), wEst:!(+info.weightPerBag>0), size:info.size||'', time:w.time, recvTime:info.time||'' };
       });
@@ -4578,8 +4598,8 @@ window.WPDAUTH = {
     if(o.spec.packBagName2===w.name && +o.spec.packBagWeight2>0) return +o.spec.packBagWeight2;
     return (o.spec.packBagName===w.name && +o.spec.packBagWeight>0) ? +o.spec.packBagWeight : +o.spec.bagWeight;
   }
-  function sackAtLine(kind,name){ return sackQueue(kind,name).find(lineHasBag)||null; }
-  function sackWaiting(kind,name){ return sackQueue(kind,name).filter(lineHasBag).slice(1); }
+  function sackAtLine(kind,name,side){ return sackQueue(kind,name,side).find(lineHasBag)||null; }
+  function sackWaiting(kind,name,side){ return sackQueue(kind,name,side).filter(lineHasBag).slice(1); }
   function piecesOf(kg,w){ return (w>0)?Math.round(kg/w):0; }
   /* หักถุงออกจากกระสอบที่แท็กไว้ ทุกครั้งที่บันทึก 1 แพ็ค */
   /* ---------- งานปิกนิก: หน้าเดียว กด 1 ครั้ง = 1 แพ็ค ---------- */
@@ -4593,7 +4613,7 @@ window.WPDAUTH = {
     const sp=o.spec||{};
     return sp.packBagName ? sackStatusNow().filter(x=>x.kind==='pack' && x.name===sp.packBagName && sackHasBag(x)).sort((a,b)=>a.sackNo-b.sackNo) : [];
   }
-  function picPackBagLeft(o){ const sp=o.spec||{}, w=+sp.packBagWeight||0; return sackQueue('pack',sp.packBagName||'').filter(lineHasBag).reduce((a,x)=>a+piecesOf(x.remaining,x.weightPerBag||w),0); }
+  function picPackBagLeft(o){ const sp=o.spec||{}, w=+sp.packBagWeight||0; return sackQueue('pack',sp.packBagName||'',fiberSide(o)).filter(lineHasBag).reduce((a,x)=>a+piecesOf(x.remaining,x.weightPerBag||w),0); }
   function refreshPicTap(o){
     const card=$('cardPicTap'); if(!card) return;
     const pic=isPicnic(o), detail=$('ptDetail').checked;
@@ -4672,7 +4692,7 @@ window.WPDAUTH = {
     if(sp.packBagName && CALC.packBagPerPack(sp)>0 && !isReuseBag(sp.packBagName) && picPackBagLeft(o)<CALC.packBagPerPack(sp)){
       const sk=picSacks(o).find(x=>x.sackId===$('ptSack').value);
       if(!sk){ await info('ยังไม่ได้เลือกกระสอบถุงแพ็ค','เลือก "ถุงแพ็ค — กระสอบที่หยิบมา" ก่อน'); return; }
-      add.bag={ id:uid(), time:localISO(), orderId:o.id, kind:'pack', name:sp.packBagName, kg:r3(sk.remainingKg), picks:[{ sackId:sk.sackId, sackNo:sk.sackNo, kg:r3(sk.remainingKg) }], quick:true };
+      add.bag={ id:uid(), time:localISO(), orderId:o.id, side:fiberSide(o), kind:'pack', name:sp.packBagName, kg:r3(sk.remainingKg), picks:[{ sackId:sk.sackId, sackNo:sk.sackNo, kg:r3(sk.remainingKg) }], quick:true };
     }
     if(add.sheet){ S.sheetWd=S.sheetWd||[]; S.sheetWd.push(Object.assign({ by:opBy() }, add.sheet)); }
     if(add.fab) S.fabricWd.push(Object.assign({ by:opBy() }, add.fab));
@@ -4698,10 +4718,10 @@ window.WPDAUTH = {
     if(!jobs.length) return null;
     S.bagUse=S.bagUse||[];
     o.bagLog=o.bagLog||[];
-    const msgs=[], shorts=[], switched=[], needWd=[];
+    const msgs=[], shorts=[], switched=[], needWd=[], side=fiberSide(o);
     jobs.forEach(j=>{
-      const q=sackQueue(j.kind,j.name).filter(lineHasBag);
-      if(!q.length){ needWd.push(j.label+' '+j.name); shorts.push(j.label+' ไม่มีกระสอบที่ไลน์ — ต้องกดเบิกก่อน'); return; }
+      const q=sackQueue(j.kind,j.name,side).filter(lineHasBag);
+      if(!q.length){ needWd.push(j.label+' '+j.name); shorts.push(j.label+' ไม่มีกระสอบที่ไลน์'+SIDE_TH[side]+' — ต้องกดเบิกก่อน (หรือหยิบกระสอบอีกฝั่งมาใช้ ที่กล่องสถานะถุง)'); return; }
       let pieces=j.n;                         /* ใช้กี่ใบต่อแพ็ค */
       for(const sk of q){
         if(pieces<=0) break;
@@ -4731,7 +4751,7 @@ window.WPDAUTH = {
           pieces-=take;
         }
       }
-      const at=sackAtLine(j.kind,j.name);
+      const at=sackAtLine(j.kind,j.name,side);
       const w=+sp[j.wKey]||0;
       if(at) msgs.push(j.label+' #'+at.sackNo+' เหลือ '+piecesOf(at.remaining,w)+' ใบ');
       else msgs.push(j.label+' ที่ไลน์หมดแล้ว');
@@ -5205,16 +5225,19 @@ window.WPDAUTH = {
     const t=$('tBagAtLine'); if(!t) return;
     const keys=[...new Set((S.bagWd||[]).filter(w=>!w.auto).map(w=>w.kind+'\u0000'+w.name))];
     const rows=[];
-    keys.forEach(k=>{ const [kind,name]=k.split('\u0000'); sackQueue(kind,name).filter(lineHasBag).forEach((x,i)=>rows.push({kind,name,x,inUse:i===0})); });
+    /* แต่ละฝั่งมีกระสอบที่กำลังใช้ของตัวเอง · กระสอบที่ไม่รู้ฝั่ง (ใช้ได้ทั้ง 2 ฝั่ง) ขึ้นแถวเดียว */
+    keys.forEach(k=>{ const [kind,name]=k.split('\u0000'); const seen=new Set();
+      ['pillow','sheet'].forEach(sd=>sackQueue(kind,name,sd).filter(lineHasBag).forEach((x,i)=>{
+        if(seen.has(x.bwId)) return; seen.add(x.bwId); rows.push({kind,name,x,side:x.side||sd,shared:!x.side,inUse:i===0}); })); });
     t.innerHTML=rows.length?'<tr><th>ถุง</th><th>กระสอบ</th><th>เหลือ</th><th>เบิกมาเมื่อ</th><th></th></tr>'+
-      rows.map(r=>'<tr><td>'+(r.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+' '+esc(r.name)+'</td><td>#'+esc(r.x.sackNo)+(r.inUse?' <span class="bdg ok">กำลังใช้</span>':' <span class="bdg warn">รอคิว</span>')+'</td>'+
+      rows.map(r=>'<tr><td>'+(r.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+' '+esc(r.name)+'<br><span style="color:var(--dim)">'+(r.shared?'ใช้ได้ทั้ง 2 ฝั่ง':'อยู่'+SIDE_TH[r.side])+'</span></td><td>#'+esc(r.x.sackNo)+(r.inUse?' <span class="bdg ok">กำลังใช้</span>':' <span class="bdg warn">รอคิว</span>')+'</td>'+
         '<td><b>'+(r.x.weightPerBag>0?(r.x.wEst?'≈ ':'')+piecesOf(r.x.remaining,r.x.weightPerBag):'?')+'</b> ใบ <span style="color:var(--dim)">('+r.x.remaining+' กก.)</span>'+
         (r.x.wEst?'<br><span class="bdg warn">ยังไม่ได้ใส่น้ำหนัก/ใบ ในแอพสต๊อก'+(r.x.weightPerBag>0?' — คิดจาก '+r.x.weightPerBag+' กก./ใบ':'')+'</span>':'')+'</td><td>'+thDate(r.x.time)+'</td><td>'+(r.inUse?'<button class="btn sec sm" data-bagout="'+esc(r.x.bwId)+'" style="white-space:nowrap;margin:0">✓ หมดแล้ว</button>':'')+'</td></tr>').join('')
       :'<tr><td class="empty">ไม่มีถุงค้างที่ไลน์</td></tr>';
     /* กระสอบหมดจริง แต่ระบบยังเหลือ → นับที่เหลือเป็นถุงที่ใช้ไปกับงานที่ทำอยู่ (ถุงขาด/ใบเบากว่าที่คิด) แล้วใช้กระสอบถัดไป */
     t.querySelectorAll('[data-bagout]').forEach(b=>b.onclick=async()=>{
       const r=rows.find(x=>x.x.bwId===b.dataset.bagout); if(!r) return;
-      const x=r.x, pcs=x.weightPerBag>0?piecesOf(x.remaining,x.weightPerBag):0, next=rows.find(y=>y.kind===r.kind && y.name===r.name && !y.inUse);
+      const x=r.x, pcs=x.weightPerBag>0?piecesOf(x.remaining,x.weightPerBag):0, next=rows.find(y=>y.kind===r.kind && y.name===r.name && y.side===r.side && !y.inUse);
       const lastUse=(S.bagUse||[]).filter(u=>u.bwId===x.bwId).slice(-1)[0];
       const o=active() || (lastUse&&S.orders.find(y=>y.id===lastUse.orderId)) || null;
       if(!o){ toast('ยังไม่มีออเดอร์ที่กำลังทำ'); return; }
@@ -5240,7 +5263,7 @@ window.WPDAUTH = {
     updateBwPreview();
     const hist=S.bagWd.slice().reverse().slice(0,30);
     $('tBagWdHist').innerHTML=hist.length?'<tr><th>เวลา</th><th>ประเภท</th><th>ชื่อ</th><th>กก.</th><th>หยิบจากกระสอบ</th><th></th></tr>'+
-      hist.map(w=>'<tr><td>'+(w.time||'').slice(0,16).replace('T',' ')+'</td><td>'+(w.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+'</td><td>'+esc(w.name)+'</td><td>'+w.kg+
+      hist.map(w=>'<tr><td>'+(w.time||'').slice(0,16).replace('T',' ')+'</td><td>'+(w.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+'</td><td>'+esc(w.name)+(bagSide(w)?'<br><span style="color:var(--dim)">'+SIDE_TH[bagSide(w)]+'</span>':'')+'</td><td>'+w.kg+
         '</td><td>'+(w.picks||[]).map(p=>'#'+p.sackNo+':'+(p.kg!=null?p.kg:p.take)+' กก.').join(', ')+
         ((S.bagUse||[]).some(u=>u.bwId===w.id && u.closeout)?' <span class="bdg warn">กดหมดแล้ว</span> <button class="btn sec sm" data-bwreopen="'+w.id+'">ยกเลิกหมด</button>':'')+'</td><td style="white-space:nowrap"><button class="btn sec sm" data-bwe="'+w.id+'">แก้</button> <button class="x" data-bwd="'+w.id+'">✕</button></td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีการเบิก</td></tr>';
@@ -5337,7 +5360,7 @@ window.WPDAUTH = {
     if(weighed && kg>200){ box.innerHTML='<span style="color:var(--red)">'+kg+' กก. ดูหนักผิดปกติ — เช็คตัวเลขอีกที</span>'; bwPick=null; return; }
     bwPick={ picks:[{sackId:sk.sackId, sackNo:sk.sackNo, take:r3(take), weighedKg:weighed?r3(kg):null}], total:r3(take), short:0, sack:sk };
     const diff=weighed ? r3(take-sk.remainingKg) : 0;
-    box.innerHTML='ยกกระสอบ <b style="color:var(--accent2)">#'+sk.sackNo+'</b> มาที่ไลน์ — ถุง '+r3(take)+' กก. ≈ '+
+    box.innerHTML='ยกกระสอบ <b style="color:var(--accent2)">#'+sk.sackNo+'</b> มาที่ไลน์'+(active()?' <b>'+SIDE_TH[fiberSide(active())]+'</b>':'')+' — ถุง '+r3(take)+' กก. ≈ '+
       piecesOf(take,sk.weightPerBag)+' ใบ · <b>'+sk.weightPerBag+' กก./ใบ</b>'+(sk.size?' · '+esc(sk.size):'')+
       (weighed ? '<br>⚖ ชั่งได้ '+r3(kg)+' − กระสอบเปล่า '+sk.tareKg+' กก. · ในระบบเหลือ '+sk.remainingKg+' กก. → '+(Math.abs(diff)<0.005?'ตรงพอดี':(diff>0?'มากกว่า ':'น้อยกว่า ')+Math.abs(diff)+' กก.')+' (ระบบแก้น้ำหนักกระสอบนี้ตามที่ชั่ง)'
         : '<br><span style="color:var(--dim)">ยังไม่ได้ชั่ง — ใช้น้ำหนักตามที่รับเข้า '+sk.recvKg+' กก. (ชั่งแล้วใส่ด้านบน ตัวเลขถุง/ต้นทุนต่อใบจะตรงจริง)</span>')+
@@ -5354,12 +5377,12 @@ window.WPDAUTH = {
     $('btnBagWd').onclick=async()=>{
       if(!bwPick || !bwPick.picks.length){ toast('เลือกกระสอบที่หยิบมาก่อน'); return; }
       const total=bwPick.total, sk=bwPick.sack, bwPickW=bwPick.picks[0]&&bwPick.picks[0].weighedKg;
-      S.bagWd.push({ by:opBy(), id:uid(), time:localISO(), orderId:(active()?active().id:null), kind:$('bwKindSel').value, name:$('bwNameSel').value,
+      S.bagWd.push({ by:opBy(), id:uid(), time:localISO(), orderId:(active()?active().id:null), side:(active()?fiberSide(active()):null), kind:$('bwKindSel').value, name:$('bwNameSel').value,
         kg:total, picks:bwPick.picks.map(p=>Object.assign({sackId:p.sackId,sackNo:p.sackNo,kg:p.take}, p.weighedKg>0?{weighedKg:p.weighedKg}:{})) });
       await saveFeed();
       $('bwQty').value=''; $('bwPreview').innerHTML=''; bwPick=null;
       refreshBwSelects(); refreshBwSackOptions();
-      toast('ยกกระสอบ #'+sk.sackNo+' มาที่ไลน์แล้ว — ถุง '+total+' กก. ('+sk.weightPerBag+' กก./ใบ)'+(bwPickW>0?' · ชั่งจริง '+bwPickW+' กก.':''));
+      toast('ยกกระสอบ #'+sk.sackNo+' มาที่ไลน์'+(active()?SIDE_TH[fiberSide(active())]:'')+'แล้ว — ถุง '+total+' กก. ('+sk.weightPerBag+' กก./ใบ)'+(bwPickW>0?' · ชั่งจริง '+bwPickW+' กก.':''));
     };
   }
 

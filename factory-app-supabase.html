@@ -3743,12 +3743,34 @@ window.WPDAUTH = {
   function bagLineJobs(sp){
     const j=[];
     if(sp.bagName && CALC.zipPerPack(sp)>0){ const k=(STOCKBAG.zip||{})[sp.bagName]?'zip':((STOCKBAG.pack||{})[sp.bagName]?'pack':'zip');
-      j.push({ kind:k, name:sp.bagName, n:CALC.zipPerPack(sp), w:+sp.bagWeight||0, label:k==='zip'?'ถุงซิล':'ถุงแพ็ค' }); }
+      j.push({ kind:k, name:sp.bagName, n:CALC.zipPerPack(sp), w:+sp.bagWeight||0, label:k==='zip'?'ถุงซิล':'ถุงแพ็ค', sack:sp.bagSackNo||'' }); }
     if(sp.packBagName && CALC.packBagPerPack(sp)>0 && !isReuseBag(sp.packBagName))
-      j.push({ kind:'pack', name:sp.packBagName, n:CALC.packBagPerPack(sp), w:+sp.packBagWeight||0, label:'ถุงแพ็ค' });
+      j.push({ kind:'pack', name:sp.packBagName, n:CALC.packBagPerPack(sp), w:+sp.packBagWeight||0, label:'ถุงแพ็ค', sack:sp.packBagLotRef||'' });
     if(sp.packBagName2 && CALC.pack2PerPack(sp)>0 && !isReuseBag(sp.packBagName2))
-      j.push({ kind:'pack', name:sp.packBagName2, n:CALC.pack2PerPack(sp), w:+sp.packBagWeight2||0, label:'ถุงแพ็คใบที่ 2' });
+      j.push({ kind:'pack', name:sp.packBagName2, n:CALC.pack2PerPack(sp), w:+sp.packBagWeight2||0, label:'ถุงแพ็คใบที่ 2', sack:sp.packBagLotRef2||'' });
     return j;
+  }
+  /* กระสอบที่ Standard เลือกไว้ แต่ยังอยู่ในสต๊อก (ยังไม่ได้เบิกมาไลน์ฝั่งของงานนี้) — เลือกใน Standard ไม่ได้แปลว่าเบิกแล้ว */
+  function stdSackInStock(o,j){
+    if(!o || !j.sack) return null;
+    if(sackQueue(j.kind,j.name,fiberSide(o)).some(x=>lineHasBag(x) && String(x.sackNo)===String(j.sack))) return null;
+    return sackStatusNow().find(x=>x.kind===j.kind && x.name===j.name && String(x.sackNo)===String(j.sack) && sackHasBag(x))||null;
+  }
+  /* บันทึก Standard แล้ว — กระสอบที่เลือกไว้ยังไม่ได้เบิก ถามว่ายกมาไลน์เลยไหม (3 พ.ย. ตั้ง #19 ใน Standard แล้วยังต้องไปเบิกอีกรอบ) */
+  async function offerStdSackWd(o){
+    if(!o || !o.spec || isPicnic(o)) return;
+    const side=fiberSide(o); let n=0;
+    for(const j of bagLineJobs(o.spec)){
+      const sk=stdSackInStock(o,j); if(!sk) continue;
+      if(!await ask('ยก'+j.label+' '+j.name+' กระสอบ #'+sk.sackNo+' มาที่ไลน์เลยไหม?',
+        'Standard เลือกกระสอบ #'+sk.sackNo+' ไว้ แต่กระสอบยังอยู่ในสต๊อก (ยังไม่ได้เบิก)\nยกมาแล้วจะอยู่'+SIDE_TH[side]+' — ถุง '+sk.remainingKg+' กก.'+(+sk.weightPerBag>0?' ≈ '+sk.remainingPieces+' ใบ':'')+
+        '\n\nจะชั่งกระสอบจริงก่อน → กด "ยังไม่ยก" แล้วไปเบิกที่การ์ดเบิกกระสอบถุง',
+        { yes:'ยกมาเลย', no:'ยังไม่ยก', tone:'ok' })) continue;
+      S.bagWd.push({ by:opBy(), id:uid(), time:localISO(), orderId:o.id, side:side, kind:j.kind, name:j.name,
+        kg:r3(sk.remainingKg), picks:[{ sackId:sk.sackId, sackNo:sk.sackNo, kg:r3(sk.remainingKg) }], fromStd:true });
+      n++;
+    }
+    if(n){ await saveFeed(); refreshBwSelects(); toast('ยกกระสอบตาม Standard มาที่ไลน์'+SIDE_TH[side]+'แล้ว '+n+' กระสอบ'); }
   }
   /* หมอน: ปลอกที่ไลน์ — ไม่พอ 1 แพ็ค = แดง (ลงแพ็คไม่ได้จนกว่าจะเบิก) */
   function caseLineStatus(o){
@@ -3775,12 +3797,15 @@ window.WPDAUTH = {
           (q.length>1?' · รอคิวอีก '+(q.length-1)+' กระสอบ (#'+q.slice(1).map(x=>esc(x.sackNo)).join(', #')+')':'')+
           ' · พอ ~'+Math.floor(left/j.n)+' แพ็ค</div>';
       }
+      const want0=(other.length && !at)?stdSackInStock(o,j):null;
       if(other.length && !at) return '<div class="bagst bad">⚠ '+j.label+' <b>'+esc(j.name)+'</b> ไม่มีที่ไลน์'+SIDE_TH[side]+' — เบิกกระสอบใหม่ หรือถ้าหยิบกระสอบของอีกฝั่งมาใช้ กดปุ่มหยิบมาใช้ด้านล่าง'+otherH+
-        '<br><button class="btn sm" data-bwgo="'+esc(j.kind+':'+encodeURIComponent(j.name))+'">เบิกกระสอบใหม่</button></div>';
-      const old=sackStatusNow().filter(x=>x.kind===j.kind && x.name===j.name && sackHasBag(x))
+        (want0?'<br>กระสอบตาม Standard (ยังอยู่ในสต๊อก): <b>#'+esc(want0.sackNo)+'</b> เหลือ '+want0.remainingKg+' กก.'+(+want0.weightPerBag>0?' ≈ '+want0.remainingPieces+' ใบ':''):'')+
+        '<br><button class="btn sm" data-bwgo="'+esc(j.kind+':'+encodeURIComponent(j.name))+'"'+(want0?' data-bwsack="'+esc(want0.sackId)+'"':'')+'>เบิกกระสอบ'+(want0?' #'+esc(want0.sackNo):'ใหม่')+'</button></div>';
+      const want=stdSackInStock(o,j);
+      const old=want || sackStatusNow().filter(x=>x.kind===j.kind && x.name===j.name && sackHasBag(x))
         .sort((a,b)=>String(a.time).localeCompare(String(b.time))||(+a.sackNo||0)-(+b.sackNo||0))[0];
       return '<div class="bagst bad">⚠ '+j.label+' <b>'+esc(j.name)+'</b> '+(at?'ที่ไลน์เหลือ '+left+' ใบ ไม่พอแพ็คถัดไป (ใช้ '+j.n+' ใบ/แพ็ค)':'ไม่มีที่ไลน์'+SIDE_TH[side])+' — <b>ต้องเบิกก่อนแพ็ค</b> ไม่งั้นถุงไม่ถูกหัก'+
-        (old?'<br>กระสอบเก่าสุดในสต๊อก: <b>#'+esc(old.sackNo)+'</b> (รับเข้า '+thDate(old.time)+') เหลือ '+old.remainingKg+' กก.'+(+old.weightPerBag>0?' ≈ '+old.remainingPieces+' ใบ':'')
+        (old?'<br>'+(want?'กระสอบตาม Standard (ยังอยู่ในสต๊อก)':'กระสอบเก่าสุดในสต๊อก')+': <b>#'+esc(old.sackNo)+'</b> (รับเข้า '+thDate(old.time)+') เหลือ '+old.remainingKg+' กก.'+(+old.weightPerBag>0?' ≈ '+old.remainingPieces+' ใบ':'')
             :'<br>ในสต๊อกไม่มีกระสอบถุงนี้เหลือแล้ว — แจ้งสต๊อกรับเข้า')+
         '<br><button class="btn sm" data-bwgo="'+esc(j.kind+':'+encodeURIComponent(j.name))+'"'+(old?' data-bwsack="'+esc(old.sackId)+'"':'')+'>เบิกเลย</button>'+otherH+'</div>';
     }).join('');
@@ -4204,6 +4229,7 @@ window.WPDAUTH = {
       rLine(true);
       toast('Standard = '+CALC.stdPerPack(o.spec)+' กก./แพ็ค — เริ่มบันทึกได้เลย');
       flash('cardRun');
+      await offerStdSackWd(_fresh||o);
     };
   }
 

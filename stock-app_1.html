@@ -1454,11 +1454,15 @@ window.WPDAUTH = {
 
   /* ---------- PURE CALC (unit-tested) ---------- */
   const CALC = {
+    /* ยอดใยคงเหลือ = ผลรวมคงเหลือของทุกล็อต (คิดชุดเดียวกับตารางแยกล็อต ตัวเลขบนการ์ดกับข้างในต้องเท่ากันเสมอ)
+       เบิกที่หาล็อตไม่เจอ (ใบรับเข้าถูกลบ/เบอร์ไม่ตรง) ไม่หักซ้ำ แต่แยกไว้ใน orphan ให้เห็น — 3 พ.ย. การ์ด 569 แต่ล็อตรวม 1,118 */
     rawStock(receipts,withdrawals){
-      const m={};
-      (receipts||[]).forEach(r=>{ m[r.fiberName]=m[r.fiberName]||{received:0,used:0}; m[r.fiberName].received=r3(m[r.fiberName].received+(+r.kg||0)); });
-      (withdrawals||[]).forEach(w=>{ m[w.fiberName]=m[w.fiberName]||{received:0,used:0}; m[w.fiberName].used=r3(m[w.fiberName].used+(+w.kg||0)); });
-      return Object.entries(m).map(([name,v])=>({name,received:v.received,used:v.used,stock:r3(v.received-v.used)}));
+      const m={}, lots=CALC.fiberLotStock(receipts, withdrawals), hit=new Set();
+      const g=n=>m[n]=m[n]||{received:0,used:0,orphan:0,orphanN:0};
+      lots.forEach(l=>{ const v=g(l.fiberName); v.received=r3(v.received+(+l.kg||0)); v.used=r3(v.used+l.used); });
+      (receipts||[]).forEach(r=>(withdrawals||[]).forEach((w,i)=>{ if(w.receiptId ? w.receiptId===r.id : (w.fiberName===r.fiberName && String(w.lot)===String(r.lotNo))) hit.add(i); }));
+      (withdrawals||[]).forEach((w,i)=>{ if(hit.has(i)) return; const v=g(w.fiberName); v.orphan=r3(v.orphan+(+w.kg||0)); v.orphanN++; });
+      return Object.entries(m).map(([name,v])=>({name,received:v.received,used:v.used,stock:r3(v.received-v.used),orphan:v.orphan,orphanN:v.orphanN}));
     },
     nextFiberLot(receipts, fiberName){ const mine=(receipts||[]).filter(r=>r.fiberName===fiberName); let mx=0; mine.forEach(r=>{ const n=parseInt(r.lotNo,10); if(!isNaN(n)&&n>mx) mx=n; }); return mx + 1; },
     fiberLotStock(receipts, withdrawals){
@@ -2057,7 +2061,8 @@ window.WPDAUTH = {
       return '<div class="scard'+(low?' lowstock':'')+'" data-fibercard="'+esc(s.name)+'" style="cursor:pointer;"><div class="nm">'+esc(s.name)+(low?' <span class="bdg bad">ใกล้หมด</span>':'')+'</div>'+
         '<div class="n">'+s.stock+' <span style="font-size:13px;color:var(--dim);">กก.</span></div>'+
         (al>0?'<div class="l" style="color:var(--text);">+ ที่ไลน์อีก <b>'+al+' กก.</b> (เบิกไปแล้ว ยังไม่ได้ป้อน) · รวมทั้งหมด '+r3(s.stock+al)+' กก.</div>':'')+
-        '<div class="l">ในคลัง · รับเข้า '+s.received+' กก. · เบิกไปไลน์ '+s.used+' กก.'+(th>0?' · เตือนต่ำกว่า '+th:'')+' · แตะดูล็อต+จำนวนก้อน ▾</div></div>';
+        '<div class="l">ในคลัง · รับเข้า '+s.received+' กก. · เบิกไปไลน์ '+s.used+' กก.'+(th>0?' · เตือนต่ำกว่า '+th:'')+' · แตะดูล็อต+จำนวนก้อน ▾</div>'+
+        (s.orphan>0?'<div class="l" style="color:var(--red);">⚠ มีรายการเบิก '+s.orphanN+' รายการ ('+s.orphan+' กก.) ที่ไม่ตรงกับก้อนไหนในสต๊อก — ไม่ได้หักออกจากยอดนี้ (ใบรับเข้าถูกลบ หรือเบอร์ก้อนไม่ตรง)</div>':'')+'</div>';
     }).join('') : '<div class="empty">ยังไม่มีข้อมูล</div>';
     $('fiberCards').querySelectorAll('[data-fibercard]').forEach(c=>c.onclick=()=>{
       fiberLotFilter=c.dataset.fibercard; rFiber();
@@ -2173,7 +2178,16 @@ window.WPDAUTH = {
       S.fiberReceipts.slice().reverse().map(r=>'<tr><td>'+ymd(r.time)+' '+hhmm(r.time)+'</td><td>'+esc(r.fiberName)+'</td><td>'+r.lotNo+
       '</td><td>'+r.kg+'</td><td>'+esc(r.supplier||'—')+'</td><td><button class="ed" data-e="'+r.id+'">แก้ไข</button> <button class="x" data-d="'+r.id+'">✕</button></td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>';
-    $('tRw').querySelectorAll('[data-d]').forEach(b=>b.onclick=async()=>{ const _r=S.fiberReceipts.find(x=>x.id===b.dataset.d)||{}; if(!await ask('ลบรายการรับเข้าใยนี้?','ใย: '+(_r.fiberName||'-')+'\nล็อต: '+(_r.lotNo!=null?_r.lotNo:'-')+'\nน้ำหนัก: '+(_r.kg!=null?_r.kg:'-')+' กก.\nวันที่รับ: '+ymd(_r.time||'')+'\n\nลบแล้วยอดคงเหลือของใยนี้จะลดลงตามน้ำหนักข้างบน'))return; S.fiberReceipts=S.fiberReceipts.filter(x=>x.id!==b.dataset.d); await saveFiber(); rFiber(); toast('ลบแล้ว'); });
+    $('tRw').querySelectorAll('[data-d]').forEach(b=>b.onclick=async()=>{ const _r=S.fiberReceipts.find(x=>x.id===b.dataset.d)||{};
+      /* ก้อนที่เบิกไปแล้ว ลบใบรับเข้าทิ้ง = ยอดรับเข้าหาย แต่ยอดเบิกยังหักอยู่ ตัวเลขเพี้ยน (3 พ.ย. 15D64HW หายไป 548.8 กก.) */
+      const _l=CALC.fiberLotStock([_r], PROD.wd)[0];
+      if(_l && _l.used>0){
+        await info('ลบก้อนนี้ไม่ได้ — เบิกไปใช้แล้ว '+_l.used+' กก.',
+          'ใย: '+_r.fiberName+'\nล็อต: '+_r.lotNo+'\nรับเข้า: '+_r.kg+' กก. · เหลือ '+_l.remaining+' กก.\n\n'+
+          (Math.abs(_l.remaining)<=0.05?'ก้อนนี้ใช้หมดแล้ว ระบบซ่อนออกจากลิสต์ให้เอง ไม่ต้องลบ':'ถ้ายอดคงเหลือไม่ตรงกับของจริง ให้กด "ปรับยอดคงเหลือ" ที่ตาราง "คงเหลือแยกตามล็อต" แทน (ใส่ 0 ถ้าไม่มีก้อนนี้แล้ว)'));
+        return;
+      }
+      if(!await ask('ลบรายการรับเข้าใยนี้?','ใย: '+(_r.fiberName||'-')+'\nล็อต: '+(_r.lotNo!=null?_r.lotNo:'-')+'\nน้ำหนัก: '+(_r.kg!=null?_r.kg:'-')+' กก.\nวันที่รับ: '+ymd(_r.time||'')+'\n\nลบแล้วยอดคงเหลือของใยนี้จะลดลงตามน้ำหนักข้างบน'))return; S.fiberReceipts=S.fiberReceipts.filter(x=>x.id!==b.dataset.d); await saveFiber(); rFiber(); toast('ลบแล้ว'); });
     $('tRw').querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>editFiberReceipt(b.dataset.e));
 
     const useRows=PROD.wd.slice().sort((a,b)=>a.time<b.time?1:-1).slice(0,80);

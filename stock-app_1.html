@@ -693,7 +693,7 @@
         <div class="rf" id="retQtyRow">
           <div id="retQtyCell"><label>รับกลับมากี่ใบ</label><input id="retQty" type="number" inputmode="numeric"></div>
           <div style="max-width:150px;"><label>ใช้ผ้ากี่ชิ้นต่อ 1 ใบ</label><input id="retPP" type="number" inputmode="numeric" min="1" value="1">
-            <div class="sumline" style="margin-top:3px;">ปิกนิก 2 ผืนประกบ = 2</div></div>
+            <div class="sumline" style="margin-top:3px;">ส่งเย็บนับเป็นใบ = 1 · นับเป็นผืน (ปิกนิก 2 ผืน/ใบ) = 2</div></div>
           <div><label>ไซซ์หลังเย็บ (นิ้ว)</label><input id="retSizeFin" placeholder="เช่น 17.5x26">
             <div class="sumline" id="retSizeHint" style="margin-top:3px;"></div></div>
         </div>
@@ -2516,8 +2516,10 @@ window.WPDAUTH = {
         /* รอรับกลับ: ปลอกที่ใช้ผ้าหลายชิ้นต่อใบ บอกเป็นจำนวนใบที่ควรได้คืน */
         const pp=(balanceKey==='sewingBalance')?guessPiecesPer(b.batchId, batchProdType(b.batchId)):1;
         const bal=(pp>1)?(Math.floor(b[balanceKey]/pp)+' ใบ · ผ้า '+b[balanceKey]+' ชิ้น'):(b[balanceKey]+' ชิ้น');
+        const _ls=(balanceKey==='sewingBalance')?(S.sewSent||[]).filter(x=>x.batchId===b.batchId).sort((x,y)=>String(x.time).localeCompare(String(y.time))).pop():null;
+        const _lr=(balanceKey==='sewingBalance'&&b.returned>0)?(S.sewReturns||[]).filter(x=>x.batchId===b.batchId).sort((x,y)=>String(x.time).localeCompare(String(y.time))).pop():null;
         return '<option value="'+b.batchId+'">ถุง #'+b.batchNo+' · '+esc(b.size||'')+
-        ' · ตัด '+thDate(b.time)+' (เหลือ'+labelSuffix+' '+bal+')</option>'; }).join('')
+        (_ls?' · ส่ง '+thDate(_ls.time)+(_ls.sewerName?' '+esc(_ls.sewerName):''):' · ตัด '+thDate(b.time))+(_lr?' · รับแล้ว '+b.returned+' ('+thDate(_lr.time)+')':'')+' (เหลือ'+labelSuffix+' '+bal+')</option>'; }).join('')
         :'<option value="">'+(_needPick?'— เลือกชนิดผ้าและไซซ์ก่อน —':'— ไม่มีถุงที่พร้อม'+labelSuffix+' —')+'</option>';
       if(_keep && opts.some(b=>b.batchId===_keep)) sel.value=_keep;
     }
@@ -3074,13 +3076,14 @@ window.WPDAUTH = {
     $('fsRet').innerHTML='ที่ช่าง <b>'+atSewer.length+'</b> ถุง';
     $('fsStock').innerHTML='พร้อมผลิต <b>'+ready+'</b>';
     const lastSend=id=>(S.sewSent||[]).filter(x=>x.batchId===id).sort((x,y)=>String(x.time).localeCompare(String(y.time))).pop()||{};
+    const lastRet=id=>(S.sewReturns||[]).filter(x=>x.batchId===id).sort((x,y)=>String(x.time).localeCompare(String(y.time))).pop()||null;
     const chip=(kind,b,sub)=>'<button class="bp'+((BAGDEL&&BAGDEL[kind])?(BAGDEL[kind].includes(b.batchId)?' del':''):((MULTI&&MULTI[kind]?MULTI[kind].includes(b.batchId):$(kind+'BatchSel').value===b.batchId)?' on':''))+'" data-pick="'+kind+'" data-bid="'+b.batchId+'">'+
       '<b>ถุง #'+b.batchNo+'</b>'+lotTag(b.batchId)+'<small>'+esc(b.fabricType)+' · '+esc(b.size)+'<br>'+sub+'</small></button>';
     const byName=(x,y)=>(x.fabricType+x.size).localeCompare(y.fabricType+y.size,'th')||(x.batchNo-y.batchNo);
     $('sewPick').innerHTML=toSend.length ? toSend.slice().sort(byName).map(b=>chip('sew',b,b.cutBalance+' ชิ้น · ตัด '+thDate(b.time))).join('')
       : '<div class="empty">ไม่มีถุงรอส่ง — ตัดผ้าก่อน (ขั้น ②)</div>';
     $('retPick').innerHTML=atSewer.length ? atSewer.slice().sort(byName).map(b=>{ const ls=lastSend(b.batchId), pp=guessPiecesPer(b.batchId, ls.productType||'');
-        return chip('ret',b,esc(ls.sewerName||'ไม่ระบุช่าง')+' · '+(pp>1?Math.floor(b.sewingBalance/pp)+' ใบ':b.sewingBalance+' ชิ้น')+(ls.productType?' · '+esc(ls.productType):'')); }).join('')
+        return chip('ret',b,esc(ls.sewerName||'ไม่ระบุช่าง')+' · '+(pp>1?Math.floor(b.sewingBalance/pp)+' ใบ (ผ้า '+b.sewingBalance+' ชิ้น)':b.sewingBalance+' ชิ้น')+(ls.time?' · ส่ง '+thDate(ls.time):'')+(b.returned>0&&lastRet(b.batchId)?' · รับแล้ว '+b.returned+' (ล่าสุด '+thDate(lastRet(b.batchId).time)+')':'')+(ls.productType?' · '+esc(ls.productType):'')); }).join('')
       : '<div class="empty">ไม่มีถุงอยู่ที่ช่างเย็บ</div>';
     document.querySelectorAll('#sewPick [data-bid], #retPick [data-bid]').forEach(x=>x.onclick=()=>pickBag(x.dataset.pick, x.dataset.bid));
   }
@@ -3197,10 +3200,10 @@ window.WPDAUTH = {
   /* ---------- ไซซ์ตามสินค้า ---------- */
   const DEFAULT_SIZES=[
     { id:'sz-pillow', product:'หมอนหนุน', label:'', cut:'18x54', fin:'17.5x26', pp:1 },
-    { id:'sz-pic3', product:'ปิกนิก', label:'3F', cut:'40x79', fin:'36x75', pp:2 },
-    { id:'sz-pic35', product:'ปิกนิก', label:'3.5F', cut:'46x79', fin:'42x75', pp:2 },
-    { id:'sz-pic5', product:'ปิกนิก', label:'5F', cut:'63x78', fin:'59x75', pp:2 },
-    { id:'sz-pic6', product:'ปิกนิก', label:'6F', cut:'76x83', fin:'72x78', pp:2 } ];
+    { id:'sz-pic3', product:'ปิกนิก', label:'3F', cut:'40x79', fin:'36x75', pp:1 },
+    { id:'sz-pic35', product:'ปิกนิก', label:'3.5F', cut:'46x79', fin:'42x75', pp:1 },
+    { id:'sz-pic5', product:'ปิกนิก', label:'5F', cut:'63x78', fin:'59x75', pp:1 },
+    { id:'sz-pic6', product:'ปิกนิก', label:'6F', cut:'76x83', fin:'72x78', pp:1 } ];
   function sizeList(){ return (S.sizeMaster||DEFAULT_SIZES).slice(); }
   function sizeFor(cut, pt){ const L=sizeList().filter(x=>normSize(x.cut)===normSize(cut)); return (pt&&L.find(x=>x.product===pt))||(L.length===1?L[0]:null); }
   /* ตัวเลือกไซซ์: แยกกลุ่มตามสินค้า + ไซซ์ที่เคยใช้ (ยังไม่ได้ตั้ง) + พิมพ์เอง · mode 'cut' = ไซซ์ตัด, 'fin' = ไซซ์สำเร็จ */
@@ -3530,16 +3533,12 @@ window.WPDAUTH = {
     return s ? s.productType : '';
   }
   /* ผ้ากี่ชิ้นต่อ 1 ใบ: ถุงนี้เคยลงไว้ > ถุงก่อนหน้าที่เป็นสินค้าเดียวกัน > ปิกนิก = 2 > 1 */
+  /* ผ้ากี่ชิ้นต่อใบ: ค่าที่ถุงนี้เคยรับกลับ หรือที่ตั้งเองในตารางไซซ์ — ไม่เดา 2 ให้ปิกนิกเอง
+     (4 พ.ย. ส่งป้าเทวี 3 แต่รอรับขึ้น 1 — ที่ผ่านมาปิกนิก 156/162 ถุงรับกลับเท่าที่ส่ง ส่งเย็บนับเป็นใบอยู่แล้ว) */
   function guessPiecesPer(batchId, pt){
     const b=S.cutBatches.find(x=>x.id===batchId)||{};
     if(+b.piecesPer) return +b.piecesPer;
-    { const m=sizeFor(b.size, pt); if(m && +m.pp) return +m.pp; }
-    if(pt){
-      const sib=S.cutBatches.filter(x=>x.id!==batchId && +x.piecesPer && batchProdType(x.id)===pt)
-        .sort((x,y)=>String(x.time).localeCompare(String(y.time))).pop();
-      if(sib) return +sib.piecesPer;
-      if(/ปิกนิก/.test(pt)) return 2;
-    }
+    if(S.sizeMaster){ const m=sizeFor(b.size, pt); if(m && +m.pp) return +m.pp; }
     return 1;
   }
   function retFormType(){ return normSize($('retTypeSel').value==='__new__'?$('retTypeName').value:$('retTypeSel').value); }

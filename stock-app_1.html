@@ -2352,7 +2352,7 @@ window.WPDAUTH = {
     return await ask('ตัวเลขดูผิดปกติ — ตรวจอีกครั้งก่อนบันทึก',
       lines.map(x=>'• '+x).join('\n')+'\n\nยืนยันว่าตัวเลขถูกต้องแล้ว?');
   }
-  let fabCardFilter=null, bagCardFilter=null, finCardFilter=null, finGrpOrders={}, finGrpName={};
+  let fabCardFilter=null, bagCardFilter=null, finCardFilter=null, finGrpOrders={}, finGrpName={}, showEmptyFin=false;
   function filterBar(id, label, clearFn){
     return '<div class="sumline" style="margin:6px 0;"><span class="bdg ok">กำลังดูเฉพาะ '+esc(label)+
       '</span> <button class="ed" id="'+id+'">✕ ดูทั้งหมด</button></div>';
@@ -4136,6 +4136,8 @@ window.WPDAUTH = {
     if(finCat){ stock=stock.filter(x=>prodCat(orderById(x.orderId))===finCat); freeStock=freeStock.filter(x=>freeCatOf(x.freeLabel)===finCat); }
     if(finCat==='ปิกนิก' && finSub){ stock=stock.filter(x=>picnicSize(orderById(x.orderId))===finSub); freeStock=freeStock.filter(x=>sizeFromText(x.freeLabel)===finSub); }
 
+    const _emptyN=stock.filter(x=>x.stock===0).length+freeStock.filter(x=>x.stock===0).length+_trade.filter(x=>x.stock===0).length;
+    if(!showEmptyFin){ stock=stock.filter(x=>x.stock!==0); freeStock=freeStock.filter(x=>x.stock!==0); }
     const ordCard=s=>{ const o=orderById(s.orderId);
       return '<div class="scard" data-fincard="'+esc(s.orderId)+'" style="cursor:pointer;"><div class="nm">'+esc(orderLabel(s.orderId))+(o?' <span class="bdg ok">'+esc(catLabel(o))+'</span>':'')+'</div>'+
       '<div class="n"'+(s.stock<0?' style="color:var(--red)"':'')+'>'+s.stock+' <span style="font-size:13px;color:var(--dim);">แพ็ค</span>'+(s.stock<0?' <span class="bdg bad">ติดลบ — ส่งเกินที่ผลิต</span>':'')+'</div><div class="l">ผลิตได้ '+s.produced+' · ส่งออกแล้ว '+s.shipped+' แพ็ค'+
@@ -4160,8 +4162,10 @@ window.WPDAUTH = {
             (e.free?'<button class="ed" data-finfreeadj="'+esc(e.s.freeLabel)+'">ปรับยอด</button>':'<button class="ed" data-finadj="'+e.s.orderId+'">ปรับยอด</button>')+'</div>'; }).join('')+'</div>'; };
     const _done={};
     let cardsHtml=_ents.map(e=>{ if(!_inGrp(e)) return e.free?freeCard(e.s):ordCard(e.s); if(_done[e.k]) return ''; _done[e.k]=1; return grpCard(e.k); }).join('');
-    const _tradeShown=_trade.filter(x=>(!finCat||tradeCat(tradeById(x.itemId))===finCat) && (!(finCat==='ปิกนิก'&&finSub)||sizeFromText(x.name)===finSub)).length;
-    $('finCards').innerHTML=cardsHtml||(_tradeShown?'':'<div class="empty">'+(finCat?'ประเภท "'+esc(finCat)+'" ยังไม่มีสินค้า':'ยังไม่มีข้อมูล')+'</div>');
+    const _tradeShown=_trade.filter(x=>(showEmptyFin||x.stock!==0) && (!finCat||tradeCat(tradeById(x.itemId))===finCat) && (!(finCat==='ปิกนิก'&&finSub)||sizeFromText(x.name)===finSub)).length;
+    $('finCards').innerHTML=(cardsHtml||(_tradeShown?'':'<div class="empty">'+(finCat?'ประเภท "'+esc(finCat)+'" ไม่มีสินค้าเหลือ':'ไม่มีสินค้าเหลือในสต๊อก')+'</div>'))+
+      (_emptyN?'<div style="grid-column:1/-1;"><button class="ed" id="btnFinEmpty">'+(showEmptyFin?'ซ่อนสินค้าที่หมดแล้ว':'ดูสินค้าที่หมดแล้ว ('+_emptyN+')')+'</button></div>':'');
+    if($('btnFinEmpty')) $('btnFinEmpty').onclick=()=>{ showEmptyFin=!showEmptyFin; rFin(); };
     rTrade();
 
     $('finCards').querySelectorAll('[data-fincard]').forEach(c=>c.onclick=(ev)=>{
@@ -4259,7 +4263,7 @@ window.WPDAUTH = {
   function tradeStockNow(){ return CALC.tradeStock(S.tradeItems,S.tradeIn,S.tradeOut,S.tradeAdj); }
   function rTrade(){
     const _allTr=tradeStockNow();
-    const st=_allTr.filter(x=>(!finCat||tradeCat(tradeById(x.itemId))===finCat) && (!(finCat==='ปิกนิก'&&finSub)||sizeFromText(x.name)===finSub)).sort((a,b)=>a.name.localeCompare(b.name,'th'));
+    const st=_allTr.filter(x=>(showEmptyFin||x.stock!==0) && (!finCat||tradeCat(tradeById(x.itemId))===finCat) && (!(finCat==='ปิกนิก'&&finSub)||sizeFromText(x.name)===finSub)).sort((a,b)=>a.name.localeCompare(b.name,'th'));
     $('tradeCards').innerHTML=st.length?st.map(x=>{ const c=tradeCat(tradeById(x.itemId)); return ''+
       '<div class="scard'+(x.stock<=0?' lowstock':'')+'"><div class="nm">'+esc(x.name)+' <span class="bdg ok">'+esc(c)+'</span> <span class="bdg warn">🛒 ซื้อมาขาย</span></div>'+
       '<div class="n"'+(x.stock<0?' style="color:var(--red)"':'')+'>'+x.stock+' <span style="font-size:13px;color:var(--dim);">'+esc(x.unit)+'</span></div>'+
@@ -4468,7 +4472,7 @@ window.WPDAUTH = {
   function srcLabel(x){ if(x.group){ const L=finGroups()[x.group]||[]; return L.length?srcLabel(L[0].src):'(ไม่ทราบ)'; }
     return x.orderId ? orderLabel(x.orderId) : (x.freeLabel||'(ไม่ทราบ)'); }
   /* สินค้าเดียวกัน = ลูกค้าเดียวกัน + รหัสเดียวกัน (ไม่สนช่องว่าง/เครื่องหมายนิ้ว) — หลายออเดอร์/ยอดยกมารวมเป็นก้อนเดียว ไปแยกวันผลิตตอนขึ้นรถ */
-  const _pk=v=>String(v||'').toLowerCase().replace(/[\s"'“”″]/g,'');
+  const _pk=v=>String(v||'').toLowerCase().replace(/[\s"'“”″\u0E47-\u0E4B]/g,'');   /* "สต็อก" = "สต๊อก" */
   function prodKey(src){
     if(src.orderId){ const o=orderById(src.orderId); return o?_pk(o.customer)+'|'+_pk(o.code):'o:'+src.orderId; }
     const p=freeParts(src.freeLabel); return _pk(p.customer)+'|'+_pk(p.code);
@@ -4530,7 +4534,8 @@ window.WPDAUTH = {
       /* ลูกค้า+รหัสเดียวกันหลายออเดอร์/ยอดยกมา = ตัวเลือกเดียว (ยอดรวม) — เลือกวันผลิตด้านล่าง ไม่เลือก = เก่าก่อน */
       const opts=Object.entries(finGroups()).map(([k,L])=>{ const s0=L[0].src, one=L.length===1, tot=r2(L.reduce((a,m)=>a+m.stock,0));
         const oo=L.map(m=>m.src.orderId&&orderById(m.src.orderId)).find(Boolean);
-        return { free:!oo, lab:srcLabel(s0), html:'<option value="'+esc(one?(s0.orderId||'F:'+s0.freeLabel):'G:'+k)+'">'+esc(srcLabel(s0))+(oo?' · '+esc(catLabel(oo)):'')+' (เหลือ '+tot+' แพ็ค'+(one?'':' · '+L.length+' ล็อต')+')</option>' }; })
+        const lab=oo?orderLabel(oo.id):srcLabel(s0);   /* ชื่อเดียวกับการ์ดแท็บสินค้า (ออเดอร์ก่อนยอดยกมา) */
+        return { free:!oo, lab, html:'<option value="'+esc(one?(s0.orderId||'F:'+s0.freeLabel):'G:'+k)+'">'+esc(lab)+(oo?' · '+esc(catLabel(oo)):'')+' (เหลือ '+tot+' แพ็ค'+(one?'':' · '+L.length+' ล็อต')+')</option>' }; })
         .sort((a,b)=>a.lab.localeCompare(b.lab,'th'));
       const free=opts.filter(x=>x.free);
       $('dpOrdSel').innerHTML=opts.filter(x=>!x.free).map(x=>x.html).join('')+

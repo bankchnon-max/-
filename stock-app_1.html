@@ -707,7 +707,7 @@
 
       <!-- ⑤ สต๊อก / ประวัติ -->
       <div class="card" data-step="stock">
-        <h3>ปลอกพร้อมผลิต</h3>
+        <h3>ปลอกพร้อมผลิต — ตามสินค้า</h3>
         <div class="sumline" id="prodTypeFilterBar"></div>
         <div id="prodTypeCards"></div>
         <div id="prodTypeDetail" style="margin-top:10px;"></div>
@@ -2670,29 +2670,6 @@ window.WPDAUTH = {
         '<div class="l">'+(th>0?'เตือนต่ำกว่า '+th+' · ':'')+'แตะดูประวัติ / แก้ไข ▸</div></div>';
     }).join(''):'<div class="empty">ยังไม่มีการระบุประเภทสินค้า</div>';
     $('prodTypeCards').querySelectorAll('[data-prodtypecard]').forEach(c=>c.onclick=()=>openProdType(c.dataset.prodtypecard));
-    /* มุมมองตามไซซ์ (ค่าเริ่มต้น): หมวด ปลอกหมอนหนุน / ปลอกหมอนข้าง / ปลอกปิกนิก → การ์ดละ 1 ไซซ์ แยกยอดตามสินค้า */
-    { let ptView='size'; try{ ptView=localStorage.getItem('wpd_ptview')||'size'; }catch(e){}
-      const bar='<div class="sumline" style="margin:0 0 8px;">แสดง: <button class="'+(ptView==='size'?'ed':'x')+'" data-ptview="size">ตามไซซ์</button> <button class="'+(ptView==='pt'?'ed':'x')+'" data-ptview="pt">ตามสินค้า</button></div>';
-      if(ptView==='size'){
-        const nz=v=>{ const m=String(v||'').match(/(d+(?:.d+)?)s*[xX×*]s*(d+(?:.d+)?)/); return m?(+m[1])+'x'+(+m[2]):(String(v||'').trim()||'—'); };
-        const catOf=t=>/ปิกนิก|กินนิค|ปิคนิค|กินนิก/.test(t)?'ปลอกปิกนิก':/ข้าง/.test(t)?'ปลอกหมอนข้าง':/หนุน|หมอน/.test(t)?'ปลอกหมอนหนุน':'อื่นๆ';
-        const cats={};
-        ptStock.filter(x=>x.qty>0).forEach(x=>{ const c=catOf(x.productType), z=nz(x.size); const C=cats[c]||(cats[c]={}); const e=C[z]||(C[z]={ size:z, qty:0, lines:{} });
-          e.qty=r2(e.qty+x.qty); const lk=x.productType+' '+x.fabricType; const L=e.lines[lk]||(e.lines[lk]={ pt:x.productType, fab:x.fabricType, qty:0 }); L.qty=r2(L.qty+x.qty); });
-        const low=pt=>{ const th=+S.prodTypeTh[pt]||0; return th>0 && CALC.productTypeTotal(ptStock,pt)<th; };
-        const order=['ปลอกหมอนหนุน','ปลอกหมอนข้าง','ปลอกปิกนิก','อื่นๆ'].filter(c=>cats[c]);
-        $('prodTypeCards').innerHTML=bar+(order.length?order.map(c=>{ const list=Object.values(cats[c]).sort((a,b)=>b.qty-a.qty), tot=r2(list.reduce((a,x)=>a+x.qty,0));
-          return '<div class="sumline" style="font-weight:600;margin:12px 0 6px;font-size:15px;">'+esc(c)+' <span style="color:var(--dim);font-weight:400;">· '+list.length+' ไซซ์ · รวม '+tot+' ชิ้น</span></div>'+
-            list.map(e=>{ const ls=Object.values(e.lines).sort((a,b)=>b.qty-a.qty), multiFab=new Set(ls.map(l=>l.fab)).size>1;
-              return '<div class="scard'+(ls.some(l=>low(l.pt))?' lowstock':'')+'" style="display:inline-block;margin:0 8px 8px 0;vertical-align:top;min-width:190px;">'+
-                '<div class="nm">'+esc(e.size)+'</div><div class="n">'+e.qty+' <span style="font-size:13px;color:var(--dim);">ชิ้น</span></div>'+
-                ls.map(l=>'<div class="l" style="display:flex;justify-content:space-between;gap:10px;"><a class="lnk" data-ptopen="'+esc(l.pt)+'">'+esc(l.pt)+(multiFab?' · '+esc(l.fab):'')+'</a>'+
-                  '<b style="color:'+(low(l.pt)?'var(--red)':'var(--accent2)')+'">'+l.qty+'</b></div>').join('')+'</div>'; }).join(''); }).join('')
-          :'<div class="empty">ยังไม่มีปลอกพร้อมผลิต</div>')+
-          '<div class="sumline" style="margin-top:4px;">แตะชื่อสินค้าเพื่อดูประวัติ / แก้ไข · แสดงเฉพาะที่มีของพร้อมผลิต · สีแดง = ต่ำกว่าจุดเตือน</div>';
-      } else $('prodTypeCards').insertAdjacentHTML('afterbegin', bar);
-      $('prodTypeCards').querySelectorAll('[data-ptview]').forEach(b=>b.onclick=()=>{ try{ localStorage.setItem('wpd_ptview', b.dataset.ptview); }catch(e){} rFabric(); });
-    }
     if(prodTypeFilter){
       const rows=ptStock.filter(x=>x.productType===prodTypeFilter);
       $('prodTypeDetail').innerHTML='<div class="scr"><table><tr><th>ชนิดผ้า</th><th>ไซซ์</th><th>มีกี่ชิ้น (พร้อมผลิต)</th></tr>'+
@@ -3305,24 +3282,10 @@ window.WPDAUTH = {
     const chip=(kind,b,sub)=>'<button class="bp'+((BAGDEL&&BAGDEL[kind])?(BAGDEL[kind].includes(b.batchId)?' del':''):((MULTI&&MULTI[kind]?MULTI[kind].includes(b.batchId):$(kind+'BatchSel').value===b.batchId)?' on':''))+'" data-pick="'+kind+'" data-bid="'+b.batchId+'">'+
       '<b>ถุง #'+b.batchNo+'</b>'+lotTag(b.batchId)+'<small>'+esc(b.fabricType)+' · '+esc(b.size)+'<br>'+sub+'</small></button>';
     const byName=(x,y)=>(x.fabricType+x.size).localeCompare(y.fabricType+y.size,'th')||(x.batchNo-y.batchNo);
-    /* จัดกลุ่มเหมือนปลอกพร้อมผลิต: หมวด (หมอนหนุน / หมอนข้าง / ปิกนิก) → ไซซ์ → ถุง */
-    const _nz=v=>{ const m=String(v||'').match(/(d+(?:.d+)?)s*[xX×*]s*(d+(?:.d+)?)/); return m?(+m[1])+'x'+(+m[2]):(String(v||'').trim()||'—'); };
-    const _cat=t=>!t?'ยังไม่รู้ว่าเป็นสินค้าอะไร':/ปิกนิก|กินนิค|ปิคนิค|กินนิก/.test(t)?'ปลอกปิกนิก':/ข้าง/.test(t)?'ปลอกหมอนข้าง':/หนุน|หมอน/.test(t)?'ปลอกหมอนหนุน':'อื่นๆ';
-    const _CORD=['ปลอกหมอนหนุน','ปลอกหมอนข้าง','ปลอกปิกนิก','อื่นๆ','ยังไม่รู้ว่าเป็นสินค้าอะไร'];
-    /* ถุงที่ยังไม่ส่ง: เดาสินค้าจากครั้งล่าสุดที่ส่งผ้า+ไซซ์เดียวกัน */
-    const _ptGuess={}; (S.sewSent||[]).slice().sort((x,y)=>String(x.time).localeCompare(String(y.time))).forEach(x=>{ if(x.productType) _ptGuess[x.fabricType+' '+_nz(x.size)]=x.productType; });
-    const grouped=(items, unit)=>{ const C={}; items.forEach(it=>{ const c=C[it.cat]||(C[it.cat]={}); (c[it.size]=c[it.size]||[]).push(it); });
-      return _CORD.filter(k=>C[k]).map(k=>{ const sz=Object.keys(C[k]).sort((a,b)=>C[k][b].reduce((x,i)=>x+i.qty,0)-C[k][a].reduce((x,i)=>x+i.qty,0)), tot=r2(sz.reduce((x,z)=>x+C[k][z].reduce((y,i)=>y+i.qty,0),0)), nb=sz.reduce((x,z)=>x+C[k][z].length,0);
-        return '<div style="flex-basis:100%;font-weight:600;font-size:15px;margin:10px 0 0;">'+esc(k)+' <span style="color:var(--dim);font-weight:400;font-size:13px;">· '+nb+' ถุง · '+tot+' '+unit+'</span></div>'+
-          sz.map(z=>{ const L=C[k][z].sort((a,b)=>String(a.b.time).localeCompare(String(b.b.time))||(+a.b.batchNo||0)-(+b.b.batchNo||0));
-            const _cuts=[...new Set(L.map(i=>_nz(i.b.size)))].filter(c=>c!==z);
-            return '<div style="flex-basis:100%;font-size:13px;color:var(--accent2);font-weight:600;margin:4px 0 -2px;">'+esc(z)+(_cuts.length?' <span style="font-weight:400;color:var(--dim);">(ตัด '+esc(_cuts.join(', '))+')</span>':'')+' <span style="color:var(--dim);font-weight:400;">· '+L.length+' ถุง · '+r2(L.reduce((x,i)=>x+i.qty,0))+' '+unit+'</span></div>'+L.map(i=>i.html).join(''); }).join(''); }).join(''); };
-    $('sewPick').innerHTML=toSend.length ? grouped(toSend.map(b=>({ b, qty:b.cutBalance, size:_nz(b.sizeFinished||b.size), cat:_cat(_ptGuess[b.fabricType+' '+_nz(b.size)]),
-        html:chip('sew',b,b.cutBalance+' ชิ้น · ตัด '+thDate(b.time)) })), 'ชิ้น')
+    $('sewPick').innerHTML=toSend.length ? toSend.slice().sort(byName).map(b=>chip('sew',b,b.cutBalance+' ชิ้น · ตัด '+thDate(b.time))).join('')
       : '<div class="empty">ไม่มีถุงรอส่ง — ตัดผ้าก่อน (ขั้น ②)</div>';
-    $('retPick').innerHTML=atSewer.length ? grouped(atSewer.map(b=>{ const ls=lastSend(b.batchId), pp=guessPiecesPer(b.batchId, ls.productType||'');
-        return { b, qty:b.sewingBalance, size:_nz(b.sizeFinished||b.size), cat:_cat(ls.productType||''),
-          html:chip('ret',b,sewText(b.batchId)+'<br>'+(pp>1?Math.floor(b.sewingBalance/pp)+' ใบ (ผ้า '+b.sewingBalance+' ชิ้น)':b.sewingBalance+' ชิ้น')+(b.returned>0?' · รับแล้ว '+b.returned:'')+(ls.productType?' · '+esc(ls.productType):'')) }; }), 'ชิ้น')
+    $('retPick').innerHTML=atSewer.length ? atSewer.slice().sort(byName).map(b=>{ const ls=lastSend(b.batchId), pp=guessPiecesPer(b.batchId, ls.productType||'');
+        return chip('ret',b,sewText(b.batchId)+'<br>'+(pp>1?Math.floor(b.sewingBalance/pp)+' ใบ (ผ้า '+b.sewingBalance+' ชิ้น)':b.sewingBalance+' ชิ้น')+(b.returned>0?' · รับแล้ว '+b.returned:'')+(ls.productType?' · '+esc(ls.productType):'')); }).join('')
       : '<div class="empty">ไม่มีถุงอยู่ที่ช่างเย็บ</div>';
     document.querySelectorAll('#sewPick [data-bid], #retPick [data-bid]').forEach(x=>x.onclick=()=>pickBag(x.dataset.pick, x.dataset.bid));
   }

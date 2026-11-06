@@ -597,6 +597,10 @@
       </div>
       <div class="card">
         <h3>กำลังป้อนใยให้ออเดอร์</h3>
+        <div class="acts" id="feedSideRow" style="margin:0 0 6px; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn sm" data-feedside="pillow">🛏️ ฝั่งหมอน</button>
+          <button type="button" class="btn sec sm" data-feedside="sheet">🧵 ฝั่งใยแผ่น</button>
+        </div>
         <select id="feedOrderSel"></select>
         <div class="sumline" id="feedOrderNote" style="margin-top:6px;"></div>
       </div>
@@ -664,6 +668,11 @@
       </div>
       <div class="card">
         <h3>ตั้งค่า / ปรับสูตร</h3>
+        <div class="acts" id="recSideRow" style="margin:0 0 6px; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn sm" data-recside="pillow">🛏️ ฝั่งหมอน</button>
+          <button type="button" class="btn sec sm" data-recside="sheet">🧵 ฝั่งใยแผ่น</button>
+          <label style="display:flex;align-items:center;gap:6px;margin:0;font-size:13px;"><input type="checkbox" id="recShowDone" style="width:auto;margin:0;"> แสดงงานที่จบแล้ว</label>
+        </div>
         <label>เลือกออเดอร์</label>
         <select id="recSel"></select>
         <label>น้ำหนักรวมที่ครบสูตร (กก.)</label>
@@ -2528,10 +2537,17 @@ window.WPDAUTH = {
       const keep=feedSel.value;
       /* ออเดอร์ชื่อซ้ำ (ลูกค้า+รหัสเดียวกัน) → ใส่วันที่สร้างให้แยกออก (29 ต.ค. ป้อนใยเข้าใบเก่า ท้ายไลน์แพ็คใบใหม่) */
       const _same=x=>openOrders.filter(y=>y.code===x.code && y.customer===x.customer).length>1;
-      feedSel.innerHTML=sideOptions(openOrders, x=>esc(x.customer)+' — '+esc(x.code)+(_same(x)?' · สร้าง '+thDate(x.createdAt||x.startedAt):'')+(x.id===S.activeId?' (ท้ายไลน์กำลังทำอยู่)':''));
+      /* แยกฝั่งหมอน / ฝั่งใยแผ่น — ขึ้นเฉพาะออเดอร์ของฝั่งที่เลือก (เริ่มที่ฝั่งของงานที่กำลังป้อนอยู่) */
       const wantId = S.activeFeedId||S.activeId;
-      if(openOrders.some(x=>x.id===wantId)) feedSel.value=wantId;
-      else if(openOrders.some(x=>x.id===keep)) feedSel.value=keep;
+      if(!feedSideSel) feedSideSel=fiberSide(orderById(wantId));
+      document.querySelectorAll('#feedSideRow [data-feedside]').forEach(b=>b.classList.toggle('sec', b.dataset.feedside!==feedSideSel));
+      const _sideList=openOrders.filter(x=>!isPicnic(x) && fiberSide(x)===feedSideSel)
+        .sort((a,b)=>(b.id===wantId)-(a.id===wantId) || (b.status==='active')-(a.status==='active') || String(b.startedAt||b.createdAt||'').localeCompare(String(a.startedAt||a.createdAt||'')));
+      const _cur=orderById(wantId);
+      feedSel.innerHTML=(_sideList.some(x=>x.id===wantId)?'':'<option value="">— เลือกงาน'+(SIDE_TH[feedSideSel]||'')+' —</option>')+
+        _sideList.map(x=>'<option value="'+x.id+'">'+esc(x.customer)+' — '+esc(x.code)+(_same(x)?' · สร้าง '+thDate(x.createdAt||x.startedAt):'')+(x.id===S.activeId?' (ท้ายไลน์กำลังทำอยู่)':'')+'</option>').join('');
+      if(_sideList.some(x=>x.id===wantId)) feedSel.value=wantId;
+      else feedSel.value='';
       const note=$('feedOrderNote');
       const _fo=orderById(S.activeFeedId), _lo=orderById(S.activeId);
       if(note && _fo && _lo && _fo.id!==_lo.id && _fo.code===_lo.code)
@@ -2774,14 +2790,27 @@ window.WPDAUTH = {
       if(keepWd && !fiberNames().includes(keepWd)){ $('wdSel').value='__new__'; $('wdName').style.display='block'; }
       else $('wdName').style.display='none';
       populateWdLotOptions($('wdName').value);
-      const sel=$('recSel'), keep=sel.value;
-      /* งานที่ยังไม่จบขึ้นก่อน งานที่จบแล้วต่อท้ายในกลุ่มเดียวกัน */
-      sel.innerHTML=sideOptions(S.orders.slice().sort((a,b)=>(a.status==='done')-(b.status==='done')), x=>esc(x.customer)+' — '+esc(x.code)+(x.status==='done'?' (จบแล้ว)':''));
-      sel.value = orderById(keep)?keep : (o?o.id:(S.orders[0]||{}).id||'');
-      loadRecipe();
+      fillRecSel(o);
     }
   }
 
+  /* ปรับสูตร: แยกฝั่งหมอน / ฝั่งใยแผ่น · งานที่จบแล้วซ่อนไว้ (ติ๊กเพื่อดู) */
+  let recSide=null;
+  function fillRecSel(o){
+    const sel=$('recSel'), keep=sel.value, kO=orderById(keep);
+    if(!recSide){ try{ recSide=localStorage.getItem('wpd_recside')||''; }catch(e){} recSide=recSide||(kO?fiberSide(kO):fiberSide(o)); }
+    const showDone=$('recShowDone')&&$('recShowDone').checked;
+    document.querySelectorAll('#recSideRow [data-recside]').forEach(b=>{ b.classList.toggle('sec', b.dataset.recside!==recSide); });
+    const list=S.orders.filter(x=>!isPicnic(x) && fiberSide(x)===recSide && (showDone || x.status!=='done' || x.id===keep))
+      .sort((a,b)=>(a.status==='done')-(b.status==='done') || String(b.startedAt||b.createdAt||'').localeCompare(String(a.startedAt||a.createdAt||'')));
+    sel.innerHTML=list.length?list.map(x=>'<option value="'+x.id+'">'+esc(x.customer)+' — '+esc(x.code)+(x.status==='done'?' (จบแล้ว)':x.status==='active'?' (กำลังทำ)':'')+'</option>').join('')
+      :'<option value="">— ไม่มีออเดอร์'+(SIDE_TH[recSide]||'')+' —</option>';
+    const prefer=[keep, o&&o.id].find(id=>id && list.some(x=>x.id===id));
+    sel.value=prefer||(list[0]||{}).id||'';
+    loadRecipe();
+  }
+  document.querySelectorAll('#recSideRow [data-recside]').forEach(b=>b.onclick=()=>{ recSide=b.dataset.recside; try{ localStorage.setItem('wpd_recside',recSide); }catch(e){} fillRecSel(activeFeed()); });
+  if($('recShowDone')) $('recShowDone').onchange=()=>fillRecSel(activeFeed());
   function rFeedSummary(t){
     const out=[];
     S.orders.forEach(o=>{
@@ -2801,7 +2830,10 @@ window.WPDAUTH = {
       : '<tr><td class="empty">ยังไม่มีข้อมูลวันนี้</td></tr>';
   }
 
+  var feedSideSel=null;   /* var: rFeed อาจถูกเรียกก่อนถึงบรรทัดนี้ */
+  document.querySelectorAll('#feedSideRow [data-feedside]').forEach(b=>b.onclick=()=>{ feedSideSel=b.dataset.feedside; rFeed(true); });
   if($('feedOrderSel')) $('feedOrderSel').onchange=async function(){
+    if(!this.value){ rFeed(true); return; }
     const _pick=orderById(this.value), _lo=orderById(S.activeId);
     if(_pick && _lo && _pick.id!==_lo.id && _pick.code===_lo.code && _pick.customer===_lo.customer &&
        !await ask('⚠ เลือกใบเก่าหรือเปล่า?', 'ท้ายไลน์ใช้ใบที่สร้าง '+thDate(_lo.createdAt||_lo.startedAt)+'\nใบนี้สร้าง '+thDate(_pick.createdAt||_pick.startedAt),

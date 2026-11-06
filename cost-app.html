@@ -1218,6 +1218,13 @@ window.WPDAUTH = {
       const b=(cutBatches||[]).find(x=>x.id===batchId);
       if(!b) return { baht:0, src:'none', type:'' };
       const type=b.fabricType||'';
+      /* ถุงคละ: ค่าผ้าต่อใบ = เฉลี่ยถ่วงจำนวนจากถุงต้นทางที่เทมา */
+      if(b.kind==='mix' && Array.isArray(b.mixFrom) && b.mixFrom.length){
+        let sum=0, n=0, first=null;
+        b.mixFrom.forEach(m=>{ const one=COST.fabricBahtPerPiece(PRICE, cutBatches, m.batchId, receipts, skipSize); if(one.baht>0){ if(!first) first=one; sum+=one.baht*(+m.qty||0); n+=(+m.qty||0); } });
+        if(!n || !first) return { baht:0, src:'none', type:type };
+        return Object.assign({}, first, { baht:r4(sum/n), type:type, mix:true, pieces:n, roll:null, mixFrom:b.mixFrom.length });
+      }
       /* ราคาปลอกตามไซซ์ (บาท/ใบ) ที่ใส่เอง — ใช้ก่อนคิดจากราคาม้วน (ปลอกยกมาที่ไม่มีม้วนต้องใช้แบบนี้) */
       if(!skipSize){ const zp=+((((PRICE||{}).fabric||{})[type]||{}).sizes||{})[COST.sizeKey(b.size)]||0;
         if(zp>0) return { baht:zp, src:'casesize', type:type }; }

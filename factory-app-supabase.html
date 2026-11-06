@@ -1593,13 +1593,17 @@ window.WPDAUTH = {
       (sewSent||[]).forEach(s=>{ sentByBatch[s.batchId]=(sentByBatch[s.batchId]||0)+(+s.qty||0); });
       (sewReturns||[]).forEach(s=>{ retByBatch[s.batchId]=(retByBatch[s.batchId]||0)+(+s.qty||0); });
       (fabricWd||[]).forEach(w=>(w.picks||[]).forEach(p=>{ wdByBatch[p.batchId]=(wdByBatch[p.batchId]||0)+(+p.qty||0); }));
+      /* ถุงคละ (แอพสต๊อก): รับเข้าจากถุงต้นทาง · ถุงต้นทางพร้อมเบิกลดลงตามที่เทออก */
+      const mixOut={}, mixIn={};
+      (cutBatches||[]).forEach(b=>{ if(b.kind==='mix') (b.mixFrom||[]).forEach(m=>{ mixOut[m.batchId]=(mixOut[m.batchId]||0)+(+m.qty||0); mixIn[b.id]=(mixIn[b.id]||0)+(+m.qty||0); }); });
       /* ถุงที่รับกลับโดยไม่ได้กรอกไซซ์สำเร็จ ให้ใช้ไซซ์สำเร็จของถุงอื่นที่ผ้า+ไซซ์ตัดเดียวกัน
          ไม่งั้นปลอกแบบเดียวกันจะแยกเป็น 2 ไซซ์ (ไซซ์ตัด กับ ไซซ์สำเร็จ) แล้วหน้าไลน์หาไม่เจอ */
       const finOf={};
       (cutBatches||[]).slice().sort((a,b)=>String(a.time).localeCompare(String(b.time))).forEach(b=>{
         if(b.sizeFinished) finOf[b.fabricType+'\u0000'+b.size]=b.sizeFinished; });
       return (cutBatches||[]).map(b=>{
-        const sent=sentByBatch[b.id]||0, returned=retByBatch[b.id]||0, withdrawn=wdByBatch[b.id]||0;
+        const isMix=b.kind==='mix';
+        const sent=isMix?(mixIn[b.id]||0):(sentByBatch[b.id]||0), returned=isMix?(mixIn[b.id]||0):(retByBatch[b.id]||0), withdrawn=wdByBatch[b.id]||0;
         /* ไซซ์ที่ใช้ตอนเบิก/ตั้งสเปค = ไซซ์สำเร็จหลังเย็บ (ตัด 18x32 → เย็บเสร็จ 17.5x26)
            ถุงเก่าที่ตัดก่อนเปลี่ยนระบบ ไซซ์ตัดไม่เคยถูกบันทึก → cutSize = null */
         const cutKnown = !!b.sizeFinished || String(b.time||'') >= CUTSIZE_SINCE;
@@ -1607,8 +1611,8 @@ window.WPDAUTH = {
         return { batchId:b.id, batchNo:b.batchNo, fabricType:b.fabricType,
           size:fin, cutSize:(cutKnown?b.size:null), cutKnown:cutKnown,
           sizeFinished:fin,
-          qtyCut:b.qtyCut, time:b.time,
-          sent, returned, withdrawn, readyBalance: r2(returned-withdrawn) };
+          qtyCut:b.qtyCut, time:b.time, kind:b.kind||'',
+          sent, returned, withdrawn, readyBalance: r2(returned-withdrawn-(mixOut[b.id]||0)) };
       });
     },
     // เลือกถุงแบบ FIFO (เลขน้อย/เก่าสุดก่อน) ไล่หยิบจนครบจำนวนที่ต้องการ
@@ -5163,7 +5167,7 @@ window.WPDAUTH = {
     const fab=$('fwFabSel').value, size=$('fwSizeSel').value;
     if(!fab||!size) return [];
     return fabBatchesNow().filter(b=>b.fabricType===fab && b.size===size && b.readyBalance>0)
-      .sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+      .sort((a,b)=>((b.kind==='mix')-(a.kind==='mix'))||String(a.time).localeCompare(String(b.time)));
   }
   function renderFwList(){
     const box=$('fwList'); if(!box) return;
@@ -5175,7 +5179,7 @@ window.WPDAUTH = {
     box.innerHTML='<table><tr><th style="width:34px;"></th><th>ถุง</th><th>ตัดวันที่</th><th>พร้อมเบิก</th><th>เอาไปกี่ชิ้น</th></tr>'+
       rows.map(b=>'<tr><td><input type="checkbox" data-fwb="'+esc(b.batchId)+'" style="width:22px;height:22px;margin:0;"'+
         (prev[b.batchId]?' checked':'')+'></td>'+
-        '<td class="kn">#'+b.batchNo+(b.cutSize&&b.cutSize!==b.size?' <span style="color:var(--dim);font-size:11px;">ตัด '+esc(b.cutSize)+'</span>':'')+'</td>'+
+        '<td class="kn">'+(b.kind==='mix'?'🔀 '+esc(b.batchNo):'#'+b.batchNo)+(b.cutSize&&b.cutSize!==b.size&&b.kind!=='mix'?' <span style="color:var(--dim);font-size:11px;">ตัด '+esc(b.cutSize)+'</span>':'')+'</td>'+
         '<td>'+thDate(b.time)+'</td>'+
         '<td><b style="color:var(--accent2)">'+b.readyBalance+'</b> ชิ้น</td>'+
         '<td><input type="number" inputmode="numeric" data-fwq="'+esc(b.batchId)+'" value="'+

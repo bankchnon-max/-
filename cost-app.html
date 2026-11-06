@@ -591,6 +591,7 @@
         <div class="scr" style="margin-top:8px;"><table id="tJobDays"></table></div>
       </div>
       <div class="card"><h3>ต้นทุนต่อหน่วย</h3><div class="sg" id="jobStats"></div></div>
+      <div class="card" id="jobRecipeCard" style="display:none;"><h3>สูตรใย — ตกกิโลละกี่บาท</h3><div id="jobRecipe"></div></div>
       <div class="card"><h3>แยกรายการ</h3>
         <div class="rf" style="margin-bottom:10px">
           <div><label>💵 ราคาขาย (บาท ก่อน VAT · ใช้กับทุกงานไซซ์นี้)</label><input id="jobSalePrice" type="number" inputmode="decimal" step="0.01" min="0" placeholder="เช่น 45"></div>
@@ -2799,6 +2800,42 @@ window.WPDAUTH = {
     await savePrice(); renderJobSale();
     toast(baht>0?'บันทึกราคาขายแล้ว — ใช้กับทุกงานไซซ์ '+o.code+(same.length>1?' ('+same.length+' งาน)':''):'ลบราคาขายของไซซ์ '+o.code+' แล้ว');
   };
+  /* สูตรใยของงาน แบ่งตามสูตรที่ใช้จริงแต่ละรอบ (เปลี่ยนสูตรกลางงาน = หลายช่วง) · ราคาใย = ก้อนที่หักจริงในรอบเหล่านั้น ไม่มีก็ใช้ราคามาตรฐาน */
+  function renderJobRecipe(orderId){
+    const card=$('jobRecipeCard'), box=$('jobRecipe'); if(!card||!box) return;
+    const o=(PROD.orders||[]).find(x=>x.id===orderId);
+    const cyc=(PROD.feed||[]).filter(x=>x.orderId===orderId).sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+    const seg=[];
+    cyc.forEach(c=>{ const rec=((c.recipe&&c.recipe.length)?c.recipe:((o&&o.fibers)||[])).filter(f=>f.name && +f.kg>0);
+      const sig=JSON.stringify(rec.map(f=>[f.name,+f.kg]));
+      const L=seg[seg.length-1]; if(L && L.sig===sig){ L.cyc.push(c); } else seg.push({ sig, rec, cyc:[c] }); });
+    if(!seg.length && o && (o.fibers||[]).some(f=>+f.kg>0)) seg.push({ rec:o.fibers.filter(f=>f.name && +f.kg>0), cyc:[], plan:true });
+    if(!seg.length){ card.style.display='none'; return; }
+    card.style.display='';
+    const dt=t=>{ const s=String(t||''); return s?(+s.slice(8,10))+'/'+(+s.slice(5,7))+' '+s.slice(11,16):''; };
+    box.innerHTML=seg.map((g,i)=>{
+      const ids=new Set(g.cyc.map(c=>c.id));
+      const uses=(PROD.use||[]).filter(u=>u.orderId===orderId && u.feedId && ids.has(u.feedId) && +u.kg>0);
+      let kgSum=0, bahtSum=0, miss=[];
+      const rows=g.rec.map(f=>{
+        const us=uses.filter(u=>u.fiberName===f.name), ukg=us.reduce((a,u)=>a+(+u.kg||0),0);
+        let price=0, src='';
+        if(ukg>0){ const b=us.reduce((a,u)=>a+(+u.kg||0)*COST.fiberPricePerKg(PRICE,u.fiberName,u.lot,u.receiptId).baht,0); price=b/ukg;
+          const lots=[...new Set(us.map(u=>u.baleNo||u.lot).filter(Boolean))]; src='ก้อน '+lots.join(', '); }
+        if(!(price>0)){ const p=COST.fiberPricePerKg(PRICE,f.name,f.lot); price=p.baht; src=p.src==='std'?'ราคามาตรฐาน':p.src==='lot'?'ราคาก้อน '+(f.lot||''):''; }
+        if(!(price>0)) miss.push(f.name);
+        const kg=+f.kg||0, baht=kg*(price||0); kgSum+=kg; bahtSum+=baht;
+        return { name:f.name, kg, price, baht, src };
+      });
+      const perKg=kgSum>0?bahtSum/kgSum:0;
+      const when=g.plan?'ยังไม่ได้ป้อนใย (สูตรที่ตั้งไว้)':'ใช้ '+dt(g.cyc[0].time)+(g.cyc.length>1?' – '+dt(g.cyc[g.cyc.length-1].time):'')+' · '+g.cyc.length+' รอบ';
+      return '<div style="margin:'+(i?'14px':'0')+' 0 4px;font-weight:600;">'+(seg.length>1?'สูตรที่ '+(i+1)+' ':'สูตร ')+'<span style="font-weight:400;color:var(--dim);font-size:13px;">'+when+(i>0&&!g.plan?' · เปลี่ยนสูตรเมื่อ '+dt(((o&&o.recipeLog)||[]).filter(r=>String(r.at)<=String(g.cyc[0].time) && String(r.at)>=String(seg[i-1].cyc[seg[i-1].cyc.length-1].time)).pop()?.at||g.cyc[0].time):'')+'</span></div>'+
+        '<div class="scr"><table><tr><th>ใย</th><th style="text-align:right">กก./สูตร</th><th style="text-align:right">สัดส่วน</th><th style="text-align:right">บาท/กก.</th><th style="text-align:right">บาท/สูตร</th><th>ราคาจาก</th></tr>'+
+        rows.map(r=>'<tr><td>'+esc(r.name)+'</td><td style="text-align:right">'+r2(r.kg)+'</td><td style="text-align:right">'+(kgSum?Math.round(r.kg/kgSum*1000)/10:0)+'%</td><td style="text-align:right">'+(r.price>0?fmtBaht(r.price):'<span class="bdg warn">ยังไม่มีราคา</span>')+'</td><td style="text-align:right">'+fmtBaht(r.baht)+'</td><td style="color:var(--dim);font-size:12px">'+esc(r.src)+'</td></tr>').join('')+
+        '<tr><td><b>รวม</b></td><td style="text-align:right"><b>'+r2(kgSum)+'</b></td><td></td><td style="text-align:right"><b style="color:var(--accent2);font-size:16px">'+fmtBaht(perKg)+'</b></td><td style="text-align:right"><b>'+fmtBaht(bahtSum)+'</b></td><td style="font-size:12px">← สูตรนี้ตกกิโลละ <b>'+fmtBaht(perKg)+'</b> บาท</td></tr></table></div>'+
+        (miss.length?'<div class="sumline" style="color:var(--yellow)">ยังไม่ได้ใส่ราคา: '+esc(miss.join(', '))+' — ใส่ที่แท็บ "ราคาของ" แล้วตัวเลขจะครบ</div>':'');
+    }).join('')+'<div class="sumline" style="margin-top:8px;">บาท/กก. = ค่าใยทั้งสูตร ÷ น้ำหนักใยทั้งสูตร · ราคาใยใช้ของก้อนที่หักจริงในรอบของสูตรนั้น (ถ้ายังไม่มี ใช้ราคามาตรฐาน) · ยังไม่รวมของเสีย/ค่าแรง</div>';
+  }
   function renderJobCost(){
     const id=$('jobSel').value;
     if(!id){ $('jobMeta').textContent=''; $('jobStats').innerHTML=''; $('tJobBreak').innerHTML=''; $('tJobDetail').innerHTML=''; $('jobProfitNote').innerHTML=''; _saleCost=null;
@@ -2808,6 +2845,7 @@ window.WPDAUTH = {
     $('jobMeta').innerHTML=(_sc.kg>0?'🗑️ ของเสีย <b>'+_sc.kg+' กก.</b>'+(_sc.fiberKg?' ('+_sc.pct+'% ของใย)':'')+' ≈ '+fmtBaht(_sc.baht)+' บาท — ขอบตัด '+_sc.edge+' · แผ่นเสีย '+_sc.bad+(_sc.mix?' · ชั่งรวม '+_sc.mix:'')+(_sc.other?' · อื่นๆ '+_sc.other:'')+' กก. (รวมอยู่ในค่าใยแล้ว)<br>':'')+'ผลิตแล้ว <b>'+c.packs+' แพ็ค</b> · <b>'+fmtInt(c.pieces)+' ชิ้น</b> · เดินเครื่องราว <b>'+c.hours+' ชม.</b>'+
       (c.fiber.from==='wd'?'<br><span class="bdg warn">งานนี้ยังไม่มีบันทึกป้อนใยรายรอบ — ใช้ยอดเบิกใยแทน</span>':'');
     renderJobDays(c);
+    renderJobRecipe(id);
 
     $('jobStats').innerHTML =
       '<div class="stat"><div class="v">'+fmtBaht(c.perPiece)+'</div><div class="l">บาท/ชิ้น</div></div>'+

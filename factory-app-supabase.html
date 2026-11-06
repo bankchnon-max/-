@@ -5751,8 +5751,17 @@ window.WPDAUTH = {
         (hist.length?'<tr><td colspan="4" style="padding:4px 6px 8px 18px; white-space:normal;"><div style="font-size:12px;font-weight:600;margin-bottom:3px;">ประวัติเปลี่ยนก้อน / เปลี่ยนสูตร</div>'+
           hist.map(e=>'<div style="font-size:12px;line-height:1.55;"><span style="color:var(--dim);display:inline-block;min-width:'+(_one?'42':'78')+'px;">'+_tm(e.time)+'</span> '+e.html+'</div>').join('')+'</td></tr>'
           :'<tr><td colspan="4" style="padding-left:18px; color:var(--dim); font-size:12px;">ไม่มีการเปลี่ยนก้อนหรือเปลี่ยนสูตรในช่วงนี้</td></tr>')+
-        ((o.recipeLog||[]).length?'<tr><td colspan="4" style="padding-left:18px; color:var(--dim); white-space:normal;">มีการเปลี่ยนสูตร '+
-          o.recipeLog.length+' ครั้ง — ตัวเลขข้างบนคิดตามสูตรที่ใช้จริงในแต่ละรอบ</td></tr>':'')+
+        (()=>{ /* สูตรที่ใช้จริงในช่วงนี้ — แบ่งตามสูตรที่บันทึกไว้กับแต่ละรอบ */
+          const seg=[]; fl2.slice().sort((a,b)=>String(a.time).localeCompare(String(b.time))).forEach(c=>{
+            const rec=(c.recipe&&c.recipe.length)?c.recipe:(o.fibers||[]), sig=JSON.stringify(rec.map(f=>[f.name,+f.kg||0]));
+            const L=seg[seg.length-1]; if(L && L.sig===sig){ L.n++; L.last=c.time; } else seg.push({ sig, rec, n:1, first:c.time, last:c.time }); });
+          if(seg.length<2 && !(o.recipeLog||[]).length) return '';
+          return '<tr><td colspan="4" style="padding:4px 6px 8px 18px; white-space:normal;"><div style="font-size:12px;font-weight:600;margin-bottom:3px;">สูตรที่ใช้ '+(seg.length>1?'('+seg.length+' สูตร — เปลี่ยนสูตร '+(seg.length-1)+' ครั้งในช่วงนี้)':'')+'</div>'+
+            seg.map((g,i)=>'<div style="font-size:12px;line-height:1.55;"><b>'+(seg.length>1?'สูตรที่ '+(i+1):'สูตร')+'</b> ใช้ '+_tm(g.first)+(g.last!==g.first?' – '+_tm(g.last):'')+' · '+g.n+' รอบ: '+
+              g.rec.map(f=>esc(f.name)+' '+r3(+f.kg||0)).join(' · ')+' (รวม '+r3(g.rec.reduce((a,f)=>a+(+f.kg||0),0))+' กก./รอบ)'+
+              (i>0?' <span class="bdg warn" style="font-size:10.5px;">เปลี่ยนสูตรเมื่อ '+_tm(((o.recipeLog||[]).filter(r=>String(r.at)<=String(g.first) && String(r.at)>=String(seg[i-1].last)).pop()||{}).at||g.first)+'</span>':'')+'</div>').join('')+
+            '<div style="font-size:11.5px;color:var(--dim);margin-top:2px;">ตัวเลขข้างบนคิดตามสูตรที่ใช้จริงในแต่ละรอบ · ดูราคาต่อกิโลของแต่ละสูตรที่แอพต้นทุน → ต้นทุนจริง</div></td></tr>';
+        })()+
         '<tr><td class="kn" style="padding-left:18px; color:var(--accent2);">รวมออเดอร์นี้</td><td></td><td></td>'+
         '<td class="kn" style="color:var(--accent2)">'+tot+'</td></tr>';
     }).filter(Boolean).join('');

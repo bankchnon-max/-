@@ -735,6 +735,7 @@
         <div id="cutStockBar"></div>
         <div class="scr"><table id="tCutStock"></table></div>
         <div class="sumline" style="margin-top:10px; font-weight:600;">ถุงผ้ารายใบ (ตามเลขถุง)</div>
+        <div class="sumline" id="bagDoneBar" style="margin-top:2px;"></div>
         <div class="scr"><table id="tCutBatchList"></table></div>
       </div>
       <div class="card" data-step="stock"><h3>ประวัติเบิกปลอกไปใช้ (ท้ายไลน์ · จากแอพผลิต)</h3>
@@ -2390,7 +2391,7 @@ window.WPDAUTH = {
     return await ask('ตัวเลขดูผิดปกติ — ตรวจอีกครั้งก่อนบันทึก',
       lines.map(x=>'• '+x).join('\n')+'\n\nยืนยันว่าตัวเลขถูกต้องแล้ว?');
   }
-  let fabCardFilter=null, bagCardFilter=null, finCardFilter=null, finGrpOrders={}, finGrpName={}, showEmptyFin=false;
+  let showDoneBags=false, fabCardFilter=null, bagCardFilter=null, finCardFilter=null, finGrpOrders={}, finGrpName={}, showEmptyFin=false;
   function filterBar(id, label, clearFn){
     return '<div class="sumline" style="margin:6px 0;"><span class="bdg ok">กำลังดูเฉพาะ '+esc(label)+
       '</span> <button class="ed" id="'+id+'">✕ ดูทั้งหมด</button></div>';
@@ -2464,6 +2465,12 @@ window.WPDAUTH = {
     if($('tCutBatchList')){
       let bl=batchStatus.slice();
       if(fabCardFilter) bl=bl.filter(x=>x.fabricType===fabCardFilter);
+      /* ถุงที่ใช้หมดแล้ว (เบิกไปผลิต/เทลงถุงคละจนหมด ไม่มีของที่ช่างหรือรอส่ง) ซ่อนไว้ — ข้อมูลยังอยู่ให้ต้นทุนคิดถูก · ถุงที่ปรับยอดเป็น 0 เฉยๆ ยังแสดง */
+      const _isDone=x=>x.readyBalance<=0 && x.sewingBalance<=0 && x.cutBalance<=0 && ((+x.withdrawn||0)>0 || (+x.mixedOut||0)>0);
+      const _nDone=bl.filter(_isDone).length;
+      if($('bagDoneBar')) $('bagDoneBar').innerHTML=_nDone?(showDoneBags?'แสดงถุงที่ใช้หมดแล้วด้วย ('+_nDone+' ถุง) <button class="x" id="btnBagDone">ซ่อนถุงที่ใช้หมดแล้ว</button>':'ซ่อนถุงที่ใช้หมดแล้ว '+_nDone+' ถุง <button class="x" id="btnBagDone">ดูถุงที่ใช้หมดแล้ว</button>'):'';
+      if($('btnBagDone')) $('btnBagDone').onclick=()=>{ showDoneBags=!showDoneBags; rFabric(); };
+      if(!showDoneBags) bl=bl.filter(x=>!_isDone(x));
       /* ถุงทุกใบที่เคยลงไว้ต้องเห็นเสมอ — ปรับยอดเป็น 0 แล้วต้องไม่หายไปเฉยๆ */
       bl=bl.sort((a,b)=>String(b.time).localeCompare(String(a.time)));
       $('tCutBatchList').innerHTML=bl.length

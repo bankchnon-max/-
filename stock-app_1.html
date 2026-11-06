@@ -1591,7 +1591,7 @@ window.WPDAUTH = {
       (cutBatches||[]).forEach(b=>{ if(b.kind==='mix') (b.mixFrom||[]).forEach(m=>{ mixOut[m.batchId]=(mixOut[m.batchId]||0)+(+m.qty||0); mixIn[b.id]=(mixIn[b.id]||0)+(+m.qty||0); }); });
       return (cutBatches||[]).map(b=>{
         const isMix=b.kind==='mix';
-        const sent=isMix?(mixIn[b.id]||0):(sentByBatch[b.id]||0), returned=isMix?(mixIn[b.id]||0):(retByBatch[b.id]||0), withdrawn=wdByBatch[b.id]||0, mixedOut=mixOut[b.id]||0;
+        const sent=isMix?(mixIn[b.id]||0):(sentByBatch[b.id]||0), returned=isMix?(mixIn[b.id]||0):(retByBatch[b.id]||0), withdrawn=wdByBatch[b.id]||0, mixedOut=r2((mixOut[b.id]||0)+(+b.mixGone||0));
         /* ปลอกบางแบบใช้ผ้าหลายชิ้นต่อ 1 ใบ (ปิกนิก = 2 ผืนประกบกัน) — ส่งเย็บนับเป็นชิ้นผ้า รับกลับนับเป็นใบ */
         const pp=+b.piecesPer||1;
         /* ของเก่า (ตัดก่อนเปลี่ยนระบบ และไม่เคยกรอกไซซ์สำเร็จ) = เลขที่ลงไว้คือไซซ์สำเร็จ ไซซ์ตัดไม่ทราบ */
@@ -2476,7 +2476,7 @@ window.WPDAUTH = {
                                                :'<span style="color:var(--dim)">'+(b.returned>0?'เท่าไซซ์ตัด':'รอรับกลับ')+'</span>'))+'</td>'+
             '<td class="kn">'+thDate(b.time)+'</td><td style="white-space:nowrap;font-size:12.5px;">'+(b.kind==='mix'?'🔀 คละจาก '+((_bb.mixFrom||[]).map(m=>'#'+esc(m.batchNo)).join(', ')):(sewText(b.batchId)||'<span style="color:var(--dim)">ยังไม่ส่งเย็บ</span>'))+(b.mixedOut>0?'<div style="color:var(--dim)">เทไปถุงคละ '+b.mixedOut+'</div>':'')+'</td><td>'+b.qtyCut+'</td><td>'+b.returned+'</td><td>'+r2(b.withdrawn+(b.mixedOut||0))+'</td>'+
             '<td><b style="color:'+(b.readyBalance>0?'var(--accent2)':'var(--dim)')+'">'+b.readyBalance+'</b></td>'+
-            '<td><button class="ed" data-btadj="'+b.batchId+'">ปรับยอดคงเหลือ</button> '+
+            '<td style="white-space:nowrap"><button class="ed" data-btdone="'+b.batchId+'">✅ ใช้หมดแล้ว</button> <button class="ed" data-btadj="'+b.batchId+'">ปรับยอดคงเหลือ</button> '+
             '<button class="x" data-btrm="'+b.batchId+'">✕</button></td></tr>'; }).join('')
         : '<tr><td class="empty">ยังไม่มีถุงที่ตัดไว้</td></tr>';
     }
@@ -2501,6 +2501,7 @@ window.WPDAUTH = {
       if(batch.adjLog.length>50) batch.adjLog=batch.adjLog.slice(-50);
       await saveFabric(); rFabric(); toast('ปรับยอดถุง #'+b.batchNo+' จาก '+_before+' → '+newQty+' ชิ้น แล้ว');
     });
+    document.querySelectorAll('#tCutBatchList [data-btdone]').forEach(btn=>btn.onclick=()=>bagUsedUp(btn.dataset.btdone));
     document.querySelectorAll('#tBatchStatus [data-btrm], #tCutBatchList [data-btrm]').forEach(btn=>btn.onclick=async()=>{
       const b=batchStatus.find(x=>x.batchId===btn.dataset.btrm); if(!b) return;
       if(b.withdrawn>0){ toast('ลบไม่ได้ — ถุงนี้ถูกเบิกไปผลิตแล้วบางส่วน ต้องไปลบรายการเบิกที่แอพผลิตก่อน'); return; }
@@ -2753,8 +2754,9 @@ window.WPDAUTH = {
       mixes.slice(0,100).map(b=>{ const raw=S.cutBatches.find(x=>x.id===b.batchId)||{};
         return '<tr><td class="kn"><a class="lnk" data-bagopen="'+esc(b.batchId)+'">'+esc(b.batchNo)+'</a></td><td>'+esc(b.fabricType)+'</td><td><b>'+esc(b.size)+'</b></td><td style="white-space:nowrap">'+thDate(b.time)+'</td><td>'+b.returned+'</td><td>'+b.withdrawn+'</td>'+
           '<td><b style="color:'+(b.readyBalance>0?'var(--accent2)':'var(--dim)')+'">'+b.readyBalance+'</b></td><td style="font-size:12.5px">'+(raw.mixFrom||[]).map(m=>'<a class="lnk" data-bagopen="'+esc(m.batchId)+'">#'+esc(m.batchNo)+'</a>:'+m.qty).join(', ')+'</td>'+
-          '<td>'+(b.withdrawn>0?'':'<button class="x" data-klrm="'+esc(b.batchId)+'" title="ยกเลิกถุงคละ — ปลอกกลับไปอยู่ถุงเดิม">✕</button>')+'</td></tr>'; }).join('')
+          '<td style="white-space:nowrap"><button class="ed" data-kldone="'+esc(b.batchId)+'">✅ ใช้หมดแล้ว</button> '+(b.withdrawn>0?'':'<button class="x" data-klrm="'+esc(b.batchId)+'" title="ยกเลิกถุงคละ — ปลอกกลับไปอยู่ถุงเดิม">✕</button>')+'</td></tr>'; }).join('')
       :'<tr><td class="empty">ยังไม่มีถุงคละ</td></tr>';
+    $('tKl').querySelectorAll('[data-kldone]').forEach(x=>x.onclick=()=>bagUsedUp(x.dataset.kldone));
     $('tKl').querySelectorAll('[data-klrm]').forEach(x=>x.onclick=async()=>{
       const b=S.cutBatches.find(y=>y.id===x.dataset.klrm); if(!b) return;
       const st=(bs||[]).find(y=>y.batchId===b.id)||{};
@@ -3013,7 +3015,7 @@ window.WPDAUTH = {
           '<button class="ed" data-fsedit="ret|'+r.id+'">แก้</button> <button class="x" data-fsdel="ret|'+r.id+'">✕</button>')).join('')+
         wds.map(w=>row(w.time,'🏭 ท้ายไลน์เบิก',w.qty+' '+(pp>1?'ใบ':'ชิ้น')+' <span style="color:var(--dim)">(แก้ที่แอพผลิต)</span>','')).join('')+
       '</table></div>'+
-      '<div class="acts" style="margin-top:10px; gap:8px; flex-wrap:wrap;"><button class="btn sec sm" data-fsbagno="1">✏ แก้เลขถุง</button>'+
+      '<div class="acts" style="margin-top:10px; gap:8px; flex-wrap:wrap;"><button class="btn sm" data-fsdone="1">✅ ใช้หมดแล้ว (ลบถุงนี้)</button>'+(b.kind==='mix'?'':'<button class="btn sec sm" data-fsbagno="1">✏ แก้เลขถุง</button>')+
         (Array.isArray(b.mergedFrom)&&b.mergedFrom.length?'<button class="btn sec sm" data-fsunmerge="1">↩ แยกกลับเป็นถุงเดิม ('+b.mergedFrom.length+' ถุง)</button>':'')+'</div>'+
       (Array.isArray(b.mergedFrom)&&b.mergedFrom.length?'<div class="sumline">ถุงนี้ระบบรวมจากถุงย่อยเดิม #'+b.mergedFrom.map(x=>x.batchNo).join(', #')+' — ถ้ารวมผิด กด "แยกกลับเป็นถุงเดิม"</div>':'')+
       '<div id="fsForm"></div>'+
@@ -3023,6 +3025,7 @@ window.WPDAUTH = {
     const body=$('fsBody');
     body.querySelectorAll('[data-fsedit]').forEach(x=>x.onclick=()=>editBagRow(b, x.dataset.fsedit));
     /* แก้เลขถุง (เลขที่เขียนบนถุงจริง) — รายการส่งเย็บ/รับกลับของถุงนี้เปลี่ยนเลขตาม */
+    const fd=body.querySelector('[data-fsdone]'); if(fd) fd.onclick=()=>bagUsedUp(batchId);
     const bn=body.querySelector('[data-fsbagno]');
     if(bn) bn.onclick=()=>{
       const f=$('fsForm');
@@ -3468,6 +3471,25 @@ window.WPDAUTH = {
   }
   function rollOfCut(b){ const id=b&&(b.rollId||(Array.isArray(b.parts)&&b.parts[0]&&b.parts[0].rollId)); return id ? (S.fabricReceipts||[]).find(r=>r.id===id)||null : null; }
   /* "ม้วนที่ 1" หรือถุงหลายม้วน "ม้วนที่ 1/5ชิ้น, 6/5ชิ้น" */
+  /* ถุงใช้หมดแล้ว: ลบถุง + ประวัติส่งเย็บ/รับกลับของถุงนั้นทั้งหมด · รายการเบิกในแอพผลิตยังอยู่ (ต้นทุนงานที่เบิกถุงนี้จะหาค่าผ้าไม่เจอ) */
+  async function bagUsedUp(id){
+    const b=S.cutBatches.find(x=>x.id===id); if(!b){ toast('ไม่พบถุงนี้'); return; }
+    const st=CALC.cutBatchStatus(S.cutBatches,S.sewSent,S.sewReturns,PROD.fabricWd).find(x=>x.batchId===id)||{};
+    const label=b.kind==='mix'?String(b.batchNo):'#'+b.batchNo;
+    const nS=(S.sewSent||[]).filter(x=>x.batchId===id).length, nR=(S.sewReturns||[]).filter(x=>x.batchId===id).length;
+    const warn=[];
+    if(st.readyBalance>0) warn.push('ในระบบยังเหลือพร้อมเบิก '+st.readyBalance+' — จะถือว่าใช้หมดแล้ว');
+    if(st.sewingBalance>0) warn.push('ระบบคิดว่ายังอยู่ที่ช่างเย็บ '+st.sewingBalance+' ชิ้น');
+    if(st.cutBalance>0) warn.push('ยังมี '+st.cutBalance+' ชิ้นที่ยังไม่ได้ส่งเย็บ');
+    if(!await ask('ถุง '+label+' ใช้หมดแล้ว?', b.fabricType+' · '+(b.sizeFinished||b.size)+' · ตัด/คละ '+thDate(b.time)+(warn.length?'\n\n'+warn.join('\n'):'')+
+      '\n\nจะลบถุงนี้ออก พร้อมประวัติส่งเย็บ '+nS+' รายการ และรับกลับ '+nR+' รายการ · กู้คืนไม่ได้', { okText:'ใช้หมดแล้ว ลบเลย', cancelText:'ยกเลิก' })) return;
+    if(b.kind==='mix') (b.mixFrom||[]).forEach(m=>{ const sb=S.cutBatches.find(x=>x.id===m.batchId); if(sb) sb.mixGone=r2((+sb.mixGone||0)+(+m.qty||0)); });
+    S.cutBatches=S.cutBatches.filter(x=>x.id!==id);
+    S.sewSent=(S.sewSent||[]).filter(x=>x.batchId!==id);
+    S.sewReturns=(S.sewReturns||[]).filter(x=>x.batchId!==id);
+    const ov=$('fabSheet'); if(ov && ov.style.display==='flex' && ov.dataset.open==='bag|'+id){ ov.dataset.open=''; closeFabSheet(); }
+    await saveFabric(); rFabric(); toast('ถุง '+label+' ใช้หมดแล้ว — ลบออกแล้ว');
+  }
   function rollsText(b){ return (Array.isArray(b.parts)&&b.parts.length) ? b.parts.map(p=>'ม้วนที่ '+p.rollNo+' · '+p.qty+' ชิ้น').join(', ') : 'ม้วนที่ '+(b.rollNo||'—'); }
   function lotTag(batchId){
     const r=rollOfCut((S.cutBatches||[]).find(x=>x.id===batchId)); if(!r) return '';

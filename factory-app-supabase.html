@@ -1612,7 +1612,7 @@ window.WPDAUTH = {
           size:fin, cutSize:(cutKnown?b.size:null), cutKnown:cutKnown,
           sizeFinished:fin,
           qtyCut:b.qtyCut, time:b.time, kind:b.kind||'',
-          sent, returned, withdrawn, readyBalance: r2(returned-withdrawn-(mixOut[b.id]||0)) };
+          sent, returned, withdrawn, readyBalance: r2(returned-withdrawn-(mixOut[b.id]||0)-(+b.mixGone||0)) };
       });
     },
     // เลือกถุงแบบ FIFO (เลขน้อย/เก่าสุดก่อน) ไล่หยิบจนครบจำนวนที่ต้องการ

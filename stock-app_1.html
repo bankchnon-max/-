@@ -4215,8 +4215,10 @@ window.WPDAUTH = {
       if(target===null) return;
       const delta=r2(target-s.stock);
       if(delta===0){ toast('ยอดเท่าเดิม ไม่ต้องปรับ'); return; }
-      S.finAdjustments.push({ id:uid(), time:localISO(), orderId:s.orderId, delta, note:'ปรับยอดให้ตรงกับที่นับจริง' });
+      const _a={ id:uid(), time:localISO(), orderId:s.orderId, delta, note:'ปรับยอดให้ตรงกับที่นับจริง' };
+      S.finAdjustments.push(_a);
       await saveFin(); rFin(); toast('ปรับยอดเป็น '+target+' แพ็ค แล้ว');
+      if(delta>0) editFinAdj(_a.id);
     });
     $('finCards').querySelectorAll('[data-finfreeadj]').forEach(btn=>btn.onclick=async()=>{
       const s=freeStock.find(x=>x.freeLabel===btn.dataset.finfreeadj); if(!s) return;
@@ -4225,8 +4227,10 @@ window.WPDAUTH = {
       if(target===null) return;
       const delta=r2(target-s.stock);
       if(delta===0){ toast('ยอดเท่าเดิม ไม่ต้องปรับ'); return; }
-      S.finAdjustments.push({ id:uid(), time:localISO(), orderId:null, freeLabel:s.freeLabel, delta, note:'ปรับยอดให้ตรงกับที่นับจริง' });
+      const _a={ id:uid(), time:localISO(), orderId:null, freeLabel:s.freeLabel, delta, note:'ปรับยอดให้ตรงกับที่นับจริง' };
+      S.finAdjustments.push(_a);
       await saveFin(); rFin(); toast('ปรับยอดเป็น '+target+' แพ็ค แล้ว');
+      if(delta>0) editFinAdj(_a.id);
     });
 
     const keepObFin=$('obFinSel').value;
@@ -4250,9 +4254,10 @@ window.WPDAUTH = {
     const adjRows=S.finAdjustments.slice().reverse().slice(0,50);
     $('tFinAdj').innerHTML=adjRows.length?'<tr><th>เวลา</th><th>สินค้า</th><th>ปรับ</th><th>หมายเหตุ</th><th></th></tr>'+
       adjRows.map(a=>'<tr><td>'+ymd(a.time)+' '+hhmm(a.time)+'</td><td>'+esc(a.freeLabel||orderLabel(a.orderId))+(a.freeLabel?' <span class="bdg warn" style="font-size:10px;">ไม่มีออเดอร์</span>':'')+'</td><td>'+(a.delta>0?'+':'')+a.delta+' แพ็ค</td><td>'+esc(a.note||'')+((a.packNos||[]).length||a.prodDate||a.piecesPerPack?'<div style="font-size:11.5px;color:var(--dim)">'+esc(adjDetail(a))+'</div>':'')+
-        '</td><td style="white-space:nowrap">'+(a.delta>0 && /^ยอดยกมา/.test(a.note||'')?'<button class="ed" data-finadjed="'+a.id+'">แก้</button> ':'')+'<button class="x" data-finadjrm="'+a.id+'">✕</button></td></tr>').join('')
+        '</td><td style="white-space:nowrap">'+(a.delta>0?'<button class="ed" data-finadjed="'+a.id+'">'+(/^ยอดยกมา/.test(a.note||'')?'แก้':'แก้วันที่')+'</button> ':'<button class="ed" data-finadjdt="'+a.id+'">แก้วันที่</button> ')+'<button class="x" data-finadjrm="'+a.id+'">✕</button></td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีการปรับยอด</td></tr>';
     $('tFinAdj').querySelectorAll('[data-finadjed]').forEach(b=>b.onclick=()=>editFinAdj(b.dataset.finadjed));
+    $('tFinAdj').querySelectorAll('[data-finadjdt]').forEach(b=>b.onclick=()=>editFinAdjDate(b.dataset.finadjdt));
     $('tFinAdj').querySelectorAll('[data-finadjrm]').forEach(b=>b.onclick=async()=>{
       if(!await ask('ลบรายการปรับยอดนี้?')) return;
       S.finAdjustments=S.finAdjustments.filter(x=>x.id!==b.dataset.finadjrm); await saveFin(); rFin(); toast('ลบแล้ว');
@@ -4265,29 +4270,47 @@ window.WPDAUTH = {
     /* เคยส่งออกแบบไม่มีเบอร์ไปแล้วกี่แพ็ค (ของยกมาที่ยังไม่มีเบอร์) — ให้ใส่เฉพาะเบอร์ที่ยังอยู่ในคลัง */
     let anon=0; S.deliveries.forEach(d=>d.items.forEach(it=>{ if(it.kind!=='trade' && sameSrc(it,src)) anon+=Math.max(0,(+it.qty||0)-((it.seqs||[]).length)); }));
     const o=a.orderId?orderById(a.orderId):null;
-    const html='<div class="sumline">'+esc(srcLabel(src))+' · ลงไว้ '+thDate(a.time)+' · <b>'+a.delta+' แพ็ค</b></div>'+
+    const isBF=/^ยอดยกมา/.test(a.note||'');
+    const html='<div class="sumline">'+esc(srcLabel(src))+' · ลงไว้ '+thDate(a.time)+' · <b>'+(isBF?'':'เพิ่ม ')+a.delta+' แพ็ค</b></div>'+
+      (isBF?'':'<div class="sumline" style="margin-top:4px;">ของที่เพิ่มนี้ผลิตวันไหน — ใช้เรียงล็อตเก่าก่อนตอนขึ้นรถ (ไม่แก้ = ถือว่าผลิตวันที่ปรับยอด)</div>')+
+      '<div class="rf"><div><label>ผลิตวันไหน</label><input id="feDate" type="date" max="'+todayStr()+'" value="'+esc(a.prodDate||(isBF?'':ymd(a.time)))+'"></div>'+
+      '<div><label>แพ็คละกี่ชิ้น</label><input id="fePP" type="number" inputmode="numeric" value="'+(a.piecesPerPack||((o&&o.spec&&o.spec.piecesPerPack)||srcPP(src)||''))+'"></div></div>'+
       '<label>เบอร์แพ็ค</label><input id="feNos" autocomplete="off" value="'+esc(packNosText(a.packNos||[]))+'" placeholder="เช่น 1-50 หรือ 1,2,5-10">'+
       '<div class="sumline" id="feNosPrev" style="margin-top:3px;"></div>'+
-      '<div class="rf"><div><label>แพ็คละกี่ชิ้น</label><input id="fePP" type="number" inputmode="numeric" value="'+(a.piecesPerPack||((o&&o.spec&&o.spec.piecesPerPack)||''))+'"></div>'+
-      '<div><label>ผลิตวันไหน</label><input id="feDate" type="date" value="'+esc(a.prodDate||'')+'"></div></div>'+
       (anon?'<div class="sumline" style="color:var(--yellow);margin-top:6px;">สินค้านี้เคยส่งออกแบบไม่มีเบอร์ไปแล้ว '+anon+' แพ็ค — ใส่เฉพาะเบอร์ที่ยังอยู่ในคลังจริง</div>':'')+
       '<div class="acts" style="margin-top:10px;"><button class="btn" id="feSave">บันทึก</button></div>';
-    fabSheet('แก้ยอดยกมา', html); $('fabSheet').dataset.open='';
+    fabSheet(isBF?'แก้ยอดยกมา':'แก้วันผลิต (ปรับยอดเพิ่ม)', html); $('fabSheet').dataset.open='';
     const prev=()=>{ const p=parsePackNos($('feNos').value); $('feNosPrev').innerHTML=p.err?'<span style="color:var(--red)">อ่านไม่ออกตรง "'+esc(p.err)+'"</span>':p.nos.length?p.nos.length+' แพ็ค (จากทั้งหมด '+a.delta+')':''; };
     $('feNos').oninput=prev; prev();
     $('feSave').onclick=async()=>{
       const p=parsePackNos($('feNos').value), pp=+$('fePP').value, d=$('feDate').value;
       if(p.err){ toast('เบอร์แพ็คอ่านไม่ออก: '+p.err); return; }
-      if(p.nos.length>a.delta){ await info('เบอร์แพ็คมากกว่าจำนวนที่ยกมา','ใส่ไว้ '+p.nos.length+' เบอร์ แต่ยอดยกมามี '+a.delta+' แพ็ค\n\nถ้ายอดผิด ให้ลบรายการนี้แล้วลงใหม่'); return; }
-      if(!(pp>0)){ toast('กรอกแพ็คละกี่ชิ้น'); return; }
+      if(p.nos.length>a.delta){ await info('เบอร์แพ็คมากกว่าจำนวนที่'+(isBF?'ยกมา':'เพิ่ม'),'ใส่ไว้ '+p.nos.length+' เบอร์ แต่'+(isBF?'ยอดยกมา':'ที่ปรับเพิ่ม')+'มี '+a.delta+' แพ็ค\n\nถ้ายอดผิด ให้ลบรายการนี้แล้วลงใหม่'); return; }
+      if(!(pp>0) && (isBF || p.nos.length)){ toast('กรอกแพ็คละกี่ชิ้น'); return; }
       if(!d){ toast('เลือกวันที่ผลิต (จำไม่ได้ ใส่วันโดยประมาณ)'); return; }
       if(d>todayStr()){ toast('วันที่ผลิตเลยวันนี้ไปแล้ว'); return; }
       /* เบอร์ที่ส่งไปแล้วจากรายการนี้ ห้ามเอาออก (บิลอ้างถึงอยู่) */
       const shipped=new Set(); S.deliveries.forEach(dv=>dv.items.forEach(it=>(it.seqs||[]).forEach(k=>{ const m=String(k).match(/^b(.+)#(\d+)$/); if(m && m[1]===a.id) shipped.add(+m[2]); })));
       const lost=[...shipped].filter(n=>!p.nos.includes(n));
       if(lost.length){ await info('เอาเบอร์ที่ส่งไปแล้วออกไม่ได้','เบอร์ '+packNosText(lost)+' ส่งขึ้นเที่ยวรถไปแล้ว ต้องอยู่ในรายการนี้'); return; }
-      a.packNos=p.nos; a.piecesPerPack=pp; a.prodDate=d;
-      await saveFin(); closeFabSheet(); rFin(); toast('แก้ยอดยกมาแล้ว'+(p.nos.length?' — เบอร์ '+packNosText(p.nos):''));
+      a.packNos=p.nos; if(pp>0) a.piecesPerPack=pp; a.prodDate=d;
+      await saveFin(); closeFabSheet(); rFin(); toast((isBF?'แก้ยอดยกมาแล้ว':'ลงวันผลิต '+thDate(d)+' แล้ว')+(p.nos.length?' — เบอร์ '+packNosText(p.nos):''));
+    };
+  }
+  /* ปรับยอดลด: แก้วันที่ปรับ (เวลาเดิม) — เช่น นับของจริงเมื่อวานแต่มาลงวันนี้ */
+  function editFinAdjDate(id){
+    const a=S.finAdjustments.find(x=>x.id===id); if(!a) return;
+    const src=a.orderId?{orderId:a.orderId}:{freeLabel:a.freeLabel};
+    fabSheet('แก้วันที่ปรับยอด','<div class="sumline">'+esc(srcLabel(src))+' · <b>'+a.delta+' แพ็ค</b> · ลงไว้ '+thDate(a.time)+' '+hhmm(a.time)+'</div>'+
+      '<label>วันที่ปรับยอด</label><input id="fdDate" type="date" max="'+todayStr()+'" value="'+esc(ymd(a.time))+'">'+
+      '<div class="acts" style="margin-top:10px;"><button class="btn" id="fdSave">บันทึก</button></div>');
+    $('fabSheet').dataset.open='';
+    $('fdSave').onclick=async()=>{
+      const d=$('fdDate').value;
+      if(!d){ toast('เลือกวันที่'); return; }
+      if(d>todayStr()){ toast('วันที่เลยวันนี้ไปแล้ว'); return; }
+      a.time=d+String(a.time).slice(10);
+      await saveFin(); closeFabSheet(); rFin(); toast('แก้วันที่เป็น '+thDate(d)+' แล้ว');
     };
   }
   /* ---------- สินค้าซื้อมาขาย ---------- */

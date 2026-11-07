@@ -1678,7 +1678,7 @@ window.WPDAUTH = {
       /* ถุงซิลนับเฉพาะงานหมอน — งานอื่นที่หักจากกระสอบถุงซิล นับเป็นถุงแพ็ค */
       const _ptOf=id=>{ const o=(P.orders||[]).find(x=>x.id===id); return o?(o.productType||'ใย'):''; };
       let bagPack=0, bagZip=0;
-      (P.bagUse||[]).filter(inR).forEach(b=>{ const v=(+b.pieces||0)*COST.bagBahtPerPiece(PRICE,S.sackReceipts,b.kind,b.name,b.sackNo).baht;
+      (P.bagUse||[]).filter(b=>inR(b) && !b.costExcluded).forEach(b=>{ const v=(+b.pieces||0)*COST.bagBahtPerPiece(PRICE,S.sackReceipts,b.kind,b.name,b.sackNo).baht;
         if(b.kind==='zip' && _ptOf(b.orderId)==='หมอน') bagZip+=v; else bagPack+=v; });
       lines.forEach(l=>{ const o=(P.orders||[]).find(x=>x.id===l.orderId); const per=o?COST.reuseUsesPerPack(S,o.spec):0; if(per>0) bagPack+=per*COST.reuseBahtPerUse(PRICE,o.spec.packBagName).baht; });
       /* หมอนที่บันทึกใช้ถุงไม่ครบตามสเปค → คิดส่วนที่ขาด (ประมาณ) */

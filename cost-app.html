@@ -665,6 +665,24 @@
     </div>
 
     <!-- ══════════ 5. สรุป ══════════ -->
+    <div class="panel" id="p-sew">
+      <div class="card"><h3>🧵 ค่าเย็บที่ต้องจ่าย</h3>
+        <p class="sumline" style="margin-top:-4px;">รับกลับจากช่างเมื่อไหร่ = ต้องจ่าย · คิดตามค่าเย็บของไซซ์นั้น (ตั้งที่ ⚙️ ตั้งค่า) × จำนวนใบที่รับกลับ · จ่ายแล้วกด "💵 จ่าย"</p>
+        <div class="rf">
+          <div><label>ช่าง</label><select id="sewWho"></select></div>
+          <div><label>รับกลับตั้งแต่</label><input id="sewFrom" type="date"></div>
+          <div><label>ถึง</label><input id="sewTo" type="date"></div>
+        </div>
+        <div class="sumline" id="sewNoRate" style="margin-top:6px;"></div>
+        <div class="scr" style="margin-top:8px;"><table id="tSewDue"></table></div>
+      </div>
+      <div class="card"><h3>รายการรับกลับ</h3>
+        <label class="sumline" style="display:flex;align-items:center;gap:6px;margin:0 0 6px;"><input type="checkbox" id="sewShowPaid" style="width:auto;margin:0;"> แสดงที่จ่ายแล้วด้วย</label>
+        <div class="scr"><table id="tSewList"></table></div>
+      </div>
+      <div class="card"><h3>ประวัติการจ่ายค่าเย็บ</h3><div class="scr"><table id="tSewPaid"></table></div></div>
+    </div>
+
     <div class="panel" id="p-sum">
       <div class="card" id="alertCard"><h3>⚠ จุดที่ควรดู <span class="sumline" style="font-weight:400">— เช็คให้อัตโนมัติจากข้อมูลในแอพ</span></h3><div id="alertList"></div></div>
       <div class="card"><h3>สรุปต้นทุนตามช่วงเวลา</h3>
@@ -705,6 +723,7 @@
     <button class="nb" data-p="set"><span class="ic">⚙️</span>ตั้งค่า</button>
     <button class="nb" data-p="job"><span class="ic">🧾</span>ต้นทุนจริง</button>
     <button class="nb" data-p="quote"><span class="ic">🏷️</span>ตีราคา</button>
+    <button class="nb" data-p="sew"><span class="ic">🧵</span>ค่าเย็บ</button>
     <button class="nb" data-p="sum"><span class="ic">📊</span>สรุป</button>
   </div>
 
@@ -2148,6 +2167,7 @@ window.WPDAUTH = {
                elecPerHour:0, shipPerPack:0, fixed:[], hoursOverride:0, marginPct:20, vatPct:0 };
   let PRICE = { fiber:{}, fabric:{}, zip:{}, pack:{}, gas:0 };
   let QUOTES = [];
+  let SEWPAY = { since:'', pays:[] };
   let current='price', lastHash='';
 
   const hasStore = !!(window.storage && window.storage.get && window.storage.set);
@@ -2226,7 +2246,7 @@ window.WPDAUTH = {
       }
     }
   }
-  const KEYMAP = { v3k_set:()=>KSET, v3k_price:()=>PRICE, v3k_quote:()=>({quotes:QUOTES}) };
+  const KEYMAP = { v3k_set:()=>KSET, v3k_price:()=>PRICE, v3k_quote:()=>({quotes:QUOTES}), v3k_sewpay:()=>SEWPAY };
   function setSaveState(state,msg){
     const el=$('saveState'); if(!el) return;
     if(state==='saving'){ el.className='savechip saving'; el.textContent='กำลังบันทึก…'; }
@@ -2270,7 +2290,7 @@ window.WPDAUTH = {
     const busy = Object.keys(pending).length || Object.keys(inflight).some(k=>inflight[k]);
     if(busy){ e.preventDefault(); e.returnValue=''; return ''; }
   });
-  const saveSet=()=>put('v3k_set'), savePrice=()=>put('v3k_price'), saveQuotes=()=>put('v3k_quote');
+  const saveSet=()=>put('v3k_set'), savePrice=()=>put('v3k_price'), saveQuotes=()=>put('v3k_quote'), saveSewPay=()=>put('v3k_sewpay');
 
   /* โหลดพลาดต้องโยน error ขึ้นไป ห้ามคืนค่าว่าง ไม่งั้นแอพจะเข้าใจว่าไม่มีข้อมูล แล้วบันทึกทับของจริง */
   async function rawGet(k){ if(!hasStore) return null; const r=await window.storage.get(k,true); return r?r.value:null; }
@@ -2293,18 +2313,18 @@ window.WPDAUTH = {
   async function readAll(){
     const _seq=wpdWriteSeq, _busy=wpdBusy();
     const _lab=await loadLabor();
-    const [fi,fa,bg,gs,ord,fd,ln,st,pr,qt] = await Promise.all([
+    const [fi,fa,bg,gs,ord,fd,ln,st,pr,qt,sp] = await Promise.all([
       rawGet('v3s_fiber'), rawGet('v3s_fabric'), rawGet('v3s_bag'), rawGet('v3s_gas'),
       rawGet('v3_orders'), rawGet('v3_feed'), rawGet('v3_line'),
-      rawGet('v3k_set'), rawGet('v3k_price'), rawGet('v3k_quote')
+      rawGet('v3k_set'), rawGet('v3k_price'), rawGet('v3k_quote'), rawGet('v3k_sewpay')
     ]);
     /* มีการบันทึกเกิดขึ้นระหว่างที่กำลังดึงข้อมูล = ข้อมูลที่ได้มาเก่ากว่าในเครื่อง ห้ามเอามาทับ รอบหน้าค่อยดึงใหม่ */
     if(wpdStale(_seq,_busy)) return lastHash;
-    const hash=[fi,fa,bg,gs,ord,fd,ln,st,pr,qt,_lab].map(x=>x||'').join('|');
+    const hash=[fi,fa,bg,gs,ord,fd,ln,st,pr,qt,sp,_lab].map(x=>x||'').join('|');
     const parse=(s,f)=>{ try{ return s?JSON.parse(s):f; }catch(e){ return f; } };
     const Pf=parse(fi,{}), Pa=parse(fa,{}), Pb=parse(bg,{}), Pg=parse(gs,{});
     S.fiberReceipts=Pf.receipts||[];
-    S.fabricReceipts=Pa.receipts||[]; S.cutBatches=Pa.cutBatches||[]; S.sewReturns=Pa.sewReturns||[];
+    S.fabricReceipts=Pa.receipts||[]; S.cutBatches=Pa.cutBatches||[]; S.sewReturns=Pa.sewReturns||[]; S.sewSent=Pa.sewSent||[];
     S.sackReceipts=Pb.receipts||[]; S.reuseItems=Pb.reuseItems||[]; S.gasReceipts=Pg.receipts||[];
     const A=parse(ord,{}), B=parse(fd,{}), C=parse(ln,{});
     PROD.orders=A.orders||[];
@@ -2319,7 +2339,8 @@ window.WPDAUTH = {
     const P=parse(pr,null);
     if(P && typeof P==='object') PRICE=Object.assign({fiber:{},fabric:{},zip:{},pack:{},gas:0}, P);
     QUOTES=(parse(qt,{}).quotes)||[];
-    wpdMarkLoaded({v3k_set:st, v3k_price:pr, v3k_quote:qt});
+    { const _sp=parse(sp,null); SEWPAY=(_sp && typeof _sp==='object')?Object.assign({ since:'', pays:[] }, _sp):{ since:'', pays:[] }; if(!Array.isArray(SEWPAY.pays)) SEWPAY.pays=[]; }
+    wpdMarkLoaded({v3k_set:st, v3k_price:pr, v3k_quote:qt, v3k_sewpay:sp});
     return hash;
   }
 
@@ -3397,6 +3418,7 @@ window.WPDAUTH = {
     else if(current==='job') rJob();
     else if(current==='quote'){ fillQuoteSelects(); rQuote(); }
     else if(current==='sum') rSum();
+    else if(current==='sew') rSew();
   }
   function show(p){
     current=p; formDirty=false;
@@ -3407,6 +3429,83 @@ window.WPDAUTH = {
     window.scrollTo(0,0);
   }
   document.querySelectorAll('.nb').forEach(b=>b.onclick=()=>show(b.getAttribute('data-p')));
+  /* ═══ 🧵 ค่าเย็บ: รับกลับจากช่าง = ต้องจ่าย · ค่าเย็บตามไซซ์ (หน้าตั้งค่า) × ใบที่รับกลับ · กด "จ่ายแล้ว" เก็บประวัติพร้อมราคา ณ ตอนจ่าย
+     รายการ "ยอดยกมา" ไม่นับ (ของเก่าก่อนใช้แอพ/นับสต๊อก) */
+  function sewSince(){ return SEWPAY.since || '2026-11-01'; }
+  function sewSetSizes(){ const by=KSET.sewBySize||{}; return new Set(Object.keys(by).filter(k=>+by[k]>0).map(k=>COST.sizeKey(k))); }
+  function sewLines(){
+    const paid={}; (SEWPAY.pays||[]).forEach(p=>(p.lines||[]).forEach(l=>{ paid[l.retId]={ pay:p, line:l }; }));
+    const bag={}; (S.cutBatches||[]).forEach(b=>{ bag[b.id]=b; });
+    const sentBy={}; (S.sewSent||[]).forEach(s=>{ (sentBy[s.batchId]=sentBy[s.batchId]||[]).push(s); });
+    const setSz=sewSetSizes();
+    return (S.sewReturns||[]).filter(r=>!/^ยอดยกมา/.test(String(r.note||''))).map(r=>{
+      const b=bag[r.batchId]||{}, size=COST.sizeKey(r.sizeFinished||b.sizeFinished||b.size||'');
+      const p=paid[r.id], rate=p?+p.line.rate||0:COST.sewRate(KSET, size), q=+r.qty||0;
+      const nm=String(r.sewerName||'').trim();
+      return { r, b, size, rate, std:!p && !setSz.has(size), q, baht:p?+p.line.baht||0:r2(q*rate), sewer:(nm && nm!=='-')?nm:'ไม่ระบุช่าง',
+        day:String(r.time||'').slice(0,10), paid:p?p.pay:null, sent:(sentBy[r.batchId]||[]) };
+    });
+  }
+  function sewRange(){ return { from:$('sewFrom').value||sewSince(), to:$('sewTo').value||localISO().slice(0,10), who:$('sewWho').value }; }
+  function rSew(){
+    if(!$('sewFrom').value) $('sewFrom').value=sewSince();
+    if(!$('sewTo').value) $('sewTo').value=localISO().slice(0,10);
+    const R=sewRange(), showPaid=$('sewShowPaid').checked, all=sewLines();
+    const sewers=[...new Set(all.map(x=>x.sewer))].sort((a,b)=>a.localeCompare(b,'th'));
+    $('sewWho').innerHTML='<option value="">ทุกคน</option>'+sewers.map(s=>'<option value="'+esc(s)+'"'+(s===R.who?' selected':'')+'>'+esc(s)+'</option>').join('');
+    const inR=x=>x.day>=R.from && x.day<=R.to && (!R.who || x.sewer===R.who);
+    /* ค้างจ่ายต่อช่าง */
+    const due={}; all.filter(x=>inR(x) && !x.paid).forEach(x=>{ const e=due[x.sewer]||(due[x.sewer]={ n:0, q:0, baht:0, std:0 }); e.n++; e.q+=x.q; e.baht=r2(e.baht+x.baht); if(x.std) e.std++; });
+    const dl=Object.keys(due).sort((a,b)=>due[b].baht-due[a].baht);
+    $('tSewDue').innerHTML=dl.length?'<tr><th>ช่าง</th><th style="text-align:right">ค้างจ่าย (บาท)</th><th></th></tr>'+
+      dl.map(s=>{ const e=due[s]; return '<tr><td><b>'+esc(s)+'</b><div style="font-size:12px;color:var(--dim)">'+e.n+' ครั้ง · '+fmtInt(e.q)+' ใบ'+(e.std?' · <span class="bdg warn">'+e.std+' ใช้ค่ามาตรฐาน</span>':'')+'</div></td><td style="text-align:right"><b>'+fmtBaht(e.baht)+'</b></td>'+
+        '<td><button class="btn sm" data-sewpay="'+esc(s)+'" style="margin:0;white-space:nowrap;padding:8px 10px;">💵 จ่าย</button></td></tr>'; }).join('')+
+      (dl.length>1?'<tr><td class="kn">รวม <span style="font-weight:400;font-size:12px;">'+fmtInt(dl.reduce((a,s)=>a+due[s].q,0))+' ใบ</span></td><td style="text-align:right" class="kn">'+fmtBaht(dl.reduce((a,s)=>a+due[s].baht,0))+'</td><td></td></tr>':'')
+      :'<tr><td class="empty">ไม่มีค่าเย็บค้างจ่ายในช่วงนี้</td></tr>';
+    /* ไซซ์ที่ยังไม่ได้ตั้งค่าเย็บ */
+    const noSet=[...new Set(all.filter(x=>inR(x) && !x.paid && x.std).map(x=>x.size))];
+    $('sewNoRate').innerHTML=noSet.length?'⚠ ไซซ์ที่ยังไม่ได้ตั้งค่าเย็บ (ตอนนี้ใช้ค่ามาตรฐาน '+fmtBaht(+KSET.sewPerPiece||0)+' บาท/ใบ): <b>'+noSet.map(esc).join(', ')+'</b> <button class="btn sec sm" id="sewGoSet" style="margin:0 0 0 6px;">⚙️ ไปตั้งค่าเย็บ</button>':'';
+    if($('sewGoSet')) $('sewGoSet').onclick=()=>show('set');
+    /* รายการรับกลับทีละครั้ง */
+    const rows=all.filter(x=>inR(x) && (showPaid || !x.paid)).sort((a,b)=>String(b.r.time).localeCompare(String(a.r.time)));
+    $('tSewList').innerHTML=rows.length?'<tr><th>รับกลับ</th><th>ช่าง</th><th>ถุง</th><th>ผ้า</th><th>ไซซ์</th><th>สินค้า</th><th>ส่งไป</th><th style="text-align:right">รับกลับ (ใบ)</th><th style="text-align:right">ค่าเย็บ/ใบ</th><th style="text-align:right">บาท</th><th>สถานะ</th></tr>'+
+      rows.slice(0,400).map(x=>'<tr><td style="white-space:nowrap">'+thDate(x.r.time)+'</td><td>'+esc(x.sewer)+'</td><td>#'+esc(x.r.batchNo!=null?x.r.batchNo:(x.b.batchNo||''))+'</td><td>'+esc(x.r.fabricType||x.b.fabricType||'')+'</td><td><b>'+esc(x.size)+'</b></td><td>'+esc(x.r.productType||'')+'</td>'+
+        '<td style="white-space:nowrap;font-size:12.5px;">'+(x.sent.length?x.sent.map(s=>thDate(s.time)+' · '+fmtInt(s.qty)).join('<br>'):'—')+'</td>'+
+        '<td style="text-align:right">'+fmtInt(x.q)+'</td><td style="text-align:right">'+fmtBaht(x.rate)+(x.std?' <span class="bdg warn">มาตรฐาน</span>':'')+'</td><td style="text-align:right"><b>'+fmtBaht(x.baht)+'</b></td>'+
+        '<td style="white-space:nowrap">'+(x.paid?'<span class="bdg ok">จ่ายแล้ว '+thDate(x.paid.time)+'</span>':'<span class="bdg warn">ค้างจ่าย</span>')+'</td></tr>').join('')
+      :'<tr><td class="empty">ไม่มีรายการในช่วงนี้</td></tr>';
+    /* ประวัติการจ่าย */
+    const pays=(SEWPAY.pays||[]).filter(p=>!R.who || p.sewer===R.who).slice().sort((a,b)=>String(b.time).localeCompare(String(a.time)));
+    $('tSewPaid').innerHTML=pays.length?'<tr><th>วันที่จ่าย</th><th>ช่าง</th><th style="text-align:right">รายการ</th><th style="text-align:right">ใบ</th><th style="text-align:right">บาท</th><th></th></tr>'+
+      pays.slice(0,100).map(p=>'<tr><td style="white-space:nowrap">'+thDateTime(p.time)+'</td><td>'+esc(p.sewer)+'</td><td style="text-align:right">'+(p.lines||[]).length+'</td><td style="text-align:right">'+fmtInt(p.qty)+'</td><td style="text-align:right"><b>'+fmtBaht(p.baht)+'</b></td>'+
+        '<td><button class="x" data-sewundo="'+esc(p.id)+'" title="ยกเลิกการจ่ายครั้งนี้ — รายการกลับไปเป็นค้างจ่าย">✕</button></td></tr>').join('')
+      :'<tr><td class="empty">ยังไม่มีการจ่าย</td></tr>';
+    document.querySelectorAll('#tSewDue [data-sewpay]').forEach(b=>b.onclick=()=>sewPay(b.dataset.sewpay));
+    document.querySelectorAll('#tSewPaid [data-sewundo]').forEach(b=>b.onclick=()=>sewUndo(b.dataset.sewundo));
+  }
+  async function sewPay(sewer){
+    const R=sewRange(), ls=sewLines().filter(x=>x.sewer===sewer && !x.paid && x.day>=R.from && x.day<=R.to);
+    if(!ls.length){ toast('ไม่มีรายการค้างจ่าย'); return; }
+    const q=ls.reduce((a,x)=>a+x.q,0), baht=r2(ls.reduce((a,x)=>a+x.baht,0)), ns=ls.filter(x=>x.std).length;
+    const days=ls.map(x=>x.day).sort();
+    const bySize={}; ls.forEach(x=>{ const e=bySize[x.size]||(bySize[x.size]={ q:0, rate:x.rate, baht:0 }); e.q+=x.q; e.baht=r2(e.baht+x.baht); });
+    if(!await ask('จ่ายค่าเย็บ '+sewer+' '+fmtBaht(baht)+' บาท?',
+      'รับกลับ '+thDate(days[0])+(days[0]!==days[days.length-1]?' – '+thDate(days[days.length-1]):'')+' · '+ls.length+' ครั้ง · '+fmtInt(q)+' ใบ\n'+
+      Object.keys(bySize).map(z=>'• '+z+' — '+fmtInt(bySize[z].q)+' ใบ × '+fmtBaht(bySize[z].rate)+' = '+fmtBaht(bySize[z].baht)).join('\n')+
+      (ns?'\n\n⚠ มี '+ns+' รายการที่ไซซ์ยังไม่ได้ตั้งค่าเย็บ ใช้ค่ามาตรฐาน':''), { okText:'💵 จ่ายแล้ว' })) return;
+    SEWPAY.pays=SEWPAY.pays||[];
+    SEWPAY.pays.push({ id:uid(), time:localISO(), sewer, qty:q, baht, from:R.from, to:R.to,
+      lines:ls.map(x=>({ retId:x.r.id, batchId:x.r.batchId, qty:x.q, size:x.size, rate:x.rate, baht:x.baht })) });
+    await saveSewPay(); rSew(); toast('บันทึกจ่ายค่าเย็บ '+sewer+' '+fmtBaht(baht)+' บาท แล้ว');
+  }
+  async function sewUndo(id){
+    const p=(SEWPAY.pays||[]).find(x=>x.id===id); if(!p) return;
+    if(!await ask('ยกเลิกการจ่ายครั้งนี้?', p.sewer+' · '+thDateTime(p.time)+' · '+fmtBaht(p.baht)+' บาท\nรายการจะกลับไปเป็นค้างจ่าย', { okText:'ยกเลิกการจ่าย' })) return;
+    SEWPAY.pays=SEWPAY.pays.filter(x=>x.id!==id);
+    await saveSewPay(); rSew(); toast('ยกเลิกการจ่ายแล้ว');
+  }
+  ['sewFrom','sewTo','sewWho','sewShowPaid'].forEach(id=>{ const e=$(id); if(e) e.addEventListener('change',()=>rSew()); });
+
 
   $('btnSavePrice').onclick=async()=>{ collectPrice(); formDirty=false; await savePrice(); rPrice(); toast('บันทึกราคาแล้ว'); };
   $('btnSaveSet').onclick=async()=>{ collectSet(); formDirty=false; await saveSet(); rSet(); toast('บันทึกการตั้งค่าแล้ว'); };

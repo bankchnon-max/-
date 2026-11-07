@@ -624,7 +624,7 @@
         <button class="btn w" id="btnCut">บันทึกการตัด</button>
       </div>
       <div class="card" data-step="cut"><h3>ถุงที่ตัดแล้ว รอส่งเย็บ — แยกหมวด</h3><div id="cutCatCards"></div></div>
-      <div class="card" data-step="cut"><h3>ประวัติการตัด</h3><div class="scr"><table id="tCutHist"></table></div></div>
+      <div class="card" data-step="cut"><h3>ประวัติการตัด</h3><p class="sumline" style="margin-top:-4px;">แตะเลขถุงเพื่อแก้ ชนิดผ้า · ไซซ์ · ไซซ์หลังเย็บ · จำนวน · วันเวลาตัด · แตะชื่อผ้าเพื่อเปลี่ยนชื่อผ้าทั้งหมด</p><div class="scr"><table id="tCutHist"></table></div></div>
 
       <!-- ③ ส่งช่างเย็บ -->
       <div class="card" data-step="sew">
@@ -2451,9 +2451,9 @@ window.WPDAUTH = {
         return '<div class="sumline" style="font-weight:600;margin:12px 0 6px;font-size:15px;">'+esc(c)+' <span style="color:var(--dim);font-weight:400;">· '+list.length+' ไซซ์ · '+tot+' ชิ้น · '+nb+' ถุง</span></div>'+
           list.map(e=>'<div class="scard" style="display:inline-block;margin:0 8px 8px 0;vertical-align:top;min-width:190px;">'+
             '<div class="nm">'+esc(e.size)+'</div><div class="n">'+e.qty+' <span style="font-size:13px;color:var(--dim);">ชิ้น · '+e.bags.length+' ถุง</span></div>'+
-            '<div class="l">'+esc(e.fab)+'</div>'+
+            '<div class="l"><a class="lnk" data-fabopen="'+esc(e.fab)+'">'+esc(e.fab)+'</a></div>'+
             '<div class="l">'+e.bags.sort((a,b)=>(+a.batchNo||0)-(+b.batchNo||0)).map(b=>'<a class="lnk" data-bagopen="'+esc(b.batchId)+'">#'+esc(b.batchNo)+'</a> '+b.cutBalance).join(' · ')+'</div></div>').join(''); }).join('')+
-        '<div class="sumline" style="margin-top:4px;">หมวดดูจากสินค้าที่เคยส่งเย็บ (ผ้า+ไซซ์เดียวกัน) ถ้ายังไม่เคยส่ง ดูจากไซซ์ · แตะเลขถุงเพื่อดู/แก้ถุง</div>'
+        '<div class="sumline" style="margin-top:4px;">หมวดดูจากสินค้าที่เคยส่งเย็บ (ผ้า+ไซซ์เดียวกัน) ถ้ายังไม่เคยส่ง ดูจากไซซ์ · แตะเลขถุงเพื่อแก้ ไซซ์/ชนิดผ้า/จำนวน/วันที่ · แตะชื่อผ้าเพื่อเปลี่ยนชื่อผ้าทั้งหมด</div>'
         :'<div class="empty">ไม่มีถุงที่ตัดแล้วรอส่งเย็บ</div>';
     }
 
@@ -2612,8 +2612,10 @@ window.WPDAUTH = {
     $('tWaste').querySelectorAll('[data-wd]').forEach(b=>b.onclick=async()=>{ if(!await ask('ลบรายการของเสียนี้?'))return; S.waste=S.waste.filter(x=>x.id!==b.dataset.wd); await saveFabric(); rFabric(); toast('ลบแล้ว'); });
 
     $('tCutHist').innerHTML=S.cuts.length?'<tr><th>เวลา</th><th>ชนิดผ้า</th><th>ม้วนที่</th><th>รายละเอียด</th><th></th></tr>'+
-      S.cuts.slice().reverse().map(c=>'<tr><td style="white-space:nowrap">'+thDate(c.time)+' '+String(c.time||'').slice(11,16)+'</td><td>'+esc(c.fabricType)+'</td><td>'+(c.rollNo||'—')+
-        '</td><td>'+(c.rows||[]).map(r=>esc(r.size)+' '+r.qty+'ชิ้น').join(', ')+(c.mixBatchId?(function(){ const mb=S.cutBatches.find(x=>x.id===c.mixBatchId); return ' <span class="bdg warn">ถุงรวมหลายม้วน'+(mb?' #'+mb.batchNo:'')+'</span>'; })():'')+'</td><td><button class="x" data-cd="'+c.id+'">✕</button></td></tr>').join('')
+      S.cuts.slice().reverse().map(c=>'<tr><td style="white-space:nowrap">'+thDate(c.time)+' '+String(c.time||'').slice(11,16)+'</td><td><a class="lnk" data-fabopen="'+esc(c.fabricType)+'">'+esc(c.fabricType)+'</a></td><td>'+(c.rollNo||'—')+
+        '</td><td>'+(c.rows||[]).map(r=>esc(r.size)+' '+r.qty+'ชิ้น').join(', ')+(function(){
+          const bs=c.mixBatchId?S.cutBatches.filter(x=>x.id===c.mixBatchId):S.cutBatches.filter(x=>x.kind!=='mix' && !(Array.isArray(x.parts)&&x.parts.length) && (c.rollId?x.rollId===c.rollId:(x.fabricType===c.fabricType && x.rollNo===c.rollNo)) && x.time===c.time);
+          return bs.length?'<div style="margin-top:3px;">ถุง '+bs.slice().sort((x,y)=>(+x.batchNo||0)-(+y.batchNo||0)).map(x=>'<a class="lnk" data-bagopen="'+esc(x.id)+'">#'+esc(x.batchNo)+'</a>').join(' ')+'</div>':''; })()+(c.mixBatchId?(function(){ const mb=S.cutBatches.find(x=>x.id===c.mixBatchId); return ' <span class="bdg warn">ถุงรวมหลายม้วน'+(mb?' #'+mb.batchNo:'')+'</span>'; })():'')+'</td><td><button class="x" data-cd="'+c.id+'">✕</button></td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีการตัด</td></tr>';
     $('tCutHist').querySelectorAll('[data-cd]').forEach(b=>b.onclick=async()=>{
       const cut=S.cuts.find(x=>x.id===b.dataset.cd);
@@ -3037,8 +3039,8 @@ window.WPDAUTH = {
       (sewText(batchId)?'<div class="sumline" style="margin-top:8px;">'+sewText(batchId)+(st.sewingBalance>0?' · <b>อยู่ที่ช่าง '+st.sewingBalance+' ชิ้น</b>':'')+'</div>':'')+
       '<div class="scr" style="margin-top:10px;"><table><tr><th>วันที่</th><th>ขั้น</th><th>รายละเอียด</th><th></th></tr>'+
         (b.kind==='mix'
-          ? row(b.time,'🔀 คละ','เทมาจาก '+(b.mixFrom||[]).map(m=>'<a class="lnk" data-bagopen="'+esc(m.batchId)+'">#'+esc(m.batchNo)+'</a> '+m.qty).join(', ')+' · รวม '+b.qtyCut+(b.productType?' · '+esc(b.productType):'')+(b.note?' · '+esc(b.note):''),'')
-          : row(b.time,'✂ ตัด',rollsText(b)+' · ไซซ์ '+esc(b.size)+' · '+b.qtyCut+' ชิ้น'+(b.note?' · '+esc(b.note):''),'<button class="ed" data-fsedit="cut">แก้จำนวน</button> <button class="x" data-fsbagdel="1">✕</button>'))+
+          ? row(b.time,'🔀 คละ','เทมาจาก '+(b.mixFrom||[]).map(m=>'<a class="lnk" data-bagopen="'+esc(m.batchId)+'">#'+esc(m.batchNo)+'</a> '+m.qty).join(', ')+' · รวม '+b.qtyCut+(b.productType?' · '+esc(b.productType):'')+(b.note?' · '+esc(b.note):''),'<button class="ed" data-fsedit="cut">✏ แก้</button>')
+          : row(b.time,'✂ ตัด',rollsText(b)+' · ไซซ์ '+esc(b.size)+' · '+b.qtyCut+' ชิ้น'+(b.note?' · '+esc(b.note):''),'<button class="ed" data-fsedit="cut">✏ แก้</button> <button class="x" data-fsbagdel="1">✕</button>'))+
         S.cutBatches.filter(x=>x.kind==='mix' && (x.mixFrom||[]).some(m=>m.batchId===batchId)).map(x=>{ const m=x.mixFrom.find(y=>y.batchId===batchId);
           return row(x.time,'🔀 เทไปถุงคละ','<a class="lnk" data-bagopen="'+esc(x.id)+'">'+esc(x.batchNo)+'</a> · '+m.qty+' ใบ',''); }).join('')+
         sent.map(s=>row(s.time,'🧵 ส่งเย็บ',esc(s.sewerName||'ไม่ระบุช่าง')+' · '+s.qty+' ชิ้น · '+(s.productType?'<a class="lnk" data-ptopen="'+esc(s.productType)+'">'+esc(s.productType)+'</a>':'—')+(s.note?' · '+esc(s.note):''),
@@ -3145,18 +3147,70 @@ window.WPDAUTH = {
       await fabSaved('แก้ถุง #'+b.batchNo+' แล้ว — '+tot+' ชิ้น จาก '+ps.length+' ม้วน');
     };
   }
+  /* แก้ข้อมูลตัดของถุง: ชนิดผ้า · ไซซ์ที่ตัด · ไซซ์หลังเย็บ · จำนวน · วันเวลาตัด · หมายเหตุ (ถุงคละ: ไซซ์ · สินค้า · วันที่ · หมายเหตุ)
+     รายการส่งเย็บ/รับกลับของถุงนี้เปลี่ยนตาม · วันเวลาตัดเปลี่ยนทั้งล็อตที่ตัดพร้อมกัน · สรุปรายการตัดคิดใหม่ */
+  function editCutInfo(b, f){
+    const isMix=b.kind==='mix', hasParts=Array.isArray(b.parts)&&b.parts.length>0;
+    const inp=(id,label,val,type,extra)=>'<div><label>'+label+'</label><input id="'+id+'" value="'+esc(val==null?'':val)+'"'+(type?' type="'+type+'"':'')+(extra||'')+'></div>';
+    const fabs=allFabricTypes(), pts=[...new Set([...(S.sewSent||[]),...(S.sewReturns||[]),...(S.cutBatches||[])].map(x=>x.productType).filter(Boolean))].sort();
+    f.innerHTML='<div class="fsedit"><b>แก้ข้อมูลถุง '+(isMix?esc(b.batchNo):'#'+esc(b.batchNo))+'</b>'+
+      '<datalist id="dlFeFab">'+fabs.map(t=>'<option value="'+esc(t)+'"></option>').join('')+'</datalist>'+
+      '<datalist id="dlFePt">'+pts.map(t=>'<option value="'+esc(t)+'"></option>').join('')+'</datalist>'+
+      (isMix
+        ? '<div class="rf">'+inp('feSize','ไซซ์ (นิ้ว)',b.size,'')+inp('fePt','สินค้า',b.productType||'','',' list="dlFePt"')+'</div>'
+        : '<div class="rf">'+inp('feFab','ชนิดผ้า',b.fabricType,'',' list="dlFeFab"')+inp('feQty','ตัดได้ (ชิ้น)',b.qtyCut,'number',' inputmode="numeric"'+(hasParts?' disabled':''))+'</div>'+
+          '<div class="rf">'+inp('feSize','ไซซ์ที่ตัด (นิ้ว)',b.size,'')+inp('feFin','ไซซ์หลังเย็บ (นิ้ว — ถ้ารู้)',b.sizeFinished||'','',' placeholder="เช่น 17.5x26"')+'</div>'+
+          (hasParts?'<div class="sumline">ถุงนี้มีผ้าหลายม้วน — จำนวนแก้ทีละม้วน <button class="ed" id="feParts">แก้จำนวนทีละม้วน</button></div>':''))+
+      '<div class="rf">'+inp('feTime',isMix?'วันเวลาที่คละ':'วันเวลาที่ตัด',String(b.time||'').slice(0,16),'datetime-local')+inp('feNote','หมายเหตุ',b.note||'','')+'</div>'+
+      '<div class="acts"><button class="btn" id="feSave">บันทึก</button><button class="btn sec" id="feCancel">ยกเลิก</button></div></div>';
+    $('feCancel').onclick=()=>{ f.innerHTML=''; };
+    if($('feParts')) $('feParts').onclick=()=>editMixParts(b, f);
+    f.scrollIntoView&&f.scrollIntoView({block:'nearest'});
+    $('feSave').onclick=async()=>{
+      const size=normSize($('feSize').value); if(!size){ toast('กรอกไซซ์'); return; }
+      const _t=$('feTime').value, nt=_t?(_t.length===16?_t+':00':_t):b.time;
+      if(String(nt).slice(0,10)>todayStr()){ toast('วันที่เลยวันนี้ไปแล้ว'); return; }
+      const note=$('feNote').value.trim(), oldSize=b.size, oldFin=b.sizeFinished||'', oldT=b.time, oldFab=b.fabricType;
+      const mine=x=>x.batchId===b.id;
+      if(isMix){
+        const pt=normSize($('fePt').value);
+        b.size=size; b.sizeFinished=size; b.productType=pt; b.note=note; b.time=nt;
+        (S.sewReturns||[]).filter(mine).forEach(x=>{ x.size=size; x.sizeFinished=size; if(pt) x.productType=pt; });
+        await fabSaved('แก้ถุง '+b.batchNo+' แล้ว'); return;
+      }
+      const fab=String($('feFab').value||'').trim(); if(!fab){ toast('กรอกชนิดผ้า'); return; }
+      const fin=normSize($('feFin').value), qty=hasParts?b.qtyCut:Math.round(+$('feQty').value);
+      if(!(qty>=0)){ toast('กรอกจำนวน'); return; }
+      const sent=(S.sewSent||[]).filter(mine).reduce((a,x)=>a+(+x.qty||0),0);
+      if(qty<sent && !await ask('น้อยกว่าที่ส่งเย็บไปแล้ว','ถุงนี้ส่งเย็บไปแล้ว '+sent+' ชิ้น แต่แก้เหลือ '+qty+' ชิ้น\n\nยืนยันหรือไม่?')) return;
+      const roll=b.rollId?(S.fabricReceipts||[]).find(r=>r.id===b.rollId):null;
+      if(fab!==oldFab && roll && roll.fabricType!==fab && !await ask('เปลี่ยนชนิดผ้าเฉพาะถุงนี้?','ถุงนี้ตัดจากม้วนที่ '+roll.rollNo+' ซึ่งเป็น "'+roll.fabricType+'"\nจะเปลี่ยนเฉพาะถุงนี้เป็น "'+fab+'" (ม้วนยังชื่อเดิม)\n\nถ้าชื่อผ้าผิดทั้งชนิด ให้แตะชื่อผ้า แล้วกด "แก้ชื่อผ้านี้" แทน (เปลี่ยนทั้งม้วนและทุกถุง)')) return;
+      /* ถุงที่ตัดพร้อมกัน (ม้วน+เวลาเดียวกัน) และรายการตัดของล็อตนี้ */
+      const sibs=hasParts?[]:(S.cutBatches||[]).filter(x=>x.id!==b.id && x.kind!=='mix' && !(Array.isArray(x.parts)&&x.parts.length) && (b.rollId?x.rollId===b.rollId:(x.fabricType===oldFab && x.rollNo===b.rollNo)) && x.time===oldT);
+      const cutRecs=hasParts?(S.cuts||[]).filter(c=>c.mixBatchId===b.id):(S.cuts||[]).filter(c=>!c.mixBatchId && (b.rollId?c.rollId===b.rollId:(c.fabricType===oldFab && c.rollNo===b.rollNo)) && c.time===oldT);
+      if(nt!==oldT && sibs.length && !await ask('เปลี่ยนวันเวลาตัดทั้งล็อต?','ถุงนี้ตัดพร้อมกับอีก '+sibs.length+' ถุง (#'+sibs.map(x=>x.batchNo).join(', #')+')\nจะเปลี่ยนวันเวลาตัดของทุกถุงในล็อตนี้เป็น '+thDate(nt)+' '+String(nt).slice(11,16))) return;
+      /* ส่งเย็บ/รับกลับของถุงนี้เปลี่ยนตาม */
+      (S.sewSent||[]).filter(mine).forEach(x=>{ x.fabricType=fab; if(!x.size||x.size===oldSize) x.size=size; });
+      (S.sewReturns||[]).filter(mine).forEach(x=>{ x.fabricType=fab; if(!x.size||x.size===oldSize) x.size=size; if(fin && (!x.sizeFinished||x.sizeFinished===(oldFin||oldSize))) x.sizeFinished=fin; });
+      if(qty!==b.qtyCut){ b.adjLog=(b.adjLog||[]); b.adjLog.push({ time:localISO(), from:b.qtyCut, to:qty }); if(b.adjLog.length>50) b.adjLog=b.adjLog.slice(-50); }
+      b.fabricType=fab; b.size=size; b.qtyCut=qty; b.note=note;
+      if(fin) b.sizeFinished=fin; else delete b.sizeFinished;
+      if(nt!==oldT){ b.time=nt; sibs.forEach(x=>{ x.time=nt; }); cutRecs.forEach(c=>{ c.time=nt; }); }
+      /* สรุปรายการตัดของล็อตนี้คิดใหม่จากถุงจริง */
+      /* ชนิดผ้าของรายการตัดคงตามม้วน (ม้วนหาจากชื่อผ้า+เลขม้วน) — เปลี่ยนได้เฉพาะถุงที่ไม่มีม้วนในระบบ */
+      if(hasParts) cutRecs.forEach(c=>{ (c.rows||[]).forEach(r=>{ r.size=size; }); });
+      else cutRecs.forEach(c=>{ const lot=[b].concat(sibs), by={};
+        lot.forEach(x=>{ by[x.size]=(by[x.size]||0)+(+x.qtyCut||0); });
+        c.rows=Object.keys(by).map(z=>({ size:z, qty:by[z] }));
+        if(!roll && lot.every(x=>x.fabricType===fab)) c.fabricType=fab; });
+      await fabSaved('แก้ถุง #'+b.batchNo+' แล้ว');
+    };
+  }
   function editBagRow(b, what){
     const f=$('fsForm'); if(!f) return;
     const inp=(id,label,val,type,extra)=>'<div><label>'+label+'</label><input id="'+id+'" value="'+esc(val==null?'':val)+'"'+(type?' type="'+type+'"':'')+(extra||'')+'></div>';
-    if(what==='cut'){
-      if(Array.isArray(b.parts) && b.parts.length){ editMixParts(b, f); return; }
-      f.innerHTML='<div class="fsedit"><b>แก้จำนวนที่ตัดได้ของถุงนี้</b><div class="rf">'+inp('feQty','ตัดได้ (ชิ้น)',b.qtyCut,'number',' inputmode="numeric"')+'</div>'+
-        '<div class="acts"><button class="btn" id="feSave">บันทึก</button><button class="btn sec" id="feCancel">ยกเลิก</button></div></div>';
-      $('feSave').onclick=async()=>{ const n=+$('feQty').value; if(!(n>=0)){ toast('กรอกจำนวน'); return; }
-        const was=b.qtyCut; if(n===was){ f.innerHTML=''; return; }
-        b.qtyCut=n; b.adjLog=(b.adjLog||[]); b.adjLog.push({ time:localISO(), from:was, to:n }); if(b.adjLog.length>50) b.adjLog=b.adjLog.slice(-50);
-        await fabSaved('แก้ถุง #'+b.batchNo+' เป็น '+n+' ชิ้นแล้ว'); };
-    } else {
+    if(what==='cut'){ editCutInfo(b, f); return; }
+    {
       const [k,id]=what.split('|'); const arr=k==='sent'?S.sewSent:S.sewReturns; const r=arr.find(x=>x.id===id); if(!r) return;
       f.innerHTML='<div class="fsedit"><b>แก้รายการ'+(k==='sent'?'ส่งเย็บ':'รับกลับ')+'</b>'+
         '<div class="rf">'+inp('feQty',k==='sent'?'จำนวน (ชิ้น)':'จำนวน (ใบ)',r.qty,'number',' inputmode="numeric"')+
@@ -3224,7 +3278,7 @@ window.WPDAUTH = {
       if(!await ask('ลบม้วน #'+r.rollNo+' ('+name+' · รับ '+thDate(r.time)+')?','กู้คืนไม่ได้')) return;
       S.fabricReceipts=S.fabricReceipts.filter(y=>y.id!==r.id); await fabSaved('ลบม้วน #'+r.rollNo+' แล้ว');
     });
-    $('fsRenameFab').onclick=()=>{ closeFabSheet(); setFabStep('stock'); const sel=$('fabTypeRenameSel'); if(sel){ sel.value=name; const d=sel.closest('details'); if(d) d.open=true; } const btn=$('btnFabTypeRename'); if(btn) btn.click(); };
+    $('fsRenameFab').onclick=async()=>{ const sel=$('fabTypeRenameSel'); if(!sel) return; sel.value=name; closeFabSheet(); await renameFabricField('fabricType','ชื่อชนิดผ้า'); };
   }
   /* สินค้า (หมอนหนุน / ปิกนิก ...) ของถุง: ตามที่รับกลับล่าสุด ไม่มีก็ตามที่ส่งเย็บ */
   function bagProdType(batchId){

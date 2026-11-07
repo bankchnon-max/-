@@ -3282,13 +3282,40 @@ window.WPDAUTH = {
     const chip=(kind,b,sub)=>'<button class="bp'+((BAGDEL&&BAGDEL[kind])?(BAGDEL[kind].includes(b.batchId)?' del':''):((MULTI&&MULTI[kind]?MULTI[kind].includes(b.batchId):$(kind+'BatchSel').value===b.batchId)?' on':''))+'" data-pick="'+kind+'" data-bid="'+b.batchId+'">'+
       '<b>ถุง #'+b.batchNo+'</b>'+lotTag(b.batchId)+'<small>'+esc(b.fabricType)+' · '+esc(b.size)+'<br>'+sub+'</small></button>';
     const byName=(x,y)=>(x.fabricType+x.size).localeCompare(y.fabricType+y.size,'th')||(x.batchNo-y.batchNo);
-    $('sewPick').innerHTML=toSend.length ? toSend.slice().sort(byName).map(b=>chip('sew',b,b.cutBalance+' ชิ้น · ตัด '+thDate(b.time))).join('')
-      : '<div class="empty">ไม่มีถุงรอส่ง — ตัดผ้าก่อน (ขั้น ②)</div>';
-    $('retPick').innerHTML=atSewer.length ? atSewer.slice().sort(byName).map(b=>{ const ls=lastSend(b.batchId), pp=guessPiecesPer(b.batchId, ls.productType||'');
-        return chip('ret',b,sewText(b.batchId)+'<br>'+(pp>1?Math.floor(b.sewingBalance/pp)+' ใบ (ผ้า '+b.sewingBalance+' ชิ้น)':b.sewingBalance+' ชิ้น')+(b.returned>0?' · รับแล้ว '+b.returned:'')+(ls.productType?' · '+esc(ls.productType):'')); }).join('')
-      : '<div class="empty">ไม่มีถุงอยู่ที่ช่างเย็บ</div>';
+    /* การ์ดตามสินค้า (แบบปลอกพร้อมผลิต) · แตะการ์ด = กางถุงของสินค้านั้น แยกตามไซซ์ */
+    const _nz=v=>{ const m=String(v||'').match(/(d+(?:.d+)?)s*[xX×*]s*(d+(?:.d+)?)/); return m?(+m[1])+'x'+(+m[2]):(String(v||'').trim()||'—'); };
+    const _ptGuess={}; (S.sewSent||[]).slice().sort((x,y)=>String(x.time).localeCompare(String(y.time))).forEach(x=>{ if(x.productType) _ptGuess[x.fabricType+' '+_nz(x.size)]=x.productType; });
+    const cards=(kind, items, emptyHtml)=>{
+      if(!items.length) return emptyHtml;
+      const G={}; items.forEach(it=>{ const g=G[it.key]||(G[it.key]={ key:it.key, title:it.title, qty:0, items:[], lines:{} }); g.qty=r2(g.qty+it.qty); g.items.push(it);
+        const lk=it.b.fabricType+' · '+it.size; g.lines[lk]=r2((g.lines[lk]||0)+it.qty); });
+      const list=Object.values(G).sort((a,b)=>b.qty-a.qty);
+      const sel=$(kind+'BatchSel')?$(kind+'BatchSel').value:'';
+      let open=CARDOPEN[kind];
+      if(open!=='__none__' && !list.some(g=>g.key===open)){ const hit=list.find(g=>g.items.some(i=>i.b.batchId===sel)); open=hit?hit.key:(list.length===1?list[0].key:null); CARDOPEN[kind]=open; }
+      const card=g=>'<div class="scard" data-pcard="'+kind+'" data-pkey="'+esc(g.key)+'" style="cursor:pointer;display:inline-block;margin:0 8px 8px 0;vertical-align:top;min-width:200px;'+(g.key===open?'border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset;':'')+'">'+
+        '<div class="nm">'+esc(g.title)+'</div><div class="n">'+g.qty+' <span style="font-size:13px;color:var(--dim);">ชิ้น · '+g.items.length+' ถุง</span></div>'+
+        Object.keys(g.lines).sort((a,b)=>g.lines[b]-g.lines[a]).map(k=>'<div class="l" style="display:flex;justify-content:space-between;gap:10px;"><span>'+esc(k)+'</span><b style="color:var(--accent2)">'+g.lines[k]+'</b></div>').join('')+
+        '<div class="l">'+(g.key===open?'แตะเพื่อปิด ▴':'แตะดูถุง ▾')+'</div></div>';
+      const g=list.find(x=>x.key===open);
+      let panel='';
+      if(g){ const bySz={}; g.items.forEach(i=>{ (bySz[i.size]=bySz[i.size]||[]).push(i); });
+        panel='<div style="flex-basis:100%;width:100%;border-top:1px solid var(--border);margin-top:4px;padding-top:8px;"><div style="font-weight:600;margin-bottom:4px;">'+esc(g.title)+' — เลือกถุง</div>'+
+          Object.keys(bySz).sort((a,b)=>bySz[b].reduce((x,i)=>x+i.qty,0)-bySz[a].reduce((x,i)=>x+i.qty,0)).map(z=>{ const L=bySz[z].sort((a,b)=>String(a.b.time).localeCompare(String(b.b.time))||(+a.b.batchNo||0)-(+b.b.batchNo||0));
+            return '<div style="font-size:13px;color:var(--accent2);font-weight:600;margin:8px 0 2px;">'+esc(z)+' <span style="color:var(--dim);font-weight:400;">· '+L.length+' ถุง · '+r2(L.reduce((x,i)=>x+i.qty,0))+' ชิ้น</span></div><div class="bagpick" style="margin-top:2px;">'+L.map(i=>i.html).join('')+'</div>'; }).join('')+'</div>'; }
+      return '<div style="flex-basis:100%;width:100%;">'+list.map(card).join('')+'</div>'+panel;
+    };
+    $('sewPick').innerHTML=cards('sew', toSend.map(b=>{ const pt=_ptGuess[b.fabricType+' '+_nz(b.size)]; return { b, qty:b.cutBalance, size:_nz(b.sizeFinished||b.size),
+        key:pt||('?'+b.fabricType), title:pt||(b.fabricType+' (ยังไม่รู้สินค้า)'), html:chip('sew',b,b.cutBalance+' ชิ้น · ตัด '+thDate(b.time)) }; }),
+      '<div class="empty">ไม่มีถุงรอส่ง — ตัดผ้าก่อน (ขั้น ②)</div>');
+    $('retPick').innerHTML=cards('ret', atSewer.map(b=>{ const ls=lastSend(b.batchId), pp=guessPiecesPer(b.batchId, ls.productType||'');
+        return { b, qty:b.sewingBalance, size:_nz(b.sizeFinished||b.size), key:ls.productType||'?', title:ls.productType||'ไม่ระบุสินค้า',
+          html:chip('ret',b,sewText(b.batchId)+'<br>'+(pp>1?Math.floor(b.sewingBalance/pp)+' ใบ (ผ้า '+b.sewingBalance+' ชิ้น)':b.sewingBalance+' ชิ้น')+(b.returned>0?' · รับแล้ว '+b.returned:'')+(ls.productType?' · '+esc(ls.productType):'')) }; }),
+      '<div class="empty">ไม่มีถุงอยู่ที่ช่างเย็บ</div>');
+    document.querySelectorAll('#sewPick [data-pcard], #retPick [data-pcard]').forEach(c=>c.onclick=()=>{ const k=c.dataset.pcard; CARDOPEN[k]=CARDOPEN[k]===c.dataset.pkey?'__none__':c.dataset.pkey; rFabSteps(CALC.cutBatchStatus(S.cutBatches,S.sewSent,S.sewReturns,PROD.fabricWd)); });
     document.querySelectorAll('#sewPick [data-bid], #retPick [data-bid]').forEach(x=>x.onclick=()=>pickBag(x.dataset.pick, x.dataset.bid));
   }
+  var CARDOPEN={ sew:null, ret:null };   /* var: วาดก่อนถึงบรรทัดนี้ได้ */
   /* แตะเลขถุง = เลือกชนิดผ้า/ไซซ์/ถุงให้ครบในทีเดียว (แทนการเลือก 3 ช่อง) */
   /* ---------- ส่งเย็บ / รับกลับ หลายถุงพร้อมกัน ----------
      เลือกได้เฉพาะชนิดผ้า+ไซซ์เดียวกัน (สินค้า/ช่าง/วันที่/ไซซ์หลังเย็บ ใช้ร่วมกัน) · จำนวนแต่ละถุงแก้ได้ */

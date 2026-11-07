@@ -1476,16 +1476,29 @@ window.WPDAUTH = {
 
     /* ชิ้นที่ผลิตเอง = ชิ้นในแพ็ค − แผ่นค้างจากงานก่อนที่เอามารวม + แผ่นที่เหลือไม่ครบแพ็คเก็บไว้รวมงานหน้า */
     /* ใยที่ออกเป็นสินค้าใน 1 แพ็ค: ชั่งจริง − ถุง − ผ้า · ไม่ได้ชั่ง = ใยตามสเปค (กก./แพ็ค) */
-    outFiberKg(l){
+    /* แพ็คที่ไม่ได้ชั่ง: ใยตามสเปค × อัตราจริงของแพ็คที่ชั่งในงานเดียวกัน (ratio) */
+    outFiberKg(l, ratio){
       const aw=+l.actualWeight||0;
       if(aw>0) return Math.max(0, aw-(+l.bagKgPerPack||0)-(+l.fabricKgPerPack||0));
-      if(+l.fiberKgPerPack>0) return +l.fiberKgPerPack;
-      return (+l.fiberPiece||0)*(+l.piecesPerPack||1);
+      const spec=+l.fiberKgPerPack>0 ? +l.fiberKgPerPack : (+l.fiberPiece||0)*(+l.piecesPerPack||1);
+      return spec*(ratio>0?ratio:1);
+    },
+    /* อัตราใยจริง/สเปค ต่องาน จากแพ็คที่ชั่ง (ตัดค่าที่ห่างสเปคเกิน 30% ทิ้ง — น่าจะพิมพ์ผิด) */
+    weighRatioByOrder(lines){
+      const key=lines||[], memo=COST._wr||(COST._wr=new WeakMap());
+      if(memo.has(key)) return memo.get(key);
+      const m={};
+      key.forEach(l=>{ const aw=+l.actualWeight||0, sp=+l.fiberKgPerPack||0; if(!(aw>0 && sp>0)) return;
+        const fk=aw-(+l.bagKgPerPack||0)-(+l.fabricKgPerPack||0); if(!(fk>sp*0.7 && fk<sp*1.3)) return;
+        const e=m[l.orderId]||(m[l.orderId]={ act:0, spec:0, n:0 }); e.act+=fk; e.spec+=sp; e.n++; });
+      Object.keys(m).forEach(id=>{ m[id].ratio=m[id].spec>0?m[id].act/m[id].spec:1; });
+      memo.set(key,m); return m;
     },
     outFiberByOrder(ctx){
       const P=ctx.PROD||{}, key=P.line||[], memo=COST._ofo||(COST._ofo=new WeakMap());
       if(memo.has(key)) return memo.get(key);
-      const m={}; key.forEach(l=>{ const k=COST.outFiberKg(l); if(k>0) m[l.orderId]=(m[l.orderId]||0)+k; });
+      const wr=COST.weighRatioByOrder(key), m={};
+      key.forEach(l=>{ const k=COST.outFiberKg(l,(wr[l.orderId]||{}).ratio); if(k>0) m[l.orderId]=(m[l.orderId]||0)+k; });
       memo.set(key,m); return m;
     },
     madePieces(lines, carry){
@@ -1653,7 +1666,7 @@ window.WPDAUTH = {
       { const avg=COST.fiberAvgByOrder(ctx), outAll=COST.outFiberByOrder(ctx), fedBy={};
         (P.use||[]).filter(inR).forEach(u=>{ const e=fedBy[u.orderId]||(fedBy[u.orderId]={kg:0,baht:0}); const kg=+u.kg||0; e.kg+=kg; e.baht+=kg*COST.fiberPricePerKg(PRICE,u.fiberName,u.lot,u.receiptId).baht; });
         (P.wd||[]).filter(w=>inR(w) && !withUse.has(w.orderId)).forEach(w=>{ const e=fedBy[w.orderId]||(fedBy[w.orderId]={kg:0,baht:0}); const kg=+w.kg||0; e.kg+=kg; e.baht+=kg*COST.fiberPricePerKg(PRICE,w.fiberName,w.lot,w.receiptId).baht; });
-        const outBy={}; lines.forEach(l=>{ const k=COST.outFiberKg(l); if(k>0) outBy[l.orderId]=(outBy[l.orderId]||0)+k; });
+        const wr=COST.weighRatioByOrder(P.line), outBy={}; lines.forEach(l=>{ const k=COST.outFiberKg(l,(wr[l.orderId]||{}).ratio); if(k>0) outBy[l.orderId]=(outBy[l.orderId]||0)+k; });
         new Set(Object.keys(fedBy).concat(Object.keys(outBy))).forEach(id=>{
           const a=avg[id]; if(!(a && a.perKg>0 && outAll[id]>0)) return;
           const fd=fedBy[id]||{kg:0,baht:0}, ok=outBy[id]||0;
@@ -1812,10 +1825,11 @@ window.WPDAUTH = {
       });
       Object.values(byBale).forEach(d=>detail.push({cat:d.cat, what:d.what, qty:d.kg+' กก.', unit:d.unit, baht:d.baht, src:d.src}));
       /* ใยคิดตามน้ำหนักใยที่ออกเป็นสินค้า — ป้อนใยมีเศษใยใส่ด้วย (ไม่ได้ลงรอบ) ส่วนต่างคิดราคาเฉลี่ย/กก. ของใยที่ป้อนในงานนี้ */
-      const fedKg=fiberKg, outKg=r3(lines.reduce((a,l)=>a+COST.outFiberKg(l),0));
+      const _wr=COST.weighRatioByOrder(P.line||[])[orderId]||null, _nW=lines.filter(l=>+l.actualWeight>0).length;
+      const fedKg=fiberKg, outKg=r3(lines.reduce((a,l)=>a+COST.outFiberKg(l,_wr&&_wr.ratio),0));
       if(outKg>0 && fiberKg>0 && Math.abs(outKg-fiberKg)>=0.01){
         const per=fiberBaht/fiberKg, adj=r3(outKg-fiberKg), adjB=r2(adj*per);
-        detail.push({cat:'ใย', what:'ปรับตามน้ำหนักใยในสินค้า '+outKg+' กก. − รอบป้อน '+fedKg+' กก.'+(adj>0?' (ส่วนที่ป้อนเศษใย/ไม่ได้ลงรอบ)':' (ป้อนแล้วยังไม่ออกเป็นสินค้า/ของเสีย)'), qty:(adj>0?'+':'')+adj+' กก.', unit:r2(per), baht:adjB, src:'outw'});
+        detail.push({cat:'ใย', what:'ปรับตามน้ำหนักใยในสินค้า '+outKg+' กก.'+(_nW?' (ชั่งจริง '+_nW+'/'+lines.length+' แพ็ค'+(_wr&&_nW<lines.length?' · ที่ไม่ได้ชั่งคิดใย '+(_wr.ratio>=1?'+':'')+r2((_wr.ratio-1)*100)+'% จากสเปค':'')+')':' (ไม่ได้ชั่ง — ตามสเปค)')+' − รอบป้อน '+fedKg+' กก.'+(adj>0?' (ส่วนที่ป้อนเศษใย/ไม่ได้ลงรอบ)':' (ป้อนแล้วยังไม่ออกเป็นสินค้า/ของเสีย)'), qty:(adj>0?'+':'')+adj+' กก.', unit:r2(per), baht:adjB, src:'outw'});
         fiberBaht=r2(fiberBaht+adjB); fiberKg=outKg;
       }
 

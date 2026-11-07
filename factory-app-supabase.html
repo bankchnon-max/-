@@ -1131,6 +1131,9 @@
       <h3>เตือนเมื่อห่างเกิน (นาที)</h3>
       <p>ถ้าเวลาบันทึกแพ็คห่างจากรายการก่อนหน้าเกินค่านี้ ระบบจะถามสาเหตุ</p>
       <input id="gsVal" type="number" inputmode="numeric">
+      <h3 style="margin-top:14px;">บังคับชั่งทุกกี่แพ็ค</h3>
+      <p>งานใย (ใยแผ่น/ใยปั่น): แพ็คแรกของงานต้องชั่งเสมอ แล้วชั่งซ้ำทุกกี่แพ็ค — ต้นทุนใยคิดจากน้ำหนักที่ชั่งได้จริง (0 = ไม่บังคับ) · หมอนไม่บังคับ</p>
+      <input id="gsWeigh" type="number" inputmode="numeric" min="0">
       <div class="ba" style="margin-top:12px;">
         <button class="btn" id="gsSave">บันทึก</button>
         <button class="btn sec" id="gsCancel">ปิด</button>
@@ -3690,6 +3693,9 @@ window.WPDAUTH = {
     })();
     $('btnPack').disabled=!o||!std;
     $('btnPack').style.opacity=(!o||!std)?.45:1;
+    { const _need=mustWeigh(o), bs=$('btnPackStd'), N=weighEvery();
+      bs.disabled=!o||!std||_need; bs.style.opacity=bs.disabled?.45:1;
+      bs.textContent=_need?'⚖️ แพ็คนี้ต้องชั่ง — '+(S.line.some(l=>o&&l.orderId===o.id)?'สุ่มชั่งทุก '+N+' แพ็ค':'แพ็คแรกของงาน'):'ตรงตาม Standard พอดี — ไม่ต้องชั่ง'; }
 
     /* วาดการ์ดสรุป Standard ใหม่ทุกครั้งที่ไม่ได้กำลังพิมพ์แก้อยู่ จำนวนถุงคงเหลือจะได้อัปเดตสด */
     if(force||!$('specForm').dataset.init||(!formDirty && specOpen!==true)) buildSpecForm();
@@ -5096,7 +5102,8 @@ window.WPDAUTH = {
     formDirty=false;
     startPack(packW, pc||null);
   };
-  $('btnPackStd').onclick=()=>{ formDirty=false; startPack(null,$('actPc').value.trim()||null); };
+  $('btnPackStd').onclick=()=>{ if(mustWeigh(active())){ toast('แพ็คนี้ต้องชั่ง — ใส่น้ำหนักทั้งแพ็คแล้วกดบันทึก'); $('actW').focus(); return; }
+    formDirty=false; startPack(null,$('actPc').value.trim()||null); };
 
   /* ประเภทของเสีย — กดเลือก (จำอันที่ใช้ล่าสุดไว้ให้) · ชั่งรวม = ขอบตัดกับแผ่นเสียชั่งรวมกันมา แยกไม่ได้ */
   const SC_KIND_TH={ edge:'ขอบตัด', bad:'แผ่นเสีย', mix:'ชั่งรวม ขอบตัด+แผ่นเสีย', other:'อื่นๆ' };
@@ -5448,9 +5455,18 @@ window.WPDAUTH = {
     };
   }
 
-  $('btnGapSet').onclick=()=>{ $('gsVal').value=S.settings.gapMin||20; openOv('ovGapSet'); };
+  /* บังคับชั่ง: แพ็คแรกของงาน และเมื่อไม่ได้ชั่งติดกันครบ N−1 แพ็ค — เฉพาะงานใย (หมอนชั่งทุกใบอยู่แล้ว · ปิกนิกไม่บังคับ) */
+  function weighEvery(){ const v=S.settings&&S.settings.weighEvery; return v==null?5:Math.max(0,+v||0); }
+  function mustWeigh(o){
+    const N=weighEvery(); if(!o || !N || isPicnic(o) || (o.productType||'ใย')!=='ใย') return false;
+    const rows=S.line.filter(l=>l.orderId===o.id).sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+    if(!rows.length) return true;
+    let tail=0; for(let i=rows.length-1;i>=0 && rows[i].actualWeight==null;i--) tail++;
+    return tail>=N-1;
+  }
+  $('btnGapSet').onclick=()=>{ $('gsVal').value=S.settings.gapMin||20; $('gsWeigh').value=weighEvery(); openOv('ovGapSet'); };
   $('gsCancel').onclick=()=>closeOv('ovGapSet');
-  $('gsSave').onclick=async()=>{ S.settings.gapMin=+$('gsVal').value||20; await saveSet(); closeOv('ovGapSet'); toast('บันทึกแล้ว'); };
+  $('gsSave').onclick=async()=>{ S.settings.gapMin=+$('gsVal').value||20; const _we=$('gsWeigh').value.trim(); S.settings.weighEvery=_we===''?5:Math.max(0,Math.round(+_we)||0); await saveSet(); closeOv('ovGapSet'); toast('บันทึกแล้ว'); };
 
   $('btnFinish').onclick=async()=>{
     const o=active();

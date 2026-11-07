@@ -678,6 +678,7 @@
       </div>
       <div class="card"><h3>รายการรับกลับ</h3>
         <label class="sumline" style="display:flex;align-items:center;gap:6px;margin:0 0 6px;"><input type="checkbox" id="sewShowPaid" style="width:auto;margin:0;"> แสดงที่จ่ายแล้วด้วย</label>
+        <div id="sewSelBar" style="margin:0 0 8px;"></div>
         <div class="scr"><table id="tSewList"></table></div>
       </div>
       <div class="card"><h3>ประวัติการจ่ายค่าเย็บ</h3><div class="scr"><table id="tSewPaid"></table></div></div>
@@ -2168,6 +2169,7 @@ window.WPDAUTH = {
   let PRICE = { fiber:{}, fabric:{}, zip:{}, pack:{}, gas:0 };
   let QUOTES = [];
   let SEWPAY = { since:'', pays:[] };
+  const SEWSEL = new Set();   /* รายการรับกลับที่ติ๊กไว้จะจ่าย (retId) */
   let current='price', lastHash='';
 
   const hasStore = !!(window.storage && window.storage.get && window.storage.set);
@@ -3468,8 +3470,8 @@ window.WPDAUTH = {
     if($('sewGoSet')) $('sewGoSet').onclick=()=>show('set');
     /* รายการรับกลับทีละครั้ง */
     const rows=all.filter(x=>inR(x) && (showPaid || !x.paid)).sort((a,b)=>String(b.r.time).localeCompare(String(a.r.time)));
-    $('tSewList').innerHTML=rows.length?'<tr><th>รับกลับ</th><th>ช่าง</th><th>ถุง</th><th>ผ้า</th><th>ไซซ์</th><th>สินค้า</th><th>ส่งไป</th><th style="text-align:right">รับกลับ (ใบ)</th><th style="text-align:right">ค่าเย็บ/ใบ</th><th style="text-align:right">บาท</th><th>สถานะ</th></tr>'+
-      rows.slice(0,400).map(x=>'<tr><td style="white-space:nowrap">'+thDate(x.r.time)+'</td><td>'+esc(x.sewer)+'</td><td>#'+esc(x.r.batchNo!=null?x.r.batchNo:(x.b.batchNo||''))+'</td><td>'+esc(x.r.fabricType||x.b.fabricType||'')+'</td><td><b>'+esc(x.size)+'</b></td><td>'+esc(x.r.productType||'')+'</td>'+
+    $('tSewList').innerHTML=rows.length?'<tr><th><input type="checkbox" id="sewAll" style="width:auto;margin:0;" title="ติ๊กทั้งหมดที่ค้างจ่าย"></th><th>รับกลับ</th><th>ช่าง</th><th>ถุง</th><th>ผ้า</th><th>ไซซ์</th><th>สินค้า</th><th>ส่งไป</th><th style="text-align:right">รับกลับ (ใบ)</th><th style="text-align:right">ค่าเย็บ/ใบ</th><th style="text-align:right">บาท</th><th>สถานะ</th></tr>'+
+      rows.slice(0,400).map(x=>'<tr'+(SEWSEL.has(x.r.id)?' style="background:var(--w-sel,rgba(255,138,61,.12))"':'')+'><td>'+(x.paid?'':'<input type="checkbox" data-sewsel="'+esc(x.r.id)+'"'+(SEWSEL.has(x.r.id)?' checked':'')+' style="width:auto;margin:0;">')+'</td><td style="white-space:nowrap">'+thDate(x.r.time)+'</td><td>'+esc(x.sewer)+'</td><td>#'+esc(x.r.batchNo!=null?x.r.batchNo:(x.b.batchNo||''))+'</td><td>'+esc(x.r.fabricType||x.b.fabricType||'')+'</td><td><b>'+esc(x.size)+'</b></td><td>'+esc(x.r.productType||'')+'</td>'+
         '<td style="white-space:nowrap;font-size:12.5px;">'+(x.sent.length?x.sent.map(s=>thDate(s.time)+' · '+fmtInt(s.qty)).join('<br>'):'—')+'</td>'+
         '<td style="text-align:right">'+fmtInt(x.q)+'</td><td style="text-align:right">'+fmtBaht(x.rate)+(x.std?' <span class="bdg warn">มาตรฐาน</span>':'')+'</td><td style="text-align:right"><b>'+fmtBaht(x.baht)+'</b></td>'+
         '<td style="white-space:nowrap">'+(x.paid?'<span class="bdg ok">จ่ายแล้ว '+thDate(x.paid.time)+'</span>':'<span class="bdg warn">ค้างจ่าย</span>')+'</td></tr>').join('')
@@ -3481,22 +3483,42 @@ window.WPDAUTH = {
         '<td><button class="x" data-sewundo="'+esc(p.id)+'" title="ยกเลิกการจ่ายครั้งนี้ — รายการกลับไปเป็นค้างจ่าย">✕</button></td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีการจ่าย</td></tr>';
     document.querySelectorAll('#tSewDue [data-sewpay]').forEach(b=>b.onclick=()=>sewPay(b.dataset.sewpay));
+    /* ติ๊กเลือกจ่าย: เก็บเฉพาะที่ยังค้างและเห็นอยู่ในรายการ */
+    { const vis=new Set(rows.slice(0,400).filter(x=>!x.paid).map(x=>x.r.id)); [...SEWSEL].forEach(id=>{ if(!vis.has(id)) SEWSEL.delete(id); });
+      const sel=rows.filter(x=>SEWSEL.has(x.r.id)), sq=sel.reduce((a,x)=>a+x.q,0), sb=r2(sel.reduce((a,x)=>a+x.baht,0));
+      $('sewSelBar').innerHTML=sel.length
+        ?'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;"><span>ติ๊กแล้ว <b>'+sel.length+'</b> รายการ · '+fmtInt(sq)+' ใบ · <b>'+fmtBaht(sb)+'</b> บาท'+(new Set(sel.map(x=>x.sewer)).size>1?' ('+new Set(sel.map(x=>x.sewer)).size+' ช่าง)':'')+'</span>'+
+          '<button class="btn sm" id="sewPaySel" style="margin:0;white-space:nowrap;">💵 จ่ายที่ติ๊ก</button><button class="btn sec sm" id="sewClrSel" style="margin:0;">ล้าง</button></div>'
+        :'<span class="sumline">ติ๊กรายการที่จะจ่าย หรือกด 💵 จ่าย ที่ชื่อช่างเพื่อจ่ายทั้งหมดของช่างคนนั้น</span>';
+      if($('sewPaySel')) $('sewPaySel').onclick=()=>sewPayLines(sel);
+      if($('sewClrSel')) $('sewClrSel').onclick=()=>{ SEWSEL.clear(); rSew(); };
+      document.querySelectorAll('#tSewList [data-sewsel]').forEach(c=>c.onchange=()=>{ c.checked?SEWSEL.add(c.dataset.sewsel):SEWSEL.delete(c.dataset.sewsel); rSew(); });
+      const all_=$('sewAll'); if(all_){ all_.checked=vis.size>0 && [...vis].every(id=>SEWSEL.has(id)); all_.onchange=()=>{ if(all_.checked) vis.forEach(id=>SEWSEL.add(id)); else SEWSEL.clear(); rSew(); }; }
+    }
     document.querySelectorAll('#tSewPaid [data-sewundo]').forEach(b=>b.onclick=()=>sewUndo(b.dataset.sewundo));
   }
   async function sewPay(sewer){
-    const R=sewRange(), ls=sewLines().filter(x=>x.sewer===sewer && !x.paid && x.day>=R.from && x.day<=R.to);
+    const R=sewRange(); return sewPayLines(sewLines().filter(x=>x.sewer===sewer && !x.paid && x.day>=R.from && x.day<=R.to));
+  }
+  async function sewPayLines(ls){
+    ls=(ls||[]).filter(x=>!x.paid);
     if(!ls.length){ toast('ไม่มีรายการค้างจ่าย'); return; }
-    const q=ls.reduce((a,x)=>a+x.q,0), baht=r2(ls.reduce((a,x)=>a+x.baht,0)), ns=ls.filter(x=>x.std).length;
-    const days=ls.map(x=>x.day).sort();
-    const bySize={}; ls.forEach(x=>{ const e=bySize[x.size]||(bySize[x.size]={ q:0, rate:x.rate, baht:0 }); e.q+=x.q; e.baht=r2(e.baht+x.baht); });
-    if(!await ask('จ่ายค่าเย็บ '+sewer+' '+fmtBaht(baht)+' บาท?',
-      'รับกลับ '+thDate(days[0])+(days[0]!==days[days.length-1]?' – '+thDate(days[days.length-1]):'')+' · '+ls.length+' ครั้ง · '+fmtInt(q)+' ใบ\n'+
-      Object.keys(bySize).map(z=>'• '+z+' — '+fmtInt(bySize[z].q)+' ใบ × '+fmtBaht(bySize[z].rate)+' = '+fmtBaht(bySize[z].baht)).join('\n')+
+    const R=sewRange(), by={};
+    ls.forEach(x=>{ (by[x.sewer]=by[x.sewer]||[]).push(x); });
+    const ws=Object.keys(by), tot=r2(ls.reduce((a,x)=>a+x.baht,0)), ns=ls.filter(x=>x.std).length;
+    const part=w=>{ const L=by[w], q=L.reduce((a,x)=>a+x.q,0), bt=r2(L.reduce((a,x)=>a+x.baht,0)), days=L.map(x=>x.day).sort(), bs={};
+      L.forEach(x=>{ const e=bs[x.size]||(bs[x.size]={ q:0, rate:x.rate, baht:0 }); e.q+=x.q; e.baht=r2(e.baht+x.baht); });
+      return (ws.length>1?w+' — '+fmtBaht(bt)+' บาท\n':'')+'รับกลับ '+thDate(days[0])+(days[0]!==days[days.length-1]?' – '+thDate(days[days.length-1]):'')+' · '+L.length+' ครั้ง · '+fmtInt(q)+' ใบ\n'+
+        Object.keys(bs).map(z=>'• '+z+' — '+fmtInt(bs[z].q)+' ใบ × '+fmtBaht(bs[z].rate)+' = '+fmtBaht(bs[z].baht)).join('\n'); };
+    if(!await ask('จ่ายค่าเย็บ '+(ws.length>1?ws.length+' ช่าง':ws[0])+' '+fmtBaht(tot)+' บาท?', ws.map(part).join('\n\n')+
       (ns?'\n\n⚠ มี '+ns+' รายการที่ไซซ์ยังไม่ได้ตั้งค่าเย็บ ใช้ค่ามาตรฐาน':''), { okText:'💵 จ่ายแล้ว' })) return;
     SEWPAY.pays=SEWPAY.pays||[];
-    SEWPAY.pays.push({ id:uid(), time:localISO(), sewer, qty:q, baht, from:R.from, to:R.to,
-      lines:ls.map(x=>({ retId:x.r.id, batchId:x.r.batchId, qty:x.q, size:x.size, rate:x.rate, baht:x.baht })) });
-    await saveSewPay(); rSew(); toast('บันทึกจ่ายค่าเย็บ '+sewer+' '+fmtBaht(baht)+' บาท แล้ว');
+    const t=localISO();
+    ws.forEach(w=>{ const L=by[w];
+      SEWPAY.pays.push({ id:uid(), time:t, sewer:w, qty:L.reduce((a,x)=>a+x.q,0), baht:r2(L.reduce((a,x)=>a+x.baht,0)), from:R.from, to:R.to,
+        lines:L.map(x=>({ retId:x.r.id, batchId:x.r.batchId, qty:x.q, size:x.size, rate:x.rate, baht:x.baht })) }); });
+    ls.forEach(x=>SEWSEL.delete(x.r.id));
+    await saveSewPay(); rSew(); toast('บันทึกจ่ายค่าเย็บ '+fmtBaht(tot)+' บาท แล้ว');
   }
   async function sewUndo(id){
     const p=(SEWPAY.pays||[]).find(x=>x.id===id); if(!p) return;

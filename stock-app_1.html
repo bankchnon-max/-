@@ -1568,7 +1568,8 @@ window.WPDAUTH = {
       return { across:Math.max(1, widthIn?Math.floor(widthIn/w):1), along:h, rotated, fits, wIn:dim.w/k, hIn:dim.h/k };
     },
     rollRemainingLength(roll, cutBatchesFromRoll){
-      let consumedIn=0;
+      /* archivedUsedIn = ความยาวที่ตัดไปแล้วของถุงที่ถูกลบออกจากระบบ (ของหมดแล้ว แต่ผ้าถูกตัดไปจริง) */
+      let consumedIn=+roll.archivedUsedIn||0;
       (cutBatchesFromRoll||[]).forEach(b=>{
         const L=CALC.pieceLayout(roll.widthIn, b.size); if(!L) return;
         consumedIn += Math.ceil(b.qtyCut/L.across) * L.along;
@@ -3688,7 +3689,7 @@ window.WPDAUTH = {
       const _usedIn=r2(1e9-CALC.rollRemainingLength({widthIn:roll.widthIn, lengthIn:1e9}, _rows));
       /* ม้วนที่ตัดไปแล้วบางส่วน เทียบกับความยาวที่เหลือ */
       const _prev=CALC.rollPortions(S.cutBatches, roll);
-      const _left=_prev.length?CALC.rollRemainingLength(roll,_prev):roll.lengthIn;
+      const _left=CALC.rollRemainingLength(roll,_prev);
       if(!_wide.length && _usedIn>_left){
         const L=rows.length===1 ? CALC.pieceLayout(roll.widthIn, rows[0].size) : null;
         const _max=L ? L.across*Math.floor(_left/L.along) : null;

@@ -1274,14 +1274,16 @@ window.WPDAUTH = {
       }
       const pieces=same.reduce((s,x)=>s+(+x.qtyCut||0),0);
       if(!pieces) return { baht:0, src:'noCut', type:type };
-      const pp=+b.piecesPer||1;
-      const areaAll=same.reduce((s,x)=>s+(+x.qtyCut||0)*COST.pieceArea(x.size),0);
-      const byArea=same.every(x=>!(+x.qtyCut) || COST.pieceArea(x.size)>0) && areaAll>0;
-      let perPiece=byArea ? p.baht*COST.pieceArea(b.size)/areaAll : p.baht/pieces;
-      /* ม้วนที่ยังตัดไม่หมด (รู้หน้ากว้าง×ยาว): คิดราคาเฉพาะส่วนที่ใช้ไปแล้วตามความยาว — ตัดหมด/กด "ตัดหมดแล้ว" = ทั้งม้วน (รวมเศษ) */
+      /* ถุงที่ถูกลบออกแล้วแต่ตัดจากม้วนนี้จริง ยังต้องแบ่งค่าผ้าของม้วน */
       const rec=(receipts||[]).find(r=>rId ? r.id===rId : (r.fabricType===type && String(r.rollNo)===String(rNo)));
+      const arch={ area:+(rec&&rec.archivedArea)||0, pcs:+(rec&&rec.archivedPieces)||0, used:+(rec&&rec.archivedUsedIn)||0 };
+      const pp=+b.piecesPer||1;
+      const areaAll=same.reduce((s,x)=>s+(+x.qtyCut||0)*COST.pieceArea(x.size),0)+arch.area;
+      const byArea=same.every(x=>!(+x.qtyCut) || COST.pieceArea(x.size)>0) && areaAll>0;
+      let perPiece=byArea ? p.baht*COST.pieceArea(b.size)/areaAll : p.baht/(pieces+arch.pcs);
+      /* ม้วนที่ยังตัดไม่หมด (รู้หน้ากว้าง×ยาว): คิดราคาเฉพาะส่วนที่ใช้ไปแล้วตามความยาว — ตัดหมด/กด "ตัดหมดแล้ว" = ทั้งม้วน (รวมเศษ) */
       if(rec && +rec.widthIn && +rec.lengthIn && !rec.retired){
-        let used=0, ok=true;
+        let used=arch.used, ok=true;
         same.forEach(x=>{ const m=String(x.size||'').match(/(\d+\.?\d*)\s*[xX×*]\s*(\d+\.?\d*)/); if(!m){ ok=false; return; }
           let w=+m[1], h=+m[2]; if(/(ซม|เซน|\bcm\b)/i.test(String(x.size))){ w/=2.54; h/=2.54; }
           if(w>+rec.widthIn && h<=+rec.widthIn){ const t=w; w=h; h=t; }

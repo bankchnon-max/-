@@ -72,6 +72,13 @@
   #fr .ocard { background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:12px; position:relative; }
   #fr .ocard.sel { border-color:var(--accent); background:#2a2013; box-shadow:0 0 0 1px var(--accent) inset; }
   #fr .ocard.fin { opacity:.55; }
+  #fr .qrow { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; padding:8px 0; border-bottom:1px solid var(--border); }
+  #fr .qrow:last-of-type { border-bottom:0; }
+  #fr .qrow .qn { flex:0 0 26px; height:26px; border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-family:'Kanit',sans-serif; font-size:13px; }
+  #fr .qrow .qtx { flex:1 1 0; min-width:0; font-size:13.5px; line-height:1.45; }
+  #fr .qrow .qbtns { flex:1 0 100%; display:flex; justify-content:flex-end; gap:6px; }
+  #fr .qrow .btn { margin:0; padding:5px 9px; min-width:0; }
+  #fr .qrow .btn[disabled] { opacity:.3; }
   #fr .ocard .cust { font-family:'Kanit',sans-serif; font-size:15px; cursor:pointer; padding-right:62px; }
   #fr .ocard .code { font-size:12.5px; color:var(--accent2); margin-top:2px; font-family:'Kanit',sans-serif; cursor:pointer; }
   #fr .ocard .meta { font-size:11.5px; color:var(--dim); margin-top:6px; line-height:1.55; }
@@ -550,6 +557,10 @@
     <!-- 1. ORDERS -->
     <div class="panel" id="p-order">
       <div class="card">
+        <h3>📋 คิวผลิต — กดจบงานแล้วเริ่มออเดอร์ถัดไปให้เอง</h3>
+        <div id="queueBox"></div>
+      </div>
+      <div class="card">
         <label style="margin-top:0;">ค้นหา — พิมพ์ชื่อลูกค้า รหัสงาน หรือชื่อใย</label>
         <input id="qOrder" placeholder="เช่น ทรัพย์  หรือ  300*34  หรือ  15DHC">
         <div class="sumline" id="qHint"></div>
@@ -603,6 +614,7 @@
         </div>
         <select id="feedOrderSel"></select>
         <div class="sumline" id="feedOrderNote" style="margin-top:6px;"></div>
+        <div id="feedQueueBox" style="margin-top:8px;"></div>
       </div>
       <div class="card">
         <div class="ctrwrap">
@@ -2308,7 +2320,38 @@ window.WPDAUTH = {
     const hay=(o.customer+' '+o.code+' '+(o.fibers||[]).map(f=>f.name).join(' ')).toLowerCase();
     return q.toLowerCase().split(/\s+/).filter(Boolean).every(w=>hay.includes(w));
   }
+  /* ═══ คิวผลิต: o.queue = ลำดับคิว · ออเดอร์ใหม่ต่อท้ายคิวเอง · เลือกทำ/เริ่ม = ออกจากคิว · ปิกนิกไม่เข้าคิว (แพ็คที่จุดปิกนิก) */
+  function queueList(){ return S.orders.filter(o=>o.queue!=null && o.status!=='done' && !isPicnic(o) && o.id!==S.activeId).sort((a,b)=>(+a.queue)-(+b.queue)); }
+  function queueNext(){ return queueList()[0]||null; }
+  function queueTail(){ return queueList().reduce((m,o)=>Math.max(m,+o.queue||0),0)+1; }
+  function queueRenum(){ queueList().forEach((o,i)=>{ o.queue=i+1; }); }
+  function queuePos(o){ return queueList().findIndex(x=>x.id===o.id)+1; }
+  function startOrder(o){ if(!o) return; if(!o.startedAt) o.startedAt=localISO(); o.status='active'; o.queue=null; S.activeId=o.id; if(S.activeFeedId===o.id) S.activeFeedId=null; }
+  function rQueue(){
+    const el=$('queueBox'); if(!el) return;
+    const cur=orderById(S.activeId), q=queueList();
+    const row=(o,i)=>'<div class="qrow"><span class="qn">'+(i+1)+'</span><div class="qtx"><b>'+esc(o.customer)+'</b> — '+esc(o.code)+' <span style="color:var(--dim)">· '+(o.orderedPacks||0)+' แพ็ค</span>'+(o.id===S.activeFeedId?' <span class="bdg ok">🌀 ป้อนใยล่วงหน้าแล้ว</span>':'')+'</div><div class="qbtns">'+
+      '<button class="btn sec sm" data-qup="'+o.id+'"'+(i?'':' disabled')+' title="เลื่อนขึ้น">▲</button><button class="btn sec sm" data-qdn="'+o.id+'"'+(i<q.length-1?'':' disabled')+' title="เลื่อนลง">▼</button>'+
+      '<button class="btn sm" data-qgo="'+o.id+'">เริ่มเลย</button><button class="btn sec sm" data-qout="'+o.id+'" title="เอาออกจากคิว">✕</button></div></div>';
+    el.innerHTML='<div class="sumline" style="margin:0 0 6px;">'+(cur&&cur.status!=='done'?'กำลังทำที่ท้ายไลน์: <b style="color:var(--accent2)">'+esc(cur.customer)+' — '+esc(cur.code)+'</b>':'ตอนนี้ท้ายไลน์ยังไม่มีงาน')+'</div>'+
+      (q.length?q.map(row).join('')+'<div class="sumline" style="margin-top:6px;">กด 🏁 จบงานแล้ว แอปจะเริ่ม <b>'+esc(q[0].customer)+'</b> ให้เลย</div>'
+        :'<div class="empty">ยังไม่มีออเดอร์ในคิว — ออเดอร์ที่เพิ่มใหม่จะต่อคิวให้เอง หรือกด "+ เข้าคิว" ที่ออเดอร์ด้านล่าง</div>');
+    const mv=async(id,d)=>{ const L=queueList(), i=L.findIndex(x=>x.id===id), j=i+d; if(i<0||j<0||j>=L.length) return; const t=L[i]; L[i]=L[j]; L[j]=t; L.forEach((o,k)=>{ o.queue=k+1; }); await saveOrders(); rOrders(); };
+    el.querySelectorAll('[data-qup]').forEach(b=>b.onclick=()=>mv(b.dataset.qup,-1));
+    el.querySelectorAll('[data-qdn]').forEach(b=>b.onclick=()=>mv(b.dataset.qdn,1));
+    el.querySelectorAll('[data-qout]').forEach(b=>b.onclick=async()=>{ const o=orderById(b.dataset.qout); if(!o) return; o.queue=null; queueRenum(); await saveOrders(); rOrders(); toast('เอาออกจากคิวแล้ว'); });
+    el.querySelectorAll('[data-qgo]').forEach(b=>b.onclick=async()=>{
+      const o=orderById(b.dataset.qgo); if(!o) return;
+      const was=orderById(S.activeId);
+      if(was && was.status!=='done'){
+        if(!await ask('สลับงานท้ายไลน์?', 'ตอนนี้กำลังทำ '+was.customer+' — '+was.code+' (ยังไม่ได้กดจบงาน)\nจะทำ '+o.customer+' ก่อน แล้วงานเดิมกลับไปรอเป็นคิวที่ 1', { yes:'สลับเลย', tone:'ok' })) return;
+        was.queue=0; was.status='pending';   /* งานเดิมกลับไปหัวคิว */
+      }
+      startOrder(o); queueRenum(); await saveOrders(); rTop(); rOrders(); toast('เริ่มออเดอร์: '+o.customer);
+    });
+  }
   function rOrders(){
+    rQueue();
     const g=$('ordGrid');
     const list=S.orders.filter(o=>matchOrder(o,query));
     $('ordEmpty').style.display=S.orders.length?'none':'block';
@@ -2328,7 +2371,7 @@ window.WPDAUTH = {
       const stdP=CALC.stdPerPack(o.spec);
       const rt=CALC.recipeTotal(o.fibers), ok=CALC.recipeComplete(o.fibers,o.recipeTargetKg);
       return '<div class="ocard '+(on?'sel':'')+' '+(done?'fin':'')+'">'+
-        '<span class="st '+(done?'done':on?'active':'pending')+'">'+(done?'เสร็จแล้ว':on?'กำลังทำ':'รอคิว')+'</span>'+
+        '<span class="st '+(done?'done':on?'active':'pending')+'">'+(done?'เสร็จแล้ว':on?'กำลังทำ':(queuePos(o)?'คิวที่ '+queuePos(o):isPicnic(o)?'รอคิว':'ยังไม่เข้าคิว'))+'</span>'+
         '<div class="cust" data-sel="'+o.id+'">'+esc(o.customer)+'</div>'+
         '<div class="code" data-sel="'+o.id+'">'+esc(o.code)+' <span class="bdg ok">'+esc(catLabel(o))+'</span></div>'+
         '<div class="meta">สั่ง '+(o.orderedPacks||0)+' แพ็ค · ผลิตแล้ว '+packs+' แพ็ค'+
@@ -2339,6 +2382,7 @@ window.WPDAUTH = {
           (o.due?'ครบกำหนด '+shortDT(o.due):'ไม่ได้ตั้งเวลา')+
           (o.finishedAt?'<br>จบงาน '+shortDT(o.finishedAt):'')+'</div>'+
         '<div class="acts">'+
+          (!done && !on && !isPicnic(o) && !queuePos(o) ? '<button class="btn sm" data-qin="'+o.id+'">+ เข้าคิว</button>' : '')+
           '<button class="btn sec sm" data-edit="'+o.id+'">แก้ไข</button>'+
           (done?'<button class="btn sec sm" data-reopen="'+o.id+'">เปิดงานใหม่</button>':'')+
           '<button class="btn dg sm" data-del="'+o.id+'">ลบ</button>'+
@@ -2351,10 +2395,11 @@ window.WPDAUTH = {
       if (!o.startedAt) o.startedAt=localISO();
       /* งานปิกนิก = งานของจุดแพ็คปิกนิก (แท็บ 🧺 ปิกนิก) ไม่ใช่งานของไลน์ */
       if (isPicnic(o)){ o.status='active'; S.activePicnicId=o.id; await saveOrders(); rOrders(); toast('งานปิกนิก: '+o.customer+' — แพ็คที่แท็บ 🧺 ปิกนิก'); show('pic'); return; }
-      o.status='active'; S.activeId=o.id;
+      o.status='active'; S.activeId=o.id; o.queue=null; queueRenum();
       await saveOrders(); rTop(); rOrders(); toast('เลือกออเดอร์: '+o.customer);
     });
     g.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));
+    g.querySelectorAll('[data-qin]').forEach(b=>b.onclick=async()=>{ const o=orderById(b.dataset.qin); if(!o) return; o.queue=queueTail(); queueRenum(); await saveOrders(); rOrders(); toast('เข้าคิวที่ '+queuePos(o)+' แล้ว'); });
     g.querySelectorAll('[data-reopen]').forEach(b=>b.onclick=async()=>{
       const o=orderById(b.dataset.reopen); o.status='pending'; o.finishedAt=null;
       await saveOrders(); rOrders(); toast('เปิดงานใหม่แล้ว');
@@ -2462,10 +2507,12 @@ window.WPDAUTH = {
       spec: s ? Object.assign({},s.spec) : {weightPerPiece:0,piecesPerPack:0,bagName:'',bagWeight:0,tolPct:3},
       due:$('nDue').value?$('nDue').value+':00':null,
       status:'pending', startedAt:null, finishedAt:null, createdAt:localISO() });
+    { const _n=S.orders[S.orders.length-1]; if(!isPicnic(_n)){ _n.queue=queueTail(); queueRenum(); } }
     await saveOrders();
     $('nCust').value=''; $('nCode').value=''; $('nPacks').value=''; $('nDue').value=''; $('nMatch').innerHTML='';
     rOrders();
-    toast(s ? 'เพิ่มออเดอร์ พร้อมสูตรและ Standard เดิมแล้ว' : 'เพิ่มออเดอร์แล้ว — อย่าลืมตั้งสูตรและ Standard');
+    { const _n=S.orders[S.orders.length-1], _p=_n?queuePos(_n):0;
+      toast((s ? 'เพิ่มออเดอร์ พร้อมสูตรและ Standard เดิมแล้ว' : 'เพิ่มออเดอร์แล้ว — อย่าลืมตั้งสูตรและ Standard')+(_p?' · ต่อคิวที่ '+_p:'')); }
   };
 
   /* ---------- ประเภทสินค้า: ประเภทย่อยที่เห็น → ประเภทหลักที่คุมการทำงาน (ซ่อนแก๊ส/เบิกผ้า/ถุง) ---------- */
@@ -2545,12 +2592,32 @@ window.WPDAUTH = {
       if(!feedSideSel) feedSideSel=fiberSide(orderById(wantId));
       document.querySelectorAll('#feedSideRow [data-feedside]').forEach(b=>b.classList.toggle('sec', b.dataset.feedside!==feedSideSel));
       const _sideList=openOrders.filter(x=>!isPicnic(x) && fiberSide(x)===feedSideSel)
-        .sort((a,b)=>(b.id===wantId)-(a.id===wantId) || (b.status==='active')-(a.status==='active') || String(b.startedAt||b.createdAt||'').localeCompare(String(a.startedAt||a.createdAt||'')));
+        .sort((a,b)=>(b.id===wantId)-(a.id===wantId) || (b.status==='active')-(a.status==='active') || ((a.queue!=null?+a.queue:1e9)-(b.queue!=null?+b.queue:1e9)) || String(b.startedAt||b.createdAt||'').localeCompare(String(a.startedAt||a.createdAt||'')));
       const _cur=orderById(wantId);
       feedSel.innerHTML=(_sideList.some(x=>x.id===wantId)?'':'<option value="">— เลือกงาน'+(SIDE_TH[feedSideSel]||'')+' —</option>')+
-        _sideList.map(x=>'<option value="'+x.id+'">'+esc(x.customer)+' — '+esc(x.code)+(_same(x)?' · สร้าง '+thDate(x.createdAt||x.startedAt):'')+(x.id===S.activeId?' (ท้ายไลน์กำลังทำอยู่)':'')+'</option>').join('');
+        _sideList.map(x=>'<option value="'+x.id+'">'+esc(x.customer)+' — '+esc(x.code)+(_same(x)?' · สร้าง '+thDate(x.createdAt||x.startedAt):'')+(x.id===S.activeId?' (ท้ายไลน์กำลังทำอยู่)':(queuePos(x)?' (คิวที่ '+queuePos(x)+')':''))+'</option>').join('');
       if(_sideList.some(x=>x.id===wantId)) feedSel.value=wantId;
       else feedSel.value='';
+      /* คิวผลิต: ป้อนใยเปลี่ยนไปงานถัดไปก่อนท้ายไลน์ — กดปุ่มเดียว ไม่ต้องหาในรายการ */
+      const qb=$('feedQueueBox');
+      if(qb){
+        const _nx=queueNext(), _pre=S.activeFeedId && S.activeFeedId!==S.activeId ? orderById(S.activeFeedId) : null;
+        qb.innerHTML=_pre ? '<div class="sumline">✅ ป้อนใยล่วงหน้าให้ <b style="color:var(--accent2)">'+esc(_pre.customer)+' — '+esc(_pre.code)+'</b> แล้ว · ท้ายไลน์กด 🏁 จบงานเมื่อไหร่ จะสลับมางานนี้เอง</div>'
+          : _nx ? '<button type="button" class="btn" id="btnFeedNext" style="margin:0;width:100%;">▶ '+(S.activeId?'เปลี่ยนไปป้อนงานถัดไป':'เริ่มงานถัดไป')+': '+esc(_nx.customer)+' — '+esc(_nx.code)+'</button>'+
+              (S.activeId?'<div class="sumline" style="margin-top:4px;">กดตอนใยของงานเดิมป้อนครบแล้ว — ท้ายไลน์ยังแพ็คงานเดิมต่อจนกด 🏁 จบงาน</div>':'')
+          : '';
+        if($('btnFeedNext')) $('btnFeedNext').onclick=async()=>{
+          const n=queueNext(); if(!n) return;
+          if(!S.activeId){ startOrder(n); queueRenum(); }
+          else {
+            const cur=orderById(S.activeId);
+            if(!await ask('เปลี่ยนไปป้อนใยงานถัดไป?', 'ใยที่ป้อนจากนี้ = '+n.customer+' — '+n.code+'\nท้ายไลน์ยังทำ '+(cur?cur.customer+' — '+cur.code:'งานเดิม')+' ต่อ จนกด 🏁 จบงานแล้วจะสลับตามเอง', { yes:'เปลี่ยนเลย', tone:'ok' })) return;
+            S.activeFeedId=n.id;
+          }
+          feedSideSel=fiberSide(n);
+          await saveOrders(); rTop(); rFeed(true); toast('ป้อนใยงาน: '+n.customer+' — '+n.code);
+        };
+      }
       const note=$('feedOrderNote');
       const _fo=orderById(S.activeFeedId), _lo=orderById(S.activeId);
       if(note && _fo && _lo && _fo.id!==_lo.id && _fo.code===_lo.code)
@@ -3664,7 +3731,8 @@ window.WPDAUTH = {
     $('lineInfo').innerHTML=o
       ? '<div class="sumline">ออเดอร์: <b style="color:var(--accent2)" class="kn">'+esc(o.customer)+' — '+esc(o.code)+
         '</b> <span class="bdg ok">'+esc(catLabel(o))+'</span></div>'
-      : '<div class="empty">ยังไม่ได้เลือกออเดอร์</div>';
+      : '<div class="empty">ยังไม่ได้เลือกออเดอร์'+(current!=='pic' && queueNext()?'<br><button class="btn sm" id="btnQGo" style="margin:8px 0 0;">▶ เริ่มคิวถัดไป: '+esc(queueNext().customer)+' — '+esc(queueNext().code)+'</button>':'')+'</div>';
+    if($('btnQGo')) $('btnQGo').onclick=async()=>{ const n=queueNext(); if(!n) return; startOrder(n); queueRenum(); await saveOrders(); rTop(); rLine(true); toast('เริ่มออเดอร์: '+n.customer); };
     paintBreak(); checkIdle();
 
     const std=o?CALC.stdPerPack(o.spec):0;
@@ -5477,27 +5545,31 @@ window.WPDAUTH = {
     const scrap=r2(S.scrap.filter(x=>x.orderId===o.id).reduce((s,x)=>s+(+x.kg||0),0));
     const scrapPcs=S.scrap.filter(x=>x.orderId===o.id).reduce((s,x)=>s+(+x.pieces||0),0);
     const fiberUsed=r2((S.use||[]).filter(u=>u.orderId===o.id).reduce((s,u)=>s+(+u.kg||0),0));
+    const _fo=orderById(S.activeFeedId);
+    const _qn = current==='pic' ? null : ((_fo && _fo.id!==o.id && _fo.status!=='done') ? _fo : (queueList().filter(x=>x.id!==o.id)[0]||null));
     if(!await ask('จบงานออเดอร์นี้?',
       o.customer+' — '+o.code+'\nผลิตได้ '+packs+' แพ็ค'+(o.orderedPacks?' / สั่ง '+o.orderedPacks:'')+
       ' · น้ำหนักจริงรวม '+actF+' กก.'+
-      ' · ใยที่ใช้จริง '+fiberUsed+' กก. · เศษ '+scrap+' กก.'+(scrapPcs?' · ของเสีย '+scrapPcs+' ชิ้น':''))) return;
-    o.status='done'; o.finishedAt=localISO();
+      ' · ใยที่ใช้จริง '+fiberUsed+' กก. · เศษ '+scrap+' กก.'+(scrapPcs?' · ของเสีย '+scrapPcs+' ชิ้น':'')+
+      (_qn?'\n\n▶ ถัดไปจะเริ่ม: '+_qn.customer+' — '+_qn.code:''))) return;
+    o.status='done'; o.finishedAt=localISO(); o.queue=null;
     /* จบงานที่จุดแพ็คปิกนิก — ไม่แตะงานที่ไลน์ */
     if(current==='pic'){
       S.activePicnicId=null; if(S.activeId===o.id) S.activeId=null;
       await saveOrders(); rTop(); toast('จบงานปิกนิกเรียบร้อย — เลือกงานปิกนิกถัดไปได้เลย'); rLine(true); return;
     }
     if(S.activePicnicId===o.id) S.activePicnicId=null;
-    const nextId = (S.activeFeedId && S.activeFeedId!==o.id && orderById(S.activeFeedId) && orderById(S.activeFeedId).status!=='done') ? S.activeFeedId : null;
+    const nextId = _qn ? _qn.id : null;
     if(nextId){
       const nx=orderById(nextId);
       if(!nx.startedAt) nx.startedAt=localISO();
-      nx.status='active';
+      nx.status='active'; nx.queue=null;
     }
+    queueRenum();
     S.activeId = nextId;
     S.activeFeedId = null;   // ป้อนใยกับท้ายไลน์กลับมาอยู่ที่ออเดอร์เดียวกันแล้ว
     await saveOrders();
-    rTop(); toast(nextId ? 'จบงานเรียบร้อย — สลับไปออเดอร์ที่กำลังป้อนใยล่วงหน้าให้อัตโนมัติ' : 'จบงานเรียบร้อย — เวลา '+hhmm(o.finishedAt));
+    rTop(); toast(nextId ? 'จบงานเรียบร้อย — เริ่ม '+_qn.customer+' — '+_qn.code+' ต่อเลย' : 'จบงานเรียบร้อย — เวลา '+hhmm(o.finishedAt)+(queueList().length?'':' · ไม่มีออเดอร์ในคิวแล้ว'));
     show(nextId ? 'line' : 'sum');
   };
 

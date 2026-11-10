@@ -2327,6 +2327,47 @@ window.WPDAUTH = {
   function queueRenum(){ queueList().forEach((o,i)=>{ o.queue=i+1; }); }
   function queuePos(o){ return queueList().findIndex(x=>x.id===o.id)+1; }
   function startOrder(o){ if(!o) return; if(!o.startedAt) o.startedAt=localISO(); o.status='active'; o.queue=null; S.activeId=o.id; if(S.activeFeedId===o.id) S.activeFeedId=null; }
+  /* ═══ วันใหม่ = ใบใหม่ ═══ */
+  const ROLL_KEYS=['line','scrap','carry','feed','use','wd','fabricWd','bagWd','bagUse','caseUse','sheetWd','sheetUse','gasSwaps'];
+  function lastActOf(ids){   /* เวลารายการล่าสุดของแต่ละออเดอร์ (ทุกชนิดรายการ) */
+    const want=new Set(ids), m={};
+    ROLL_KEYS.forEach(k=>(S[k]||[]).forEach(r=>{ if(r && want.has(r.orderId)){ const t=String(r.time||''); if(t>(m[r.orderId]||'')) m[r.orderId]=t; } }));
+    (S.breaks||[]).forEach(r=>{ if(r && want.has(r.orderId)){ const t=String(r.end||r.start||''); if(t>(m[r.orderId]||'')) m[r.orderId]=t; } });
+    return m;
+  }
+  function packsOf(o){ return S.line.filter(l=>l.orderId===o.id).length; }
+  async function dayRollover(){
+    if(!S.orders.length || modalOpen || formDirty || (typeof typing==='function' && typing())) return;
+    const today=localISO().slice(0,10);
+    const cand=S.orders.filter(o=>o.status==='active' && !o.stockJob);
+    if(!cand.length) return;
+    const la=lastActOf(cand.map(o=>o.id)); let n=0;
+    cand.forEach(o=>{
+      const last=[la[o.id]||'', String(o.startedAt||'')].sort().pop();
+      if(!last || last.slice(0,10)>=today) return;
+      o.status='done'; o.finishedAt=last.slice(0,19); o.autoClosed=today; o.queue=null; n++;
+      if(S.activeId===o.id) S.activeId=null;
+      if(S.activeFeedId===o.id) S.activeFeedId=null;
+      if(S.activePicnicId===o.id) S.activePicnicId=null;
+    });
+    if(!n) return;
+    await saveOrders(); rTop(); renderPanel(false);
+    toast('วันใหม่ — ปิดใบที่ค้างจากวันก่อนให้แล้ว '+n+' ใบ · จะทำต่อกด "ทำต่อวันนี้"');
+  }
+  setTimeout(dayRollover, 6000); setInterval(dayRollover, 60000);
+  /* ทำต่อวันนี้ = เปิดใบใหม่ สเปค/สูตรเดิม · จำนวนสั่ง = ที่เหลือ · เข้าหัวคิว */
+  async function contOrder(o){
+    if(!o) return;
+    const packs=packsOf(o), rem=Math.max(0,(+o.orderedPacks||0)-packs);
+    const n={ id:uid(), customer:o.customer, code:o.code, orderedPacks:rem||(+o.orderedPacks||0),
+      productType:o.productType, category:o.category, picnicSize:o.picnicSize||null, recipeVer:1, recipeLog:[],
+      fibers:(o.fibers||[]).map(f=>({name:f.name,kg:f.kg})), recipeTargetKg:o.recipeTargetKg||0, spec:Object.assign({},o.spec||{}),
+      due:null, status:'pending', startedAt:null, finishedAt:null, createdAt:localISO(), contOf:o.id };
+    if(!isPicnic(n)) n.queue=0;
+    S.orders.push(n); queueRenum();
+    await saveOrders(); rOrders();
+    toast('เปิดใบใหม่ '+o.customer+' — '+o.code+' · สั่ง '+n.orderedPacks+' แพ็ค'+(queuePos(n)?' · คิวที่ '+queuePos(n):''));
+  }
   function rQueue(){
     const el=$('queueBox'); if(!el) return;
     const cur=orderById(S.activeId), q=queueList();
@@ -2335,7 +2376,12 @@ window.WPDAUTH = {
       '<button class="btn sm" data-qgo="'+o.id+'">เริ่มเลย</button><button class="btn sec sm" data-qout="'+o.id+'" title="เอาออกจากคิว">✕</button></div></div>';
     el.innerHTML='<div class="sumline" style="margin:0 0 6px;">'+(cur&&cur.status!=='done'?'กำลังทำที่ท้ายไลน์: <b style="color:var(--accent2)">'+esc(cur.customer)+' — '+esc(cur.code)+'</b>':'ตอนนี้ท้ายไลน์ยังไม่มีงาน')+'</div>'+
       (q.length?q.map(row).join('')+'<div class="sumline" style="margin-top:6px;">กด 🏁 จบงานแล้ว แอปจะเริ่ม <b>'+esc(q[0].customer)+'</b> ให้เลย</div>'
-        :'<div class="empty">ยังไม่มีออเดอร์ในคิว — ออเดอร์ที่เพิ่มใหม่จะต่อคิวให้เอง หรือกด "+ เข้าคิว" ที่ออเดอร์ด้านล่าง</div>');
+        :'<div class="empty">ยังไม่มีออเดอร์ในคิว — ออเดอร์ที่เพิ่มใหม่จะต่อคิวให้เอง หรือกด "+ เข้าคิว" ที่ออเดอร์ด้านล่าง</div>')+
+      (function(){ const td=localISO().slice(0,10), L=S.orders.filter(o=>o.autoClosed===td && !S.orders.some(x=>x.contOf===o.id));
+        return L.length?'<div style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--border);"><div class="sumline" style="margin:0 0 4px;">ปิดใบที่ค้างจากวันก่อนให้แล้ว — วันนี้นับใหม่ ถ้าจะทำต่อกด "ทำต่อวันนี้"</div>'+
+          L.map(o=>'<div class="qrow"><div class="qtx"><b>'+esc(o.customer)+'</b> — '+esc(o.code)+' <span style="color:var(--dim)">· ทำไป '+packsOf(o)+(o.orderedPacks?'/'+o.orderedPacks:'')+' แพ็ค เมื่อ '+thDate(o.finishedAt)+'</span></div>'+
+            '<div class="qbtns"><button class="btn sec sm" data-qcont="'+o.id+'">↻ ทำต่อวันนี้</button></div></div>').join('')+'</div>':''; })();
+    el.querySelectorAll('[data-qcont]').forEach(b=>b.onclick=()=>contOrder(orderById(b.dataset.qcont)));
     const mv=async(id,d)=>{ const L=queueList(), i=L.findIndex(x=>x.id===id), j=i+d; if(i<0||j<0||j>=L.length) return; const t=L[i]; L[i]=L[j]; L[j]=t; L.forEach((o,k)=>{ o.queue=k+1; }); await saveOrders(); rOrders(); };
     el.querySelectorAll('[data-qup]').forEach(b=>b.onclick=()=>mv(b.dataset.qup,-1));
     el.querySelectorAll('[data-qdn]').forEach(b=>b.onclick=()=>mv(b.dataset.qdn,1));
@@ -2380,11 +2426,12 @@ window.WPDAUTH = {
           'สูตร '+rt+' กก. '+(ok===null?'':ok?'<span class="bdg ok">ครบสูตร</span>':'<span class="bdg warn">ยังไม่ครบ '+o.recipeTargetKg+' กก.</span>')+
           ((o.fibers||[]).length?'<br><span style="color:var(--accent2)">'+o.fibers.map(f=>esc(f.name)+' '+f.kg).join(' · ')+'</span>':'')+'<br>'+
           (o.due?'ครบกำหนด '+shortDT(o.due):'ไม่ได้ตั้งเวลา')+
-          (o.finishedAt?'<br>จบงาน '+shortDT(o.finishedAt):'')+'</div>'+
+          (o.finishedAt?'<br>จบงาน '+shortDT(o.finishedAt)+(o.autoClosed?' (ปิดให้ตอนขึ้นวันใหม่)':''):'')+
+          (o.contOf&&orderById(o.contOf)?'<br>↻ ต่อจากใบ '+thDate(orderById(o.contOf).createdAt||orderById(o.contOf).startedAt)+' (ทำไป '+packsOf(orderById(o.contOf))+' แพ็ค)':'')+'</div>'+
         '<div class="acts">'+
           (!done && !on && !isPicnic(o) && !queuePos(o) ? '<button class="btn sm" data-qin="'+o.id+'">+ เข้าคิว</button>' : '')+
           '<button class="btn sec sm" data-edit="'+o.id+'">แก้ไข</button>'+
-          (done?'<button class="btn sec sm" data-reopen="'+o.id+'">เปิดงานใหม่</button>':'')+
+          (done?(String(o.finishedAt||'').slice(0,10)<localISO().slice(0,10)?'<button class="btn sec sm" data-qcont="'+o.id+'">↻ ทำต่อวันนี้ (ใบใหม่)</button>':'<button class="btn sec sm" data-reopen="'+o.id+'">เปิดงานใหม่</button>'):'')+
           '<button class="btn dg sm" data-del="'+o.id+'">ลบ</button>'+
         '</div></div>';
     }).join('');
@@ -2400,6 +2447,7 @@ window.WPDAUTH = {
     });
     g.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));
     g.querySelectorAll('[data-qin]').forEach(b=>b.onclick=async()=>{ const o=orderById(b.dataset.qin); if(!o) return; o.queue=queueTail(); queueRenum(); await saveOrders(); rOrders(); toast('เข้าคิวที่ '+queuePos(o)+' แล้ว'); });
+    g.querySelectorAll('[data-qcont]').forEach(b=>b.onclick=()=>contOrder(orderById(b.dataset.qcont)));
     g.querySelectorAll('[data-reopen]').forEach(b=>b.onclick=async()=>{
       const o=orderById(b.dataset.reopen); o.status='pending'; o.finishedAt=null;
       await saveOrders(); rOrders(); toast('เปิดงานใหม่แล้ว');
@@ -4584,6 +4632,8 @@ window.WPDAUTH = {
   }
   /* ---------- ก้อนใย: แท็กก้อนที่ใช้อยู่ + หักสต๊อกอัตโนมัติทุกรอบป้อน ---------- */
   /* วันที่แบบที่เขียนบนก้อน เช่น 21/8/2569 */
+  /* วันที่หน้าถุง = วันตัด เขียนแบบใบนับ: 30.10.69 */
+  function bagDate(iso){ const d=String(iso||'').slice(0,10).split('-'); return d.length===3 ? (+d[2])+'.'+(+d[1])+'.'+String(+d[0]+543).slice(2) : ''; }
   function thDate(iso){
     const d=String(iso||'').slice(0,10).split('-');
     if(d.length!==3) return '';
@@ -4780,7 +4830,7 @@ window.WPDAUTH = {
       const _bad=!!(cur&&!cur.fit.match&&t); h.style.color=_bad?'#c62828':'#2e7d32'; h.style.fontWeight=_bad?'700':'500';
       h.textContent=!cur?'':(cur.fit.match?'✓ ไซซ์ตรงกับปิกนิก '+cur.fit.z+' · ':(t?'⚠ ไซซ์ไม่ตรง — ปิกนิก '+picnicSize(o)+' ใช้ใยแผ่น '+t[0]+'x'+t[1]+' · ':''))+cur.customer+' — '+cur.code+' · เหลือ '+cur.available+' แผ่น'; }
     const cb=picCaseBags(o);
-    sel.caseBatch=fill('ptCase', cb.map(b=>({ v:b.batchId, t:'ถุง #'+b.batchNo+' · '+b.fabricType+' '+b.size+' · ตัด '+thDate(b.time)+' · พร้อม '+b.readyBalance+' ใบ' })), sel.caseBatch,
+    sel.caseBatch=fill('ptCase', cb.map(b=>({ v:b.batchId, t:'ถุง #'+b.batchNo+' · '+b.fabricType+' '+b.size+' · '+bagDate(b.time)+' · พร้อม '+b.readyBalance+' ใบ' })), sel.caseBatch,
       sp.fabricType?'— ไม่มีปลอก '+sp.fabricType+(sp.fabricSize?' '+sp.fabricSize:'')+' พร้อมเบิก —':'— ตั้งชนิดผ้า/ไซซ์ปลอกใน Standard ก่อน —');
     const sk=picSacks(o);
     sel.sackId=fill('ptSack', sk.map(x=>({ v:x.sackId, t:'กระสอบ #'+x.sackNo+' · '+x.weightPerBag+' กก./ใบ · เหลือ '+x.remainingPieces+' ใบ' })), sel.sackId,

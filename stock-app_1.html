@@ -862,9 +862,11 @@
     <div class="panel" id="p-gas">
       <div class="card"><h3>สต๊อกถังแก๊ส (โรง 1 — ใยแผ่น)</h3><div class="sg" id="gasStats"></div></div>
       <div class="card">
-        <h3>รับเข้าถังแก๊ส (ออกเลขถังให้อัตโนมัติ)</h3>
-        <p class="sumline">สั่งเข้าทีละ 10 ถังตามปกติ แก้จำนวนได้ถ้าไม่ครบ</p>
-        <label>จำนวนถังที่รับเข้า</label><input id="gasQty" type="number" inputmode="numeric" value="10">
+        <h3>รับถังใหม่ / แลกถังเปล่า (ออกเลขถังให้อัตโนมัติ)</h3>
+        <p class="sumline">เอาถังเปล่าไปแลกถังใหม่ — ใส่จำนวนถังใหม่ที่ได้มา ระบบจะตัดถังเปล่าเก่าสุดออกเท่ากัน</p>
+        <label>จำนวนถังใหม่ที่ได้มา</label><input id="gasQty" type="number" inputmode="numeric" value="10">
+        <label style="display:flex;gap:8px;align-items:center;font-weight:normal;"><input id="gasSwapOut" type="checkbox" checked style="width:auto;"> เอาถังเปล่าไปแลก (ตัดถังเปล่าออกเท่าจำนวนที่รับ)</label>
+        <div class="sumline" id="gasSwapInfo" style="margin:2px 0 6px;"></div>
         <label>วันที่รับเข้า</label><input id="gasDate" type="date">
         <label>หมายเหตุ</label><input id="gasNote">
         <button class="btn w" id="btnGasReceive">บันทึกรับเข้าถังแก๊ส</button>
@@ -1754,14 +1756,14 @@ window.WPDAUTH = {
     },
     // ---------- ถังแก๊ส: นับเป็นชิ้นเรียงเลข เหมือนม้วนผ้า ----------
     nextGasNo(gasReceipts){ return (gasReceipts||[]).reduce((m,g)=>Math.max(m,g.gasNo||0),0) + 1; },
-    /* state: using = ต่ออยู่ที่เครื่อง (ทีละ GAS_SLOTS ถัง) · empty = ถังเปล่า · full = ยังไม่ใช้ · used = ไม่ใช่ full */
+    /* state: using = ต่ออยู่ที่เครื่อง (ทีละ GAS_SLOTS ถัง) · empty = ถังเปล่า · full = ยังไม่ใช้ · out = เอาไปแลกแล้ว (ไม่อยู่ในโรงงาน) · used = ไม่ใช่ full */
     gasStatus(gasReceipts, gasSwaps){
       const GAS_SLOTS=2, usedNos=new Set(), inUse=[];
       (gasSwaps||[]).slice().sort((a,b)=>String(a.time||'').localeCompare(String(b.time||''))).forEach(s=>(s.gasNos||[]).forEach(n=>{
         usedNos.add(n); if(!inUse.includes(n)){ inUse.push(n); while(inUse.length>GAS_SLOTS) inUse.shift(); } }));
       const using=new Set(inUse);
-      return (gasReceipts||[]).map(g=>{ const st=using.has(g.gasNo)?'using':usedNos.has(g.gasNo)?'empty':'full';
-        return { gasNo:g.gasNo, time:g.time, used:st!=='full', state:st }; });
+      return (gasReceipts||[]).map(g=>{ const st=using.has(g.gasNo)?'using':g.outAt?'out':usedNos.has(g.gasNo)?'empty':'full';
+        return { gasNo:g.gasNo, time:g.time, outAt:g.outAt||null, used:st!=='full', state:st }; });
     },
     availableGas(gasReceipts, gasSwaps){
       return CALC.gasStatus(gasReceipts,gasSwaps).filter(g=>!g.used).sort((a,b)=>a.gasNo-b.gasNo);
@@ -4424,17 +4426,27 @@ window.WPDAUTH = {
   function rGas(){
     if(!$('gasDate').value) $('gasDate').value=todayStr();
     const status=CALC.gasStatus(S.gasReceipts,PROD.gasSwaps);
-    const available=status.filter(g=>g.state==='full'), using=status.filter(g=>g.state==='using'), empty=status.filter(g=>g.state==='empty');
+    const available=status.filter(g=>g.state==='full'), using=status.filter(g=>g.state==='using'), empty=status.filter(g=>g.state==='empty').sort((a,b)=>a.gasNo-b.gasNo);
+    const onHand=status.filter(g=>g.state!=='out');
+    /* ค่าตั้งต้น: รับใหม่เท่าถังเปล่าที่มี (เอาไปแลกหมด) — ยกเว้นผู้ใช้กำลังพิมพ์อยู่ */
+    if(document.activeElement!==$('gasQty') && empty.length) $('gasQty').value=String(empty.length);
+    const swapInfo=()=>{ const n=Math.min(+$('gasQty').value||0, empty.length);
+      $('gasSwapInfo').innerHTML=$('gasSwapOut').checked
+        ? (n?'ถังเปล่าที่จะเอาไปแลก '+n+' ถัง: '+empty.slice(0,n).map(g=>'#'+g.gasNo).join(', '):'ไม่มีถังเปล่าให้แลก')
+        : 'รับเพิ่มเฉยๆ ไม่ตัดถังเปล่า'; };
+    $('gasQty').oninput=swapInfo; $('gasSwapOut').onchange=swapInfo; swapInfo();
     $('gasStats').innerHTML=
       '<div class="stat"><div class="v">'+using.length+'</div><div class="l">🔥 กำลังใช้'+(using.length?' ('+using.map(g=>'#'+g.gasNo).join(', ')+')':'')+'</div></div>'+
       '<div class="stat"><div class="v">'+available.length+'</div><div class="l">🟢 ถังยังไม่ใช้'+(available.length?' ('+available.slice(0,4).map(g=>'#'+g.gasNo).join(', ')+(available.length>4?' …':'')+')':'')+'</div></div>'+
       '<div class="stat"><div class="v">'+empty.length+'</div><div class="l">⚪ ถังเปล่า</div></div>'+
-      '<div class="stat"><div class="v">'+status.length+'</div><div class="l">ถังทั้งหมดที่เคยรับเข้า</div></div>';
+      '<div class="stat"><div class="v">'+onHand.length+'</div><div class="l">ถังที่มีในโรงงาน</div></div>';
 
+    const outN=status.length-onHand.length;
     $('tGasStatus').innerHTML=status.length?'<tr><th>ถัง #</th><th>วันที่รับเข้า</th><th>สถานะ</th><th></th></tr>'+
-      status.slice().reverse().map(g=>'<tr><td>#'+g.gasNo+'</td><td>'+ymd(g.time)+'</td><td>'+
+      onHand.slice().reverse().map(g=>'<tr><td>#'+g.gasNo+'</td><td>'+ymd(g.time)+'</td><td>'+
         (g.state==='using'?'<span class="bdg warn">🔥 กำลังใช้</span>':g.state==='empty'?'<span class="bdg" style="opacity:.7">⚪ ถังเปล่า</span>':'<span class="bdg ok">🟢 ยังไม่ใช้</span>')+
-        '</td><td>'+(!g.used?'<button class="x" data-gasrm="'+g.gasNo+'">✕</button>':'')+'</td></tr>').join('')
+        '</td><td>'+(!g.used?'<button class="x" data-gasrm="'+g.gasNo+'">✕</button>':'')+'</td></tr>').join('')+
+      (outN?'<tr><td colspan="4" class="sumline">↩ เอาไปแลกแล้ว '+outN+' ถัง (ไม่อยู่ในโรงงาน)</td></tr>':'')
       :'<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>';
     $('tGasStatus').querySelectorAll('[data-gasrm]').forEach(b=>b.onclick=async()=>{
       if(!await ask('ลบถัง #'+b.dataset.gasrm+' ออกจากสต๊อก?')) return;
@@ -4452,9 +4464,12 @@ window.WPDAUTH = {
     if(!qty){ toast('กรอกจำนวนถัง'); return; }
     const dateVal=$('gasDate').value?$('gasDate').value+'T'+localISO().slice(11):localISO();
     let start=CALC.nextGasNo(S.gasReceipts);
+    /* แลกถัง: ถังเปล่าเก่าสุด qty ถังออกจากโรงงาน (outAt) */
+    const outNos=$('gasSwapOut').checked ? CALC.gasStatus(S.gasReceipts,PROD.gasSwaps).filter(g=>g.state==='empty').sort((a,b)=>a.gasNo-b.gasNo).slice(0,qty).map(g=>g.gasNo) : [];
+    S.gasReceipts.forEach(g=>{ if(outNos.includes(g.gasNo)) g.outAt=dateVal; });
     for(let i=0;i<qty;i++) S.gasReceipts.push({ id:uid(), time:dateVal, gasNo:start+i, note:$('gasNote').value.trim() });
-    await saveGas(); $('gasQty').value='10'; $('gasNote').value='';
-    rGas(); toast('บันทึกรับเข้าถังแก๊ส '+qty+' ถัง — เริ่มที่ #'+start);
+    await saveGas(); $('gasNote').value='';
+    rGas(); toast((outNos.length?'แลกถังเปล่า '+outNos.length+' ถัง → ':'')+'รับถังใหม่ '+qty+' ถัง #'+start+'–'+(start+qty-1));
   };
 
   /* ---------- 4. FINISHED GOODS ---------- */

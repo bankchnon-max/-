@@ -1748,14 +1748,14 @@ window.WPDAUTH = {
     },
 
     // ---------- ถังแก๊ส ----------
-    /* state: using = ต่ออยู่ที่เครื่อง (ทีละ GAS_SLOTS ถัง) · empty = ถังเปล่า · full = ยังไม่ใช้ · used = ไม่ใช่ full */
+    /* state: using = ต่ออยู่ที่เครื่อง (ทีละ GAS_SLOTS ถัง) · empty = ถังเปล่า · full = ยังไม่ใช้ · out = เอาไปแลกแล้ว (ไม่อยู่ในโรงงาน) · used = ไม่ใช่ full */
     gasStatus(gasReceipts, gasSwaps){
       const GAS_SLOTS=2, usedNos=new Set(), inUse=[];
       (gasSwaps||[]).slice().sort((a,b)=>String(a.time||'').localeCompare(String(b.time||''))).forEach(s=>(s.gasNos||[]).forEach(n=>{
         usedNos.add(n); if(!inUse.includes(n)){ inUse.push(n); while(inUse.length>GAS_SLOTS) inUse.shift(); } }));
       const using=new Set(inUse);
-      return (gasReceipts||[]).map(g=>{ const st=using.has(g.gasNo)?'using':usedNos.has(g.gasNo)?'empty':'full';
-        return { gasNo:g.gasNo, time:g.time, used:st!=='full', state:st }; });
+      return (gasReceipts||[]).map(g=>{ const st=using.has(g.gasNo)?'using':g.outAt?'out':usedNos.has(g.gasNo)?'empty':'full';
+        return { gasNo:g.gasNo, time:g.time, outAt:g.outAt||null, used:st!=='full', state:st }; });
     },
     availableGas(gasReceipts, gasSwaps){
       return CALC.gasStatus(gasReceipts,gasSwaps).filter(g=>!g.used).sort((a,b)=>a.gasNo-b.gasNo);
@@ -3045,7 +3045,7 @@ window.WPDAUTH = {
     $('tGasSwap').querySelectorAll('[data-gsrm]').forEach(b=>b.onclick=async()=>{
       if(!await ask('ลบรายการเปลี่ยนถังนี้?','ถังที่ใช้ไปจะกลับมาเป็น "พร้อมใช้" ให้เลือกใหม่ได้')) return;
       S.gasSwaps=S.gasSwaps.filter(x=>x.id!==b.dataset.gsrm); await saveFeed();
-      STOCKGAS=CALC.gasStatus(STOCKGAS.map(g=>({gasNo:g.gasNo,time:g.time})),S.gasSwaps);
+      STOCKGAS=CALC.gasStatus(STOCKGAS.map(g=>({gasNo:g.gasNo,time:g.time,outAt:g.outAt})),S.gasSwaps);
       refreshGasUI(); toast('ลบแล้ว');
     });
   }

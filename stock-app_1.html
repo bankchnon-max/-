@@ -872,6 +872,7 @@
         <button class="btn w" id="btnGasReceive">บันทึกรับเข้าถังแก๊ส</button>
       </div>
       <div class="sumline" style="margin:6px 0 0;">การเปลี่ยนถังใช้งาน ทำที่แอพผลิต (หน้าป้อนใย → เปลี่ยนถังแก๊ส) — ไม่ผูกกับออเดอร์ใดออเดอร์หนึ่ง เพราะแก๊สใช้ต่อเนื่องทั้งไลน์</div>
+      <div class="card"><h3>ยอดใช้แก๊สต่อเดือน (รอบวันที่ 5 – 4 เดือนถัดไป)</h3><div class="scr"><table id="tGasMonth"></table></div></div>
       <div class="card"><h3>สถานะถังแก๊สทั้งหมด</h3><div class="scr"><table id="tGasStatus"></table></div></div>
       <div class="card"><h3>ประวัติเปลี่ยนถัง (จากแอพผลิต)</h3><div class="scr"><table id="tGasSwapHist"></table></div></div>
     </div>
@@ -4453,6 +4454,20 @@ window.WPDAUTH = {
       S.gasReceipts=S.gasReceipts.filter(x=>String(x.gasNo)!==b.dataset.gasrm);
       await saveGas(); rGas(); toast('ลบแล้ว');
     });
+
+    /* ยอดใช้ต่อรอบเดือน (5 → 4 เดือนถัดไป): ใช้ไป = ถังที่ต่อเข้าเครื่องครั้งแรกในรอบ (ไม่นับซ้ำ) · แลกเข้า = ถังใหม่ที่รับเข้าในรอบ */
+    const GAS_CUT=5, TH_M=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    const gasPer=t=>{ const s=String(t||''); let y=+s.slice(0,4), m=+s.slice(5,7); if(!y||!m) return null; if(+s.slice(8,10)<GAS_CUT){ m--; if(!m){ m=12; y--; } } return y+'-'+String(m).padStart(2,'0'); };
+    const gasPerLabel=k=>{ const y=+k.slice(0,4), m=+k.slice(5,7), m2=m%12+1, y2=m===12?y+1:y;
+      return GAS_CUT+' '+TH_M[m-1]+(y2!==y?' '+String(y+543).slice(2):'')+' – '+(GAS_CUT-1)+' '+TH_M[m2-1]+' '+String(y2+543).slice(2); };
+    const perUse={}, perIn={}, seenNo=new Set();
+    PROD.gasSwaps.slice().sort((a,b)=>String(a.time||'').localeCompare(String(b.time||''))).forEach(s=>(s.gasNos||[]).forEach(n=>{
+      if(seenNo.has(n)) return; seenNo.add(n); const k=gasPer(s.time); if(k) perUse[k]=(perUse[k]||0)+1; }));
+    S.gasReceipts.forEach(g=>{ const k=gasPer(g.time); if(k) perIn[k]=(perIn[k]||0)+1; });
+    const perKeys=[...new Set([...Object.keys(perUse),...Object.keys(perIn)])].sort().reverse(), curPer=gasPer(localISO());
+    $('tGasMonth').innerHTML=perKeys.length?'<tr><th>รอบเดือน</th><th>ใช้ไป (ถัง)</th><th>แลก/รับเข้า (ถัง)</th></tr>'+
+      perKeys.map(k=>'<tr><td>'+gasPerLabel(k)+(k===curPer?' <span class="bdg warn">รอบนี้</span>':'')+'</td><td><b>'+(perUse[k]||0)+'</b></td><td>'+(perIn[k]||0)+'</td></tr>').join('')
+      :'<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>';
 
     const swapHist=PROD.gasSwaps.slice().reverse().slice(0,50);
     $('tGasSwapHist').innerHTML=swapHist.length?'<tr><th>เวลาที่เปลี่ยน</th><th>ถังที่ใช้</th></tr>'+

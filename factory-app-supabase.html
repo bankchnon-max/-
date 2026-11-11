@@ -1748,10 +1748,14 @@ window.WPDAUTH = {
     },
 
     // ---------- ถังแก๊ส ----------
+    /* state: using = ต่ออยู่ที่เครื่อง (ทีละ GAS_SLOTS ถัง) · empty = ถังเปล่า · full = ยังไม่ใช้ · used = ไม่ใช่ full */
     gasStatus(gasReceipts, gasSwaps){
-      const usedNos=new Set();
-      (gasSwaps||[]).forEach(s=>(s.gasNos||[]).forEach(n=>usedNos.add(n)));
-      return (gasReceipts||[]).map(g=>({ gasNo:g.gasNo, time:g.time, used:usedNos.has(g.gasNo) }));
+      const GAS_SLOTS=2, usedNos=new Set(), inUse=[];
+      (gasSwaps||[]).slice().sort((a,b)=>String(a.time||'').localeCompare(String(b.time||''))).forEach(s=>(s.gasNos||[]).forEach(n=>{
+        usedNos.add(n); if(!inUse.includes(n)){ inUse.push(n); while(inUse.length>GAS_SLOTS) inUse.shift(); } }));
+      const using=new Set(inUse);
+      return (gasReceipts||[]).map(g=>{ const st=using.has(g.gasNo)?'using':usedNos.has(g.gasNo)?'empty':'full';
+        return { gasNo:g.gasNo, time:g.time, used:st!=='full', state:st }; });
     },
     availableGas(gasReceipts, gasSwaps){
       return CALC.gasStatus(gasReceipts,gasSwaps).filter(g=>!g.used).sort((a,b)=>a.gasNo-b.gasNo);
@@ -2375,7 +2379,7 @@ window.WPDAUTH = {
     const cur=orderById(S.activeId), q=queueList();
     const row=(o,i)=>'<div class="qrow"><span class="qn">'+(i+1)+'</span><div class="qtx"><b>'+esc(o.customer)+'</b> — '+esc(o.code)+' <span style="color:var(--dim)">· '+(o.orderedPacks||0)+' แพ็ค</span>'+(o.id===S.activeFeedId?' <span class="bdg ok">🌀 ป้อนใยล่วงหน้าแล้ว</span>':'')+'</div><div class="qbtns">'+
       '<button class="btn sec sm" data-qup="'+o.id+'"'+(i?'':' disabled')+' title="เลื่อนขึ้น">▲</button><button class="btn sec sm" data-qdn="'+o.id+'"'+(i<q.length-1?'':' disabled')+' title="เลื่อนลง">▼</button>'+
-      '<button class="btn sm" data-qgo="'+o.id+'">เริ่มเลย</button><button class="btn sec sm" data-qout="'+o.id+'" title="เอาออกจากคิว">✕</button></div></div>';
+      '<button class="btn sm" data-qgo="'+o.id+'">เริ่มเลย</button><button class="btn sec sm" data-qout="'+o.id+'" title="เอาออกจากคิว (ออเดอร์ยังอยู่)">ออกคิว</button><button class="btn sec sm" data-qdel="'+o.id+'" title="ลบออเดอร์นี้ทิ้ง" style="color:var(--w-red,#cf3e45);">🗑</button></div></div>';
     el.innerHTML='<div class="sumline" style="margin:0 0 6px;">'+(cur&&cur.status!=='done'?'กำลังทำที่ท้ายไลน์: <b style="color:var(--accent2)">'+esc(cur.customer)+' — '+esc(cur.code)+'</b>':'ตอนนี้ท้ายไลน์ยังไม่มีงาน')+'</div>'+
       (q.length?q.map(row).join('')+'<div class="sumline" style="margin-top:6px;">กด 🏁 จบงานแล้ว แอปจะเริ่ม <b>'+esc(q[0].customer)+'</b> ให้เลย</div>'
         :'<div class="empty">ยังไม่มีออเดอร์ในคิว — ออเดอร์ที่เพิ่มใหม่จะต่อคิวให้เอง หรือกด "+ เข้าคิว" ที่ออเดอร์ด้านล่าง</div>')+
@@ -2388,6 +2392,17 @@ window.WPDAUTH = {
     el.querySelectorAll('[data-qup]').forEach(b=>b.onclick=()=>mv(b.dataset.qup,-1));
     el.querySelectorAll('[data-qdn]').forEach(b=>b.onclick=()=>mv(b.dataset.qdn,1));
     el.querySelectorAll('[data-qout]').forEach(b=>b.onclick=async()=>{ const o=orderById(b.dataset.qout); if(!o) return; o.queue=null; queueRenum(); await saveOrders(); rOrders(); toast('เอาออกจากคิวแล้ว'); });
+    /* ลบออเดอร์ทิ้งจากคิว — ถ้ามีรายการบันทึกแล้ว เตือนก่อน (รายการยังอยู่แต่ไม่แสดงชื่อ) */
+    el.querySelectorAll('[data-qdel]').forEach(b=>b.onclick=async()=>{
+      const o=orderById(b.dataset.qdel); if(!o) return;
+      const has=['line','feed','use','wd','fabricWd','caseUse','bagUse','bagWd'].some(k=>(S[k]||[]).some(r=>r && r.orderId===o.id));
+      if(!await ask('ลบออเดอร์ '+o.customer+'?', o.code+' · '+(o.orderedPacks||0)+' แพ็ค'+(has?'\n⚠ ออเดอร์นี้มีรายการบันทึกแล้ว — รายการยังอยู่แต่จะไม่แสดงชื่อออเดอร์':'\nยังไม่มีรายการบันทึก ลบได้เลย'), { yes:'ลบออเดอร์', tone:'danger' })) return;
+      S.orders=S.orders.filter(x=>x.id!==o.id);
+      if(S.activeId===o.id) S.activeId=null;
+      if(S.activeFeedId===o.id) S.activeFeedId=null;
+      if(S.activePicnicId===o.id) S.activePicnicId=null;
+      queueRenum(); await saveOrders(); rTop(); rOrders(); toast('ลบออเดอร์แล้ว');
+    });
     el.querySelectorAll('[data-qgo]').forEach(b=>b.onclick=async()=>{
       const o=orderById(b.dataset.qgo); if(!o) return;
       const was=orderById(S.activeId);
@@ -3017,11 +3032,12 @@ window.WPDAUTH = {
   };
 
   function refreshGasUI(){
-    const availList=STOCKGAS.filter(g=>!g.used).sort((a,b)=>a.gasNo-b.gasNo);
-    $('gasAvailInfo').innerHTML = availList.length
-      ? 'ถังพร้อมใช้เหลือ <b style="color:var(--accent2)">'+availList.length+' ถัง</b> — ถังถัดไปที่จะหยิบ: '+
+    const availList=STOCKGAS.filter(g=>g.state?g.state==='full':!g.used).sort((a,b)=>a.gasNo-b.gasNo);
+    const usingList=STOCKGAS.filter(g=>g.state==='using').sort((a,b)=>a.gasNo-b.gasNo), emptyN=STOCKGAS.filter(g=>g.state==='empty').length;
+    $('gasAvailInfo').innerHTML = '🔥 กำลังใช้ <b>'+(usingList.length?usingList.map(g=>'#'+g.gasNo).join(', '):'—')+'</b> · ⚪ ถังเปล่า '+emptyN+' ถัง<br>'+(availList.length
+      ? '🟢 ถังยังไม่ใช้ <b style="color:var(--accent2)">'+availList.length+' ถัง</b> — ถังถัดไปที่จะหยิบ: '+
         availList.slice(0,2).map(g=>'#'+g.gasNo).join(', ')
-      : '<span class="bdg bad">ไม่มีถังพร้อมใช้เลย — ไปรับเข้าถังแก๊สที่แอพสต๊อกก่อน</span>';
+      : '<span class="bdg bad">ไม่มีถังยังไม่ใช้เลย — ไปรับเข้าถังแก๊สที่แอพสต๊อกก่อน</span>');
     const hist=S.gasSwaps.slice().reverse().slice(0,30);
     $('tGasSwap').innerHTML=hist.length?'<tr><th>เวลาที่เปลี่ยน</th><th>ถังที่ใช้</th><th></th></tr>'+
       hist.map(s=>'<tr><td>'+(s.time||'').slice(0,16).replace('T',' ')+'</td><td>'+(s.gasNos||[]).map(n=>'#'+n).join(', ')+'</td><td><button class="x" data-gsrm="'+s.id+'">✕</button></td></tr>').join('')

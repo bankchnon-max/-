@@ -1754,10 +1754,14 @@ window.WPDAUTH = {
     },
     // ---------- ถังแก๊ส: นับเป็นชิ้นเรียงเลข เหมือนม้วนผ้า ----------
     nextGasNo(gasReceipts){ return (gasReceipts||[]).reduce((m,g)=>Math.max(m,g.gasNo||0),0) + 1; },
+    /* state: using = ต่ออยู่ที่เครื่อง (ทีละ GAS_SLOTS ถัง) · empty = ถังเปล่า · full = ยังไม่ใช้ · used = ไม่ใช่ full */
     gasStatus(gasReceipts, gasSwaps){
-      const usedNos=new Set();
-      (gasSwaps||[]).forEach(s=>(s.gasNos||[]).forEach(n=>usedNos.add(n)));
-      return (gasReceipts||[]).map(g=>({ gasNo:g.gasNo, time:g.time, used:usedNos.has(g.gasNo) }));
+      const GAS_SLOTS=2, usedNos=new Set(), inUse=[];
+      (gasSwaps||[]).slice().sort((a,b)=>String(a.time||'').localeCompare(String(b.time||''))).forEach(s=>(s.gasNos||[]).forEach(n=>{
+        usedNos.add(n); if(!inUse.includes(n)){ inUse.push(n); while(inUse.length>GAS_SLOTS) inUse.shift(); } }));
+      const using=new Set(inUse);
+      return (gasReceipts||[]).map(g=>{ const st=using.has(g.gasNo)?'using':usedNos.has(g.gasNo)?'empty':'full';
+        return { gasNo:g.gasNo, time:g.time, used:st!=='full', state:st }; });
     },
     availableGas(gasReceipts, gasSwaps){
       return CALC.gasStatus(gasReceipts,gasSwaps).filter(g=>!g.used).sort((a,b)=>a.gasNo-b.gasNo);
@@ -4420,14 +4424,16 @@ window.WPDAUTH = {
   function rGas(){
     if(!$('gasDate').value) $('gasDate').value=todayStr();
     const status=CALC.gasStatus(S.gasReceipts,PROD.gasSwaps);
-    const available=status.filter(g=>!g.used);
+    const available=status.filter(g=>g.state==='full'), using=status.filter(g=>g.state==='using'), empty=status.filter(g=>g.state==='empty');
     $('gasStats').innerHTML=
-      '<div class="stat"><div class="v">'+available.length+'</div><div class="l">ถังคงเหลือ (ยังไม่ใช้)</div></div>'+
+      '<div class="stat"><div class="v">'+using.length+'</div><div class="l">🔥 กำลังใช้'+(using.length?' ('+using.map(g=>'#'+g.gasNo).join(', ')+')':'')+'</div></div>'+
+      '<div class="stat"><div class="v">'+available.length+'</div><div class="l">🟢 ถังยังไม่ใช้'+(available.length?' ('+available.slice(0,4).map(g=>'#'+g.gasNo).join(', ')+(available.length>4?' …':'')+')':'')+'</div></div>'+
+      '<div class="stat"><div class="v">'+empty.length+'</div><div class="l">⚪ ถังเปล่า</div></div>'+
       '<div class="stat"><div class="v">'+status.length+'</div><div class="l">ถังทั้งหมดที่เคยรับเข้า</div></div>';
 
     $('tGasStatus').innerHTML=status.length?'<tr><th>ถัง #</th><th>วันที่รับเข้า</th><th>สถานะ</th><th></th></tr>'+
       status.slice().reverse().map(g=>'<tr><td>#'+g.gasNo+'</td><td>'+ymd(g.time)+'</td><td>'+
-        (g.used?'<span class="bdg warn">ใช้แล้ว</span>':'<span class="bdg ok">พร้อมใช้</span>')+
+        (g.state==='using'?'<span class="bdg warn">🔥 กำลังใช้</span>':g.state==='empty'?'<span class="bdg" style="opacity:.7">⚪ ถังเปล่า</span>':'<span class="bdg ok">🟢 ยังไม่ใช้</span>')+
         '</td><td>'+(!g.used?'<button class="x" data-gasrm="'+g.gasNo+'">✕</button>':'')+'</td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>';
     $('tGasStatus').querySelectorAll('[data-gasrm]').forEach(b=>b.onclick=async()=>{

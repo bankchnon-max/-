@@ -590,7 +590,7 @@
             <option value="ปิกนิก">ปิกนิก (แพ็คใยแผ่นที่ผลิตไว้)</option>
             <option value="อื่นๆ">อื่นๆ</option>
           </select>
-          <div id="nSideRow" style="display:none;"><label>ทำที่ฝั่ง (ใยปั่น)</label><select id="nSide"><option value="sheet">🧵 ฝั่งใยแผ่น</option><option value="pillow">🛏️ ฝั่งหมอน</option></select></div>
+          <div id="nSideRow" style="display:none;"><label>ทำที่โรง</label><select id="nSide"><option value="sheet">🧵 โรง 1 — ฝั่งใยแผ่น</option><option value="pillow">🛏️ โรง 2 — ฝั่งหมอน</option></select></div>
           <div id="nPicRow" style="display:none;"><label>ไซซ์ปิกนิก</label><select id="nPicSize"><option value="3F">3F (36x75)</option><option value="3.5F">3.5F (42x75)</option><option value="5F">5F (59x75)</option><option value="6F">6F (72x78)</option><option value="">อื่นๆ / ไม่ระบุ</option></select></div></div>
           <div><label>จำนวนที่ลูกค้าสั่ง (แพ็ค)</label><input id="nPacks" type="number" inputmode="numeric" placeholder="500"></div>
         </div>
@@ -610,8 +610,8 @@
       <div class="card">
         <h3>กำลังป้อนใยให้ออเดอร์</h3>
         <div class="acts" id="feedSideRow" style="margin:0 0 6px; gap:8px; flex-wrap:wrap;">
-          <button type="button" class="btn sm" data-feedside="pillow">🛏️ ฝั่งหมอน</button>
-          <button type="button" class="btn sec sm" data-feedside="sheet">🧵 ฝั่งใยแผ่น</button>
+          <button type="button" class="btn sm" data-feedside="pillow">🛏️ โรง 2 · หมอน</button>
+          <button type="button" class="btn sec sm" data-feedside="sheet">🧵 โรง 1 · ใยแผ่น</button>
         </div>
         <select id="feedOrderSel"></select>
         <div class="sumline" id="feedOrderNote" style="margin-top:6px;"></div>
@@ -682,8 +682,8 @@
       <div class="card">
         <h3>ตั้งค่า / ปรับสูตร</h3>
         <div class="acts" id="recSideRow" style="margin:0 0 6px; gap:8px; flex-wrap:wrap;">
-          <button type="button" class="btn sm" data-recside="pillow">🛏️ ฝั่งหมอน</button>
-          <button type="button" class="btn sec sm" data-recside="sheet">🧵 ฝั่งใยแผ่น</button>
+          <button type="button" class="btn sm" data-recside="pillow">🛏️ โรง 2 · หมอน</button>
+          <button type="button" class="btn sec sm" data-recside="sheet">🧵 โรง 1 · ใยแผ่น</button>
           <label style="display:flex;align-items:center;gap:6px;margin:0;font-size:13px;"><input type="checkbox" id="recShowDone" style="width:auto;margin:0;"> แสดงงานที่จบแล้ว</label>
         </div>
         <label>เลือกออเดอร์</label>
@@ -1127,7 +1127,7 @@
       <label>ชื่อลูกค้า</label><input id="edCust">
       <label>รหัส/สเปคงาน</label><input id="edCode">
       <label>ประเภทสินค้า</label><select id="edCat"></select>
-      <div id="edSideRow" style="display:none;"><label>ทำที่ฝั่ง (ใยปั่น)</label><select id="edSide"><option value="sheet">🧵 ฝั่งใยแผ่น</option><option value="pillow">🛏️ ฝั่งหมอน</option></select></div>
+      <div id="edSideRow" style="display:none;"><label>ทำที่โรง</label><select id="edSide"><option value="sheet">🧵 โรง 1 — ฝั่งใยแผ่น</option><option value="pillow">🛏️ โรง 2 — ฝั่งหมอน</option></select></div>
       <div id="edPicRow" style="display:none;"><label>ไซซ์ปิกนิก</label><select id="edPicSize"><option value="3F">3F (36x75)</option><option value="3.5F">3.5F (42x75)</option><option value="5F">5F (59x75)</option><option value="6F">6F (72x78)</option><option value="">อื่นๆ / ไม่ระบุ</option></select></div>
       <div id="edCatNote" style="font-size:11.5px;color:var(--dim);margin-top:3px;"></div>
       <label>จำนวนที่สั่ง (แพ็ค)</label><input id="edPacks" type="number" inputmode="numeric">
@@ -2421,7 +2421,7 @@ window.WPDAUTH = {
       return '<div class="ocard '+(on?'sel':'')+' '+(done?'fin':'')+'">'+
         '<span class="st '+(done?'done':on?'active':'pending')+'">'+(done?'เสร็จแล้ว':on?'กำลังทำ':(queuePos(o)?'คิวที่ '+queuePos(o):isPicnic(o)?'รอคิว':'ยังไม่เข้าคิว'))+'</span>'+
         '<div class="cust" data-sel="'+o.id+'">'+esc(o.customer)+'</div>'+
-        '<div class="code" data-sel="'+o.id+'">'+esc(o.code)+' <span class="bdg ok">'+esc(catLabel(o))+'</span></div>'+
+        '<div class="code" data-sel="'+o.id+'">'+esc(o.code)+' <span class="bdg ok">'+esc(catLabel(o))+'</span>'+(isPicnic(o)?'':' <span class="bdg">'+(fiberSide(o)==='pillow'?'🛏️ โรง 2':'🧵 โรง 1')+'</span>')+'</div>'+
         '<div class="meta">สั่ง '+(o.orderedPacks||0)+' แพ็ค · ผลิตแล้ว '+packs+' แพ็ค'+
           (o.orderedPacks?' ('+Math.round(packs/o.orderedPacks*100)+'%)':'')+'<br>'+
           'Standard '+(stdP?stdP+' กก./แพ็ค':'ยังไม่ตั้งค่า')+'<br>'+
@@ -2558,7 +2558,7 @@ window.WPDAUTH = {
       due:$('nDue').value?$('nDue').value+':00':null,
       status:'pending', startedAt:null, finishedAt:null, createdAt:localISO() });
     { const _n=S.orders[S.orders.length-1]; if(!isPicnic(_n)){ _n.queue=queueTail(); queueRenum(); }
-      if(isSpin(_n) && $('nSide')){ _n.side=$('nSide').value; rememberSpinSide(_n.code,_n.side); saveSet(); } }
+      if(!isPicnic(_n) && $('nSide')) _n.side=$('nSide').value; }
     await saveOrders();
     $('nCust').value=''; $('nCode').value=''; $('nPacks').value=''; $('nDue').value=''; $('nMatch').innerHTML='';
     rOrders();
@@ -2610,6 +2610,7 @@ window.WPDAUTH = {
   $('edCancel').onclick=()=>closeOv('ovEdit');
   $('edCat').addEventListener('change',()=>syncPicRow('edCat','edPicRow'));
   $('nType').addEventListener('change',()=>{ syncPicRow('nType','nPicRow'); syncSideRow('nType','nSideRow','nSide',$('nCode').value); });
+  syncSideRow('nType','nSideRow','nSide',$('nCode').value);
   $('nCode').addEventListener('change',()=>syncSideRow('nType','nSideRow','nSide',$('nCode').value));
   $('edCat').addEventListener('change',()=>syncSideRow('edCat','edSideRow','edSide',$('edCode').value));
   $('edSave').onclick=async()=>{
@@ -2617,7 +2618,7 @@ window.WPDAUTH = {
     o.customer=$('edCust').value.trim()||o.customer;
     o.code=$('edCode').value.trim()||o.code;
     if($('edCat').value){ o.category=$('edCat').value; o.productType=catBase(o.category); o.picnicSize=o.category==='ปิกนิก'?($('edPicSize').value||null):null; }
-    if(isSpin(o) && $('edSide') && $('edSide').value!==fiberSide(o)){ o.side=$('edSide').value; rememberSpinSide(o.code,o.side); saveSet(); }
+    if(!isPicnic(o) && $('edSide') && $('edSide').value!==fiberSide(o)) o.side=$('edSide').value;
     o.orderedPacks=+$('edPacks').value||0;
     o.due=$('edDue').value?$('edDue').value+':00':null;
     await saveOrders(); closeOv('ovEdit'); rTop(); rOrders(); toast('บันทึกแล้ว');
@@ -2644,7 +2645,7 @@ window.WPDAUTH = {
       const _same=x=>openOrders.filter(y=>y.code===x.code && y.customer===x.customer).length>1;
       /* แยกฝั่งหมอน / ฝั่งใยแผ่น — ขึ้นเฉพาะออเดอร์ของฝั่งที่เลือก (เริ่มที่ฝั่งของงานที่กำลังป้อนอยู่) */
       const wantId = S.activeFeedId||S.activeId;
-      if(!feedSideSel) feedSideSel=fiberSide(orderById(wantId));
+      if(!feedSideSel || wantId!==lastFeedWant){ feedSideSel=fiberSide(orderById(wantId)); lastFeedWant=wantId; }
       document.querySelectorAll('#feedSideRow [data-feedside]').forEach(b=>b.classList.toggle('sec', b.dataset.feedside!==feedSideSel));
       const _sideList=openOrders.filter(x=>!isPicnic(x) && fiberSide(x)===feedSideSel)
         .sort((a,b)=>(b.id===wantId)-(a.id===wantId) || (b.status==='active')-(a.status==='active') || ((a.queue!=null?+a.queue:1e9)-(b.queue!=null?+b.queue:1e9)) || String(b.startedAt||b.createdAt||'').localeCompare(String(a.startedAt||a.createdAt||'')));
@@ -2920,10 +2921,10 @@ window.WPDAUTH = {
   }
 
   /* ปรับสูตร: แยกฝั่งหมอน / ฝั่งใยแผ่น · งานที่จบแล้วซ่อนไว้ (ติ๊กเพื่อดู) */
-  let recSide=null;
+  let recSide=null, lastRecWant=null;
   function fillRecSel(o){
     const sel=$('recSel'), keep=sel.value, kO=orderById(keep);
-    if(!recSide){ try{ recSide=localStorage.getItem('wpd_recside')||''; }catch(e){} recSide=recSide||(kO?fiberSide(kO):fiberSide(o)); }
+    { const _w=o?o.id:null; if(!recSide || _w!==lastRecWant){ recSide=fiberSide(o||kO); lastRecWant=_w; } }
     const showDone=$('recShowDone')&&$('recShowDone').checked;
     document.querySelectorAll('#recSideRow [data-recside]').forEach(b=>{ b.classList.toggle('sec', b.dataset.recside!==recSide); });
     const list=S.orders.filter(x=>!isPicnic(x) && fiberSide(x)===recSide && (showDone || x.status!=='done' || x.id===keep))
@@ -2934,7 +2935,7 @@ window.WPDAUTH = {
     sel.value=prefer||(list[0]||{}).id||'';
     loadRecipe();
   }
-  document.querySelectorAll('#recSideRow [data-recside]').forEach(b=>b.onclick=()=>{ recSide=b.dataset.recside; try{ localStorage.setItem('wpd_recside',recSide); }catch(e){} fillRecSel(activeFeed()); });
+  document.querySelectorAll('#recSideRow [data-recside]').forEach(b=>b.onclick=()=>{ recSide=b.dataset.recside; fillRecSel(activeFeed()); });
   if($('recShowDone')) $('recShowDone').onchange=()=>fillRecSel(activeFeed());
   function rFeedSummary(t){
     const out=[];
@@ -2955,21 +2956,9 @@ window.WPDAUTH = {
       : '<tr><td class="empty">ยังไม่มีข้อมูลวันนี้</td></tr>';
   }
 
-  var feedSideSel=null;   /* var: rFeed อาจถูกเรียกก่อนถึงบรรทัดนี้ */
-  document.querySelectorAll('#feedSideRow [data-feedside]').forEach(b=>b.onclick=async()=>{
-    const side=b.dataset.feedside, fo=activeFeed();
-    /* งานใยปั่น/ใยสางที่กำลังป้อน: กดฝั่ง = ถามว่างานนี้ทำฝั่งนี้ไหม → งานนี้ดึงใยจากก้อนที่เบิกไว้ฝั่งนั้น (ก้อนที่เบิกไว้ไม่ย้ายฝั่ง) */
-    if(fo && isSpin(fo) && fiberSide(fo)!==side){
-      if(await ask(fo.code+' ทำที่'+SIDE_TH[side]+'ใช่ไหม?',
-        'ป้อนใยงานนี้จะดึงจากก้อนที่เบิกไว้'+SIDE_TH[side]+'\nครั้งต่อไป "'+fo.code+'" จะเริ่มที่'+SIDE_TH[side]+'ให้เอง (ใยปั่นตัวอื่นไม่เปลี่ยน)',
-        { yes:'ใช่ ทำที่'+SIDE_TH[side], no:'ไม่ใช่ แค่ดูรายการ', tone:'ok' })){
-        fo.side=side; rememberSpinSide(fo.code, side);
-        await saveOrders(); await saveSet();
-        toast(fo.code+' → '+SIDE_TH[side]);
-      }
-    }
-    feedSideSel=side; rFeed(true);
-  });
+  var feedSideSel=null, lastFeedWant=null;   /* var: rFeed อาจถูกเรียกก่อนถึงบรรทัดนี้ */
+  /* ปุ่มโรง = ดูรายการออเดอร์ของโรงนั้น (ป้อนล่วงหน้าให้อีกโรงได้) · โรงของงานตั้งที่หน้าออเดอร์ */
+  document.querySelectorAll('#feedSideRow [data-feedside]').forEach(b=>b.onclick=()=>{ feedSideSel=b.dataset.feedside; rFeed(true); });
   if($('feedOrderSel')) $('feedOrderSel').onchange=async function(){
     if(!this.value){ rFeed(true); return; }
     const _pick=orderById(this.value), _lo=orderById(S.activeId);
@@ -4611,17 +4600,24 @@ window.WPDAUTH = {
     if(!o) return 'sheet';
     if(o.side==='pillow'||o.side==='sheet') return o.side;
     if((o.productType||'')==='หมอน') return 'pillow';
-    if(isSpin(o)) return spinSideFor(o.code);   /* ใยปั่น/ใยสาง: จำตามรหัสสินค้า (AA ฝั่งหมอน · อื่นๆ ฝั่งใยแผ่น) */
+    if(isSpin(o)) return lastSideFor(o.code, o.id) || spinSideFor(o.code);   /* ใยปั่นที่ยังไม่ตั้งโรง: ตามออเดอร์ล่าสุดรหัสเดียวกัน */
     return 'sheet';
   }
   function spinKey(code){ return String(code||'').replace(/\s+/g,'').toLowerCase(); }
-  function spinSideFor(code){ const m=(S.settings&&S.settings.spinSideByCode)||{}; return m[spinKey(code)]||'sheet'; }
-  function rememberSpinSide(code,side){ S.settings=S.settings||{}; S.settings.spinSideByCode=Object.assign({}, S.settings.spinSideByCode||{}); S.settings.spinSideByCode[spinKey(code)]=side; }
-  function syncSideRow(catSel,row,sel,code){ const e=$(row); if(!e) return; const on=/ปั่น|สาง/.test($(catSel).value||''); e.style.display=on?'':'none'; if(on && code!=null) $(sel).value=spinSideFor(code); }
+  function spinSideFor(code){ const m=(S.settings&&S.settings.spinSideByCode)||{}; return m[spinKey(code)]||'sheet'; }   /* ค่าที่เคยจำไว้ (อ่านอย่างเดียว) */
+  /* โรงของออเดอร์ล่าสุดที่รหัสเดียวกัน (ที่ตั้งโรงไว้แล้ว) */
+  function lastSideFor(code, exceptId){
+    const k=spinKey(code); if(!k) return null;
+    const L=S.orders.filter(x=>x.id!==exceptId && (x.side==='pillow'||x.side==='sheet') && spinKey(x.code)===k)
+      .sort((a,b)=>String(b.createdAt||b.startedAt||'').localeCompare(String(a.createdAt||a.startedAt||'')));
+    return L.length?L[0].side:null;
+  }
+  function defaultSideFor(cat,code){ const c=String(cat||''), last=lastSideFor(code); if(last) return last; if(/หมอน/.test(c)) return 'pillow'; if(/ปั่น|สาง/.test(c)) return spinSideFor(code); return 'sheet'; }
+  function syncSideRow(catSel,row,sel,code){ const e=$(row); if(!e) return; const cat=$(catSel).value||''; const on=!!cat && cat!=='ปิกนิก'; e.style.display=on?'':'none'; if(on && code!=null) $(sel).value=defaultSideFor(cat,code); }
   function legacySide(o){ return (o && (o.productType||'')==='หมอน') ? 'pillow' : 'sheet'; }
   function wdSide(w){ return w.side || legacySide(orderById(w.orderId)); }
   function feedSide(){ return fiberSide(activeFeed()); }
-  const SIDE_TH={ pillow:'ฝั่งหมอน', sheet:'ฝั่งใยแผ่น' };
+  const SIDE_TH={ pillow:'โรง 2 (ฝั่งหมอน)', sheet:'โรง 1 (ฝั่งใยแผ่น)' };
   /* ก้อนที่พักไว้ข้างไลน์ (hold) ไม่ถูกใช้ · เอากลับมาใช้ = ต่อท้ายคิว (requeueAt) · เฉพาะก้อนของฝั่งนั้น */
   function baleQueue(fiberName, side){
     side=side||feedSide();
@@ -4787,7 +4783,7 @@ window.WPDAUTH = {
   function trackSince(list){ let m=null; (list||[]).forEach(u=>{ const t=String(u.time||''); if(t && (!m || t<m)) m=t; }); return m ? m.slice(0,10) : lineSince(); }
   /* กระสอบถุงที่ยกมาไลน์อยู่ฝั่งไหน (หมอน / ใยแผ่น) — เบิกตอนทำงานฝั่งไหนก็อยู่ฝั่งนั้น
      ของเก่าที่ไม่ได้จดฝั่ง ดูจากงานที่เบิก · ไม่รู้ว่าเบิกให้งานไหน = ใช้ได้ทั้ง 2 ฝั่ง */
-  function bagSide(w){ if(!w) return null; if(w.side) return w.side; const o=w.orderId?orderById(w.orderId):null; return o?fiberSide(o):null; }
+  function bagSide(w){ if(!w) return null; if(w.side) return w.side; const o=w.orderId?orderById(w.orderId):null; return o?legacySide(o):null; }
   /* side = ดูเฉพาะกระสอบฝั่งนั้น (ไม่ส่ง = ทุกฝั่ง) — ถุงฝั่งหมอนไม่ถูกหักไปให้งานฝั่งใย (3 พ.ย. งานใยปั่นไปหักถุง 40x70 ฝั่งหมอน) */
   function sackQueue(kind,name,side){
     const st=sackStatusNow(), since=trackSince(S.bagUse);

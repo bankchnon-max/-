@@ -1318,7 +1318,7 @@ window.WPDAUTH = {
       if(!order) return '';
       if(order.picnicSize) return order.picnicSize;
       const m=/(\d+(?:\.\d+)?)\s*F(?![a-z])/i.exec(String(order.code||'')); if(m) return m[1]+'F';
-      return ({'40x79':'3F','46x79':'3.5F','63x78':'5F','76x83':'6F','36x75':'3F','42x75':'3.5F','59x75':'5F','72x78':'6F'})[String((order.spec||{}).fabricSize||'').replace(/\s/g,'').toLowerCase()]||'';
+      return ({'39x77':'3F','45x77':'3.5F','62x77':'5F','75x81':'6F','40x79':'3F','46x79':'3.5F','63x78':'5F','76x83':'6F','36x75':'3F','42x75':'3.5F','59x75':'5F','72x78':'6F'})[String((order.spec||{}).fabricSize||'').replace(/\s/g,'').toLowerCase()]||'';
     },
     picnicContractRate(PRICE, order){
       const e=((PRICE||{}).picnicContract||{}).all||{}, z=COST.picnicSizeOf(order);

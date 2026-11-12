@@ -3517,10 +3517,10 @@ window.WPDAUTH = {
   /* ---------- ไซซ์ตามสินค้า ---------- */
   const DEFAULT_SIZES=[
     { id:'sz-pillow', product:'หมอนหนุน', label:'', cut:'18x54', fin:'17.5x26', pp:1 },
-    { id:'sz-pic3', product:'ปิกนิก', label:'3F', cut:'40x79', fin:'36x75', pp:1 },
-    { id:'sz-pic35', product:'ปิกนิก', label:'3.5F', cut:'46x79', fin:'42x75', pp:1 },
-    { id:'sz-pic5', product:'ปิกนิก', label:'5F', cut:'63x78', fin:'59x75', pp:1 },
-    { id:'sz-pic6', product:'ปิกนิก', label:'6F', cut:'76x83', fin:'72x78', pp:1 } ];
+    { id:'sz-pic3', product:'ปิกนิก', label:'3F', cut:'40x79', fin:'39x77', pp:1 },
+    { id:'sz-pic35', product:'ปิกนิก', label:'3.5F', cut:'46x79', fin:'45x77', pp:1 },
+    { id:'sz-pic5', product:'ปิกนิก', label:'5F', cut:'63x78', fin:'62x77', pp:1 },
+    { id:'sz-pic6', product:'ปิกนิก', label:'6F', cut:'76x83', fin:'75x81', pp:1 } ];
   function sizeList(){ return (S.sizeMaster||DEFAULT_SIZES).slice(); }
   function sizeFor(cut, pt){ const L=sizeList().filter(x=>normSize(x.cut)===normSize(cut)); return (pt&&L.find(x=>x.product===pt))||(L.length===1?L[0]:null); }
   /* ตัวเลือกไซซ์: แยกกลุ่มตามสินค้า + ไซซ์ที่เคยใช้ (ยังไม่ได้ตั้ง) + พิมพ์เอง · mode 'cut' = ไซซ์ตัด, 'fin' = ไซซ์สำเร็จ */
@@ -4490,7 +4490,7 @@ window.WPDAUTH = {
   /* ---------- 4. FINISHED GOODS ---------- */
   /* ประเภทสินค้า: ตั้งที่ออเดอร์ (แอพผลิต) — ออเดอร์เก่าที่ยังไม่ตั้ง เดาจากประเภทหลัก+รหัสงาน */
   const PROD_CATS=['หมอนหนุน','หมอนข้าง','ใยแผ่น','ใยปั่น/ใยสาง','ปิกนิก','ผ้าห่ม','อื่นๆ'];
-  const PICNIC_SIZES=['3F','3.5F','5F','6F'], PICNIC_BY_CASE={'36x75':'3F','42x75':'3.5F','59x75':'5F','72x78':'6F','40x79':'3F','46x79':'3.5F','63x78':'5F','76x83':'6F'};
+  const PICNIC_SIZES=['3F','3.5F','5F','6F'], PICNIC_BY_CASE={'39x77':'3F','45x77':'3.5F','62x77':'5F','75x81':'6F','36x75':'3F','42x75':'3.5F','59x75':'5F','72x78':'6F','40x79':'3F','46x79':'3.5F','63x78':'5F','76x83':'6F'};
   function sizeFromText(t){ const m=/(\d+(?:\.\d+)?)\s*F(?![a-z])/i.exec(String(t||'')); return m?m[1]+'F':''; }
   /* ไซซ์ปิกนิก: ตั้งที่ออเดอร์ · ออเดอร์เก่าดูจากรหัสงาน หรือไซซ์ปลอกใน Standard */
   function picnicSize(o){ if(!o || prodCat(o)!=='ปิกนิก') return ''; if(o.picnicSize) return o.picnicSize;

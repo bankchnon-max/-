@@ -593,7 +593,7 @@
             <option value="อื่นๆ">อื่นๆ</option>
           </select>
           <div id="nSideRow" style="display:none;"><label>ทำที่โรง</label><select id="nSide"><option value="sheet">🧵 โรง 1 — ฝั่งใยแผ่น</option><option value="pillow">🛏️ โรง 2 — ฝั่งหมอน</option></select></div>
-          <div id="nPicRow" style="display:none;"><label>ไซซ์ปิกนิก</label><select id="nPicSize"><option value="3F">3F (36x75)</option><option value="3.5F">3.5F (42x75)</option><option value="5F">5F (59x75)</option><option value="6F">6F (72x78)</option><option value="">อื่นๆ / ไม่ระบุ</option></select></div></div>
+          <div id="nPicRow" style="display:none;"><label>ไซซ์ปิกนิก</label><select id="nPicSize"><option value="3F">3F (39x77)</option><option value="3.5F">3.5F (45x77)</option><option value="5F">5F (62x77)</option><option value="6F">6F (75x81)</option><option value="">อื่นๆ / ไม่ระบุ</option></select></div></div>
           <div><label>จำนวนที่ลูกค้าสั่ง (แพ็ค)</label><input id="nPacks" type="number" inputmode="numeric" placeholder="500"></div>
         </div>
         <label>ทำถึงเวลา (เตือนก่อน 5 นาที)</label><input id="nDue" type="datetime-local">
@@ -899,8 +899,27 @@
         <div class="scr"><table id="tSumFiber"></table></div>
       </div>
       <div class="card">
-        <h3>ประวัติการเบิกใย — แยกตามลอต</h3>
+        <h3>ประวัติการเบิก — ใย · ถุงกระสอบ · ถุงผ้า</h3>
+        <div class="rf" style="margin-top:6px;">
+          <div style="flex:0 0 112px;min-width:0;"><label>ดูแบบ</label><select id="wdMode"><option value="cycle">รายเดือน</option><option value="day">รายวัน</option><option value="range">ช่วงวันที่</option></select></div>
+          <div id="wdCycleWrap" style="flex:1;min-width:0;"><label>รอบเดือน (วันที่ 5 – 4)</label><select id="wdCycle"></select></div>
+          <div id="wdDayWrap" style="display:none;flex:1;min-width:0;"><label>เลือกวันที่</label><input id="wdDay" type="date"></div>
+        </div>
+        <div class="rf" id="wdRangeWrap" style="display:none;margin-top:6px;">
+          <div><label>ตั้งแต่วันที่</label><input id="wdFrom" type="date"></div>
+          <div><label>ถึงวันที่</label><input id="wdTo" type="date"></div>
+        </div>
+        <input id="wdQ" type="search" placeholder="🔍 ค้นหา: ชนิดใย ลูกค้า ขนาด เลขก้อน/กระสอบ/ล็อต ผู้เบิก…" style="margin-top:6px;">
+        <div class="sumline" id="wdRangeLine"></div>
+        <div class="sg" id="sumWdStats" style="margin:8px 0;"></div>
+        <div class="wc-h4">🧶 เบิกใย</div>
         <div class="scr"><table id="tSumWd"></table></div>
+        <div class="wc-h4" style="margin-top:12px;">🛍️ เบิกถุงจากกระสอบ</div>
+        <div class="scr"><table id="tSumBagWd"></table></div>
+        <div class="wc-h4" style="margin-top:12px;">🧷 เบิกถุงผ้า</div>
+        <div class="scr"><table id="tSumFabWd"></table></div>
+        <div id="sumSheetWdWrap"><div class="wc-h4" style="margin-top:12px;">🧺 เบิกใยแผ่นมาแพ็ค (ปิกนิก)</div>
+        <div class="scr"><table id="tSumSheetWd"></table></div></div>
       </div>
       <div class="card">
         <h3>เวลาพัก</h3>
@@ -1138,7 +1157,7 @@
       <label>รหัส/สเปคงาน</label><input id="edCode">
       <label>ประเภทสินค้า</label><select id="edCat"></select>
       <div id="edSideRow" style="display:none;"><label>ทำที่โรง</label><select id="edSide"><option value="sheet">🧵 โรง 1 — ฝั่งใยแผ่น</option><option value="pillow">🛏️ โรง 2 — ฝั่งหมอน</option></select></div>
-      <div id="edPicRow" style="display:none;"><label>ไซซ์ปิกนิก</label><select id="edPicSize"><option value="3F">3F (36x75)</option><option value="3.5F">3.5F (42x75)</option><option value="5F">5F (59x75)</option><option value="6F">6F (72x78)</option><option value="">อื่นๆ / ไม่ระบุ</option></select></div>
+      <div id="edPicRow" style="display:none;"><label>ไซซ์ปิกนิก</label><select id="edPicSize"><option value="3F">3F (39x77)</option><option value="3.5F">3.5F (45x77)</option><option value="5F">5F (62x77)</option><option value="6F">6F (75x81)</option><option value="">อื่นๆ / ไม่ระบุ</option></select></div>
       <div id="edCatNote" style="font-size:11.5px;color:var(--dim);margin-top:3px;"></div>
       <label>จำนวนที่สั่ง (แพ็ค)</label><input id="edPacks" type="number" inputmode="numeric">
       <label>ทำถึงเวลา</label><input id="edDue" type="datetime-local">
@@ -2611,7 +2630,7 @@ window.WPDAUTH = {
   }
   /* ไซซ์ปิกนิก: ตั้งไว้ที่ออเดอร์ · ออเดอร์เก่าดูจากรหัสงาน (เช่น "ปิกนิก 5F") หรือไซซ์ปลอกใน Standard */
   /* ไซซ์สำเร็จ (และไซซ์ผ้าที่ตัด) → ไซซ์ปิกนิก */
-  const PICNIC_BY_CASE={'36x75':'3F','42x75':'3.5F','59x75':'5F','72x78':'6F','40x79':'3F','46x79':'3.5F','63x78':'5F','76x83':'6F'};
+  const PICNIC_BY_CASE={'39x77':'3F','45x77':'3.5F','62x77':'5F','75x81':'6F','36x75':'3F','42x75':'3.5F','59x75':'5F','72x78':'6F','40x79':'3F','46x79':'3.5F','63x78':'5F','76x83':'6F'};
   function picnicSize(o){
     if(!o || prodCat(o)!=='ปิกนิก') return '';
     if(o.picnicSize) return o.picnicSize;
@@ -3753,7 +3772,7 @@ window.WPDAUTH = {
   }
   /* แท็บปิกนิก: เลือกงานปิกนิกของจุดแพ็ค (ไม่แตะงานที่ไลน์) */
   /* ปิกนิกเก็บสต๊อกตามไซซ์: งานละไซซ์ ไม่ผูกลูกค้า — ส่งให้ลูกค้าไหนค่อยเลือกตอนออกเที่ยวรถในแอพสต๊อก */
-  const PIC_SIZES=[['3F','36x75'],['3.5F','42x75'],['5F','59x75'],['6F','72x78']];
+  const PIC_SIZES=[['3F','39x77'],['3.5F','45x77'],['5F','62x77'],['6F','75x81']];
   function picStockJob(z){
     const id='picstk-'+z.replace('.','_');
     let o=orderById(id);
@@ -6027,15 +6046,7 @@ window.WPDAUTH = {
       ? '<tr><th>ชนิดใย</th><th>กก./สูตร</th><th>จำนวนรอบ</th><th>รวมที่ใช้ (กก.)</th></tr>'+blocks
       : '<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>';
 
-    // รายการเบิกใย — แยกออกมาต่างหาก ระบุล็อตและเวลา
-    $('tSumWd').innerHTML=wd.length
-      ? '<tr><th>เวลาเบิก</th><th>ก้อนที่</th><th>ออเดอร์</th><th>ชนิดใย</th><th>ล็อต</th><th>น้ำหนัก (กก.)</th><th>หมายเหตุ</th></tr>'+
-        wd.slice().reverse().map(w=>'<tr><td>'+hhmm(w.time)+'</td><td>'+esc(w.seq||'—')+'</td><td>'+esc(ordLabel(w.orderId))+'</td><td>'+
-          esc(w.fiberName)+'</td><td>'+(w.lot?esc(w.lot):'<span style="color:var(--dim)">—</span>')+'</td><td>'+
-          w.kg+'</td><td>'+esc(w.note)+'</td></tr>').join('')+
-        '<tr><td class="kn" style="color:var(--accent2)">รวมเบิกทั้งวัน</td><td></td><td></td><td></td><td></td>'+
-        '<td class="kn" style="color:var(--accent2)">'+r2(wd.reduce((s,x)=>s+(+x.kg||0),0))+'</td><td></td></tr>'
-      : '<tr><td class="empty">ยังไม่มีการเบิกใยวันนี้</td></tr>';
+    rSumWd();
 
     const brs=S.breaks.filter(b=>dayOf(b.start)>=R.from&&dayOf(b.start)<=R.to);
     $('tSumBreak').innerHTML=brs.length
@@ -6054,6 +6065,73 @@ window.WPDAUTH = {
           esc(x.gapReason||'ไม่ระบุ')+'</td><td>'+esc(ordLabel(x.orderId))+'</td></tr>').join('')
       : '<tr><td class="empty">ไม่มีช่วงเวลาที่เสีย</td></tr>';
   }
+
+  /* ═══ ประวัติการเบิก (ใย · ถุงกระสอบ · ถุงผ้า · ใยแผ่นปิกนิก) — รายวัน หรือ รายเดือนรอบวันที่ 5 → 4 เดือนถัดไป + ค้นหา ═══ */
+  const WD_CUT=5, WD_TH_M=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const wdCyc=t=>{ const x=String(t||''); let y=+x.slice(0,4), m=+x.slice(5,7); if(!y||!m) return null; if(+x.slice(8,10)<WD_CUT){ m--; if(!m){ m=12; y--; } } return y+'-'+String(m).padStart(2,'0'); };
+  const wdCycR=k=>{ const y=+k.slice(0,4), m=+k.slice(5,7), m2=m%12+1, y2=m===12?y+1:y, p=n=>String(n).padStart(2,'0');
+    return { from:k+'-'+p(WD_CUT), to:y2+'-'+p(m2)+'-'+p(WD_CUT-1),
+      label:WD_CUT+' '+WD_TH_M[m-1]+(y2!==y?' '+String(y+543).slice(2):'')+'–'+(WD_CUT-1)+' '+WD_TH_M[m2-1]+' '+String(y2+543).slice(2) }; };
+  function rSumWd(){
+    const mode=$('wdMode').value, all=[...S.wd,...(S.bagWd||[]),...(S.fabricWd||[]),...(S.sheetWd||[])];
+    const cur=wdCyc(todayStr()), keys=[...new Set([cur,...all.map(x=>wdCyc(x.time)).filter(Boolean)])].sort().reverse();
+    const cs=$('wdCycle'), keep=cs.value||cur;
+    cs.innerHTML=keys.map(k=>'<option value="'+k+'">'+wdCycR(k).label+(k===cur?' (รอบนี้)':'')+'</option>').join(''); cs.value=keys.includes(keep)?keep:cur;
+    if(!$('wdDay').value) $('wdDay').value=todayStr();
+    if(!$('wdTo').value) $('wdTo').value=todayStr();
+    if(!$('wdFrom').value) $('wdFrom').value=wdCycR(cur).from;
+    $('wdRangeWrap').style.display=mode==='range'?'':'none';
+    $('wdCycleWrap').style.display=mode==='cycle'?'':'none'; $('wdDayWrap').style.display=mode==='day'?'':'none';
+    const _d=x=>{ const t=String(x||''); return t?(+t.slice(8,10))+' '+WD_TH_M[+t.slice(5,7)-1]+' '+String(+t.slice(0,4)+543).slice(2):''; };
+    let R=mode==='day'?{from:$('wdDay').value,to:$('wdDay').value,label:'วันที่ '+_d($('wdDay').value)}:wdCycR(cs.value);
+    if(mode==='range'){ let f=$('wdFrom').value, t=$('wdTo').value; if(f>t){ const z=f; f=t; t=z; } R={from:f,to:t,label:_d(f)+' – '+_d(t)}; }
+    const q=$('wdQ').value.trim().toLowerCase(), qs=q.split(/\s+/).filter(Boolean);
+    const _ol=id=>String(id||'').startsWith('picstk')?'ปิกนิก (สต็อก)':ordLabel(id);
+    const _hit=(x,txt)=>!qs.length||qs.every(w=>txt.toLowerCase().includes(w));
+    const _f=(a,txt)=>(a||[]).filter(x=>inRange(x,R)&&_hit(x,txt(x)));
+    const wd=_f(S.wd,w=>[w.fiberName,'ก้อน '+(w.seq||''),'ลอต '+(w.lot||''),w.lot,_ol(w.orderId),w.note,w.by].join(' '));
+    const bagW=_f(S.bagWd,w=>[w.kind==='zip'?'ถุงซิล':'ถุงแพ็ค',w.name,(w.picks||[]).map(p=>'#'+p.sackNo+' กระสอบ '+p.sackNo).join(' '),_ol(w.orderId),w.by].join(' '));
+    const fabW=_f(S.fabricWd,w=>[w.fabricType,w.size,(w.picks||[]).map(p=>'#'+p.batchNo+' ล็อต '+p.batchNo).join(' '),_ol(w.orderId),w.by,w.note].join(' '));
+    const shW=_f(S.sheetWd,w=>['ใยแผ่น ปิกนิก',_ol(w.orderId),w.by].join(' '));
+    $('wdRangeLine').textContent='ช่วง: '+R.label+(qs.length?' · ค้นหา "'+$('wdQ').value.trim()+'"':'');
+    const _many=R.from!==R.to, _when=t=>_many?String(t).slice(8,10)+'/'+String(t).slice(5,7)+' '+String(t).slice(11,16):hhmm(t);
+    const _byT=a=>a.slice().sort((x,y)=>String(y.time).localeCompare(String(x.time)));
+    const _rng=_many?(mode==='range'?'ในช่วงนี้':'ในรอบนี้'):(R.from===todayStr()?'วันนี้':' '+_d(R.from)), _no=qs.length?'ไม่พบรายการที่ค้นหา':null;
+    const _tot=(lbl,n,val,after)=>'<tr><td class="kn" style="color:var(--accent2)">'+lbl+'</td>'+'<td></td>'.repeat(n)+'<td class="kn" style="color:var(--accent2)">'+val+'</td>'+'<td></td>'.repeat(after||0)+'</tr>';
+    const _grp=(a,k,v)=>{ const m={}; a.forEach(x=>{ const kk=k(x); m[kk]=r3((m[kk]||0)+v(x)); }); return Object.entries(m).sort((p,q)=>q[1]-p[1]); };
+    const _sub=(rows,n,after)=>rows.length>1?rows.map(([k,v])=>'<tr><td style="color:var(--dim)">รวม '+esc(k)+'</td>'+'<td></td>'.repeat(n)+'<td style="color:var(--dim)">'+r2(v)+'</td>'+'<td></td>'.repeat(after||0)+'</tr>').join(''):'';
+    const _wdKg=r2(wd.reduce((t,x)=>t+(+x.kg||0),0)), _bagKg=r2(bagW.reduce((t,x)=>t+(+x.kg||0),0)), _fabN=fabW.reduce((t,x)=>t+(+x.qty||0),0);
+    $('sumWdStats').innerHTML=
+      '<div class="stat"><div class="v">'+_wdKg.toLocaleString()+'</div><div class="l">ใย (กก.) · '+wd.length+' ก้อน</div></div>'+
+      '<div class="stat"><div class="v">'+_bagKg.toLocaleString()+'</div><div class="l">ถุงจากกระสอบ (กก.) · '+bagW.length+' ครั้ง</div></div>'+
+      '<div class="stat"><div class="v">'+_fabN.toLocaleString()+'</div><div class="l">ถุงผ้า (ใบ) · '+fabW.length+' ครั้ง</div></div>';
+    $('tSumWd').innerHTML=wd.length
+      ? '<tr><th>เวลาเบิก</th><th>ก้อนที่</th><th>ออเดอร์</th><th>ชนิดใย</th><th>ล็อต</th><th>น้ำหนัก (กก.)</th><th>ผู้เบิก</th><th>หมายเหตุ</th></tr>'+
+        _byT(wd).map(w=>'<tr><td>'+_when(w.time)+'</td><td>'+esc(w.seq||'—')+'</td><td>'+esc(_ol(w.orderId))+'</td><td>'+
+          esc(w.fiberName)+'</td><td>'+(w.lot?esc(w.lot):'<span style="color:var(--dim)">—</span>')+'</td><td>'+
+          w.kg+(+w.returnedKg?' <span style="color:var(--dim);font-size:11px;">(คืน '+(+w.returnedKg)+')</span>':'')+'</td><td>'+esc(w.by||'')+'</td><td>'+esc(w.note)+'</td></tr>').join('')+
+        _sub(_grp(wd,x=>x.fiberName,x=>+x.kg||0),4,2)+_tot('รวมเบิกใย'+_rng,4,_wdKg,2)
+      : '<tr><td class="empty">'+(_no||'ไม่มีการเบิกใย'+_rng)+'</td></tr>';
+    $('tSumBagWd').innerHTML=bagW.length
+      ? '<tr><th>เวลาเบิก</th><th>ชนิด</th><th>ขนาด</th><th>กระสอบ</th><th>ออเดอร์</th><th>กก.</th><th>ผู้เบิก</th></tr>'+
+        _byT(bagW).map(w=>'<tr><td>'+_when(w.time)+'</td><td>'+(w.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+'</td><td>'+esc(w.name)+'</td><td>'+
+          esc((w.picks||[]).map(p=>'#'+p.sackNo).join(', ')||'—')+'</td><td>'+esc(_ol(w.orderId))+'</td><td>'+w.kg+'</td><td>'+esc(w.by||'')+'</td></tr>').join('')+
+        _sub(_grp(bagW,x=>(x.kind==='zip'?'ถุงซิล ':'ถุงแพ็ค ')+x.name,x=>+x.kg||0),4,1)+_tot('รวมเบิกถุง'+_rng,4,_bagKg,1)
+      : '<tr><td class="empty">'+(_no||'ไม่มีการเบิกถุง'+_rng)+'</td></tr>';
+    $('tSumFabWd').innerHTML=fabW.length
+      ? '<tr><th>เวลาเบิก</th><th>ผ้า</th><th>ขนาด</th><th>ล็อตตัด</th><th>ออเดอร์</th><th>ใบ</th><th>ผู้เบิก</th></tr>'+
+        _byT(fabW).map(w=>'<tr><td>'+_when(w.time)+'</td><td>'+esc(w.fabricType)+'</td><td>'+esc(w.size)+'</td><td>'+
+          esc((w.picks||[]).map(p=>'#'+p.batchNo+(w.picks.length>1?'('+p.qty+')':'')).join(', ')||'—')+'</td><td>'+esc(_ol(w.orderId))+'</td><td>'+w.qty+'</td><td>'+esc(w.by||'')+'</td></tr>').join('')+
+        _sub(_grp(fabW,x=>x.fabricType+' '+x.size,x=>+x.qty||0),4,1)+_tot('รวมเบิกถุงผ้า'+_rng,4,_fabN,1)
+      : '<tr><td class="empty">'+(_no||'ไม่มีการเบิกถุงผ้า'+_rng)+'</td></tr>';
+    $('sumSheetWdWrap').style.display=shW.length?'':'none';
+    $('tSumSheetWd').innerHTML=shW.length
+      ? '<tr><th>เวลาเบิก</th><th>ออเดอร์</th><th>แผ่น</th><th>ผู้เบิก</th></tr>'+_byT(shW).map(w=>'<tr><td>'+_when(w.time)+'</td><td>'+esc(_ol(w.orderId))+'</td><td>'+w.qty+'</td><td>'+esc(w.by||'')+'</td></tr>').join('')+
+        _tot('รวม',1,shW.reduce((t,x)=>t+(+x.qty||0),0),1)
+      : '';
+  }
+  $('wdMode').onchange=rSumWd; $('wdCycle').onchange=rSumWd; $('wdDay').onchange=rSumWd; $('wdFrom').onchange=rSumWd; $('wdTo').onchange=rSumWd;
+  { let _t=null; $('wdQ').oninput=()=>{ clearTimeout(_t); _t=setTimeout(rSumWd,200); }; }
 
   /* ---------- EXPORT / STORAGE ---------- */
   function csvCell(v){

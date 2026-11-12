@@ -77,6 +77,8 @@
   #fr .qrow .qn { flex:0 0 26px; height:26px; border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-family:'Kanit',sans-serif; font-size:13px; }
   #fr .qrow .qtx { flex:1 1 0; min-width:0; font-size:13.5px; line-height:1.45; }
   #fr .qrow .qbtns { flex:1 0 100%; display:flex; justify-content:flex-end; gap:6px; }
+  #fr .qrow .qbtns { flex-wrap:wrap; gap:5px; }
+  #fr .qrow .qbtns .btn { white-space:nowrap; padding-left:8px; padding-right:8px; min-width:0; }
   #fr .qrow .btn { margin:0; padding:5px 9px; min-width:0; }
   #fr .qrow .btn[disabled] { opacity:.3; }
   #fr .ocard .cust { font-family:'Kanit',sans-serif; font-size:15px; cursor:pointer; padding-right:62px; }
@@ -1000,6 +1002,14 @@
     </div>
   </div>
 
+  <div class="ov" id="ovPre">
+    <div class="box" style="max-width:560px; max-height:92vh; overflow:auto;">
+      <h3 id="preTitle"></h3>
+      <p id="preSub">ตั้งไว้ก่อนได้เลย — ถึงคิวกดเริ่มแล้วใช้ค่านี้ทันที</p>
+      <div id="preSlot"></div>
+      <div class="ba" style="margin-top:12px;"><button class="btn sec" id="preClose">เสร็จ / ปิด</button></div>
+    </div>
+  </div>
   <div class="ov" id="ovBwEdit">
     <div class="box">
       <h3>แก้ไขรายการเบิกถุง</h3>
@@ -2374,12 +2384,15 @@ window.WPDAUTH = {
     await saveOrders(); rOrders();
     toast('เปิดใบใหม่ '+o.customer+' — '+o.code+' · สั่ง '+n.orderedPacks+' แพ็ค'+(queuePos(n)?' · คิวที่ '+queuePos(n):''));
   }
+  /* คิว: บอกว่าตั้งสูตร/Standard ไว้แล้วหรือยัง — พร้อม = ถึงคิวกดเริ่มได้เลย */
+  function preBadge(o){ const miss=[]; if(!(CALC.stdPerPack(o.spec)>0)) miss.push('Standard'); if(!isPicnic(o) && !(o.fibers||[]).length) miss.push('สูตร');
+    return miss.length?' <span class="bdg warn">⚠ ยังไม่ตั้ง'+miss.join('/')+'</span>':' <span class="bdg ok">✅ ตั้งสูตร/Standard แล้ว</span>'; }
   function rQueue(){
     const el=$('queueBox'); if(!el) return;
     const cur=orderById(S.activeId), q=queueList();
-    const row=(o,i)=>'<div class="qrow"><span class="qn">'+(i+1)+'</span><div class="qtx"><b>'+esc(o.customer)+'</b> — '+esc(o.code)+' <span style="color:var(--dim)">· '+(o.orderedPacks||0)+' แพ็ค</span>'+(o.id===S.activeFeedId?' <span class="bdg ok">🌀 ป้อนใยล่วงหน้าแล้ว</span>':'')+'</div><div class="qbtns">'+
+    const row=(o,i)=>'<div class="qrow"><span class="qn">'+(i+1)+'</span><div class="qtx"><b>'+esc(o.customer)+'</b> — '+esc(o.code)+' <span style="color:var(--dim)">· '+(o.orderedPacks||0)+' แพ็ค</span>'+(o.id===S.activeFeedId?' <span class="bdg ok">🌀 ป้อนใยล่วงหน้าแล้ว</span>':'')+preBadge(o)+'</div><div class="qbtns">'+
       '<button class="btn sec sm" data-qup="'+o.id+'"'+(i?'':' disabled')+' title="เลื่อนขึ้น">▲</button><button class="btn sec sm" data-qdn="'+o.id+'"'+(i<q.length-1?'':' disabled')+' title="เลื่อนลง">▼</button>'+
-      '<button class="btn sm" data-qgo="'+o.id+'">เริ่มเลย</button><button class="btn sec sm" data-qout="'+o.id+'" title="เอาออกจากคิว (ออเดอร์ยังอยู่)">ออกคิว</button><button class="btn sec sm" data-qdel="'+o.id+'" title="ลบออเดอร์นี้ทิ้ง" style="color:var(--w-red,#cf3e45);">🗑</button></div></div>';
+      '<button class="btn sec sm" data-qpre="'+o.id+'" title="ตั้งสูตร/Standard ล่วงหน้า">⚙️</button><button class="btn sm" data-qgo="'+o.id+'">เริ่มเลย</button><button class="btn sec sm" data-qout="'+o.id+'" title="เอาออกจากคิว (ออเดอร์ยังอยู่)">ออกคิว</button><button class="btn sec sm" data-qdel="'+o.id+'" title="ลบออเดอร์นี้ทิ้ง" style="color:var(--w-red,#cf3e45);">🗑</button></div></div>';
     el.innerHTML='<div class="sumline" style="margin:0 0 6px;">'+(cur&&cur.status!=='done'?'กำลังทำที่ท้ายไลน์: <b style="color:var(--accent2)">'+esc(cur.customer)+' — '+esc(cur.code)+'</b>':'ตอนนี้ท้ายไลน์ยังไม่มีงาน')+'</div>'+
       (q.length?q.map(row).join('')+'<div class="sumline" style="margin-top:6px;">กด 🏁 จบงานแล้ว แอปจะเริ่ม <b>'+esc(q[0].customer)+'</b> ให้เลย</div>'
         :'<div class="empty">ยังไม่มีออเดอร์ในคิว — ออเดอร์ที่เพิ่มใหม่จะต่อคิวให้เอง หรือกด "+ เข้าคิว" ที่ออเดอร์ด้านล่าง</div>')+
@@ -2388,6 +2401,7 @@ window.WPDAUTH = {
           L.map(o=>'<div class="qrow"><div class="qtx"><b>'+esc(o.customer)+'</b> — '+esc(o.code)+' <span style="color:var(--dim)">· ทำไป '+packsOf(o)+(o.orderedPacks?'/'+o.orderedPacks:'')+' แพ็ค เมื่อ '+thDate(o.finishedAt)+'</span></div>'+
             '<div class="qbtns"><button class="btn sec sm" data-qcont="'+o.id+'">↻ ทำต่อวันนี้</button></div></div>').join('')+'</div>':''; })();
     el.querySelectorAll('[data-qcont]').forEach(b=>b.onclick=()=>contOrder(orderById(b.dataset.qcont)));
+    el.querySelectorAll('[data-qpre]').forEach(b=>b.onclick=()=>openPre(b.dataset.qpre));
     const mv=async(id,d)=>{ const L=queueList(), i=L.findIndex(x=>x.id===id), j=i+d; if(i<0||j<0||j>=L.length) return; const t=L[i]; L[i]=L[j]; L[j]=t; L.forEach((o,k)=>{ o.queue=k+1; }); await saveOrders(); rOrders(); };
     el.querySelectorAll('[data-qup]').forEach(b=>b.onclick=()=>mv(b.dataset.qup,-1));
     el.querySelectorAll('[data-qdn]').forEach(b=>b.onclick=()=>mv(b.dataset.qdn,1));
@@ -2447,6 +2461,7 @@ window.WPDAUTH = {
           (o.contOf&&orderById(o.contOf)?'<br>↻ ต่อจากใบ '+thDate(orderById(o.contOf).createdAt||orderById(o.contOf).startedAt)+' (ทำไป '+packsOf(orderById(o.contOf))+' แพ็ค)':'')+'</div>'+
         '<div class="acts">'+
           (!done && !on && !isPicnic(o) && !queuePos(o) ? '<button class="btn sm" data-qin="'+o.id+'">+ เข้าคิว</button>' : '')+
+          (!done?'<button class="btn sec sm" data-pre="'+o.id+'">⚙️ '+(isPicnic(o)?'ตั้ง Standard':'ตั้งสูตร/Standard')+'</button>':'')+
           '<button class="btn sec sm" data-edit="'+o.id+'">แก้ไข</button>'+
           (done?(String(o.finishedAt||'').slice(0,10)<localISO().slice(0,10)?'<button class="btn sec sm" data-qcont="'+o.id+'">↻ ทำต่อวันนี้ (ใบใหม่)</button>':'<button class="btn sec sm" data-reopen="'+o.id+'">เปิดงานใหม่</button>'):'')+
           '<button class="btn dg sm" data-del="'+o.id+'">ลบ</button>'+
@@ -2463,6 +2478,7 @@ window.WPDAUTH = {
       await saveOrders(); rTop(); rOrders(); toast('เลือกออเดอร์: '+o.customer);
     });
     g.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));
+    g.querySelectorAll('[data-pre]').forEach(b=>b.onclick=()=>openPre(b.dataset.pre));
     g.querySelectorAll('[data-qin]').forEach(b=>b.onclick=async()=>{ const o=orderById(b.dataset.qin); if(!o) return; o.queue=queueTail(); queueRenum(); await saveOrders(); rOrders(); toast('เข้าคิวที่ '+queuePos(o)+' แล้ว'); });
     g.querySelectorAll('[data-qcont]').forEach(b=>b.onclick=()=>contOrder(orderById(b.dataset.qcont)));
     g.querySelectorAll('[data-reopen]').forEach(b=>b.onclick=async()=>{
@@ -2938,7 +2954,8 @@ window.WPDAUTH = {
   /* ปรับสูตร: แยกฝั่งหมอน / ฝั่งใยแผ่น · งานที่จบแล้วซ่อนไว้ (ติ๊กเพื่อดู) */
   let recSide=null, lastRecWant=null;
   function fillRecSel(o){
-    const sel=$('recSel'), keep=sel.value, kO=orderById(keep);
+    if(preOrder()) o=preOrder();
+    const sel=$('recSel'), keep=preOrder()?preOrder().id:sel.value, kO=orderById(keep);
     { const _w=o?o.id:null; if(!recSide || _w!==lastRecWant){ recSide=fiberSide(o||kO); lastRecWant=_w; } }
     const showDone=$('recShowDone')&&$('recShowDone').checked;
     document.querySelectorAll('#recSideRow [data-recside]').forEach(b=>{ b.classList.toggle('sec', b.dataset.recside!==recSide); });
@@ -3907,6 +3924,28 @@ window.WPDAUTH = {
   }
 
   let specOpen=null;   // null = decide from data
+  /* ═══ ตั้งสูตร/Standard ล่วงหน้า (ออเดอร์ที่ยังไม่เริ่ม) — ย้ายการ์ดสูตร + การ์ด Standard มาไว้ในหน้าต่าง ปิดแล้วย้ายกลับที่เดิม ═══ */
+  var preId=null, preHome=[];
+  function preOrder(){ const o=preId?orderById(preId):null; return o&&o.status!=='done'?o:null; }
+  function openPre(id){
+    const o=orderById(id); if(!o) return;
+    preId=id; formDirty=false; specOpen=null;
+    const rec=$('recSel').closest('.card'), sp=$('cardSpec');
+    preHome.length=0; [rec,sp].forEach(c=>{ preHome.push([c,c.parentNode,c.nextSibling,c.classList.contains('folded')]); c.classList.remove('folded'); });
+    $('preSlot').append(rec, sp);
+    rec.style.display=isPicnic(o)?'none':'';
+    $('preTitle').textContent='⚙️ ตั้งล่วงหน้า: '+o.customer+' — '+o.code;
+    $('specForm').dataset.init=''; buildSpecForm();
+    if(!isPicnic(o)) fillRecSel(o);
+    openOv('ovPre');
+  }
+  function closePre(){
+    preId=null; formDirty=false; specOpen=null;
+    preHome.forEach(([c,p,nx,fd])=>{ p.insertBefore(c,nx&&nx.parentNode===p?nx:null); c.style.display=''; c.classList.toggle('folded',!!fd); }); preHome.length=0;
+    closeOv('ovPre');
+    $('specForm').dataset.init=''; buildSpecForm(); fillRecSel(activeFeed()); rOrders();
+  }
+  $('preClose').onclick=closePre;
   let formDirty=false; // true while the user has unsaved edits in a form
   function flash(id){
     const el=$(id); if(!el) return;
@@ -4027,7 +4066,7 @@ window.WPDAUTH = {
     return '<br><span style="color:var(--accent2)">คงเหลือในกระสอบ: '+out.join(' · ')+'</span>';
   }
   function buildSpecForm(){
-    const o=active(), f=$('specForm'), card=$('cardSpec');
+    const o=preOrder()||active(), f=$('specForm'), card=$('cardSpec');
     if(formDirty && f.dataset.init && $('spW')) return;   // keep what the user is typing
     f.dataset.init='1';
     if(!o){ card.classList.remove('need'); f.innerHTML='<div class="empty">เลือกออเดอร์ก่อน</div>'; return; }
@@ -4409,6 +4448,7 @@ window.WPDAUTH = {
       formDirty=false;
       await saveOrders();
       specOpen=false;
+      if(preOrder()){ buildSpecForm(); rOrders(); toast('ตั้ง Standard ล่วงหน้าแล้ว = '+CALC.stdPerPack(o.spec)+' กก./แพ็ค'); return; }
       rLine(true);
       toast('Standard = '+CALC.stdPerPack(o.spec)+' กก./แพ็ค — เริ่มบันทึกได้เลย');
       flash('cardRun');

@@ -3953,9 +3953,10 @@ window.WPDAUTH = {
     const o=orderById(id); if(!o) return;
     preId=id; formDirty=false; specOpen=null;
     const rec=$('recSel').closest('.card'), sp=$('cardSpec'), fw=o.productType==='หมอน'?$('cardFabWd'):null;   /* เบิกผ้ารอไว้ เฉพาะออเดอร์หมอน */
-    preHome.length=0; [rec,sp,fw].filter(Boolean).forEach(c=>{ preHome.push([c,c.parentNode,c.nextSibling,c.classList.contains('folded')]); c.classList.remove('folded'); });
+    preHome.length=0; [rec,sp,fw].filter(Boolean).forEach(c=>{ preHome.push([c,c.parentNode,c.nextSibling,c.classList.contains('folded'),c.style.display]); c.classList.remove('folded'); });
     $('preSlot').append(...[rec,sp,fw].filter(Boolean));
     rec.style.display=isPicnic(o)?'none':'';
+    if(fw) fw.style.display='';   /* ที่ท้ายไลน์ซ่อนไว้ถ้างานที่ทำอยู่ไม่ใช้ปลอก (เช่น ใยแผ่น) — ในหน้าต่างนี้ต้องเห็น */
     $('preTitle').textContent='⚙️ ตั้งล่วงหน้า: '+o.customer+' — '+o.code;
     $('preSub').textContent=fw?'ตั้งสูตร Standard และเบิกผ้ารอไว้ได้เลย — ถึงคิวกดเริ่มแล้วใช้ได้ทันที':'ตั้งไว้ก่อนได้เลย — ถึงคิวกดเริ่มแล้วใช้ได้ทันที';
     $('specForm').dataset.init=''; buildSpecForm();
@@ -3965,7 +3966,7 @@ window.WPDAUTH = {
   }
   function closePre(){
     preId=null; formDirty=false; specOpen=null;
-    preHome.forEach(([c,p,nx,fd])=>{ p.insertBefore(c,nx&&nx.parentNode===p?nx:null); c.style.display=''; c.classList.toggle('folded',!!fd); }); preHome.length=0;
+    preHome.forEach(([c,p,nx,fd,dp])=>{ p.insertBefore(c,nx&&nx.parentNode===p?nx:null); c.style.display=dp||''; c.classList.toggle('folded',!!fd); }); preHome.length=0;
     closeOv('ovPre');
     $('specForm').dataset.init=''; buildSpecForm(); fillRecSel(activeFeed()); rOrders();
     if($('cardFabWd')){ $('fwQty').value=''; refreshFwSelects(); }

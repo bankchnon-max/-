@@ -795,7 +795,7 @@
         <h3>🧷 เบิกถุงบรรจุผ้า</h3>
         <p class="sumline">ติ๊กถุงที่หยิบมาจริง และใส่ได้ว่าเอาไปกี่ชิ้นต่อถุง · ถ้าพิมพ์จำนวนที่อยากได้แล้วกด "ติ๊กให้พอ" ระบบติ๊กถุงเก่าสุดให้ก่อน แก้เองได้<br><br>
         <span style="color:var(--muted)">ถุงจะขึ้นให้เบิกได้ก็ต่อเมื่อบันทึก "รับกลับจากช่างเย็บ" ในแอพสต๊อกแล้ว</span></p>
-        <label>เบิกให้ออเดอร์</label><select id="fwOrdSel"></select>
+        <select id="fwOrdSel" style="display:none;"></select>
         <div class="sumline" id="fwOrdInfo" style="margin:2px 0 6px;"></div>
         <div class="rf">
           <div><label>ชนิดผ้า</label><select id="fwFabSel"></select></div>
@@ -1026,7 +1026,7 @@
   <div class="ov" id="ovPre">
     <div class="box" style="max-width:560px; max-height:92vh; overflow:auto;">
       <h3 id="preTitle"></h3>
-      <p id="preSub">ตั้งไว้ก่อนได้เลย — ถึงคิวกดเริ่มแล้วใช้ค่านี้ทันที</p>
+      <p id="preSub">ตั้งสูตร Standard และเบิกผ้ารอไว้ได้เลย — ถึงคิวกดเริ่มแล้วใช้ได้ทันที</p>
       <div id="preSlot"></div>
       <div class="ba" style="margin-top:12px;"><button class="btn sec" id="preClose">เสร็จ / ปิด</button></div>
     </div>
@@ -2414,7 +2414,7 @@ window.WPDAUTH = {
     const cur=orderById(S.activeId), q=queueList();
     const row=(o,i)=>'<div class="qrow"><span class="qn">'+(i+1)+'</span><div class="qtx"><b>'+esc(o.customer)+'</b> — '+esc(o.code)+' <span style="color:var(--dim)">· '+(o.orderedPacks||0)+' แพ็ค</span>'+(o.id===S.activeFeedId?' <span class="bdg ok">🌀 ป้อนใยล่วงหน้าแล้ว</span>':'')+preBadge(o)+'</div><div class="qbtns">'+
       '<button class="btn sec sm" data-qup="'+o.id+'"'+(i?'':' disabled')+' title="เลื่อนขึ้น">▲</button><button class="btn sec sm" data-qdn="'+o.id+'"'+(i<q.length-1?'':' disabled')+' title="เลื่อนลง">▼</button>'+
-      '<button class="btn sec sm" data-qpre="'+o.id+'" title="ตั้งสูตร/Standard ล่วงหน้า">⚙️</button><button class="btn sm" data-qgo="'+o.id+'">เริ่มเลย</button><button class="btn sec sm" data-qout="'+o.id+'" title="เอาออกจากคิว (ออเดอร์ยังอยู่)">ออกคิว</button><button class="btn sec sm" data-qdel="'+o.id+'" title="ลบออเดอร์นี้ทิ้ง" style="color:var(--w-red,#cf3e45);">🗑</button></div></div>';
+      '<button class="btn sec sm" data-qpre="'+o.id+'" title="ตั้งค่าล่วงหน้า: สูตร / Standard / เบิกผ้า">⚙️</button><button class="btn sm" data-qgo="'+o.id+'">เริ่มเลย</button><button class="btn sec sm" data-qout="'+o.id+'" title="เอาออกจากคิว (ออเดอร์ยังอยู่)">ออกคิว</button><button class="btn sec sm" data-qdel="'+o.id+'" title="ลบออเดอร์นี้ทิ้ง" style="color:var(--w-red,#cf3e45);">🗑</button></div></div>';
     el.innerHTML='<div class="sumline" style="margin:0 0 6px;">'+(cur&&cur.status!=='done'?'กำลังทำที่ท้ายไลน์: <b style="color:var(--accent2)">'+esc(cur.customer)+' — '+esc(cur.code)+'</b>':'ตอนนี้ท้ายไลน์ยังไม่มีงาน')+'</div>'+
       (q.length?q.map(row).join('')+'<div class="sumline" style="margin-top:6px;">กด 🏁 จบงานแล้ว แอปจะเริ่ม <b>'+esc(q[0].customer)+'</b> ให้เลย</div>'
         :'<div class="empty">ยังไม่มีออเดอร์ในคิว — ออเดอร์ที่เพิ่มใหม่จะต่อคิวให้เอง หรือกด "+ เข้าคิว" ที่ออเดอร์ด้านล่าง</div>')+
@@ -2483,7 +2483,7 @@ window.WPDAUTH = {
           (o.contOf&&orderById(o.contOf)?'<br>↻ ต่อจากใบ '+thDate(orderById(o.contOf).createdAt||orderById(o.contOf).startedAt)+' (ทำไป '+packsOf(orderById(o.contOf))+' แพ็ค)':'')+'</div>'+
         '<div class="acts">'+
           (!done && !on && !isPicnic(o) && !queuePos(o) ? '<button class="btn sm" data-qin="'+o.id+'">+ เข้าคิว</button>' : '')+
-          (!done?'<button class="btn sec sm" data-pre="'+o.id+'">⚙️ '+(isPicnic(o)?'ตั้ง Standard':'ตั้งสูตร/Standard')+'</button>':'')+
+          (!done?'<button class="btn sec sm" data-pre="'+o.id+'">⚙️ ตั้งค่าล่วงหน้า</button>':'')+
           '<button class="btn sec sm" data-edit="'+o.id+'">แก้ไข</button>'+
           (done?(String(o.finishedAt||'').slice(0,10)<localISO().slice(0,10)?'<button class="btn sec sm" data-qcont="'+o.id+'">↻ ทำต่อวันนี้ (ใบใหม่)</button>':'<button class="btn sec sm" data-reopen="'+o.id+'">เปิดงานใหม่</button>'):'')+
           '<button class="btn dg sm" data-del="'+o.id+'">ลบ</button>'+
@@ -3952,13 +3952,14 @@ window.WPDAUTH = {
   function openPre(id){
     const o=orderById(id); if(!o) return;
     preId=id; formDirty=false; specOpen=null;
-    const rec=$('recSel').closest('.card'), sp=$('cardSpec');
-    preHome.length=0; [rec,sp].forEach(c=>{ preHome.push([c,c.parentNode,c.nextSibling,c.classList.contains('folded')]); c.classList.remove('folded'); });
-    $('preSlot').append(rec, sp);
+    const rec=$('recSel').closest('.card'), sp=$('cardSpec'), fw=$('cardFabWd');
+    preHome.length=0; [rec,sp,fw].filter(Boolean).forEach(c=>{ preHome.push([c,c.parentNode,c.nextSibling,c.classList.contains('folded')]); c.classList.remove('folded'); });
+    $('preSlot').append(...[rec,sp,fw].filter(Boolean));
     rec.style.display=isPicnic(o)?'none':'';
     $('preTitle').textContent='⚙️ ตั้งล่วงหน้า: '+o.customer+' — '+o.code;
     $('specForm').dataset.init=''; buildSpecForm();
     if(!isPicnic(o)) fillRecSel(o);
+    if(fw){ $('fwQty').value=''; refreshFwSelects(); fwOrdPick(); }
     openOv('ovPre');
   }
   function closePre(){
@@ -3966,6 +3967,7 @@ window.WPDAUTH = {
     preHome.forEach(([c,p,nx,fd])=>{ p.insertBefore(c,nx&&nx.parentNode===p?nx:null); c.style.display=''; c.classList.toggle('folded',!!fd); }); preHome.length=0;
     closeOv('ovPre');
     $('specForm').dataset.init=''; buildSpecForm(); fillRecSel(activeFeed()); rOrders();
+    if($('cardFabWd')){ $('fwQty').value=''; refreshFwSelects(); }
   }
   $('preClose').onclick=closePre;
   let formDirty=false; // true while the user has unsaved edits in a form
@@ -5079,19 +5081,13 @@ window.WPDAUTH = {
   /* ปลอกที่เบิกรอไว้ให้ออเดอร์นี้ (ยังไม่ได้ใช้) */
   function fwPreQty(o){ const used={}; (S.caseUse||[]).forEach(u=>{ used[u.fwId]=(used[u.fwId]||0)+(+u.pieces||0); });
     return (S.fabricWd||[]).filter(w=>w.pre&&w.orderId===o.id).reduce((s,w)=>s+Math.max(0,(+w.qty||0)-(used[w.id]||0)),0); }
-  /* ตัวเลือก "เบิกให้ออเดอร์": งานที่ทำอยู่ · คิวถัดไป · ออเดอร์อื่นที่ยังไม่จบ */
-  function fwOrdChoices(){
-    const a=active(), q=queueList(), qs=new Set(q.map(o=>o.id));
-    const other=S.orders.filter(o=>o.status!=='done' && !o.stockJob && (!a||o.id!==a.id) && !qs.has(o.id) && (o.productType==='หมอน'||isPicnic(o)));
-    return { a, q, other };
-  }
+  /* เบิกให้ออเดอร์ไหน: ปกติ = งานที่ทำอยู่ · เปิดจากหน้าต่าง ⚙️ ตั้งค่าล่วงหน้า = ออเดอร์นั้น (เบิกรอไว้) */
   function fillFwOrd(){
     const sel=$('fwOrdSel'); if(!sel) return;
-    const keep=sel.value, {a,q,other}=fwOrdChoices();
-    sel.innerHTML='<option value="">'+(a?'งานที่ทำอยู่: '+esc(a.customer+' — '+a.code):'— ไม่มีงานที่ทำอยู่ —')+'</option>'+
-      (q.length?'<optgroup label="⏭ รอในคิว">'+q.map((o,i)=>'<option value="'+o.id+'">คิว '+(i+1)+': '+esc(o.customer+' — '+o.code)+'</option>').join('')+'</optgroup>':'')+
-      (other.length?'<optgroup label="ออเดอร์อื่นที่ยังไม่จบ">'+other.map(o=>'<option value="'+o.id+'">'+esc(o.customer+' — '+o.code)+'</option>').join('')+'</optgroup>':'');
-    sel.value=[...q,...other].some(o=>o.id===keep)?keep:'';
+    const p=preOrder(), a=active();
+    if(p && (!a || p.id!==a.id)) sel.innerHTML='<option value="'+p.id+'">'+esc(p.customer+' — '+p.code)+'</option>';
+    else sel.innerHTML='<option value=""></option>';
+    sel.value=sel.options[0].value;
     fwOrdInfo();
   }
   function fwOrdInfo(){

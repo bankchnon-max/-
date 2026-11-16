@@ -1026,7 +1026,7 @@
   <div class="ov" id="ovPre">
     <div class="box" style="max-width:560px; max-height:92vh; overflow:auto;">
       <h3 id="preTitle"></h3>
-      <p id="preSub">ตั้งสูตร Standard และเบิกผ้ารอไว้ได้เลย — ถึงคิวกดเริ่มแล้วใช้ได้ทันที</p>
+      <p id="preSub">ตั้งไว้ก่อนได้เลย — ถึงคิวกดเริ่มแล้วใช้ได้ทันที</p>
       <div id="preSlot"></div>
       <div class="ba" style="margin-top:12px;"><button class="btn sec" id="preClose">เสร็จ / ปิด</button></div>
     </div>
@@ -3952,11 +3952,12 @@ window.WPDAUTH = {
   function openPre(id){
     const o=orderById(id); if(!o) return;
     preId=id; formDirty=false; specOpen=null;
-    const rec=$('recSel').closest('.card'), sp=$('cardSpec'), fw=$('cardFabWd');
+    const rec=$('recSel').closest('.card'), sp=$('cardSpec'), fw=o.productType==='หมอน'?$('cardFabWd'):null;   /* เบิกผ้ารอไว้ เฉพาะออเดอร์หมอน */
     preHome.length=0; [rec,sp,fw].filter(Boolean).forEach(c=>{ preHome.push([c,c.parentNode,c.nextSibling,c.classList.contains('folded')]); c.classList.remove('folded'); });
     $('preSlot').append(...[rec,sp,fw].filter(Boolean));
     rec.style.display=isPicnic(o)?'none':'';
     $('preTitle').textContent='⚙️ ตั้งล่วงหน้า: '+o.customer+' — '+o.code;
+    $('preSub').textContent=fw?'ตั้งสูตร Standard และเบิกผ้ารอไว้ได้เลย — ถึงคิวกดเริ่มแล้วใช้ได้ทันที':'ตั้งไว้ก่อนได้เลย — ถึงคิวกดเริ่มแล้วใช้ได้ทันที';
     $('specForm').dataset.init=''; buildSpecForm();
     if(!isPicnic(o)) fillRecSel(o);
     if(fw){ $('fwQty').value=''; refreshFwSelects(); fwOrdPick(); }
@@ -5085,7 +5086,7 @@ window.WPDAUTH = {
   function fillFwOrd(){
     const sel=$('fwOrdSel'); if(!sel) return;
     const p=preOrder(), a=active();
-    if(p && (!a || p.id!==a.id)) sel.innerHTML='<option value="'+p.id+'">'+esc(p.customer+' — '+p.code)+'</option>';
+    if(p && p.productType==='หมอน' && (!a || p.id!==a.id)) sel.innerHTML='<option value="'+p.id+'">'+esc(p.customer+' — '+p.code)+'</option>';
     else sel.innerHTML='<option value=""></option>';
     sel.value=sel.options[0].value;
     fwOrdInfo();

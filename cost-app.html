@@ -3464,7 +3464,8 @@ window.WPDAUTH = {
     $('tSewDue').innerHTML=dl.length?'<tr><th>ช่าง</th><th style="text-align:right">ค้างจ่าย (บาท)</th><th></th></tr>'+
       dl.map(s=>{ const e=due[s]; return '<tr><td><b>'+esc(s)+'</b><div style="font-size:12px;color:var(--dim)">'+e.n+' ครั้ง · '+fmtInt(e.q)+' ใบ'+(e.std?' · <span class="bdg warn">'+e.std+' ใช้ค่ามาตรฐาน</span>':'')+'</div></td><td style="text-align:right"><b>'+fmtBaht(e.baht)+'</b></td>'+
         '<td><button class="btn sm" data-sewpay="'+esc(s)+'" style="margin:0;white-space:nowrap;padding:8px 10px;">💵 จ่าย</button></td></tr>'; }).join('')+
-      (dl.length>1?'<tr><td class="kn">รวม <span style="font-weight:400;font-size:12px;">'+fmtInt(dl.reduce((a,s)=>a+due[s].q,0))+' ใบ</span></td><td style="text-align:right" class="kn">'+fmtBaht(dl.reduce((a,s)=>a+due[s].baht,0))+'</td><td></td></tr>':'')
+      '<tr><td class="kn">รวม'+(dl.length>1?' '+dl.length+' ช่าง':'')+' <span style="font-weight:400;font-size:12px;">'+fmtInt(dl.reduce((a,s)=>a+due[s].q,0))+' ใบ</span></td><td style="text-align:right" class="kn">'+fmtBaht(dl.reduce((a,s)=>a+due[s].baht,0))+'</td>'+
+        '<td><button class="btn sm" id="sewPayAll" style="margin:0;white-space:nowrap;padding:8px 10px;">💵 จ่ายทั้งหมด</button></td></tr>'
       :'<tr><td class="empty">ไม่มีค่าเย็บค้างจ่ายในช่วงนี้</td></tr>';
     /* ไซซ์ที่ยังไม่ได้ตั้งค่าเย็บ */
     const noSet=[...new Set(all.filter(x=>inR(x) && !x.paid && x.std).map(x=>x.size))];
@@ -3485,6 +3486,8 @@ window.WPDAUTH = {
         '<td><button class="x" data-sewundo="'+esc(p.id)+'" title="ยกเลิกการจ่ายครั้งนี้ — รายการกลับไปเป็นค้างจ่าย">✕</button></td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีการจ่าย</td></tr>';
     document.querySelectorAll('#tSewDue [data-sewpay]').forEach(b=>b.onclick=()=>sewPay(b.dataset.sewpay));
+    /* จ่ายทั้งหมด = ทุกช่างที่ค้างจ่ายในช่วงที่เลือก (ถ้าเลือกช่างไว้ = เฉพาะคนนั้น) */
+    if($('sewPayAll')) $('sewPayAll').onclick=()=>sewPayLines(all.filter(x=>inR(x) && !x.paid));
     /* ติ๊กเลือกจ่าย: เก็บเฉพาะที่ยังค้างและเห็นอยู่ในรายการ */
     { const vis=new Set(rows.slice(0,400).filter(x=>!x.paid).map(x=>x.r.id)); [...SEWSEL].forEach(id=>{ if(!vis.has(id)) SEWSEL.delete(id); });
       const sel=rows.filter(x=>SEWSEL.has(x.r.id)), sq=sel.reduce((a,x)=>a+x.q,0), sb=r2(sel.reduce((a,x)=>a+x.baht,0));

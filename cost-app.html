@@ -1193,6 +1193,8 @@ window.WPDAUTH = {
      ราคาทั้งหมดเก็บในแอพนี้เอง (คีย์ v3k_price) ไม่ไปแก้ 2 แอพเดิม
      ═══════════════════════════════════════════════════════════════ */
   /* <cost-core> */
+  /* การหักถุง → กระสอบจริงที่เบิกมา (id) */
+  function bagSackId(P,b){ const w=((P||{}).bagWd||[]).find(x=>x.id===b.bwId); return w&&w.picks&&w.picks[0]?w.picks[0].sackId:null; }
   const COST = {
     /* ราคาใย บาท/กก. — ถ้าใส่แยกไว้ทีละก้อนใช้ของก้อนนั้น ไม่งั้นใช้ราคามาตรฐาน */
     /* ราคาต่อก้อน: ใส่แยกตามรายการรับเข้า (เบอร์ซ้ำที่รับคนละวัน) ก่อน แล้วค่อยตามเบอร์ก้อน */
@@ -1393,12 +1395,13 @@ window.WPDAUTH = {
       const sp=spec||{}; if(!sp.packBagName || !(S.reuseItems||[]).some(x=>x.name===sp.packBagName)) return 0;
       return (sp.packPerPack!=null && sp.packPerPack!=='') ? (+sp.packPerPack||0) : ((+sp.packBagWeight||0)>0 ? 1 : 0);
     },
-    bagBahtPerPiece(PRICE, sackReceipts, kind, name, sackNo){
+    bagBahtPerPiece(PRICE, sackReceipts, kind, name, sackNo, sackId){
       const key=(kind==='zip')?'zip':'pack';
       const e=((PRICE||{})[key]||{})[name];
       if(!e) return { baht:0, src:'none' };
       const rows=(sackReceipts||[]).filter(r=>r.kind===kind && r.name===name);
-      const exact=sackNo!=null ? rows.filter(r=>String(r.sackNo)===String(sackNo))[0] : null;
+      /* เลขกระสอบซ้ำกันได้คนละล็อต → รู้ id กระสอบจริง (จากรายการเบิก) ใช้ id ก่อน */
+      const exact=(sackId && rows.find(r=>r.id===sackId)) || (sackNo!=null ? rows.filter(r=>String(r.sackNo)===String(sackNo))[0] : null);
       const bySack=(e.sacks||{})[String(sackNo)];
       /* ราคาตามวันที่รับเข้า (ชื่อถุงเดียวกัน วันเดียวกัน = ล็อตเดียวกัน) */
       const byDate=exact?(e.dates||{})[String(exact.time||'').slice(0,10)]:null;
@@ -1717,7 +1720,7 @@ window.WPDAUTH = {
       /* ถุงซิลนับเฉพาะงานหมอน — งานอื่นที่หักจากกระสอบถุงซิล นับเป็นถุงแพ็ค */
       const _ptOf=id=>{ const o=(P.orders||[]).find(x=>x.id===id); return o?(o.productType||'ใย'):''; };
       let bagPack=0, bagZip=0;
-      (P.bagUse||[]).filter(b=>inR(b) && !b.costExcluded).forEach(b=>{ const v=(+b.pieces||0)*COST.bagBahtPerPiece(PRICE,S.sackReceipts,b.kind,b.name,b.sackNo).baht;
+      (P.bagUse||[]).filter(b=>inR(b) && !b.costExcluded).forEach(b=>{ const v=(+b.pieces||0)*COST.bagBahtPerPiece(PRICE,S.sackReceipts,b.kind,b.name,b.sackNo,bagSackId(P,b)).baht;
         if(b.kind==='zip' && _ptOf(b.orderId)==='หมอน') bagZip+=v; else bagPack+=v; });
       lines.forEach(l=>{ const o=(P.orders||[]).find(x=>x.id===l.orderId); const per=o?COST.reuseUsesPerPack(S,o.spec):0; if(per>0) bagPack+=per*COST.reuseBahtPerUse(PRICE,o.spec.packBagName).baht; });
       /* หมอนที่บันทึกใช้ถุงไม่ครบตามสเปค → คิดส่วนที่ขาด (ประมาณ) */
@@ -1906,7 +1909,7 @@ window.WPDAUTH = {
       let bagBaht=0, zipPcs=0, packPcs=0;
       (P.bagUse||[]).filter(b=>b.orderId===orderId).forEach(b=>{
         const q=+b.pieces||0; if(!q) return;
-        const c=COST.bagBahtPerPiece(PRICE, S.sackReceipts, b.kind, b.name, b.sackNo);
+        const c=COST.bagBahtPerPiece(PRICE, S.sackReceipts, b.kind, b.name, b.sackNo, bagSackId(P,b));
         if(b.kind==='zip') zipPcs+=q; else packPcs+=q;
         bagBaht=r2(bagBaht+q*c.baht);
         if(c.src==='none') miss.push('ถุง "'+b.name+'" ยังไม่ได้ใส่ราคา');

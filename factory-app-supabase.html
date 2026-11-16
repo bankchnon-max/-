@@ -3988,9 +3988,13 @@ window.WPDAUTH = {
 
   /* โชว์ว่ากระสอบที่แท็กไว้เหลือกี่ใบ/กี่กิโล — อัปเดตสดจากยอดเบิกล่าสุด */
   function sackStatusNow(){ return CALC.sackStatus(STOCKBAG.receipts||[], S.bagWd); }
+  /* อ้างกระสอบใน Standard: "เลข" (แบบเก่า) หรือ "เลข~sackId" — เลขกระสอบซ้ำกันได้คนละล็อต (#2 หลายใบ) ต้องรู้ว่าใบไหน */
+  function skRef(x){ return x && x.sackId ? x.sackNo+'~'+x.sackId : String(x&&x.sackNo!=null?x.sackNo:''); }
+  function skRefNo(ref){ return String(ref==null?'':ref).split('~')[0]; }
+  function skRefIs(x,ref){ const r=String(ref==null?'':ref), i=r.indexOf('~'); return i>=0 ? x.sackId===r.slice(i+1) : r!=='' && String(x.sackNo)===r; }
   function findSack(kind,name,sackNo){
     const list=sackStatusNow().filter(x=>x.kind===kind && x.name===name);
-    if(sackNo) { const hit=list.find(x=>String(x.sackNo)===String(sackNo)); if(hit) return hit; }
+    if(sackNo) { const hit=list.find(x=>skRefIs(x,sackNo)); if(hit) return hit; }
     return list.filter(sackHasBag).sort((a,b)=>a.sackNo-b.sackNo)[0]||null;
   }
   /* ═══ ถุงตาม Standard ของงานนี้ ที่ไลน์: ใช้กระสอบไหน (ที่ยกมาก่อนใช้ก่อน) รับเข้าวันไหน เหลือกี่ใบ · ไม่มี/ไม่พอ = แดง ให้เบิก ═══ */
@@ -4007,8 +4011,8 @@ window.WPDAUTH = {
   /* กระสอบที่ Standard เลือกไว้ แต่ยังอยู่ในสต๊อก (ยังไม่ได้เบิกมาไลน์ฝั่งของงานนี้) — เลือกใน Standard ไม่ได้แปลว่าเบิกแล้ว */
   function stdSackInStock(o,j){
     if(!o || !j.sack) return null;
-    if(sackQueue(j.kind,j.name,fiberSide(o)).some(x=>lineHasBag(x) && String(x.sackNo)===String(j.sack))) return null;
-    return sackStatusNow().find(x=>x.kind===j.kind && x.name===j.name && String(x.sackNo)===String(j.sack) && sackHasBag(x))||null;
+    if(sackQueue(j.kind,j.name,fiberSide(o)).some(x=>lineHasBag(x) && skRefIs(x,j.sack))) return null;
+    return sackStatusNow().find(x=>x.kind===j.kind && x.name===j.name && skRefIs(x,j.sack) && sackHasBag(x))||null;
   }
   /* บันทึก Standard แล้ว — กระสอบที่เลือกไว้ยังไม่ได้เบิก ถามว่ายกมาไลน์เลยไหม (3 พ.ย. ตั้ง #19 ใน Standard แล้วยังต้องไปเบิกอีกรอบ) */
   async function offerStdSackWd(o){
@@ -4016,7 +4020,7 @@ window.WPDAUTH = {
     const side=fiberSide(o); let n=0;
     for(const j of bagLineJobs(o.spec)){
       const sk=stdSackInStock(o,j); if(!sk) continue;
-      if(!await ask('ยก'+j.label+' '+j.name+' กระสอบ #'+sk.sackNo+' มาที่ไลน์เลยไหม?',
+      if(!await ask('ยก'+j.label+' '+j.name+' กระสอบ #'+sk.sackNo+' (รับ '+thDate(sk.time)+') มาที่ไลน์เลยไหม?',
         'Standard เลือกกระสอบ #'+sk.sackNo+' ไว้ แต่กระสอบยังอยู่ในสต๊อก (ยังไม่ได้เบิก)\nยกมาแล้วจะอยู่'+SIDE_TH[side]+' — ถุง '+sk.remainingKg+' กก.'+(+sk.weightPerBag>0?' ≈ '+sk.remainingPieces+' ใบ':'')+
         '\n\nจะชั่งกระสอบจริงก่อน → กด "ยังไม่ยก" แล้วไปเบิกที่การ์ดเบิกกระสอบถุง',
         { yes:'ยกมาเลย', no:'ยังไม่ยก', tone:'ok' })) continue;
@@ -4252,19 +4256,22 @@ window.WPDAUTH = {
       /* ชื่อถุงอยู่ในกระสอบประเภทไหนในสต๊อก ก็ดูประเภทนั้น (เหมือนตอนหักถุง) */
       const k=(kind==='zip' && !(STOCKBAG.zip||{})[bagName] && (STOCKBAG.pack||{})[bagName]) ? 'pack' : kind;
       const lineQ=sackQueue(k,bagName,fiberSide(o)).filter(lineHasBag);
-      const lineNos=new Set(lineQ.map(x=>String(x.sackNo)));
-      const sacks=STOCKBAG.sacks.filter(s=>s.kind===k && s.name===bagName && sackHasBag(s) && !lineNos.has(String(s.sackNo)));
+      /* ซ่อนเฉพาะกระสอบใบเดียวกับที่อยู่ที่ไลน์ (ดูจาก id) — เลขเดียวกันแต่คนละล็อตยังเลือกได้ */
+      const lineIds=new Set(lineQ.map(x=>x.sackId).filter(Boolean));
+      const sacks=STOCKBAG.sacks.filter(s=>s.kind===k && s.name===bagName && sackHasBag(s) && !lineIds.has(s.sackId))
+        .sort((a,b)=>(a.sackNo-b.sackNo)||String(a.time).localeCompare(String(b.time)));
       if(!lineQ.length && !sacks.length){ sel.innerHTML='<option value="">— ไม่มีกระสอบที่พร้อมใช้ในสต๊อก —</option>'; return; }
-      const pick=(lineQ.length && !lineNos.has(String(keepVal||''))) ? String(lineQ[0].sackNo) : String(keepVal||'');
+      const _pk=(lineQ.length && !lineQ.some(x=>skRefIs(x,keepVal))) ? lineQ[0] : [...lineQ,...sacks].find(x=>skRefIs(x,keepVal));
+      const pick=_pk?skRef(_pk):'';
       const wIn=$(kind==='zip'?(selId==='spBag2Sack'?'spBag2W':'spBagW'):(selId==='spPack2BagLot'?'spPack2W':'spPackW'));
       const wOf=x=>x.weightPerBag||(wIn?(+wIn.value||0):0);
       sel.innerHTML='<option value="">— ไม่ระบุ —</option>'+
-        (lineQ.length?'<optgroup label="ที่ไลน์ — เบิกไว้แล้ว ใช้ก่อน">'+lineQ.map((x,i)=>'<option value="'+esc(x.sackNo)+'"'+(String(x.sackNo)===pick?' selected':'')+'>#'+esc(x.sackNo)+
+        (lineQ.length?'<optgroup label="ที่ไลน์ — เบิกไว้แล้ว ใช้ก่อน">'+lineQ.map((x,i)=>'<option value="'+esc(skRef(x))+'"'+(skRef(x)===pick?' selected':'')+'>#'+esc(x.sackNo)+
           (x.recvTime?' · รับ '+thDate(x.recvTime):'')+' · เบิกมา '+thDate(x.time)+' — เหลือ '+r3(x.remaining)+' กก.'+(wOf(x)>0?' ('+(x.wEst?'≈ ':'')+piecesOf(x.remaining,wOf(x))+' ใบ)':'')+
           (i===0?' · ใช้อยู่':' · รอคิว')+'</option>').join('')+'</optgroup>':'')+
-        (sacks.length?'<optgroup label="ในสต๊อก — ยังไม่เบิก">'+sacks.slice().sort((a,b)=>a.sackNo-b.sackNo).map(s=>'<option value="'+s.sackNo+'"'+(String(s.sackNo)===pick?' selected':'')+'>เบอร์กระสอบ #'+s.sackNo+' · รับ '+thDate(s.time)+' — เหลือ '+s.remainingKg+' กก. ('+s.remainingPieces+' ใบ)</option>').join('')+'</optgroup>':'');
+        (sacks.length?'<optgroup label="ในสต๊อก — ยังไม่เบิก">'+sacks.map(s=>'<option value="'+esc(skRef(s))+'"'+(skRef(s)===pick?' selected':'')+'>เบอร์กระสอบ #'+s.sackNo+' · รับ '+thDate(s.time)+' — เหลือ '+s.remainingKg+' กก. ('+s.remainingPieces+' ใบ)</option>').join('')+'</optgroup>':'');
       const upd=()=>{
-        const v=sel.value, onLine=lineNos.has(String(v));
+        const v=sel.value, onLine=lineQ.some(x=>skRefIs(x,v));
         hint.innerHTML = lineQ.length
           ? (onLine ? '<span style="color:var(--accent2)">✓ ใช้กระสอบที่เบิกไว้ที่ไลน์แล้ว — ไม่ต้องเบิกใหม่</span>'
                     : '<span style="color:var(--yellow)">ที่ไลน์ยังมีกระสอบ #'+esc(lineQ[0].sackNo)+' ของถุงนี้เหลือ — ตอนแพ็คระบบจะหักกระสอบเก่าที่ไลน์ก่อนเสมอ</span>')
@@ -4288,7 +4295,7 @@ window.WPDAUTH = {
       const rows=sackStatusNow().filter(x=>x.kind===kind && x.name===name);
       if(!rows.length) return;
       const chosen=(sackId&&$(sackId)&&$(sackId).value)
-        ? rows.find(x=>String(x.sackNo)===String($(sackId).value))
+        ? rows.find(x=>skRefIs(x,$(sackId).value))
         : null;
       /* ถ้ายังไม่เลือกกระสอบ ใช้กระสอบที่ยังมีของและใหม่สุดเป็นตัวตั้ง */
       const ref = chosen || rows.filter(x=>x.remainingKg>0).sort((a,b)=>String(b.time).localeCompare(String(a.time)))[0] || rows[rows.length-1];
@@ -4593,7 +4600,8 @@ window.WPDAUTH = {
       if(_row && _bu.length){
         const _st=sackStatusNow();
         _row.bagLot=_bu.map(u=>(u.kind==='zip'?'ถุงซิล':'ถุงแพ็ค')+' #'+u.sackNo).join(', ');
-        _row.bagUsedSize=[...new Set(_bu.map(u=>{ const sk=_st.find(x=>x.kind===u.kind && x.name===u.name && String(x.sackNo)===String(u.sackNo)); return sk&&sk.size; }).filter(Boolean))].join(', ');
+        const _sid=u=>{ const w=(S.bagWd||[]).find(x=>x.id===u.bwId); return w&&w.picks&&w.picks[0]&&w.picks[0].sackId; };
+        _row.bagUsedSize=[...new Set(_bu.map(u=>{ const id=_sid(u), sk=(id&&_st.find(x=>x.sackId===id))||_st.find(x=>x.kind===u.kind && x.name===u.name && String(x.sackNo)===String(u.sackNo)); return sk&&sk.size; }).filter(Boolean))].join(', ');
       } }
     const _case=autoCutCases(o,+o.spec.piecesPerPack||0,{lineId:_lineId});
     const _sheet=autoUseSheet(o,_lineId);
@@ -5028,10 +5036,10 @@ window.WPDAUTH = {
       for(const sk of q){
         if(pieces<=0) break;
         /* กระสอบเก่าหมด → กระสอบที่เบิกไว้มาแทนที่ + ปรับน้ำหนักต่อใบตามกระสอบใหม่ทันที */
-        if(String(sk.sackNo)!==String(sp[j.sackKey]||'')){
-          const from=sp[j.sackKey]||'';
+        if(!skRefIs(sk, sp[j.sackKey]||'')){
+          const from=skRefNo(sp[j.sackKey]||'');
           const oldW=+sp[j.wKey]||0, newW=(!sk.wEst && sk.weightPerBag)||oldW;
-          sp[j.sackKey]=String(sk.sackNo);
+          sp[j.sackKey]=skRef(sk);
           let note='';
           if(newW>0 && Math.abs(newW-oldW)>0.0000001){
             sp[j.wKey]=newW;

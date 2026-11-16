@@ -2358,7 +2358,7 @@ window.WPDAUTH = {
       var bx=document.createElement('div');
       bx.style.cssText='background:var(--w-panel,#ffffff);color:var(--w-text,#1b2430);border:1px solid var(--w-border,#e2e7ee);border-radius:14px;max-width:430px;width:100%;padding:18px;box-shadow:0 12px 40px rgba(16,24,40,.18)';
       var h=document.createElement('div'); h.style.cssText="font:600 17px 'Kanit',sans-serif;margin-bottom:8px"; h.textContent=title||'';
-      var p=document.createElement('div'); p.style.cssText="font:400 14px/1.65 'Sarabun',sans-serif;white-space:pre-line;color:var(--w-label,#465262);margin-bottom:16px"; p.textContent=detail||'';
+      var p=document.createElement('div'); p.style.cssText="font:400 14px/1.65 'Sarabun',sans-serif;white-space:pre-line;color:var(--w-label,#465262);margin-bottom:16px;max-height:55vh;overflow:auto"; p.textContent=detail||'';
       var row=document.createElement('div'); row.style.cssText='display:flex;gap:10px';
       var ok=document.createElement('button'); ok.textContent=opts.okText||'ยืนยัน'; ok.setAttribute('data-noguard','1');
       ok.style.cssText="flex:1;padding:13px;border:0;border-radius:10px;background:#ff8a3d;color:#12181f;font:600 15px 'Kanit',sans-serif";
@@ -3515,7 +3515,8 @@ window.WPDAUTH = {
       L.forEach(x=>{ const e=bs[x.size]||(bs[x.size]={ q:0, rate:x.rate, baht:0 }); e.q+=x.q; e.baht=r2(e.baht+x.baht); });
       return (ws.length>1?w+' — '+fmtBaht(bt)+' บาท\n':'')+'รับกลับ '+thDate(days[0])+(days[0]!==days[days.length-1]?' – '+thDate(days[days.length-1]):'')+' · '+L.length+' ครั้ง · '+fmtInt(q)+' ใบ\n'+
         Object.keys(bs).map(z=>'• '+z+' — '+fmtInt(bs[z].q)+' ใบ × '+fmtBaht(bs[z].rate)+' = '+fmtBaht(bs[z].baht)).join('\n'); };
-    if(!await ask('จ่ายค่าเย็บ '+(ws.length>1?ws.length+' ช่าง':ws[0])+' '+fmtBaht(tot)+' บาท?', ws.map(part).join('\n\n')+
+    const brief=w=>{ const L=by[w]; return '• '+w+' — '+fmtInt(L.reduce((a,x)=>a+x.q,0))+' ใบ = '+fmtBaht(r2(L.reduce((a,x)=>a+x.baht,0)))+' บาท'; };
+    if(!await ask('จ่ายค่าเย็บ '+(ws.length>1?ws.length+' ช่าง':ws[0])+' '+fmtBaht(tot)+' บาท?', (ws.length>1?ws.map(brief).join('\n'):part(ws[0]))+
       (ns?'\n\n⚠ มี '+ns+' รายการที่ไซซ์ยังไม่ได้ตั้งค่าเย็บ ใช้ค่ามาตรฐาน':''), { okText:'💵 จ่ายแล้ว' })) return;
     SEWPAY.pays=SEWPAY.pays||[];
     const t=localISO();

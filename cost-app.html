@@ -670,11 +670,13 @@
         <p class="sumline" style="margin-top:-4px;">รับกลับจากช่างเมื่อไหร่ = ต้องจ่าย · คิดตามค่าเย็บของไซซ์นั้น (ตั้งที่ ⚙️ ตั้งค่า) × จำนวนใบที่รับกลับ · จ่ายแล้วกด "💵 จ่าย"</p>
         <div class="rf">
           <div><label>ช่าง</label><select id="sewWho"></select></div>
+          <div><label>สินค้า</label><select id="sewPt"></select></div>
           <div><label>รับกลับตั้งแต่</label><input id="sewFrom" type="date"></div>
           <div><label>ถึง</label><input id="sewTo" type="date"></div>
         </div>
         <div class="sumline" id="sewNoRate" style="margin-top:6px;"></div>
         <div class="scr" style="margin-top:8px;"><table id="tSewDue"></table></div>
+        <div class="sumline" id="sewByCat" style="margin-top:8px;"></div>
       </div>
       <div class="card"><h3>รายการรับกลับ</h3>
         <label class="sumline" style="display:flex;align-items:center;gap:6px;margin:0 0 6px;"><input type="checkbox" id="sewShowPaid" style="width:auto;margin:0;"> แสดงที่จ่ายแล้วด้วย</label>
@@ -3446,18 +3448,30 @@ window.WPDAUTH = {
       const b=bag[r.batchId]||{}, size=COST.sizeKey(r.sizeFinished||b.sizeFinished||b.size||'');
       const p=paid[r.id], rate=p?+p.line.rate||0:COST.sewRate(KSET, size), q=+r.qty||0;
       const nm=String(r.sewerName||'').trim();
-      return { r, b, size, rate, std:!p && !setSz.has(size), q, baht:p?+p.line.baht||0:r2(q*rate), sewer:(nm && nm!=='-')?nm:'ไม่ระบุช่าง',
+      return { r, b, size, cat:sewCat(r.productType||b.productType, size), rate, std:!p && !setSz.has(size), q, baht:p?+p.line.baht||0:r2(q*rate), sewer:(nm && nm!=='-')?nm:'ไม่ระบุช่าง',
         day:String(r.time||'').slice(0,10), paid:p?p.pay:null, sent:(sentBy[r.batchId]||[]) };
     });
   }
-  function sewRange(){ return { from:$('sewFrom').value||sewSince(), to:$('sewTo').value||localISO().slice(0,10), who:$('sewWho').value }; }
+  const SEW_CATS=['หมอนหนุน','หมอนข้าง','ปิกนิก','อื่นๆ'];
+  const PIC_CASE=new Set(['39x77','45x77','62x77','75x81','40x79','46x79','63x78','76x83','36x75','42x75','59x75','72x78']);
+  function sewCat(name, size){
+    const t=String(name||'');
+    if(/ปิกนิ|กินนิ|ปิคนิ|picnic|\d(\.\d)?\s*F\b/i.test(t)) return 'ปิกนิก';
+    if(/ข้าง/.test(t)) return 'หมอนข้าง';
+    if(/หนุน/.test(t)) return 'หมอนหนุน';
+    if(!t.trim() && PIC_CASE.has(String(size||''))) return 'ปิกนิก';
+    return 'อื่นๆ';
+  }
+  function sewRange(){ return { from:$('sewFrom').value||sewSince(), to:$('sewTo').value||localISO().slice(0,10), who:$('sewWho').value, pt:($('sewPt')||{}).value||'' }; }
   function rSew(){
     if(!$('sewFrom').value) $('sewFrom').value=sewSince();
     if(!$('sewTo').value) $('sewTo').value=localISO().slice(0,10);
     const R=sewRange(), showPaid=$('sewShowPaid').checked, all=sewLines();
     const sewers=[...new Set(all.map(x=>x.sewer))].sort((a,b)=>a.localeCompare(b,'th'));
     $('sewWho').innerHTML='<option value="">ทุกคน</option>'+sewers.map(s=>'<option value="'+esc(s)+'"'+(s===R.who?' selected':'')+'>'+esc(s)+'</option>').join('');
-    const inR=x=>x.day>=R.from && x.day<=R.to && (!R.who || x.sewer===R.who);
+    { const ps=$('sewPt'), have=new Set(all.filter(x=>x.day>=R.from && x.day<=R.to).map(x=>x.cat));
+      ps.innerHTML='<option value="">ทุกสินค้า</option>'+SEW_CATS.filter(c=>have.has(c)||c===R.pt).map(c=>'<option value="'+c+'"'+(c===R.pt?' selected':'')+'>'+c+'</option>').join(''); }
+    const inR=x=>x.day>=R.from && x.day<=R.to && (!R.who || x.sewer===R.who) && (!R.pt || x.cat===R.pt);
     /* ค้างจ่ายต่อช่าง */
     const due={}; all.filter(x=>inR(x) && !x.paid).forEach(x=>{ const e=due[x.sewer]||(due[x.sewer]={ n:0, q:0, baht:0, std:0 }); e.n++; e.q+=x.q; e.baht=r2(e.baht+x.baht); if(x.std) e.std++; });
     const dl=Object.keys(due).sort((a,b)=>due[b].baht-due[a].baht);
@@ -3467,6 +3481,10 @@ window.WPDAUTH = {
       '<tr><td class="kn">รวม'+(dl.length>1?' '+dl.length+' ช่าง':'')+' <span style="font-weight:400;font-size:12px;">'+fmtInt(dl.reduce((a,s)=>a+due[s].q,0))+' ใบ</span></td><td style="text-align:right" class="kn">'+fmtBaht(dl.reduce((a,s)=>a+due[s].baht,0))+'</td>'+
         '<td><button class="btn sm" id="sewPayAll" style="margin:0;white-space:nowrap;padding:8px 10px;">💵 จ่ายทั้งหมด</button></td></tr>'
       :'<tr><td class="empty">ไม่มีค่าเย็บค้างจ่ายในช่วงนี้</td></tr>';
+    { const bc={}; all.filter(x=>inR(x) && !x.paid).forEach(x=>{ const e=bc[x.cat]||(bc[x.cat]={ q:0, baht:0 }); e.q+=x.q; e.baht=r2(e.baht+x.baht); });
+      const ks=SEW_CATS.filter(c=>bc[c]);
+      $('sewByCat').innerHTML=(!R.pt && ks.length>1)?'ค้างจ่ายแยกสินค้า: '+ks.map(c=>'<a class="lnk" data-sewcat="'+c+'" style="cursor:pointer;white-space:nowrap;"><b>'+c+'</b> '+fmtInt(bc[c].q)+' ใบ = '+fmtBaht(bc[c].baht)+'</a>').join(' · '):'';
+      document.querySelectorAll('#sewByCat [data-sewcat]').forEach(a=>a.onclick=()=>{ $('sewPt').value=a.dataset.sewcat; rSew(); }); }
     /* ไซซ์ที่ยังไม่ได้ตั้งค่าเย็บ */
     const noSet=[...new Set(all.filter(x=>inR(x) && !x.paid && x.std).map(x=>x.size))];
     $('sewNoRate').innerHTML=noSet.length?'⚠ ไซซ์ที่ยังไม่ได้ตั้งค่าเย็บ (ตอนนี้ใช้ค่ามาตรฐาน '+fmtBaht(+KSET.sewPerPiece||0)+' บาท/ใบ): <b>'+noSet.map(esc).join(', ')+'</b> <button class="btn sec sm" id="sewGoSet" style="margin:0 0 0 6px;">⚙️ ไปตั้งค่าเย็บ</button>':'';
@@ -3474,7 +3492,7 @@ window.WPDAUTH = {
     /* รายการรับกลับทีละครั้ง */
     const rows=all.filter(x=>inR(x) && (showPaid || !x.paid)).sort((a,b)=>String(b.r.time).localeCompare(String(a.r.time)));
     $('tSewList').innerHTML=rows.length?'<tr><th><input type="checkbox" id="sewAll" style="width:auto;margin:0;" title="ติ๊กทั้งหมดที่ค้างจ่าย"></th><th>รับกลับ</th><th>ช่าง</th><th>ถุง</th><th>ผ้า</th><th>ไซซ์</th><th>สินค้า</th><th>ส่งไป</th><th style="text-align:right">รับกลับ (ใบ)</th><th style="text-align:right">ค่าเย็บ/ใบ</th><th style="text-align:right">บาท</th><th>สถานะ</th></tr>'+
-      rows.slice(0,400).map(x=>'<tr'+(SEWSEL.has(x.r.id)?' style="background:var(--w-sel,rgba(255,138,61,.12))"':'')+'><td>'+(x.paid?'':'<input type="checkbox" data-sewsel="'+esc(x.r.id)+'"'+(SEWSEL.has(x.r.id)?' checked':'')+' style="width:auto;margin:0;">')+'</td><td style="white-space:nowrap">'+thDate(x.r.time)+'</td><td>'+esc(x.sewer)+'</td><td>#'+esc(x.r.batchNo!=null?x.r.batchNo:(x.b.batchNo||''))+'</td><td>'+esc(x.r.fabricType||x.b.fabricType||'')+'</td><td><b>'+esc(x.size)+'</b></td><td>'+esc(x.r.productType||'')+'</td>'+
+      rows.slice(0,400).map(x=>'<tr'+(SEWSEL.has(x.r.id)?' style="background:var(--w-sel,rgba(255,138,61,.12))"':'')+'><td>'+(x.paid?'':'<input type="checkbox" data-sewsel="'+esc(x.r.id)+'"'+(SEWSEL.has(x.r.id)?' checked':'')+' style="width:auto;margin:0;">')+'</td><td style="white-space:nowrap">'+thDate(x.r.time)+'</td><td>'+esc(x.sewer)+'</td><td>#'+esc(x.r.batchNo!=null?x.r.batchNo:(x.b.batchNo||''))+'</td><td>'+esc(x.r.fabricType||x.b.fabricType||'')+'</td><td><b>'+esc(x.size)+'</b></td><td>'+esc(x.r.productType||'')+' <span class="bdg" style="font-size:10.5px;">'+x.cat+'</span></td>'+
         '<td style="white-space:nowrap;font-size:12.5px;">'+(x.sent.length?x.sent.map(s=>thDate(s.time)+' · '+fmtInt(s.qty)).join('<br>'):'—')+'</td>'+
         '<td style="text-align:right">'+fmtInt(x.q)+'</td><td style="text-align:right">'+fmtBaht(x.rate)+(x.std?' <span class="bdg warn">มาตรฐาน</span>':'')+'</td><td style="text-align:right"><b>'+fmtBaht(x.baht)+'</b></td>'+
         '<td style="white-space:nowrap">'+(x.paid?'<span class="bdg ok">จ่ายแล้ว '+thDate(x.paid.time)+'</span>':'<span class="bdg warn">ค้างจ่าย</span>')+'</td></tr>').join('')
@@ -3503,7 +3521,7 @@ window.WPDAUTH = {
     document.querySelectorAll('#tSewPaid [data-sewundo]').forEach(b=>b.onclick=()=>sewUndo(b.dataset.sewundo));
   }
   async function sewPay(sewer){
-    const R=sewRange(); return sewPayLines(sewLines().filter(x=>x.sewer===sewer && !x.paid && x.day>=R.from && x.day<=R.to));
+    const R=sewRange(); return sewPayLines(sewLines().filter(x=>x.sewer===sewer && !x.paid && x.day>=R.from && x.day<=R.to && (!R.pt || x.cat===R.pt)));
   }
   async function sewPayLines(ls){
     ls=(ls||[]).filter(x=>!x.paid);
@@ -3532,7 +3550,7 @@ window.WPDAUTH = {
     SEWPAY.pays=SEWPAY.pays.filter(x=>x.id!==id);
     await saveSewPay(); rSew(); toast('ยกเลิกการจ่ายแล้ว');
   }
-  ['sewFrom','sewTo','sewWho','sewShowPaid'].forEach(id=>{ const e=$(id); if(e) e.addEventListener('change',()=>rSew()); });
+  ['sewFrom','sewTo','sewWho','sewPt','sewShowPaid'].forEach(id=>{ const e=$(id); if(e) e.addEventListener('change',()=>rSew()); });
 
 
   $('btnSavePrice').onclick=async()=>{ collectPrice(); formDirty=false; await savePrice(); rPrice(); toast('บันทึกราคาแล้ว'); };

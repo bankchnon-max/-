@@ -2416,7 +2416,7 @@ window.WPDAUTH = {
       '<button class="btn sec sm" data-qup="'+o.id+'"'+(i?'':' disabled')+' title="เลื่อนขึ้น">▲</button><button class="btn sec sm" data-qdn="'+o.id+'"'+(i<q.length-1?'':' disabled')+' title="เลื่อนลง">▼</button>'+
       '<button class="btn sec sm" data-qpre="'+o.id+'" title="ตั้งค่าล่วงหน้า: สูตร / Standard / เบิกผ้า">⚙️</button><button class="btn sm" data-qgo="'+o.id+'">เริ่มเลย</button><button class="btn sec sm" data-qout="'+o.id+'" title="เอาออกจากคิว (ออเดอร์ยังอยู่)">ออกคิว</button><button class="btn sec sm" data-qdel="'+o.id+'" title="ลบออเดอร์นี้ทิ้ง" style="color:var(--w-red,#cf3e45);">🗑</button></div></div>';
     el.innerHTML='<div class="sumline" style="margin:0 0 6px;">'+(cur&&cur.status!=='done'?'กำลังทำที่ท้ายไลน์: <b style="color:var(--accent2)">'+esc(cur.customer)+' — '+esc(cur.code)+'</b>':'ตอนนี้ท้ายไลน์ยังไม่มีงาน')+'</div>'+
-      (q.length?q.map(row).join('')+'<div class="sumline" style="margin-top:6px;">กด 🏁 จบงานแล้ว แอปจะเริ่ม <b>'+esc(q[0].customer)+'</b> ให้เลย</div>'
+      (q.length?q.map(row).join('')+'<div class="sumline" style="margin-top:6px;">กด 🏁 จบงานแล้ว แอปจะเริ่ม <b>'+esc(((S.activeFeedId && S.activeFeedId!==S.activeId && q.find(x=>x.id===S.activeFeedId))||q[0]).customer)+'</b> ให้เลย</div>'
         :'<div class="empty">ยังไม่มีออเดอร์ในคิว — ออเดอร์ที่เพิ่มใหม่จะต่อคิวให้เอง หรือกด "+ เข้าคิว" ที่ออเดอร์ด้านล่าง</div>')+
       (function(){ const td=localISO().slice(0,10), L=S.orders.filter(o=>o.autoClosed===td && !S.orders.some(x=>x.contOf===o.id));
         return L.length?'<div style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--border);"><div class="sumline" style="margin:0 0 4px;">ปิดใบที่ค้างจากวันก่อนให้แล้ว — วันนี้นับใหม่ ถ้าจะทำต่อกด "ทำต่อวันนี้"</div>'+
@@ -2703,8 +2703,14 @@ window.WPDAUTH = {
       const _sideList=openOrders.filter(x=>!isPicnic(x) && fiberSide(x)===feedSideSel)
         .sort((a,b)=>(b.id===wantId)-(a.id===wantId) || (b.status==='active')-(a.status==='active') || ((a.queue!=null?+a.queue:1e9)-(b.queue!=null?+b.queue:1e9)) || String(b.startedAt||b.createdAt||'').localeCompare(String(a.startedAt||a.createdAt||'')));
       const _cur=orderById(wantId);
+      /* เรียงตามลำดับผลิต: กำลังทำ → คิวผลิต (คิว 1,2,3…) · ไม่อยู่ในคิว = ไม่แสดง (ยกเว้นงานที่ป้อนใยอยู่ตอนนี้) */
+      const _nm=x=>esc(x.customer)+' — '+esc(x.code)+(_same(x)?' · สร้าง '+thDate(x.createdAt||x.startedAt):'');
+      const _opt=(x,t)=>'<option value="'+x.id+'">'+t+'</option>';
+      const _gOn=_sideList.filter(x=>x.id===S.activeId || x.status==='active' || (x.id===wantId && !queuePos(x)));
+      const _gQ=_sideList.filter(x=>!_gOn.includes(x) && queuePos(x)).sort((a,b)=>queuePos(a)-queuePos(b));
       feedSel.innerHTML=(_sideList.some(x=>x.id===wantId)?'':'<option value="">— เลือกงาน'+(SIDE_TH[feedSideSel]||'')+' —</option>')+
-        _sideList.map(x=>'<option value="'+x.id+'">'+esc(x.customer)+' — '+esc(x.code)+(_same(x)?' · สร้าง '+thDate(x.createdAt||x.startedAt):'')+(x.id===S.activeId?' (ท้ายไลน์กำลังทำอยู่)':(queuePos(x)?' (คิวที่ '+queuePos(x)+')':''))+'</option>').join('');
+        (_gOn.length?'<optgroup label="▶ กำลังทำ">'+_gOn.map(x=>_opt(x,_nm(x)+(x.id===S.activeId?' (ท้ายไลน์กำลังทำอยู่)':x.id===S.activeFeedId?' (ป้อนใยล่วงหน้าอยู่)':''))).join('')+'</optgroup>':'')+
+        (_gQ.length?'<optgroup label="⏭ คิวผลิต (ตามลำดับ)">'+_gQ.map(x=>_opt(x,'คิว '+queuePos(x)+': '+_nm(x))).join('')+'</optgroup>':'');
       if(_sideList.some(x=>x.id===wantId)) feedSel.value=wantId;
       else feedSel.value='';
       /* คิวผลิต: ป้อนใยเปลี่ยนไปงานถัดไปก่อนท้ายไลน์ — กดปุ่มเดียว ไม่ต้องหาในรายการ */

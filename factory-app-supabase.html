@@ -795,6 +795,8 @@
         <h3>🧷 เบิกถุงบรรจุผ้า</h3>
         <p class="sumline">ติ๊กถุงที่หยิบมาจริง และใส่ได้ว่าเอาไปกี่ชิ้นต่อถุง · ถ้าพิมพ์จำนวนที่อยากได้แล้วกด "ติ๊กให้พอ" ระบบติ๊กถุงเก่าสุดให้ก่อน แก้เองได้<br><br>
         <span style="color:var(--muted)">ถุงจะขึ้นให้เบิกได้ก็ต่อเมื่อบันทึก "รับกลับจากช่างเย็บ" ในแอพสต๊อกแล้ว</span></p>
+        <label>เบิกให้ออเดอร์</label><select id="fwOrdSel"></select>
+        <div class="sumline" id="fwOrdInfo" style="margin:2px 0 6px;"></div>
         <div class="rf">
           <div><label>ชนิดผ้า</label><select id="fwFabSel"></select></div>
           <div><label>ไซซ์</label><select id="fwSizeSel"></select></div>
@@ -2405,7 +2407,8 @@ window.WPDAUTH = {
   }
   /* คิว: บอกว่าตั้งสูตร/Standard ไว้แล้วหรือยัง — พร้อม = ถึงคิวกดเริ่มได้เลย */
   function preBadge(o){ const miss=[]; if(!(CALC.stdPerPack(o.spec)>0)) miss.push('Standard'); if(!isPicnic(o) && !(o.fibers||[]).length) miss.push('สูตร');
-    return miss.length?' <span class="bdg warn">⚠ ยังไม่ตั้ง'+miss.join('/')+'</span>':' <span class="bdg ok">✅ ตั้งสูตร/Standard แล้ว</span>'; }
+    const _pf=fwPreQty(o);
+    return (miss.length?' <span class="bdg warn">⚠ ยังไม่ตั้ง'+miss.join('/')+'</span>':' <span class="bdg ok">✅ ตั้งสูตร/Standard แล้ว</span>')+(_pf?' <span class="bdg ok">🧷 เบิกผ้ารอไว้ '+_pf+' ใบ</span>':''); }
   function rQueue(){
     const el=$('queueBox'); if(!el) return;
     const cur=orderById(S.activeId), q=queueList();
@@ -5061,7 +5064,7 @@ window.WPDAUTH = {
     const lots=[];
     const since=trackSince(S.caseUse), tracked=new Set((S.caseUse||[]).map(u=>u.fwId));
     /* ปลอกที่เบิกให้ออเดอร์นี้นับเสมอ แม้ชื่อผ้าในสเปคพิมพ์ไม่ตรงกับชื่อในสต๊อก (เช่น ผ้าขาวริ้ว90 / ผ้าริ้ว90g) */
-    (S.fabricWd||[]).filter(w=>(w.fabricType===fab || w.orderId===o.id) && (String(w.time)>=since || tracked.has(w.id))).slice().sort((a,b)=>String(a.time).localeCompare(String(b.time))).forEach(w=>{
+    (S.fabricWd||[]).filter(w=>(w.fabricType===fab || w.orderId===o.id) && !fwHeldFor(w,o) && (String(w.time)>=since || tracked.has(w.id))).slice().sort((a,b)=>String(a.time).localeCompare(String(b.time))).forEach(w=>{
       (w.picks||[]).forEach(p=>{
         if(want && normSize(w.size)!==want && !sizeOf(p.batchId).includes(want)) return;
         const rem=(+p.qty||0)-(used[w.id+'\u0000'+p.batchId]||0);
@@ -5071,6 +5074,46 @@ window.WPDAUTH = {
     return lots;
   }
   function caseAtLine(o){ return caseLots(o).reduce((s,l)=>s+l.remaining,0); }
+  /* เบิกรอไว้ให้ออเดอร์อื่นที่ยังไม่จบ → กันไว้ ไม่ให้งาน o หยิบ (ออเดอร์นั้นจบ/ถูกลบ = ปล่อยให้ใช้ได้) */
+  function fwHeldFor(w,o){ if(!w.pre || w.orderId===o.id) return false; const t=orderById(w.orderId); return !!t && t.status!=='done'; }
+  /* ปลอกที่เบิกรอไว้ให้ออเดอร์นี้ (ยังไม่ได้ใช้) */
+  function fwPreQty(o){ const used={}; (S.caseUse||[]).forEach(u=>{ used[u.fwId]=(used[u.fwId]||0)+(+u.pieces||0); });
+    return (S.fabricWd||[]).filter(w=>w.pre&&w.orderId===o.id).reduce((s,w)=>s+Math.max(0,(+w.qty||0)-(used[w.id]||0)),0); }
+  /* ตัวเลือก "เบิกให้ออเดอร์": งานที่ทำอยู่ · คิวถัดไป · ออเดอร์อื่นที่ยังไม่จบ */
+  function fwOrdChoices(){
+    const a=active(), q=queueList(), qs=new Set(q.map(o=>o.id));
+    const other=S.orders.filter(o=>o.status!=='done' && !o.stockJob && (!a||o.id!==a.id) && !qs.has(o.id) && (o.productType==='หมอน'||isPicnic(o)));
+    return { a, q, other };
+  }
+  function fillFwOrd(){
+    const sel=$('fwOrdSel'); if(!sel) return;
+    const keep=sel.value, {a,q,other}=fwOrdChoices();
+    sel.innerHTML='<option value="">'+(a?'งานที่ทำอยู่: '+esc(a.customer+' — '+a.code):'— ไม่มีงานที่ทำอยู่ —')+'</option>'+
+      (q.length?'<optgroup label="⏭ รอในคิว">'+q.map((o,i)=>'<option value="'+o.id+'">คิว '+(i+1)+': '+esc(o.customer+' — '+o.code)+'</option>').join('')+'</optgroup>':'')+
+      (other.length?'<optgroup label="ออเดอร์อื่นที่ยังไม่จบ">'+other.map(o=>'<option value="'+o.id+'">'+esc(o.customer+' — '+o.code)+'</option>').join('')+'</optgroup>':'');
+    sel.value=[...q,...other].some(o=>o.id===keep)?keep:'';
+    fwOrdInfo();
+  }
+  function fwOrdInfo(){
+    const box=$('fwOrdInfo'); if(!box) return;
+    const o=$('fwOrdSel').value?orderById($('fwOrdSel').value):null;
+    if(!o){ box.innerHTML=''; return; }
+    const sp=o.spec||{}, need=(+o.orderedPacks||0)*(+sp.piecesPerPack||1), got=fwPreQty(o);
+    box.innerHTML='🕒 เบิกรอไว้ให้ออเดอร์นี้ — งานที่ทำอยู่จะไม่หยิบปลอกชุดนี้ไปใช้'+
+      '<br>ผ้าตาม Standard: <b>'+esc(sp.fabricType||'ยังไม่ตั้ง')+'</b> '+esc(sp.fabricSize||'')+(need?' · ต้องใช้ประมาณ '+need+' ใบ':'')+
+      (got?' · <span class="bdg ok">เบิกรอไว้แล้ว '+got+' ใบ</span>':'');
+  }
+  function fwOrdPick(){
+    fwOrdInfo();
+    const o=$('fwOrdSel').value?orderById($('fwOrdSel').value):null; if(!o) return;
+    const sp=o.spec||{}, fs=$('fwFabSel');
+    if(sp.fabricType && [...fs.options].some(x=>x.value===sp.fabricType)){ fs.value=sp.fabricType; refreshFwSelects(); }
+    const z=normSize(sp.fabricSize||''), ss=$('fwSizeSel');
+    if(z && [...ss.options].some(x=>x.value===z)) ss.value=z;
+    const need=Math.max(0,(+o.orderedPacks||0)*(+sp.piecesPerPack||1)-fwPreQty(o));
+    if(need) $('fwQty').value=need;
+    renderFwList(); updateFwPreview();
+  }
   function autoCutCases(o,pieces,ref){
     if(!(o && (o.productType==='หมอน' || isPicnic(o)) && (o.spec||{}).fabricType) || !(pieces>0)) return null;
     S.caseUse=S.caseUse||[];
@@ -5351,6 +5394,7 @@ window.WPDAUTH = {
 
   function refreshFwSelects(){
     const fabSel=$('fwFabSel'), sizeSel=$('fwSizeSel'); if(!fabSel) return;
+    if(document.activeElement!==$('fwOrdSel')) fillFwOrd();
     const keepFab=fabSel.value;
     /* ยอดพร้อมเบิกของแต่ละชนิดผ้า/ไซซ์ จะได้เห็นตั้งแต่ยังไม่กดเลือก */
     const readyBy={}, readyByFab={};
@@ -5375,9 +5419,11 @@ window.WPDAUTH = {
     renderFwList();
     updateFwPreview();
     const hist=S.fabricWd.slice().reverse().slice(0,30);
-    $('tFabWdHist').innerHTML=hist.length?'<tr><th>เวลา</th><th>ชนิดผ้า</th><th>ไซซ์</th><th>จำนวน</th><th>หยิบจากถุง</th><th></th></tr>'+
+    $('tFabWdHist').innerHTML=hist.length?'<tr><th>เวลา</th><th>ชนิดผ้า</th><th>ไซซ์</th><th>จำนวน</th><th>หยิบจากถุง</th><th>ออเดอร์</th><th></th></tr>'+
       hist.map(w=>'<tr><td>'+(w.time||'').slice(0,16).replace('T',' ')+'</td><td>'+esc(w.fabricType)+'</td><td>'+esc(w.size)+'</td><td>'+w.qty+
-        '</td><td>'+(w.picks||[]).map(p=>'#'+p.batchNo+':'+p.qty).join(', ')+'</td><td><button class="x" data-fwd="'+w.id+'">✕</button></td></tr>').join('')
+        '</td><td>'+(w.picks||[]).map(p=>'#'+p.batchNo+':'+p.qty).join(', ')+'</td><td>'+(w.orderId?esc(ordLabel(w.orderId)):'—')+
+        (w.pre&&orderById(w.orderId)&&orderById(w.orderId).status!=='done'&&w.orderId!==(active()||{}).id?' <span class="bdg warn">🕒 รอออเดอร์นี้</span>':'')+
+        '</td><td><button class="x" data-fwd="'+w.id+'">✕</button></td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีการเบิก</td></tr>';
     $('tFabWdHist').querySelectorAll('[data-fwd]').forEach(b=>b.onclick=async()=>{
       if(!await ask('ลบรายการเบิกนี้?','ยอดที่หยิบไปจะกลับเข้าถุงเดิม')) return;
@@ -5479,6 +5525,7 @@ window.WPDAUTH = {
   if($('fwFabSel')){
     $('fwFabSel').onchange=()=>{ refreshFwSelects(); renderFwList(); updateFwPreview(); };
     $('fwSizeSel').onchange=()=>{ renderFwList(); updateFwPreview(); };
+    if($('fwOrdSel')) $('fwOrdSel').onchange=fwOrdPick;
     $('fwQty').oninput=updateFwPreview;
     if($('btnFwAuto')) $('btnFwAuto').onclick=()=>{
       const want=+$('fwQty').value||0;
@@ -5500,13 +5547,16 @@ window.WPDAUTH = {
     $('btnFabWd').onclick=async()=>{
       if(!fwPick || !fwPick.picks.length){ toast('ติ๊กถุงที่หยิบมาก่อน'); return; }
       if(fwPick.short>0 && !await ask('ยังไม่ครบตามที่พิมพ์ไว้','ติ๊กไว้ '+fwPick.total+' ชิ้น ขาดอีก '+fwPick.short+' ชิ้น\n\nยืนยันจะเบิกเท่าที่ติ๊กไว้หรือไม่?')) return;
-      const total=fwPick.total;
-      S.fabricWd.push({ by:opBy(), id:uid(), time:localISO(), orderId:(active()?active().id:null), fabricType:$('fwFabSel').value, size:$('fwSizeSel').value,
-        qty:total, picks:fwPick.picks.map(p=>({batchId:p.batchId,batchNo:p.batchNo,qty:p.take})) });
+      const total=fwPick.total, _for=$('fwOrdSel')&&$('fwOrdSel').value?orderById($('fwOrdSel').value):null;
+      const _fw={ by:opBy(), id:uid(), time:localISO(), orderId:(_for?_for.id:(active()?active().id:null)), fabricType:$('fwFabSel').value, size:$('fwSizeSel').value,
+        qty:total, picks:fwPick.picks.map(p=>({batchId:p.batchId,batchNo:p.batchNo,qty:p.take})) };
+      if(_for) _fw.pre=true;
+      S.fabricWd.push(_fw);
       await saveFeed();
       $('fwQty').value=''; $('fwPreview').innerHTML=''; fwPick=null;
       refreshFwSelects(); renderFwList(); updateFwPreview();
-      toast('เบิกถุงบรรจุผ้าแล้ว '+total+' ชิ้น');
+      if(_for && typeof rQueue==='function') rQueue();
+      toast(_for?'เบิกผ้ารอไว้ให้ '+_for.customer+' — '+_for.code+' แล้ว '+total+' ชิ้น':'เบิกถุงบรรจุผ้าแล้ว '+total+' ชิ้น');
     };
   }
 

@@ -1071,7 +1071,25 @@
   document.addEventListener('change',function(ev){
     var el=ev.target; if(!el||el.tagName!=='INPUT') return;
     if(el.type!=='date'&&el.type!=='datetime-local') return;
-    var y=yearOf(el.value); if(y==null||(y>=2015&&y<=2100)) return;
+    var y=yearOf(el.value); if(y==null) return;
+    /* วันที่ในอนาคต (เกินพรุ่งนี้) = กรอกผิด — ยกเว้นช่องช่วงส่งออกข้อมูล / วันที่จัดส่ง */
+    if(y>=2015&&y<=2100){
+      if(/^(exFrom|exTo|dpDate)$/.test(el.id||'')) return;
+      var tm=new Date(); tm.setDate(tm.getDate()+1);
+      var lim=tm.getFullYear()+'-'+String(tm.getMonth()+1).padStart(2,'0')+'-'+String(tm.getDate()).padStart(2,'0');
+      if(String(el.value).slice(0,10)<=lim) return;
+      var fmsg='วันที่ '+String(el.value).slice(0,10)+' เป็นวันในอนาคต — น่าจะกรอกผิด\n\nกรอกวันที่ใหม่อีกครั้ง';
+      el.value='';
+      try{
+        var t2=document.getElementById('__wpdDateWarn');
+        if(!t2){ t2=document.createElement('div'); t2.id='__wpdDateWarn';
+          t2.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:110px;z-index:99999;background:#e5595f;color:#fff;font:600 14px/1.5 Sarabun,sans-serif;padding:10px 16px;border-radius:12px;white-space:pre-line;max-width:90vw;box-shadow:0 6px 20px rgba(0,0,0,.25)';
+          document.body.appendChild(t2); }
+        t2.textContent=fmsg; t2.style.display='block';
+        clearTimeout(t2.__tm); t2.__tm=setTimeout(function(){ t2.style.display='none'; },5000);
+      }catch(e){}
+      return;
+    }
     var fix=null;
     if(y>=2558&&y<=2643) fix=String(y-543)+String(el.value).slice(4);
     var msg='ปี '+y+' ไม่น่าถูกต้อง'+(fix?('\n\nระบบเปลี่ยนเป็น ค.ศ. '+(y-543)+' ให้แล้ว'):('\n\nช่องนี้ใช้ปี ค.ศ. เช่น '+(new Date().getFullYear())));

@@ -858,6 +858,14 @@
 
     <!-- 5. SUMMARY -->
     <div class="panel" id="p-sum">
+      <div class="card" id="cardHist">
+        <h3>📜 ประวัติการผลิต — ย้อนหลังทุกวัน</h3>
+        <input id="histQ" type="search" placeholder="🔍 ค้นหา: ชื่อลูกค้า รหัสงาน ประเภท หรือวันที่ เช่น หมอน · ทรัพย์ · 15/11">
+        <div class="acts" id="histCats" style="margin-top:8px;flex-wrap:wrap;gap:6px;"></div>
+        <div class="sumline" id="histHead" style="margin-top:8px;"></div>
+        <div id="histList"></div>
+        <button class="btn sec sm" id="histMore" style="display:none;margin-top:8px;">ดูย้อนหลังเพิ่มอีก 20 วัน</button>
+      </div>
       <div class="card">
         <div class="rf" style="align-items:center;">
           <h3 style="margin:0;">สรุป</h3>
@@ -1023,6 +1031,17 @@
     </div>
   </div>
 
+  <div class="ov" id="ovHist">
+    <div class="box" style="max-width:980px; width:100%; max-height:94vh; overflow:auto;">
+      <div style="display:flex; align-items:flex-start; gap:8px;">
+        <h3 id="hdTitle" style="flex:1; margin:0;"></h3>
+        <button class="btn sec sm" id="hdClose" style="margin:0;">✕ ปิด</button>
+      </div>
+      <div class="sumline" id="hdSub" style="margin-top:4px;"></div>
+      <div id="hdBody"></div>
+      <div class="ba" style="margin-top:12px;"><button class="btn sec" id="hdClose2">ปิด</button></div>
+    </div>
+  </div>
   <div class="ov" id="ovPre">
     <div class="box" style="max-width:560px; max-height:92vh; overflow:auto;">
       <h3 id="preTitle"></h3>
@@ -5934,7 +5953,146 @@ window.WPDAUTH = {
       legend:[[WC.r,'ใช้มากกว่าสูตร >3%'],[WC.g,'ใกล้สูตร ±3%'],[WC.y,'ใช้น้อยกว่าสูตร >3% (สูตรตั้งสูงไป)']] });
     $('chFiberNote').innerHTML=rows.length?'ใยไหนเป็นสีเหลืองบ่อยๆ แปลว่า กก.ต่อรอบในสูตรตั้งสูงกว่าที่ป้อนจริง — ระบบจะหักก้อนหมดก่อนของจริง ควรลดสูตรลงตาม %':'';
   }
+  /* ═══ 📜 ประวัติการผลิต — ทุกวันที่มีแพ็ค แยกตามออเดอร์ · เวลาทำ = แพ็คแรก (หรือกดเริ่มงาน) ถึงแพ็คสุดท้าย หักพัก (แบบเดียวกับสรุปตามออเดอร์) ═══ */
+  let histQ='', histCat='', histN=20, histT=null;
+  const HIST_CATS=[['','ทั้งหมด'],['หมอน','🛏️ หมอน'],['หมอนหนุน','หมอนหนุน'],['หมอนข้าง','หมอนข้าง'],['ใยแผ่น','🧵 ใยแผ่น'],['ใยปั่น','ใยปั่น/สาง'],['ปิกนิก','🧺 ปิกนิก']];
+  const histUnit=c=>/หมอน/.test(c)?'ใบ':/ใยแผ่น|ปิกนิก/.test(c)?'แผ่น':'ชิ้น';
+  const minTxt=m=>{ m=Math.max(0,Math.round(+m||0)); const h=Math.floor(m/60), n=m%60; return h?h+' ชม.'+(n?' '+n+' นาที':''):n+' นาที'; };
+  const TH_WD=['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'];
+  function rHist(){
+    const box=$('histList'); if(!box) return;
+    if(!box.dataset.init){
+      box.dataset.init='1';
+      $('histQ').oninput=()=>{ histQ=$('histQ').value.trim(); histN=20; clearTimeout(histT); histT=setTimeout(rHist,150); };
+      $('histMore').onclick=()=>{ histN+=20; rHist(); };
+    }
+    $('histCats').innerHTML=HIST_CATS.map(c=>'<button class="btn sm '+(histCat===c[0]?'':'sec')+'" data-hcat="'+c[0]+'" style="margin:0;">'+c[1]+'</button>').join('');
+    $('histCats').querySelectorAll('[data-hcat]').forEach(b=>b.onclick=()=>{ histCat=b.dataset.hcat; histN=20; rHist(); });
+    const G={}, gap=+S.settings.gapMin||20;
+    const get=(d,id)=>{ const k=d+'|'+id; return G[k]||(G[k]={d:d,id:id,ts:[],packs:0,pcs:0,act:0,std:0,feed:[],scrap:0,down:0,by:new Set()}); };
+    S.line.forEach(l=>{ const d=dayOf(l.time); if(d==='_') return; const g=get(d,l.orderId);
+      g.ts.push(l.time); g.packs++; g.pcs+=(+l.piecesPerPack||0);
+      g.std+=(+l.stdPerPack||0); g.act+=((l.actualWeight!=null?+l.actualWeight:+l.stdPerPack)||0);
+      if(l.by) g.by.add(l.by);
+      if((l.isDowntime||(l.gapMinutes&&l.gapMinutes>gap)) && (+l.gapMinutes||0)<480) g.down+=(+l.gapMinutes||0); });
+    S.feed.forEach(f=>{ const d=dayOf(f.time); if(G[d+'|'+f.orderId]) G[d+'|'+f.orderId].feed.push(f); });
+    (S.scrap||[]).forEach(x=>{ const d=dayOf(x.time); if(G[d+'|'+x.orderId]) G[d+'|'+x.orderId].scrap+=(+x.kg||0); });
+    const words=histQ.toLowerCase().split(/\s+/).filter(Boolean);
+    let L=Object.values(G).map(g=>{
+      const o=orderById(g.id), cat=o?catLabel(o):(S.line.find(l=>l.orderId===g.id)||{}).productType||'';
+      g.ts.sort(); let st=g.ts[0]; const en=g.ts[g.ts.length-1];
+      if(o && o.startedAt && dayOf(o.startedAt)===g.d && o.startedAt<st) st=o.startedAt;
+      g.st=st; g.en=en; g.min=Math.max(0,minsBetween(en,st)-breakOverlapMinutes(st,en));
+      g.o=o; g.cat=cat; g.side=o?(isPicnic(o)?'pic':fiberSide(o)):'';
+      g.hay=((o?o.customer+' '+o.code+' '+(o.fibers||[]).map(f=>f.name).join(' '):'ลบแล้ว')+' '+cat+' '+(g.side==='pillow'?'โรง 2 โรง2':g.side==='sheet'?'โรง 1 โรง1':'ปิกนิก')+' '+thDate(g.d)+' '+g.d).toLowerCase();
+      return g; });
+    if(histCat) L=L.filter(g=>g.cat.indexOf(histCat)===0 || (histCat==='ใยปั่น' && /ใยปั่น|ใยสาง/.test(g.cat)));
+    if(words.length) L=L.filter(g=>words.every(w=>g.hay.includes(w)));
+    const days=Array.from(new Set(L.map(g=>g.d))).sort().reverse();
+    const totP=L.reduce((a,g)=>a+g.packs,0), totM=L.reduce((a,g)=>a+g.min,0), totU={};
+    L.forEach(g=>{ if(g.pcs){ const u=histUnit(g.cat); totU[u]=(totU[u]||0)+g.pcs; } });
+    const totPc=Object.keys(totU).map(u=>totU[u].toLocaleString()+' '+u).join(' · ');
+    $('histHead').innerHTML=L.length
+      ? 'พบ <b>'+L.length+'</b> งาน ใน <b>'+days.length+'</b> วัน'+(days.length?' ('+thDate(days[days.length-1])+' – '+thDate(days[0])+')':'')+
+        ' · รวม <b>'+totP.toLocaleString()+'</b> แพ็ค'+(totPc?' ('+totPc+')':'')+' · เวลาทำรวม <b>'+minTxt(totM)+'</b>'+
+        '<br><span style="color:var(--dim)">แตะงานไหน = เปิดสรุปของวันนั้นด้านล่าง (ใยที่ใช้ ก้อน ถุง)</span>'
+      : (histQ||histCat?'ไม่พบงานที่ตรงกับที่ค้น':'ยังไม่มีประวัติการผลิต');
+    const show=days.slice(0,histN);
+    box.innerHTML=show.map(d=>{
+      const R=L.filter(g=>g.d===d).sort((a,b)=>String(a.st).localeCompare(String(b.st)));
+      const side=k=>R.filter(g=>g.side===k).reduce((a,g)=>a+g.min,0);
+      const s1=side('sheet'), s2=side('pillow');
+      const dt=new Date(d+'T12:00:00');
+      return '<div style="margin-top:12px;padding:7px 10px;border-radius:8px;background:var(--panel2);font-weight:600;">📅 '+TH_WD[dt.getDay()]+' '+thDate(d)+
+        ' <span style="font-weight:400;color:var(--dim)">· '+R.reduce((a,g)=>a+g.packs,0).toLocaleString()+' แพ็ค'+
+        (s1?' · โรง 1 ทำ '+minTxt(s1):'')+(s2?' · โรง 2 ทำ '+minTxt(s2):'')+'</span></div>'+
+        R.map(g=>{
+          const o=g.o, u=histUnit(g.cat), fib=g.feed.length?CALC.usageTotal(g.feed,o):0, diff=r3(g.act-g.std);
+          const fin=o && o.finishedAt && dayOf(o.finishedAt)===g.d;
+          const rate=g.min>=20?Math.round(g.packs/(g.min/60)):0;
+          return '<div class="qrow" data-hday="'+d+'" data-hid="'+esc(g.id)+'" style="cursor:pointer;"><div class="qtx">'+
+            '<b>'+(o?esc(o.customer):'(ออเดอร์ถูกลบ)')+'</b> — '+(o?esc(o.code):'')+' <span class="bdg ok">'+esc(g.cat||'-')+'</span>'+
+            (g.side==='pillow'?' <span class="bdg">🛏️ โรง 2</span>':g.side==='sheet'?' <span class="bdg">🧵 โรง 1</span>':'')+
+            (fin?' <span class="bdg">🏁 จบงานวันนี้</span>':'')+'<br>'+
+            '🕒 '+String(g.st).slice(11,16)+'–'+String(g.en).slice(11,16)+' · ทำ <b>'+(g.min?minTxt(g.min):'-')+'</b>'+
+            ' · ได้ <b>'+g.packs.toLocaleString()+' แพ็ค</b>'+(g.pcs?' = '+g.pcs.toLocaleString()+' '+u:'')+
+            (rate?' · '+rate+' แพ็ค/ชม.':'')+(o&&o.orderedPacks?' · ลูกค้าสั่ง '+o.orderedPacks+' แพ็ค':'')+'<br>'+
+            '<span style="color:var(--dim)">น้ำหนักจริง '+r2(g.act)+' กก. (Std '+r2(g.std)+', ต่าง '+(diff>0?'+':'')+diff+')'+
+            (fib?' · ใยป้อน '+r2(fib)+' กก. ('+g.feed.length+' รอบ)':'')+(g.scrap?' · เศษ '+r2(g.scrap)+' กก.':'')+
+            (g.down?' · เสียเวลา '+minTxt(g.down):'')+(g.by.size?' · คนทำ '+Array.from(g.by).map(esc).join(', '):'')+'</span>'+
+            '<br><span style="color:var(--accent);font-weight:600;">ดูรายละเอียดทั้งหมด ›</span></div></div>';
+        }).join('');
+    }).join('');
+    $('histMore').style.display=days.length>histN?'':'none';
+    box.querySelectorAll('[data-hday]').forEach(el=>el.onclick=()=>openHistDetail(el.dataset.hday, el.dataset.hid));
+  }
+  /* หน้ารายละเอียดของงาน 1 วัน — ทุกอย่างเป็นตาราง */
+  function openHistDetail(d,id){
+    const o=orderById(id), cat=o?catLabel(o):'', u=histUnit(cat), gap=+S.settings.gapMin||20;
+    const inD=x=>x && x.orderId===id && dayOf(x.time)===d;
+    const L=S.line.filter(inD).sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+    if(!L.length) return;
+    const FD=S.feed.filter(inD).sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+    const US=(S.use||[]).filter(inD), BU=(S.bagUse||[]).filter(inD), SC=(S.scrap||[]).filter(inD);
+    let st=L[0].time; const en=L[L.length-1].time;
+    if(o && o.startedAt && dayOf(o.startedAt)===d && o.startedAt<st) st=o.startedAt;
+    const brk=breakOverlapMinutes(st,en), mins=Math.max(0,minsBetween(en,st)-brk);
+    const packs=L.length, pcs=L.reduce((a,l)=>a+(+l.piecesPerPack||0),0);
+    const std=r3(L.reduce((a,l)=>a+(+l.stdPerPack||0),0)), act=r3(L.reduce((a,l)=>a+((l.actualWeight!=null?+l.actualWeight:+l.stdPerPack)||0),0));
+    const fib=FD.length?CALC.usageTotal(FD,o):0, scKg=r2(SC.reduce((a,x)=>a+(+x.kg||0),0));
+    const downL=L.filter(l=>(l.isDowntime||(l.gapMinutes&&l.gapMinutes>gap)) && (+l.gapMinutes||0)<480), down=downL.reduce((a,l)=>a+(+l.gapMinutes||0),0);
+    const allP=o?S.line.filter(l=>l.orderId===id && dayOf(l.time)<=d).length:0;
+    const bys=Array.from(new Set(L.map(l=>l.by).filter(Boolean)));
+    const tm=t=>t?String(t).slice(11,16):'—', td=v=>'<td>'+v+'</td>';
+    const tbl=(title,head,rows,foot)=>'<h4 style="margin:16px 0 6px;">'+title+'</h4><div class="scr"><table><tr>'+head.map(h=>'<th>'+h+'</th>').join('')+'</tr>'+
+      (rows.length?rows.join(''):'<tr><td class="empty" colspan="'+head.length+'">ไม่มี</td></tr>')+(foot||'')+'</table></div>';
+    const kv=[['ลูกค้า',o?esc(o.customer):'(ออเดอร์ถูกลบ)'],['รหัสงาน',o?esc(o.code):'—'],['ประเภท',esc(cat||'—')],
+      ['โรง',o?(isPicnic(o)?'ปิกนิก':fiberSide(o)==='pillow'?'🛏️ โรง 2':'🧵 โรง 1'):'—'],
+      ['วันที่',TH_WD[new Date(d+'T12:00:00').getDay()]+' '+thDate(d)],
+      ['เริ่ม – เลิก',tm(st)+' – '+tm(en)+(o&&o.startedAt===st?' (นับจากกดเริ่มงาน)':' (นับจากแพ็คแรก)')],
+      ['เวลาพักในช่วงนี้',brk?minTxt(brk):'—'],['เวลาทำจริง (หักพัก)','<b>'+(mins?minTxt(mins):'—')+'</b>'],
+      ['ผลิตได้','<b>'+packs.toLocaleString()+' แพ็ค</b>'+(pcs?' = '+pcs.toLocaleString()+' '+u:'')],
+      ['ความเร็ว',mins>=20?Math.round(packs/(mins/60))+' แพ็ค/ชม.'+(pcs?' · '+Math.round(pcs/(mins/60))+' '+u+'/ชม.':''):'—'],
+      ['ลูกค้าสั่ง',o&&o.orderedPacks?o.orderedPacks+' แพ็ค · ทำสะสมถึงวันนี้ '+allP+' แพ็ค'+(allP>=o.orderedPacks?' (ครบแล้ว)':' (ขาด '+(o.orderedPacks-allP)+')'):'—'],
+      ['น้ำหนัก Std รวม',r2(std)+' กก.'],['น้ำหนักจริงรวม',r2(act)+' กก. (ต่าง '+(act-std>0?'+':'')+r3(act-std)+' กก.)'],
+      ['ใยป้อนเข้าไลน์',fib?r2(fib)+' กก. ('+FD.length+' รอบ)':'—'],['เศษ/ของเสีย',scKg?scKg+' กก.':'—'],
+      ['เวลาที่เสีย',down?minTxt(down)+' ('+downL.length+' ครั้ง)':'—'],['คนทำ',bys.length?bys.map(esc).join(', '):'—'],
+      ['สถานะงาน',o?(o.finishedAt&&dayOf(o.finishedAt)===d?'🏁 จบงานวันนี้ '+tm(o.finishedAt):o.status==='done'?'เสร็จแล้ว ('+thDate(o.finishedAt)+')':'ยังทำต่อ'):'—']];
+    let cA=0, cS=0;
+    const packRows=L.map((l,i)=>{ cS+=(+l.stdPerPack||0); cA+=((l.actualWeight!=null?+l.actualWeight:+l.stdPerPack)||0);
+      const dp=(l.actualWeight!=null && l.stdPerPack)?r2((l.actualWeight-l.stdPerPack)/l.stdPerPack*100):null;
+      const lost=(l.isDowntime||(l.gapMinutes&&l.gapMinutes>gap)) && (+l.gapMinutes||0)<480;
+      return '<tr>'+td(l.seq||i+1)+td(tm(l.time))+td(esc(l.by||'—'))+td(l.bagNo||'—')+td(esc(l.bagLot||l.bagUsedSize||'—'))+
+        td(l.stdPerPack!=null?l.stdPerPack:'—')+td(l.actualWeight!=null?'<b>'+l.actualWeight+'</b>':'<span style="color:var(--dim)">ตาม Std</span>')+
+        td(dp==null?'—':(dp>0?'+':'')+dp+'%')+td(l.gapMinutes!=null?(lost?'<b style="color:var(--w-red,#cf3e45)">'+l.gapMinutes+'</b>':l.gapMinutes):'—')+
+        td(r3(cA))+'<td style="white-space:normal">'+esc(l.note||'')+'</td></tr>'; });
+    const useBy={}; US.forEach(x=>{ const k=x.feedId||''; (useBy[k]=useBy[k]||[]).push(x); });
+    const feedRows=FD.map((f,i)=>{ const us=useBy[f.id]||[];
+      return '<tr>'+td(f.seq||i+1)+td(tm(f.time))+td(esc(f.by||'—'))+'<td style="white-space:normal">'+(us.length?us.map(x=>esc(x.fiberName)+' '+r3(+x.kg||0)+(x.baleNo?' [ก้อน '+esc(x.baleNo)+']':'')).join('<br>'):'<span style="color:var(--dim)">ตามสูตร</span>')+'</td>'+
+        td(us.length?r3(us.reduce((a,x)=>a+(+x.kg||0),0)):'—')+'</tr>'; });
+    const fb={}; US.forEach(x=>{ const k=x.fiberName+'|'+(x.baleNo||'')+'|'+(x.lot||''); const r=fb[k]||(fb[k]={n:x.fiberName,b:x.baleNo,l:x.lot,kg:0,adj:0}); if(x.adjust||x.closeout) r.adj+=(+x.kg||0); else r.kg+=(+x.kg||0); });
+    const fibRows=Object.values(fb).sort((a,b)=>String(a.n).localeCompare(String(b.n))).map(r=>'<tr>'+td(esc(r.n))+td(esc(r.b||'—'))+td(esc(r.l||'—'))+td(r3(r.kg))+td(r.adj?(r.adj>0?'+':'')+r3(r.adj):'—')+td('<b>'+r3(r.kg+r.adj)+'</b>')+'</tr>');
+    const bg={}; BU.forEach(x=>{ const k=x.kind+'|'+x.name+'|'+x.sackNo; const r=bg[k]||(bg[k]={k:x.kind,n:x.name,s:x.sackNo,p:0,kg:0,c:0}); r.p+=(+x.pieces||0); r.kg+=(+x.kg||0); if(x.closeout) r.c++; });
+    const bagRows=Object.values(bg).map(r=>'<tr>'+td(r.k==='zip'?'ถุงซิป':r.k==='pack'?'ถุงแพ็ค':esc(r.k||'—'))+td(esc(r.n||'—'))+td('#'+esc(r.s||'—'))+td(r.p.toLocaleString())+td(r3(r.kg))+td(r.c?'ปิดกระสอบ':'')+'</tr>');
+    const BR=(S.breaks||[]).filter(b=>dayOf(b.start)===d && (b.orderId===id || (!b.orderId && String(b.start)<=String(en) && String(b.end||b.start)>=String(st))));
+    const brRows=BR.map(b=>'<tr>'+td(esc(b.reason||'พัก'))+td(tm(b.start))+td(b.end?tm(b.end):'ยังไม่จบ')+td(b.end?minsBetween(b.end,b.start)+' นาที':'—')+td(esc(b.by||'—'))+'</tr>');
+    const scRows=SC.map(x=>'<tr>'+td(tm(x.time))+td(esc(x.kind||'—'))+td(x.kg!=null?x.kg:'—')+td(x.pieces!=null?x.pieces:'—')+td(esc(x.reason||'—'))+'<td style="white-space:normal">'+esc(x.note||'')+'</td>'+td(esc(x.by||'—'))+'</tr>');
+    $('hdTitle').textContent='📋 '+(o?o.customer+' — '+o.code:'(ออเดอร์ถูกลบ)');
+    $('hdSub').textContent=thDate(d)+' · '+packs+' แพ็ค · ทำ '+(mins?minTxt(mins):'-');
+    $('hdBody').innerHTML=
+      tbl('สรุปงานวันนี้',['รายการ','ค่า'],kv.map(r=>'<tr><td style="color:var(--dim)">'+r[0]+'</td><td style="white-space:normal">'+r[1]+'</td></tr>'))+
+      tbl('รอบป้อนใย ('+FD.length+')',['รอบ','เวลา','ผู้ลง','ใยที่หักในรอบ (กก.)','รวม (กก.)'],feedRows)+
+      tbl('ใยที่ใช้ แยกชนิด/ก้อน',['ชนิดใย','ก้อน','ล็อต','ป้อน (กก.)','ปรับจากชั่ง/ปิดก้อน','รวม (กก.)'],fibRows)+
+      tbl('ถุงที่ใช้',['ชนิด','ไซซ์','กระสอบ','ชิ้น','กก.',''],bagRows)+
+      tbl('พัก / หยุดเครื่อง',['เหตุผล','เริ่ม','จบ','นาน','ผู้ลง'],brRows)+
+      tbl('เศษ / ของเสีย',['เวลา','ชนิด','กก.','ชิ้น','สาเหตุ','หมายเหตุ','ผู้ลง'],scRows)+
+      tbl('แพ็คทั้งหมด ('+packs+')',['ลำดับ','เวลา','ผู้ลง','ถุงที่','กระสอบถุง','Std/แพ็ค','จริง/แพ็ค','ต่าง %','ห่างก่อนหน้า (นาที)','รวมจริงสะสม','หมายเหตุ'],packRows,
+        '<tr><td class="kn" colspan="5">รวม '+packs+' แพ็ค</td><td class="kn">'+r3(std)+'</td><td class="kn">'+r3(act)+'</td><td class="kn">'+(act-std>0?'+':'')+r3(act-std)+'</td><td class="kn">'+(down?'เสีย '+down:'')+'</td><td></td><td></td></tr>');
+    $('hdClose').onclick=$('hdClose2').onclick=()=>closeOv('ovHist');
+    openOv('ovHist'); $('ovHist').querySelector('.box').scrollTop=0;
+  }
   function rSum(){
+    try{ rHist(); }catch(e){ console.error('hist',e); }
     const di=$('sumDate'); if(!di.value) di.value=todayStr();
     di.onchange=rSum; $('sumRange').onchange=rSum;
     const R=sumRange();

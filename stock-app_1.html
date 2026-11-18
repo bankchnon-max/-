@@ -1553,7 +1553,8 @@ window.WPDAUTH = {
         if(r.fabricType!==fabricType || r.retired) return false;
         if(!usedIds.has(r.id) && !usedNos.has(r.rollNo)) return true;
         if(!cutBatches || !(r.widthIn && r.lengthIn)) return false;
-        return CALC.rollRemainingLength(r, CALC.rollPortions(cutBatches, r)) >= 1;
+        const P=CALC.rollPortions(cutBatches, r);
+        return CALC.rollRemainingLength(r, P) >= CALC.rollMinRow(r, P);
       });
     },
     rollStatus(receipts, cuts, cutBatches){
@@ -1564,7 +1565,8 @@ window.WPDAUTH = {
         const remainLen = (r.widthIn && r.lengthIn) ? CALC.rollRemainingLength(r, batchesFromRoll) : null;
         return { fabricType:r.fabricType, rollNo:r.rollNo, dateReceived:r.time,
         used: !!_u, cutId: _u ? _u.id : null, rollId:r.id,
-        retired: !!r.retired, widthIn:r.widthIn, lengthIn:r.lengthIn, remainLen };
+        retired: !!r.retired, widthIn:r.widthIn, lengthIn:r.lengthIn, remainLen,
+        canCut: remainLen==null ? true : remainLen >= CALC.rollMinRow(r, batchesFromRoll) };
       });
     },
     // ---------- คำนวณจากหน้ากว้าง/ความยาวม้วนจริง (หน่วยนิ้ว) — ไซซ์ที่ตัด เช่น "18x54" ก็เป็นนิ้ว (หน้างานวัดเป็นนิ้วทั้งหมด) ----------
@@ -1580,13 +1582,22 @@ window.WPDAUTH = {
     },
     /* วางชิ้นผ้าบนม้วน: เลขแรก = ตามหน้ากว้าง เลขหลัง = ตามความยาวม้วน
        ถ้าเลขแรกกว้างเกินหน้าผ้าแต่เลขหลังพอดี ให้หมุนวาง (เช่น 63x78 บนผ้าหน้า 70) — ถ้าหมุนแล้วยังไม่พอ fits=false */
+    /* ไซซ์ที่กรอกตอนตัด → ไซซ์ตัดจริง (แอพตั้งตามตาราง "ไซซ์ตามสินค้า" — กรอกไซซ์สำเร็จมา ก็คิดผ้าตามไซซ์ตัด) */
+    cutSizeOf(s){ return s; },
     pieceLayout(widthIn, sizeStr){
+      sizeStr=CALC.cutSizeOf(sizeStr);
       const dim=CALC.parseSize(sizeStr); if(!dim||!dim.w||!dim.h) return null;
       const k=(dim.unit==='in')?1:CALC.CM_PER_IN;
       let w=dim.w/k, h=dim.h/k, rotated=false;
       if(widthIn && w>widthIn && h<=widthIn){ const t=w; w=h; h=t; rotated=true; }
       const fits=!widthIn || w<=widthIn;
       return { across:Math.max(1, widthIn?Math.floor(widthIn/w):1), along:h, rotated, fits, wIn:dim.w/k, hIn:dim.h/k };
+    },
+    /* ความยาวที่ต้องมีอย่างน้อยถึงจะตัดต่อได้ = 1 แถวของไซซ์ที่สั้นที่สุดที่เคยตัดจากม้วนนี้ (ยังไม่เคยตัด = 1 นิ้ว) */
+    rollMinRow(roll, cutBatchesFromRoll){
+      let m=Infinity;
+      (cutBatchesFromRoll||[]).forEach(b=>{ const L=CALC.pieceLayout(roll.widthIn, b.size); if(L && L.along>0) m=Math.min(m, L.along); });
+      return m===Infinity ? 1 : m;
     },
     rollRemainingLength(roll, cutBatchesFromRoll){
       /* archivedUsedIn = ความยาวที่ตัดไปแล้วของถุงที่ถูกลบออกจากระบบ (ของหมดแล้ว แต่ผ้าถูกตัดไปจริง) */
@@ -2580,10 +2591,10 @@ window.WPDAUTH = {
         '<td>'+(r.widthIn&&r.lengthIn?r.widthIn+'นิ้ว×'+r.lengthIn+'นิ้ว':'—')+'</td>'+
         '<td>'+(r.remainLen!=null?'<b style="color:'+(r.remainLen<=0?'var(--red)':'var(--accent2)')+'">'+r.remainLen+'</b>':'—')+'</td>'+
         '<td>'+thDate(r.dateReceived)+'</td><td>'+
-        (r.retired?'<span class="bdg bad">ตัดหมดแล้ว</span>':r.used?(r.remainLen>=1?'<span class="bdg warn">ตัดไปบางส่วน — ยังตัดต่อได้</span>':'<span class="bdg warn">ตัดแล้ว</span>'):'<span class="bdg ok">ยังไม่ตัด</span>')+
+        (r.retired?'<span class="bdg bad">ตัดหมดแล้ว</span>':r.used?(r.canCut?'<span class="bdg warn">ตัดไปบางส่วน — ยังตัดต่อได้</span>':'<span class="bdg bad">หมดแล้ว (เหลือไม่พอตัดอีกแถว)</span>'):'<span class="bdg ok">ยังไม่ตัด</span>')+
         '</td><td>'+(!r.used&&!r.retired?'<button class="btn sec sm" data-retire="'+r.fabricType+'|'+r.rollNo+'|'+r.rollId+'">ตัดหมดแล้ว</button> <button class="x" data-rollrm="'+r.fabricType+'|'+r.rollNo+'|'+r.rollId+'">✕</button>':
           r.retired?'<button class="ed" data-unretire="'+r.fabricType+'|'+r.rollNo+'|'+r.rollId+'">ยกเลิก</button>':
-          (r.remainLen>=1?'<button class="btn sec sm" data-retire="'+r.fabricType+'|'+r.rollNo+'|'+r.rollId+'">ตัดหมดแล้ว</button> ':'')+'<span style="color:var(--dim); font-size:11px;">ลบม้วน: ลบที่ "ประวัติการตัด" ก่อน</span>')+'</td></tr>').join('')
+          (r.canCut?'<button class="btn sec sm" data-retire="'+r.fabricType+'|'+r.rollNo+'|'+r.rollId+'">ตัดหมดแล้ว</button> ':'')+'<span style="color:var(--dim); font-size:11px;">ลบม้วน: ลบที่ "ประวัติการตัด" ก่อน</span>')+'</td></tr>').join('')
       :'<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>';
     $('tRollStatus').querySelectorAll('[data-retire]').forEach(b=>b.onclick=async()=>{
       const [ft,rn,rid]=b.dataset.retire.split('|');
@@ -3534,12 +3545,26 @@ window.WPDAUTH = {
 
   /* ---------- ไซซ์ตามสินค้า ---------- */
   const DEFAULT_SIZES=[
-    { id:'sz-pillow', product:'หมอนหนุน', label:'', cut:'18x54', fin:'17.5x26', pp:1 },
+    { id:'sz-pillow', product:'หมอนหนุน', label:'', cut:'18x55', fin:'17.5x26', pp:1 },
+    { id:'sz-pillow80', product:'หมอนหนุน', label:'ผ้าขาว 80g', cut:'30x40', fin:'19x29', pp:1 },
+    { id:'sz-pillow4d', product:'หมอนหนุน', label:'ริ้ว 4D วาริช', cut:'17x51', fin:'16x25', pp:1 },
+    { id:'sz-pillow3d', product:'หมอนหนุน', label:'ริ้ว 3D วาริช', cut:'20x55', fin:'18x26.5', pp:1 },
+    { id:'sz-preg', product:'หมอนคนท้อง', label:'', cut:'35x61', fin:'35x61', pp:1 },
+    { id:'sz-bolster', product:'หมอนข้าง', label:'ขาว วาริช', cut:'44x26', fin:'12.5x42', pp:1 },
+    { id:'sz-bolsterzip', product:'หมอนข้าง', label:'ขาว ซิป', cut:'43x26', fin:'12x43', pp:1 },
     { id:'sz-pic3', product:'ปิกนิก', label:'3F', cut:'40x79', fin:'39x77', pp:1 },
     { id:'sz-pic35', product:'ปิกนิก', label:'3.5F', cut:'46x79', fin:'45x77', pp:1 },
     { id:'sz-pic5', product:'ปิกนิก', label:'5F', cut:'63x78', fin:'62x77', pp:1 },
     { id:'sz-pic6', product:'ปิกนิก', label:'6F', cut:'76x83', fin:'75x81', pp:1 } ];
   function sizeList(){ return (S.sizeMaster||DEFAULT_SIZES).slice(); }
+  /* กรอกไซซ์สำเร็จ (เช่น 17.5x26) ตอนตัด → คิดผ้าตามไซซ์ตัดของไซซ์นั้น (18x55) · ถ้าเป็นไซซ์ตัดอยู่แล้ว หรือไม่รู้จัก ใช้ตามที่กรอก */
+  CALC.cutSizeOf=function(sz){
+    const n=normSize(sz); if(!n) return sz;
+    const L=sizeList();
+    if(L.some(x=>normSize(x.cut)===n)) return sz;
+    const c=[...new Set(L.filter(x=>x.cut && normSize(x.fin)===n).map(x=>normSize(x.cut)))];
+    return c.length===1 ? c[0] : sz;
+  };
   function sizeFor(cut, pt){ const L=sizeList().filter(x=>normSize(x.cut)===normSize(cut)); return (pt&&L.find(x=>x.product===pt))||(L.length===1?L[0]:null); }
   /* ตัวเลือกไซซ์: แยกกลุ่มตามสินค้า + ไซซ์ที่เคยใช้ (ยังไม่ได้ตั้ง) + พิมพ์เอง · mode 'cut' = ไซซ์ตัด, 'fin' = ไซซ์สำเร็จ */
   function sizeOptions(mode){
@@ -3743,9 +3768,13 @@ window.WPDAUTH = {
       }
       newBatchNos.push(row.size+' → ถุง #'+packNosText(got));
     });
+    /* ตัดแล้วม้วนเหลือไม่พอตัดอีกแถว (คิดตามไซซ์ตัดจริง) → ปิดม้วนให้เลย ไม่ต้องไปกด ตัดหมดแล้ว */
+    let _gone='';
+    if(!isFree && _roll && _roll.widthIn && _roll.lengthIn){ const _P=CALC.rollPortions(S.cutBatches,_roll);
+      if(CALC.rollRemainingLength(_roll,_P) < CALC.rollMinRow(_roll,_P)){ _roll.retired=true; _gone=' · ม้วนที่ '+rollNo+' ตัดหมดแล้ว — ปิดม้วนให้แล้ว'; } }
     await saveFabric();
     $('cutRows').innerHTML=''; addCutRow(); $('cutNote').value=''; $('cutFreeBatchNo').value='';
-    rFabric(); toast((isFree?'บันทึกยอดยกมาแล้ว':'บันทึกการตัดผ้าแล้ว')+' — ได้ '+newBatchNos.join(', '));
+    rFabric(); toast((isFree?'บันทึกยอดยกมาแล้ว':'บันทึกการตัดผ้าแล้ว')+' — ได้ '+newBatchNos.join(', ')+_gone);
   };
   let lastSewFreeSize='';
   function addSewFreeRow(size,qty){

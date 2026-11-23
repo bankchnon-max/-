@@ -6077,6 +6077,7 @@ window.WPDAUTH = {
   }
   /* ═══ 📜 ประวัติการผลิต — ทุกวันที่มีแพ็ค แยกตามออเดอร์ · เวลาทำ = แพ็คแรก (หรือกดเริ่มงาน) ถึงแพ็คสุดท้าย หักพัก (แบบเดียวกับสรุปตามออเดอร์) ═══ */
   let histQ='', histCat='', histN=20, histT=null;
+  const histOpen=new Set();   /* วันที่กางอยู่ (ค่าเริ่ม = พับทุกวัน) */
   const HIST_CATS=[['','ทั้งหมด'],['หมอน','🛏️ หมอน'],['หมอนหนุน','หมอนหนุน'],['หมอนข้าง','หมอนข้าง'],['ใยแผ่น','🧵 ใยแผ่น'],['ใยปั่น','ใยปั่น/สาง'],['ปิกนิก','🧺 ปิกนิก']];
   const histUnit=c=>/หมอน/.test(c)?'ใบ':/ใยแผ่น|ปิกนิก/.test(c)?'แผ่น':'ชิ้น';
   const minTxt=m=>{ m=Math.max(0,Math.round(+m||0)); const h=Math.floor(m/60), n=m%60; return h?h+' ชม.'+(n?' '+n+' นาที':''):n+' นาที'; };
@@ -6117,7 +6118,7 @@ window.WPDAUTH = {
     $('histHead').innerHTML=L.length
       ? 'พบ <b>'+L.length+'</b> งาน ใน <b>'+days.length+'</b> วัน'+(days.length?' ('+thDate(days[days.length-1])+' – '+thDate(days[0])+')':'')+
         ' · รวม <b>'+totP.toLocaleString()+'</b> แพ็ค'+(totPc?' ('+totPc+')':'')+' · เวลาทำรวม <b>'+minTxt(totM)+'</b>'+
-        '<br><span style="color:var(--dim)">แตะงานไหน = เปิดสรุปของวันนั้นด้านล่าง (ใยที่ใช้ ก้อน ถุง)</span>'
+        '<br><span style="color:var(--dim)">แตะแถบวันที่ = กาง/พับงานของวันนั้น · แตะงาน = ดูรายละเอียดทั้งหมด</span>'
       : (histQ||histCat?'ไม่พบงานที่ตรงกับที่ค้น':'ยังไม่มีประวัติการผลิต');
     const show=days.slice(0,histN);
     box.innerHTML=show.map(d=>{
@@ -6125,10 +6126,15 @@ window.WPDAUTH = {
       const side=k=>R.filter(g=>g.side===k).reduce((a,g)=>a+g.min,0);
       const s1=side('sheet'), s2=side('pillow');
       const dt=new Date(d+'T12:00:00');
-      return '<div style="margin-top:12px;padding:7px 10px;border-radius:8px;background:var(--panel2);font-weight:600;">📅 '+TH_WD[dt.getDay()]+' '+thDate(d)+
-        ' <span style="font-weight:400;color:var(--dim)">· '+R.reduce((a,g)=>a+g.packs,0).toLocaleString()+' แพ็ค'+
+      const open=histOpen.has(d) || !!words.length;
+      const names=Array.from(new Set(R.map(g=>g.o?g.o.customer:'(ลบแล้ว)')));
+      return '<div data-hdt="'+d+'" style="margin-top:8px;padding:9px 12px;border-radius:10px;background:var(--panel2);cursor:pointer;user-select:none;">'+
+        '<div style="font-weight:600;"><span style="color:var(--accent);display:inline-block;width:16px;">'+(open?'▾':'▸')+'</span>📅 '+TH_WD[dt.getDay()]+' '+thDate(d)+
+        ' <span style="font-weight:400;color:var(--dim)">· '+R.length+' งาน · '+R.reduce((a,g)=>a+g.packs,0).toLocaleString()+' แพ็ค'+
         (s1?' · โรง 1 ทำ '+minTxt(s1):'')+(s2?' · โรง 2 ทำ '+minTxt(s2):'')+'</span></div>'+
-        R.map(g=>{
+        (open?'':'<div style="margin:3px 0 0 16px;color:var(--dim);font-size:.92em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+names.slice(0,4).map(esc).join(' · ')+(names.length>4?' +อีก '+(names.length-4):'')+'</div>')+
+        '</div>'+
+        (!open?'':R.map(g=>{
           const o=g.o, u=histUnit(g.cat), fib=g.feed.length?CALC.usageTotal(g.feed,o):0, diff=r3(g.act-g.std);
           const fin=o && o.finishedAt && dayOf(o.finishedAt)===g.d;
           const rate=g.min>=20?Math.round(g.packs/(g.min/60)):0;
@@ -6143,10 +6149,11 @@ window.WPDAUTH = {
             (fib?' · ใยป้อน '+r2(fib)+' กก. ('+g.feed.length+' รอบ)':'')+(g.scrap?' · เศษ '+r2(g.scrap)+' กก.':'')+
             (g.down?' · เสียเวลา '+minTxt(g.down):'')+(g.by.size?' · คนทำ '+Array.from(g.by).map(esc).join(', '):'')+'</span>'+
             '<br><span style="color:var(--accent);font-weight:600;">ดูรายละเอียดทั้งหมด ›</span></div></div>';
-        }).join('');
+        }).join(''));
     }).join('');
     $('histMore').style.display=days.length>histN?'':'none';
     box.querySelectorAll('[data-hday]').forEach(el=>el.onclick=()=>openHistDetail(el.dataset.hday, el.dataset.hid));
+    box.querySelectorAll('[data-hdt]').forEach(el=>el.onclick=()=>{ const d=el.dataset.hdt; histOpen.has(d)?histOpen.delete(d):histOpen.add(d); rHist(); });
   }
   /* หน้ารายละเอียดของงาน 1 วัน — ทุกอย่างเป็นตาราง */
   function openHistDetail(d,id){
@@ -6157,6 +6164,12 @@ window.WPDAUTH = {
     const FD=S.feed.filter(inD).sort((a,b)=>String(a.time).localeCompare(String(b.time)));
     const US=(S.use||[]).filter(inD), BU=(S.bagUse||[]).filter(inD), SC=(S.scrap||[]).filter(inD);
     let st=L[0].time; const en=L[L.length-1].time;
+    /* รายการเบิกของงานนี้วันนี้ · ผ้าที่เบิกรอไว้ก่อนวันผลิตวันแรก นับเข้าวันแรก */
+    const firstDay=S.line.filter(l=>l.orderId===id).reduce((m,l)=>{ const x=dayOf(l.time); return !m||x<m?x:m; },'');
+    const preEarly=x=>x && x.orderId===id && x.pre && d===firstDay && dayOf(x.time)<d;
+    const WD=(S.wd||[]).filter(inD), FW=(S.fabricWd||[]).filter(x=>inD(x)||preEarly(x)), BW=(S.bagWd||[]).filter(inD), SW=(S.sheetWd||[]).filter(inD);
+    const CU=(S.caseUse||[]).filter(inD), cuPcs=CU.reduce((a,x)=>a+(+x.pieces||0),0);
+    const wdKg=r2(WD.reduce((a,x)=>a+(+x.kg||0),0)), fwPcs=FW.reduce((a,x)=>a+(+x.qty||0),0), bwKg=r2(BW.reduce((a,x)=>a+(+x.kg||0),0)), swPcs=SW.reduce((a,x)=>a+(+x.qty||0),0);
     if(o && o.startedAt && dayOf(o.startedAt)===d && o.startedAt<st) st=o.startedAt;
     const brk=breakOverlapMinutes(st,en), mins=Math.max(0,minsBetween(en,st)-brk);
     const packs=L.length, pcs=L.reduce((a,l)=>a+(+l.piecesPerPack||0),0);
@@ -6178,6 +6191,8 @@ window.WPDAUTH = {
       ['ลูกค้าสั่ง',o&&o.orderedPacks?o.orderedPacks+' แพ็ค · ทำสะสมถึงวันนี้ '+allP+' แพ็ค'+(allP>=o.orderedPacks?' (ครบแล้ว)':' (ขาด '+(o.orderedPacks-allP)+')'):'—'],
       ['น้ำหนัก Std รวม',r2(std)+' กก.'],['น้ำหนักจริงรวม',r2(act)+' กก. (ต่าง '+(act-std>0?'+':'')+r3(act-std)+' กก.)'],
       ['ใยป้อนเข้าไลน์',fib?r2(fib)+' กก. ('+FD.length+' รอบ)':'—'],['เศษ/ของเสีย',scKg?scKg+' กก.':'—'],
+      ['เบิก',[wdKg?'ใย '+wdKg+' กก. ('+WD.length+' ก้อน)':'',fwPcs?'ผ้า/ปลอก '+fwPcs.toLocaleString()+' ใบ':'',bwKg?'ถุง '+bwKg+' กก.':'',swPcs?'ใยแผ่น '+swPcs+' แผ่น':''].filter(Boolean).join(' · ')||'—'],
+      ['ปลอกที่ใช้',cuPcs?cuPcs.toLocaleString()+' ใบ':'—'],
       ['เวลาที่เสีย',down?minTxt(down)+' ('+downL.length+' ครั้ง)':'—'],['คนทำ',bys.length?bys.map(esc).join(', '):'—'],
       ['สถานะงาน',o?(o.finishedAt&&dayOf(o.finishedAt)===d?'🏁 จบงานวันนี้ '+tm(o.finishedAt):o.status==='done'?'เสร็จแล้ว ('+thDate(o.finishedAt)+')':'ยังทำต่อ'):'—']];
     let cA=0, cS=0;
@@ -6196,6 +6211,15 @@ window.WPDAUTH = {
     const fibRows=Object.values(fb).sort((a,b)=>String(a.n).localeCompare(String(b.n))).map(r=>'<tr>'+td(esc(r.n))+td(esc(r.b||'—'))+td(esc(r.l||'—'))+td(r3(r.kg))+td(r.adj?(r.adj>0?'+':'')+r3(r.adj):'—')+td('<b>'+r3(r.kg+r.adj)+'</b>')+'</tr>');
     const bg={}; BU.forEach(x=>{ const k=x.kind+'|'+x.name+'|'+x.sackNo; const r=bg[k]||(bg[k]={k:x.kind,n:x.name,s:x.sackNo,p:0,kg:0,c:0}); r.p+=(+x.pieces||0); r.kg+=(+x.kg||0); if(x.closeout) r.c++; });
     const bagRows=Object.values(bg).map(r=>'<tr>'+td(r.k==='zip'?'ถุงซิป':r.k==='pack'?'ถุงแพ็ค':esc(r.k||'—'))+td(esc(r.n||'—'))+td('#'+esc(r.s||'—'))+td(r.p.toLocaleString())+td(r3(r.kg))+td(r.c?'ปิดกระสอบ':'')+'</tr>');
+    const wdRows=[].concat(
+      WD.map(x=>({t:x.time, h:'<tr>'+td(tm(x.time))+td('🧶 ใย')+td('<b>'+esc(x.fiberName||'—')+'</b>')+td(r3(+x.kg||0)+' กก.')+td('ก้อน '+esc(x.lot||x.seq||'—'))+td(esc(x.by||'—'))+
+        '<td style="white-space:normal">'+(x.offRecipe?'<span class="bdg warn">ไม่อยู่ในสูตร</span> ':'')+esc(x.note||'')+'</td></tr>'})),
+      FW.map(x=>({t:x.time, h:'<tr>'+td(dayOf(x.time)!==d?thDate(x.time)+' '+tm(x.time):tm(x.time))+td('🧷 ผ้า/ปลอก')+td('<b>'+esc(x.fabricType||'—')+'</b> '+esc(x.size||''))+td((+x.qty||0).toLocaleString()+' ใบ')+
+        '<td style="white-space:normal">'+(x.picks||[]).map(p=>'ถุง #'+esc(p.batchNo)+': '+p.qty).join('<br>')+'</td>'+td(esc(x.by||'—'))+td(x.pre?'🕒 เบิกรอไว้':'')+'</tr>'})),
+      BW.map(x=>({t:x.time, h:'<tr>'+td(tm(x.time))+td('🛍️ ถุง')+td('<b>'+(x.kind==='zip'?'ถุงซิป':x.kind==='pack'?'ถุงแพ็ค':esc(x.kind||''))+'</b> '+esc(x.name||''))+td(r3(+x.kg||0)+' กก.')+
+        '<td style="white-space:normal">'+(x.picks||[]).map(p=>'กระสอบ #'+esc(p.sackNo)+': '+r3(+p.kg||0)+' กก.'+(p.weighedKg>0?' (ชั่ง '+p.weighedKg+')':'')).join('<br>')+'</td>'+td(esc(x.by||'—'))+td('')+'</tr>'})),
+      SW.map(x=>({t:x.time, h:'<tr>'+td(tm(x.time))+td('🧺 ใยแผ่น')+td(x.srcOrderId?esc(ordLabel(x.srcOrderId)):'—')+td((+x.qty||0)+' แผ่น')+td('')+td(esc(x.by||'—'))+td('')+'</tr>'}))
+    ).sort((a,b)=>String(a.t).localeCompare(String(b.t))).map(r=>r.h);
     const BR=(S.breaks||[]).filter(b=>dayOf(b.start)===d && (b.orderId===id || (!b.orderId && String(b.start)<=String(en) && String(b.end||b.start)>=String(st))));
     const brRows=BR.map(b=>'<tr>'+td(esc(b.reason||'พัก'))+td(tm(b.start))+td(b.end?tm(b.end):'ยังไม่จบ')+td(b.end?minsBetween(b.end,b.start)+' นาที':'—')+td(esc(b.by||'—'))+'</tr>');
     const scRows=SC.map(x=>'<tr>'+td(tm(x.time))+td(esc(x.kind||'—'))+td(x.kg!=null?x.kg:'—')+td(x.pieces!=null?x.pieces:'—')+td(esc(x.reason||'—'))+'<td style="white-space:normal">'+esc(x.note||'')+'</td>'+td(esc(x.by||'—'))+'</tr>');
@@ -6203,6 +6227,7 @@ window.WPDAUTH = {
     $('hdSub').textContent=thDate(d)+' · '+packs+' แพ็ค · ทำ '+(mins?minTxt(mins):'-');
     $('hdBody').innerHTML=
       tbl('สรุปงานวันนี้',['รายการ','ค่า'],kv.map(r=>'<tr><td style="color:var(--dim)">'+r[0]+'</td><td style="white-space:normal">'+r[1]+'</td></tr>'))+
+      tbl('รายการเบิก ('+wdRows.length+')',['เวลา','ประเภท','รายการ','จำนวน','หยิบจาก','ผู้เบิก','หมายเหตุ'],wdRows)+
       tbl('รอบป้อนใย ('+FD.length+')',['รอบ','เวลา','ผู้ลง','ใยที่หักในรอบ (กก.)','รวม (กก.)'],feedRows)+
       tbl('ใยที่ใช้ แยกชนิด/ก้อน',['ชนิดใย','ก้อน','ล็อต','ป้อน (กก.)','ปรับจากชั่ง/ปิดก้อน','รวม (กก.)'],fibRows)+
       tbl('ถุงที่ใช้',['ชนิด','ไซซ์','กระสอบ','ชิ้น','กก.',''],bagRows)+

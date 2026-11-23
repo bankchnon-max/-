@@ -920,7 +920,7 @@
         <div class="sumline" id="sumRangeLine"></div>
         <div class="acts" style="margin-top:10px;">
           <button class="btn sm" id="btnExport">⤓ ออกไฟล์ Excel (CSV)</button>
-          <button class="btn sec sm" id="btnExportAll">⤓ ออกทั้งหมด (สำรองข้อมูล)</button>
+          <button class="btn sec sm" id="btnExportAll">⤓ ออกรายงาน CSV ทุกวัน</button>
         </div>
         <div class="sg" id="sumStats" style="margin-top:11px;"></div>
       </div>
@@ -993,16 +993,14 @@
         <button class="btn w" id="btnSaveDb" style="margin-top:9px;">บันทึกเกณฑ์สี</button>
       </div>
       <div class="card">
-        <h3>พื้นที่เก็บข้อมูล</h3>
+        <h3>💾 สำรอง / นำข้อมูลกลับ</h3>
         <div class="sumline" id="storeInfo"></div>
-        <div class="acts" style="margin-top:9px;">
-          <button class="btn sec sm" id="btnPrune">ลบข้อมูลเก่ากว่า 60 วัน</button>
+        <div class="acts" style="margin-top:9px;flex-wrap:wrap;gap:8px;">
+          <button class="btn sm" id="btnBackupJson">⤓ สำรองข้อมูลเต็ม (JSON)</button>
+          <button class="btn sec sm" id="btnRestoreJson">⤒ นำข้อมูลกลับจากไฟล์สำรอง</button>
+          <input type="file" id="restoreFile" accept=".json,application/json" style="display:none;">
         </div>
-      </div>
-      <div class="card">
-        <h3 style="color:var(--red);">โซนอันตราย — โหมดทดสอบ</h3>
-        <p class="sumline">ล้างข้อมูลการผลิตทั้งหมด (ออเดอร์/ป้อนใย/ท้ายไลน์/เบิกใย) เพื่อเริ่มทดลองใช้ใหม่ — ไม่กระทบข้อมูลในแอพสต๊อก</p>
-        <button class="btn dg w" id="btnClearAll">🗑 ล้างข้อมูลการผลิตทั้งหมด</button>
+        <div class="sumline" id="restoreOut" style="margin-top:8px;"></div>
       </div>
     </div>
 
@@ -1540,6 +1538,7 @@ window.WPDAUTH = {
   function idbGet(k){ return idb().then(function(db){ if(!db) return null; return new Promise(function(res){
     try{ var q = db.transaction('c').objectStore('c').get(k); q.onsuccess = function(){ res(q.result || null); }; q.onerror = function(){ res(null); }; }catch(e){ res(null); } }); }); }
   function idbPut(k, v){ idb().then(function(db){ if(!db) return; try{ db.transaction('c', 'readwrite').objectStore('c').put(v, k); }catch(e){} }); }
+  function idbDel(k){ idb().then(function(db){ if(!db) return; try{ db.transaction('c', 'readwrite').objectStore('c').delete(k); }catch(e){} }); }
   /* เก็บหลายก้อนในรายการเดียว — เร็วกว่าและไม่ค้างครึ่งๆ กลางๆ ถ้าปิดแอพเร็ว */
   function idbPutMany(list){ if(!list.length) return; idb().then(function(db){ if(!db) return;
     try{ var st = db.transaction('c', 'readwrite').objectStore('c'); list.forEach(function(x){ st.put(x[1], x[0]); }); }catch(e){} }); }
@@ -1645,12 +1644,20 @@ window.WPDAUTH = {
     if(document.getElementById('__wpdStale')) tooOld();
     var sp = split(JSON.parse(value));
     var prev = (lastIdx[key] && lastIdx[key].days) || {};
+    /* วันที่เคยมีแต่ตอนนี้ว่าง (ลบรายการสุดท้ายของวัน) — เก็บไว้เป็นก้อนว่าง ไม่เอาออกจากสารบัญ
+       (เอาออกแล้วก้อนเก่าค้างในฐานข้อมูล วันหลังเพิ่มรายการวันนั้นจะเขียนชนถาวร) */
+    Object.keys(prev).forEach(function(d){ if(!(d in sp.chunks)) sp.chunks[d] = '{}'; });
     var writes = [];
     Object.keys(sp.chunks).forEach(function(d){
       var s = sp.chunks[d], h = hash(s), id = key + SEP + d;
       sp.idx.days[d] = h;
       if(prev[d] !== h) writes.push(S0.set(id, s, true, prev[d] ? expectOf(id) : null).then(function(res){
-        var v = { h:h, s:s, ver:res && res.ver }; mem[id] = v; idbPut(id, v); noteVer(id, res); }));
+        var v = { h:h, s:s, ver:res && res.ver }; mem[id] = v; idbPut(id, v); noteVer(id, res);
+      }, function(e){
+        /* ก้อนนี้ในฐานข้อมูลไม่ตรงกับที่เครื่องนี้จำไว้ — ทิ้งที่จำไว้ รอบลองใหม่ดึงของจริงมารวม */
+        if(e && e.conflict){ delete mem[id]; idbDel(id); delete assembled[key]; }
+        throw e;
+      }));
     });
     /* ก้อนต้องขึ้นครบก่อน แล้วค่อยเขียนสารบัญ — เครื่องอื่นจะไม่เห็นสารบัญที่ชี้ไปก้อนที่ยังไม่มี */
     var idxStr;
@@ -2392,7 +2399,7 @@ window.WPDAUTH = {
   function renderPanel(force){
     if (current==='order') rOrders();
     else if (current==='feed') rFeed(force);
-    else if (current==='office') rOffice();
+    else if (current==='office'){ rOffice(); try{ rStoreInfo(); }catch(e){} }
     else if (current==='line' || current==='pic') rLine(force);
     else if (current==='sum') rSum();
   }
@@ -6574,8 +6581,8 @@ window.WPDAUTH = {
   $('btnExportAll').onclick=()=>{
     const all=[...S.feed,...S.line,...S.wd,...S.scrap].map(x=>dayOf(x.time)).sort();
     const R={from:all[0]||todayStr(),to:all[all.length-1]||todayStr()};
-    if(download('สำรองข้อมูลทั้งหมด_'+todayStr()+'.csv',buildCSV(R)))
-      toast('สำรองข้อมูลทั้งหมดแล้ว');
+    if(download('รายงานการผลิตทุกวัน_'+todayStr()+'.csv',buildCSV(R)))
+      toast('ออกรายงาน CSV แล้ว (ไฟล์นี้เป็นรายงาน ใช้กู้คืนไม่ได้ — สำรองข้อมูลจริงที่แท็บออฟฟิศ)');
   };
 
   function rStoreInfo(){
@@ -6584,39 +6591,61 @@ window.WPDAUTH = {
     const list=Array.from(days).sort();
     const recs=S.feed.length+S.line.length+S.wd.length+S.scrap.length;
     const kb=Math.round(bytes/1024);
-    const perDay=days.size?bytes/days.size:0;
-    const daysLeft=perDay?Math.floor((5*1024*1024-bytes)/perDay):9999;
     $('storeInfo').innerHTML='เก็บอยู่ '+recs.toLocaleString()+' รายการ · '+days.size+' วัน'+
-      (list.length?' ('+list[0]+' ถึง '+list[list.length-1]+')':'')+' · ใช้พื้นที่ '+kb+' KB จากประมาณ 5,120 KB'+
-      '<br>'+(daysLeft>365?'<span class="bdg ok">เก็บได้เกิน 1 ปีในอัตราการใช้งานนี้</span>'
-        :daysLeft>60?'<span class="bdg ok">เก็บต่อได้อีกประมาณ '+daysLeft+' วัน</span>'
-        :'<span class="bdg warn">เหลือพื้นที่อีกประมาณ '+daysLeft+' วัน — ควรออกไฟล์เก็บแล้วลบข้อมูลเก่า</span>')+
-      '<br><span style="color:var(--dim)">แนะนำให้กด "ออกทั้งหมด" เก็บไฟล์ไว้ทุกสิ้นเดือน</span>';
+      (list.length?' ('+list[0]+' ถึง '+list[list.length-1]+')':'')+' · ประมาณ '+kb.toLocaleString()+' KB'+
+      '<br><span style="color:var(--dim)">ไฟล์สำรองข้อมูลเต็ม = ออเดอร์ ป้อนใย ท้ายไลน์ เบิก/ใช้ ใย ผ้า ปลอก ถุง ใยแผ่น และการตั้งค่า ครบทุกชุด นำกลับได้ · แนะนำให้สำรองเก็บไว้ทุกสิ้นเดือน</span>';
   }
 
-  $('btnPrune').onclick=async()=>{
-    const cut=addDays(todayStr(),-60);
-    const before=S.feed.length+S.line.length+S.wd.length+S.scrap.length;
-    const willGo=[...S.feed,...S.line,...S.wd,...S.scrap].filter(x=>dayOf(x.time)<cut).length;
-    if(!willGo){ toast('ยังไม่มีข้อมูลเก่ากว่า 60 วัน'); return; }
-    if(!await ask('ลบข้อมูลเก่า','จะลบ '+willGo+' รายการ ที่เก่ากว่า '+cut+
-      '\n\nแนะนำให้กด "ออกทั้งหมด" เก็บไฟล์ไว้ก่อน\nลบแล้วกู้คืนไม่ได้')) return;
-    S.feed=S.feed.filter(x=>dayOf(x.time)>=cut);
-    S.wd=S.wd.filter(x=>dayOf(x.time)>=cut);
-    S.line=S.line.filter(x=>dayOf(x.time)>=cut);
-    S.scrap=S.scrap.filter(x=>dayOf(x.time)>=cut);
-    await saveFeed(); await saveLine();
-    rSum(); toast('ลบแล้ว '+(before-(S.feed.length+S.line.length+S.wd.length+S.scrap.length))+' รายการ');
+  /* ═══ สำรองข้อมูลเต็ม (JSON) — ทุกหมวดของแอพโรงงานครบทุกชุด นำกลับได้ ═══ */
+  const BK_KEYS=['v3_orders','v3_feed','v3_line','v3_set'];
+  function bkCounts(d){ const c={}; BK_KEYS.forEach(k=>{ const o=d[k]; if(o && typeof o==='object') Object.keys(o).forEach(f=>{ if(Array.isArray(o[f])) c[f]=o[f].length; }); }); return c; }
+  function bkJson(note){
+    const data={}; BK_KEYS.forEach(k=>{ data[k]=JSON.parse(JSON.stringify(snapshot(k))); });
+    return { app:'winpoly-factory', kind:'full-backup', ver:1, exportedAt:localISO(), note:note||'', counts:bkCounts(data), data };
+  }
+  function bkDownload(name,obj){
+    try{ const blob=new Blob([JSON.stringify(obj)],{type:'application/json'}), url=URL.createObjectURL(blob), a=document.createElement('a');
+      a.href=url; a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ a.remove(); URL.revokeObjectURL(url); },800); return true;
+    }catch(e){ console.error(e); toast('ดาวน์โหลดไม่สำเร็จบนอุปกรณ์นี้'); return false; }
+  }
+  const bkStamp=()=>localISO().slice(0,16).replace(/[-:T]/g,'');
+  $('btnBackupJson').onclick=()=>{
+    const b=bkJson();
+    if(bkDownload('winpoly-factory-backup_'+bkStamp()+'.json',b)){
+      const n=Object.values(b.counts).reduce((a,x)=>a+x,0);
+      $('restoreOut').innerHTML='<span class="bdg ok">✅ สำรองแล้ว '+n.toLocaleString()+' รายการ ('+localISO().slice(11,16)+' น.)</span> เก็บไฟล์ไว้ในที่ปลอดภัย';
+    }
   };
-
-  $('btnClearAll').onclick=async()=>{
-    if(!await ask('⚠ ล้างข้อมูลการผลิตทั้งหมด','จะลบออเดอร์/ป้อนใย/ท้ายไลน์/เบิกใย/พักงาน ทั้งหมด — ข้อมูลในแอพสต๊อกไม่กระทบ'+
-      '\n\nแนะนำให้กด "ออกทั้งหมด" เก็บไฟล์ไว้ก่อน\n\nยืนยันครั้งที่ 1 — ต้องการลบจริงหรือไม่?')) return;
-    if(!await ask('⚠ ยืนยันอีกครั้ง','การลบนี้กู้คืนไม่ได้ ยืนยันจะลบข้อมูลการผลิตทั้งหมดหรือไม่?')) return;
-    S.orders=[]; S.activeId=null; S.activeFeedId=null; S.fiberMaster=[];
-    S.feed=[]; S.wd=[]; S.gasSwaps=[]; S.line=[]; S.scrap=[]; S.breaks=[]; S.carry=[];
-    await saveOrders(); await saveFeed(); await saveLine();
-    rTop(); renderPanel(true); toast('ล้างข้อมูลการผลิตทั้งหมดแล้ว');
+  $('btnRestoreJson').onclick=()=>{ $('restoreFile').value=''; $('restoreFile').click(); };
+  $('restoreFile').onchange=async function(){
+    const f=this.files&&this.files[0]; if(!f) return;
+    const out=$('restoreOut');
+    let b=null; try{ b=JSON.parse(await f.text()); }catch(e){}
+    if(!b || b.app!=='winpoly-factory' || b.kind!=='full-backup' || !b.data || !BK_KEYS.every(k=>k in b.data)){
+      out.innerHTML='<span class="bdg bad">❌ นำกลับไม่ได้ — ไฟล์นี้ไม่ใช่ไฟล์สำรองข้อมูลเต็มของแอพโรงงาน</span>'; return; }
+    const c=bkCounts(b.data), cur=bkCounts(bkJson().data);
+    const lines=['orders','line','feed','wd','use','fabricWd','caseUse','bagWd','bagUse','sheetWd','sheetUse','scrap','breaks']
+      .filter(k=>(c[k]||0)||(cur[k]||0)).map(k=>k+': ในไฟล์ '+(c[k]||0)+' · ตอนนี้ '+(cur[k]||0));
+    if(!await ask('⚠ นำข้อมูลกลับจากไฟล์สำรอง','ไฟล์สำรองเมื่อ '+String(b.exportedAt||'?').replace('T',' ').slice(0,16)+
+      '\n\n'+lines.join('\n')+'\n\nข้อมูลการผลิตทุกเครื่องจะกลับไปเป็นตามไฟล์นี้ — ที่บันทึกหลังจากวันที่สำรองจะหายไป\n(ระบบจะสำรองข้อมูลตอนนี้ลงเครื่องให้ก่อน)',
+      { yes:'นำกลับ', no:'ยกเลิก', tone:'danger' })) { out.innerHTML='<span class="bdg warn">⏸ ยกเลิก — ยังไม่ได้นำข้อมูลกลับ</span>'; return; }
+    if(!await ask('⚠ ยืนยันอีกครั้ง','นำข้อมูลกลับจากไฟล์สำรองเมื่อ '+String(b.exportedAt||'?').replace('T',' ').slice(0,16)+' จริงหรือไม่?',{ yes:'ยืนยันนำกลับ', no:'ยกเลิก', tone:'danger' })){
+      out.innerHTML='<span class="bdg warn">⏸ ยกเลิก — ยังไม่ได้นำข้อมูลกลับ</span>'; return; }
+    /* สำรองของปัจจุบันลงเครื่องก่อนทับ — นำกลับผิดไฟล์ก็กู้คืนได้ */
+    if(!bkDownload('winpoly-factory-before-restore_'+bkStamp()+'.json',bkJson('auto before restore'))){
+      out.innerHTML='<span class="bdg bad">❌ ไม่ได้นำกลับ — สำรองข้อมูลปัจจุบันลงเครื่องไม่สำเร็จ</span>'; return; }
+    const A=b.data.v3_orders||{}, B=b.data.v3_feed||{}, C=b.data.v3_line||{};
+    S.orders=A.orders||[]; S.activeId=A.activeId||null; S.activeFeedId=A.activeFeedId||null; S.activePicnicId=A.activePicnicId||null; S.fiberMaster=A.fiberMaster||[];
+    S.feed=B.feed||[]; S.wd=B.wd||[]; S.use=B.use||[]; S.fabricWd=B.fabricWd||[]; S.bagWd=B.bagWd||[]; S.bagUse=B.bagUse||[]; S.gasSwaps=B.gasSwaps||[];
+    S.sheetWd=B.sheetWd||[]; S.sheetUse=B.sheetUse||[]; S.caseUse=B.caseUse||[];
+    S.line=C.line||[]; S.scrap=C.scrap||[]; S.breaks=C.breaks||[]; S.carry=C.carry||[];
+    if(b.data.v3_set && typeof b.data.v3_set==='object') S.settings=b.data.v3_set;
+    await saveOrders(); await saveFeed(); await saveLine(); await saveSet();
+    rTop(); renderPanel(true);
+    const bad=/bad/.test(($('saveState')||{}).className||'');
+    out.innerHTML=bad?'<span class="bdg warn">⚠ นำกลับในเครื่องนี้แล้ว แต่ยังบันทึกขึ้นระบบไม่สำเร็จ — แตะป้าย ⚠ ด้านบนเพื่อลองใหม่</span>'
+      :'<span class="bdg ok">✅ นำข้อมูลกลับแล้ว (ไฟล์สำรองเมื่อ '+String(b.exportedAt||'').replace('T',' ').slice(0,16)+')</span>';
+    toast('นำข้อมูลกลับจากไฟล์สำรองแล้ว');
   };
 
   async function runDiag(){

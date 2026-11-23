@@ -1339,6 +1339,7 @@ window.WPDAUTH = {
   function idbGet(k){ return idb().then(function(db){ if(!db) return null; return new Promise(function(res){
     try{ var q = db.transaction('c').objectStore('c').get(k); q.onsuccess = function(){ res(q.result || null); }; q.onerror = function(){ res(null); }; }catch(e){ res(null); } }); }); }
   function idbPut(k, v){ idb().then(function(db){ if(!db) return; try{ db.transaction('c', 'readwrite').objectStore('c').put(v, k); }catch(e){} }); }
+  function idbDel(k){ idb().then(function(db){ if(!db) return; try{ db.transaction('c', 'readwrite').objectStore('c').delete(k); }catch(e){} }); }
   /* เก็บหลายก้อนในรายการเดียว — เร็วกว่าและไม่ค้างครึ่งๆ กลางๆ ถ้าปิดแอพเร็ว */
   function idbPutMany(list){ if(!list.length) return; idb().then(function(db){ if(!db) return;
     try{ var st = db.transaction('c', 'readwrite').objectStore('c'); list.forEach(function(x){ st.put(x[1], x[0]); }); }catch(e){} }); }
@@ -1444,12 +1445,20 @@ window.WPDAUTH = {
     if(document.getElementById('__wpdStale')) tooOld();
     var sp = split(JSON.parse(value));
     var prev = (lastIdx[key] && lastIdx[key].days) || {};
+    /* วันที่เคยมีแต่ตอนนี้ว่าง (ลบรายการสุดท้ายของวัน) — เก็บไว้เป็นก้อนว่าง ไม่เอาออกจากสารบัญ
+       (เอาออกแล้วก้อนเก่าค้างในฐานข้อมูล วันหลังเพิ่มรายการวันนั้นจะเขียนชนถาวร) */
+    Object.keys(prev).forEach(function(d){ if(!(d in sp.chunks)) sp.chunks[d] = '{}'; });
     var writes = [];
     Object.keys(sp.chunks).forEach(function(d){
       var s = sp.chunks[d], h = hash(s), id = key + SEP + d;
       sp.idx.days[d] = h;
       if(prev[d] !== h) writes.push(S0.set(id, s, true, prev[d] ? expectOf(id) : null).then(function(res){
-        var v = { h:h, s:s, ver:res && res.ver }; mem[id] = v; idbPut(id, v); noteVer(id, res); }));
+        var v = { h:h, s:s, ver:res && res.ver }; mem[id] = v; idbPut(id, v); noteVer(id, res);
+      }, function(e){
+        /* ก้อนนี้ในฐานข้อมูลไม่ตรงกับที่เครื่องนี้จำไว้ — ทิ้งที่จำไว้ รอบลองใหม่ดึงของจริงมารวม */
+        if(e && e.conflict){ delete mem[id]; idbDel(id); delete assembled[key]; }
+        throw e;
+      }));
     });
     /* ก้อนต้องขึ้นครบก่อน แล้วค่อยเขียนสารบัญ — เครื่องอื่นจะไม่เห็นสารบัญที่ชี้ไปก้อนที่ยังไม่มี */
     var idxStr;

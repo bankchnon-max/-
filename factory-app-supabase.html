@@ -901,7 +901,7 @@
         <div class="acts" id="histCats" style="margin-top:8px;flex-wrap:wrap;gap:6px;"></div>
         <div class="sumline" id="histHead" style="margin-top:8px;"></div>
         <div id="histList"></div>
-        <button class="btn sec sm" id="histMore" style="display:none;margin-top:8px;">ดูย้อนหลังเพิ่มอีก 20 วัน</button>
+        <button class="btn sec sm" id="histMore" style="display:none;margin-top:8px;">ดูย้อนหลังเพิ่มอีก 7 วัน</button>
       </div>
       <div class="card">
         <div class="rf" style="align-items:center;">
@@ -6076,7 +6076,7 @@ window.WPDAUTH = {
     $('chFiberNote').innerHTML=rows.length?'ใยไหนเป็นสีเหลืองบ่อยๆ แปลว่า กก.ต่อรอบในสูตรตั้งสูงกว่าที่ป้อนจริง — ระบบจะหักก้อนหมดก่อนของจริง ควรลดสูตรลงตาม %':'';
   }
   /* ═══ 📜 ประวัติการผลิต — ทุกวันที่มีแพ็ค แยกตามออเดอร์ · เวลาทำ = แพ็คแรก (หรือกดเริ่มงาน) ถึงแพ็คสุดท้าย หักพัก (แบบเดียวกับสรุปตามออเดอร์) ═══ */
-  let histQ='', histCat='', histN=20, histT=null;
+  let histQ='', histCat='', histN=7, histT=null;
   let histAll=false;          /* กด "ทั้งหมด" = แสดงทุกวัน · ค่าเริ่ม = ซ่อน รอค้นหา */
   const histOpen=new Set();   /* วันที่กางอยู่ (ค่าเริ่ม = พับทุกวัน) */
   const HIST_CATS=[['','ทั้งหมด'],['หมอน','🛏️ หมอน'],['หมอนหนุน','หมอนหนุน'],['หมอนข้าง','หมอนข้าง'],['ใยแผ่น','🧵 ใยแผ่น'],['ใยปั่น','ใยปั่น/สาง'],['ปิกนิก','🧺 ปิกนิก']];
@@ -6087,13 +6087,13 @@ window.WPDAUTH = {
     const box=$('histList'); if(!box) return;
     if(!box.dataset.init){
       box.dataset.init='1';
-      $('histQ').oninput=()=>{ histQ=$('histQ').value.trim(); histN=20; clearTimeout(histT); histT=setTimeout(rHist,150); };
-      $('histMore').onclick=()=>{ histN+=20; rHist(); };
+      $('histQ').oninput=()=>{ histQ=$('histQ').value.trim(); histN=7; clearTimeout(histT); histT=setTimeout(rHist,150); };
+      $('histMore').onclick=()=>{ histN+=7; rHist(); };
     }
     $('histCats').innerHTML=HIST_CATS.map(c=>'<button class="btn sm '+((c[0]?histCat===c[0]:histAll&&!histCat)?'':'sec')+'" data-hcat="'+c[0]+'" style="margin:0;">'+c[1]+'</button>').join('');
     $('histCats').querySelectorAll('[data-hcat]').forEach(b=>b.onclick=()=>{ const c=b.dataset.hcat;
       if(c){ histCat=histCat===c?'':c; histAll=false; } else { histAll=!(histAll&&!histCat); histCat=''; }
-      histN=20; rHist(); });
+      histN=7; rHist(); });
     /* ยังไม่ค้น ไม่เลือกประเภท ไม่กดทั้งหมด = พับไว้ทั้งหมด */
     if(!histQ && !histCat && !histAll){
       $('histHead').innerHTML='<span style="color:var(--dim)">พิมพ์ชื่อลูกค้า รหัสงาน หรือวันที่ แล้วประวัติจะขึ้นมา · หรือกดประเภท / "ทั้งหมด" เพื่อดูทุกวัน</span>';

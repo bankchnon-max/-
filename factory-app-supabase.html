@@ -162,6 +162,39 @@
     display:flex; flex-direction:column; align-items:center; gap:3px; font-size:10.5px; font-family:'Sarabun',sans-serif; }
   #fr .nb .ic { font-size:18px; }
   #fr .nb.on { color:var(--accent); }
+  /* โลโก้ + หัวข้อหน้า + การ์ดกำลังผลิต */
+  #fr .applogo { width:104px; height:48px; border-radius:10px; flex:none; object-fit:cover; object-position:50% 52%; background:#fff; border:1px solid var(--border); box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  #fr .pgtitle { font:600 30px Kanit,sans-serif; margin:6px 2px 12px; color:var(--text); letter-spacing:0; }
+  #fr .nowcard { display:flex; align-items:center; gap:14px; padding:20px 22px; margin-bottom:14px; border-radius:16px;
+    border:1px solid var(--border); background:var(--panel);
+    background:linear-gradient(135deg, color-mix(in srgb, var(--accent) 9%, var(--panel)) 0%, var(--panel) 75%); }
+  #fr .nowcard + .nowcard { margin-top:-4px; }
+  #fr .nowl { flex:1; min-width:0; }
+  #fr .nowtag { display:flex; align-items:center; gap:7px; font-weight:600; font-size:13.5px; color:var(--text); }
+  #fr .nowdot { width:8px; height:8px; border-radius:50%; background:var(--accent); animation:nowp 1.6s ease-in-out infinite; }
+  @keyframes nowp { 50% { opacity:.35; } }
+  #fr .nowcust { font:600 32px/1.2 Kanit,sans-serif; color:var(--text); margin:10px 0 4px; overflow-wrap:anywhere; }
+  #fr .nowcode { color:var(--dim); font-size:14px; }
+  #fr .nowcnt { margin:14px 0 16px; color:var(--dim); font-size:14px; }
+  #fr .nowcnt b { font:700 24px Kanit,sans-serif; color:var(--text); margin-right:4px; }
+  #fr .nowgo { margin:0; }
+  #fr .nowring { position:relative; width:84px; height:84px; flex:none; }
+  #fr .nowring svg { width:84px; height:84px; transform:rotate(-90deg); }
+  #fr .nowring .bg { fill:none; stroke:var(--border); stroke-width:7; }
+  #fr .nowring .fg { fill:none; stroke:var(--accent); stroke-width:7; stroke-linecap:round; transition:stroke-dashoffset .5s; }
+  #fr .nowring span { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font:700 19px Kanit,sans-serif; color:var(--text); }
+  #fr .nowcard.idle { color:var(--dim); font-size:15px; }
+  @media (max-width:380px){ #fr .nowcust { font-size:26px; } #fr .nowring, #fr .nowring svg { width:70px; height:70px; } }
+  /* แถบเมนูล่าง: อีโมจิสีเต็ม (ไม่ทำเทา) · แท็บที่เลือก = แคปซูลส้มอ่อนรอบไอคอน */
+  #fr .nav .nb { gap:3px; }
+  #fr .nav .nb .ic { display:flex; align-items:center; justify-content:center; width:52px; height:30px; border-radius:999px;
+    filter:none; opacity:.9; font-size:23px; line-height:1; transition:background .15s, transform .15s; }
+  #fr .nav .nb.on .ic { opacity:1; transform:scale(1.08); }
+  #fr .nav .nb .ic svg { width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  #fr .nav .nb.on .ic { background:rgba(232,120,40,.14); background:color-mix(in srgb, var(--accent) 16%, transparent); color:var(--accent); }
+  #fr .nav .nb.on::before { display:none; }
+  @media (min-width:700px){ #fr .nav .nb .ic { width:60px; height:34px; font-size:27px; } #fr .nav .nb .ic svg { width:27px; height:27px; } }
+  @media (max-width:360px){ #fr .nav .nb .ic { width:44px; height:28px; font-size:20px; } #fr .nav .nb .ic svg { width:21px; height:21px; } }
   #fr .empty { color:var(--dim); font-size:12.5px; text-align:center; padding:16px 0; }
   #fr .rf { display:flex; gap:9px; }
   #fr .rf > div { flex:1; }
@@ -182,6 +215,8 @@
   #fr .ov { position:fixed; inset:0; background:rgba(8,11,15,.78); z-index:100; display:none;
     align-items:center; justify-content:center; padding:18px; }
   #fr .ov.show { display:flex; }
+  /* หน้าจอซูมตัวหนังสือ: vh ถูกคูณด้วย zoom → หารกลับ ให้หน้าต่างพอดีจอเสมอ (หัว + ปุ่มปิดไม่หลุดจอ) */
+  #fr .ov > .box { max-height:calc(100vh / var(--zf,1) - 36px); overflow:auto; }
   #fr .box { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:17px; max-width:360px; width:100%; }
   #fr .box h3 { font-size:15px; margin:0 0 5px; color:var(--text); text-transform:none; letter-spacing:0; }
   #fr .box p { font-size:12.5px; color:var(--dim); margin:0 0 9px; line-height:1.6; }
@@ -530,7 +565,7 @@
 
 <div id="fr">
   <div class="topbar">
-    <h1><span class="dotled"></span> ระบบรายงานการผลิต</h1>
+    <h1><img class="applogo" src="icons/factory-512.png" alt="WinDesign"> ระบบรายงานการผลิต</h1>
     <div class="sub" id="clock">—</div>
     <div class="chip">
       <span>กำลังทำงาน: <b id="chipOrder">ยังไม่ได้เลือก</b></span>
@@ -547,7 +582,7 @@
 (function(){
   var K='wpd_font_scale', S=[{v:1,t:'ปกติ'},{v:1.15,t:'ใหญ่'},{v:1.3,t:'ใหญ่มาก'}];
   function cur(){ var v=null; try{ v=localStorage.getItem(K); }catch(e){} for(var i=0;i<S.length;i++) if(String(S[i].v)===v) return i; return 1; }
-  function apply(i){ document.documentElement.style.zoom=S[i].v; var c=document.getElementById('fontChip'); if(c) c.textContent='🔠 ตัวหนังสือ: '+S[i].t; }
+  function apply(i){ document.documentElement.style.zoom=S[i].v; document.documentElement.style.setProperty('--zf',S[i].v); var c=document.getElementById('fontChip'); if(c) c.textContent='🔠 ตัวหนังสือ: '+S[i].t; }
   apply(cur());
   var c=document.getElementById('fontChip');
   if(c) c.onclick=function(){ var i=(cur()+1)%S.length; try{ localStorage.setItem(K,String(S[i].v)); }catch(e){} apply(i); };
@@ -558,6 +593,8 @@
 
     <!-- 1. ORDERS -->
     <div class="panel" id="p-order">
+      <h2 class="pgtitle">ออเดอร์</h2>
+      <div id="nowBox"></div>
       <div class="card">
         <h3>📋 คิวผลิต — กดจบงานแล้วเริ่มออเดอร์ถัดไปให้เอง</h3>
         <div id="queueBox"></div>
@@ -1032,7 +1069,7 @@
   </div>
 
   <div class="ov" id="ovHist">
-    <div class="box" style="max-width:980px; width:100%; max-height:94vh; overflow:auto;">
+    <div class="box" style="max-width:980px; width:100%;">
       <div style="display:flex; align-items:flex-start; gap:8px;">
         <h3 id="hdTitle" style="flex:1; margin:0;"></h3>
         <button class="btn sec sm" id="hdClose" style="margin:0;">✕ ปิด</button>
@@ -1043,8 +1080,11 @@
     </div>
   </div>
   <div class="ov" id="ovPre">
-    <div class="box" style="max-width:560px; max-height:92vh; overflow:auto;">
-      <h3 id="preTitle"></h3>
+    <div class="box" style="max-width:560px;">
+      <div style="position:sticky;top:-17px;z-index:5;display:flex;align-items:center;gap:8px;margin:-17px -17px 8px;padding:12px 17px 10px;border-radius:14px 14px 0 0;background:var(--w-panel,var(--panel));border-bottom:1px solid var(--line,rgba(127,127,127,.25));">
+        <h3 id="preTitle" style="flex:1;margin:0;"></h3>
+        <button class="btn sec sm" id="preCloseTop" style="margin:0;white-space:nowrap;">✕ ปิด</button>
+      </div>
       <p id="preSub">ตั้งไว้ก่อนได้เลย — ถึงคิวกดเริ่มแล้วใช้ได้ทันที</p>
       <div id="preSlot"></div>
       <div class="ba" style="margin-top:12px;"><button class="btn sec" id="preClose">เสร็จ / ปิด</button></div>
@@ -1133,8 +1173,8 @@
 
   <div class="nav">
     <button class="nb on" data-p="order"><span class="ic">🧾</span>ออเดอร์</button>
-    <button class="nb" data-p="feed"><span class="ic">🧵</span>ป้อนใย</button>
-    <button class="nb" data-p="line"><span class="ic">🏁</span>ท้ายไลน์</button>
+    <button class="nb" data-p="feed"><span class="ic">⚖️</span>ป้อนใย</button>
+    <button class="nb" data-p="line"><span class="ic">🏭</span>ท้ายไลน์</button>
     <button class="nb" data-p="pic"><span class="ic">🧺</span>ปิกนิก</button>
     <button class="nb" data-p="office"><span class="ic">🖥️</span>ออฟฟิศ</button>
     <button class="nb" data-p="sum"><span class="ic">📊</span>สรุป</button>
@@ -2426,8 +2466,7 @@ window.WPDAUTH = {
   }
   /* คิว: บอกว่าตั้งสูตร/Standard ไว้แล้วหรือยัง — พร้อม = ถึงคิวกดเริ่มได้เลย */
   function preBadge(o){ const miss=[]; if(!(CALC.stdPerPack(o.spec)>0)) miss.push('Standard'); if(!isPicnic(o) && !(o.fibers||[]).length) miss.push('สูตร');
-    const _pf=fwPreQty(o);
-    return (miss.length?' <span class="bdg warn">⚠ ยังไม่ตั้ง'+miss.join('/')+'</span>':' <span class="bdg ok">✅ ตั้งสูตร/Standard แล้ว</span>')+(_pf?' <span class="bdg ok">🧷 เบิกผ้ารอไว้ '+_pf+' ใบ</span>':''); }
+    return (miss.length?' <span class="bdg warn">⚠ ยังไม่ตั้ง'+miss.join('/')+'</span>':' <span class="bdg ok">✅ ตั้งสูตร/Standard แล้ว</span>')+(o.productType==='หมอน'?' '+fwPreState(o).html:''); }
   function rQueue(){
     const el=$('queueBox'); if(!el) return;
     const cur=orderById(S.activeId), q=queueList();
@@ -2468,7 +2507,29 @@ window.WPDAUTH = {
       startOrder(o); queueRenum(); await saveOrders(); rTop(); rOrders(); toast('เริ่มออเดอร์: '+o.customer);
     });
   }
+  /* การ์ด "กำลังผลิต" — งานที่ท้ายไลน์ + งานปิกนิก (ถ้ามี) */
+  function rNow(){
+    const box=$('nowBox'); if(!box) return;
+    const L=[S.orders.find(o=>o.id===S.activeId), S.orders.find(o=>o.id===S.activePicnicId)].filter((o,i,a)=>o && o.status!=='done' && a.indexOf(o)===i);
+    if(!L.length){ box.innerHTML='<div class="nowcard idle">ยังไม่มีงานที่กำลังผลิต — เลือกออเดอร์ในคิวด้านล่าง แล้วกด "เริ่มเลย"</div>'; return; }
+    const C=2*Math.PI*36;
+    box.innerHTML=L.map(o=>{
+      const pic=isPicnic(o), n=packsOf(o), ord=+o.orderedPacks||0, pct=ord?Math.min(100,Math.round(n/ord*100)):null;
+      const where=pic?'ปิกนิก':fiberSide(o)==='pillow'?'โรง 2':'โรง 1';
+      return '<div class="nowcard"><div class="nowl">'+
+        '<div class="nowtag"><span class="nowdot"></span>กำลังผลิต · '+where+'</div>'+
+        '<div class="nowcust">'+esc(o.customer)+'</div>'+
+        '<div class="nowcode">'+esc(o.code)+' · '+esc(catLabel(o))+'</div>'+
+        '<div class="nowcnt"><b>'+n.toLocaleString()+'</b>'+(ord?'/ '+ord.toLocaleString()+' แพ็ค':'แพ็ค (ไม่ได้ใส่จำนวนสั่ง)')+'</div>'+
+        '<button class="btn nowgo" data-nowgo="'+(pic?'pic':'line')+'">'+(pic?'ไปหน้าปิกนิก →':'ไปหน้าท้ายไลน์ →')+'</button>'+
+        '</div><div class="nowring"><svg viewBox="0 0 84 84"><circle class="bg" cx="42" cy="42" r="36"/>'+
+        '<circle class="fg" cx="42" cy="42" r="36" stroke-dasharray="'+C.toFixed(1)+'" stroke-dashoffset="'+(C*(1-(pct||0)/100)).toFixed(1)+'"/></svg>'+
+        '<span>'+(pct==null?'—':pct+'%')+'</span></div></div>';
+    }).join('');
+    box.querySelectorAll('[data-nowgo]').forEach(b=>b.onclick=()=>show(b.dataset.nowgo));
+  }
   function rOrders(){
+    try{ rNow(); }catch(e){ console.error('now',e); }
     rQueue();
     const g=$('ordGrid');
     const list=S.orders.filter(o=>matchOrder(o,query));
@@ -4002,6 +4063,10 @@ window.WPDAUTH = {
     if($('cardFabWd')){ $('fwQty').value=''; refreshFwSelects(); }
   }
   $('preClose').onclick=closePre;
+  $('preCloseTop').onclick=closePre;
+  /* แตะพื้นหลังนอกหน้าต่าง หรือกด Esc = ปิด */
+  $('ovPre').addEventListener('click',e=>{ if(e.target===$('ovPre')) closePre(); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape' && $('ovPre').classList.contains('show')) closePre(); });
   let formDirty=false; // true while the user has unsaved edits in a form
   function flash(id){
     const el=$(id); if(!el) return;
@@ -5121,6 +5186,15 @@ window.WPDAUTH = {
   /* ปลอกที่เบิกรอไว้ให้ออเดอร์นี้ (ยังไม่ได้ใช้) */
   function fwPreQty(o){ const used={}; (S.caseUse||[]).forEach(u=>{ used[u.fwId]=(used[u.fwId]||0)+(+u.pieces||0); });
     return (S.fabricWd||[]).filter(w=>w.pre&&w.orderId===o.id).reduce((s,w)=>s+Math.max(0,(+w.qty||0)-(used[w.id]||0)),0); }
+  /* สถานะเบิกผ้ารอของออเดอร์หมอน: ต้องใช้ = สั่ง × ใบ/แพ็ค · ครบ / ยังขาด / ยังไม่เบิก */
+  function fwPreState(o){
+    const sp=o.spec||{}, need=(+o.orderedPacks||0)*(+sp.piecesPerPack||1), got=fwPreQty(o);
+    const k=need>0&&got>=need?'full':got>0?'part':'none';
+    const html=k==='full'?'<span class="bdg ok">✅ เบิกผ้าครบแล้ว '+got+' ใบ — ไม่ต้องเบิกเพิ่ม</span>'
+      :k==='part'?'<span class="bdg warn">🧷 เบิกผ้ารอไว้ '+got+(need?'/'+need+' ใบ — ยังขาด '+(need-got)+' ใบ':' ใบ')+'</span>'
+      :'<span class="bdg warn">⏳ ยังไม่ได้เบิกผ้ารอ'+(need?' (ต้องใช้ '+need+' ใบ)':'')+'</span>';
+    return {need, got, k, html};
+  }
   /* เบิกให้ออเดอร์ไหน: ปกติ = งานที่ทำอยู่ · เปิดจากหน้าต่าง ⚙️ ตั้งค่าล่วงหน้า = ออเดอร์นั้น (เบิกรอไว้) */
   function fillFwOrd(){
     const sel=$('fwOrdSel'); if(!sel) return;
@@ -5134,10 +5208,11 @@ window.WPDAUTH = {
     const box=$('fwOrdInfo'); if(!box) return;
     const o=$('fwOrdSel').value?orderById($('fwOrdSel').value):null;
     if(!o){ box.innerHTML=''; return; }
-    const sp=o.spec||{}, need=(+o.orderedPacks||0)*(+sp.piecesPerPack||1), got=fwPreQty(o);
-    box.innerHTML='🕒 เบิกรอไว้ให้ออเดอร์นี้ — งานที่ทำอยู่จะไม่หยิบปลอกชุดนี้ไปใช้'+
+    const sp=o.spec||{}, st=fwPreState(o), need=st.need;
+    box.innerHTML='<div style="font-size:16px;margin-bottom:6px;">'+st.html+'</div>'+
+      '🕒 เบิกรอไว้ให้ออเดอร์นี้ — งานที่ทำอยู่จะไม่หยิบปลอกชุดนี้ไปใช้'+
       '<br>ผ้าตาม Standard: <b>'+esc(sp.fabricType||'ยังไม่ตั้ง')+'</b> '+esc(sp.fabricSize||'')+(need?' · ต้องใช้ประมาณ '+need+' ใบ':'')+
-      (got?' · <span class="bdg ok">เบิกรอไว้แล้ว '+got+' ใบ</span>':'');
+      (st.k==='full'?'<br><span style="color:var(--dim)">ถ้าจะเบิกเผื่อเพิ่ม พิมพ์จำนวนเองได้</span>':'');
   }
   function fwOrdPick(){
     fwOrdInfo();
@@ -5771,6 +5846,46 @@ window.WPDAUTH = {
     let tail=0; for(let i=rows.length-1;i>=0 && rows[i].actualWeight==null;i--) tail++;
     return tail>=N-1;
   }
+  /* ═══ ผลการเบิก — ค้างไว้ใต้ปุ่ม จนกว่าจะกดเบิกครั้งต่อไป ═══
+     ระหว่างกดเบิก จดข้อความที่เด้ง (toast / กล่องแจ้ง / คำถามที่กดยกเลิก) แล้วดูว่ามีรายการเบิกเพิ่มจริงไหม */
+  let _wdCap=null;
+  const _plain=x=>String(x==null?'':x).replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim();
+  { const _t=toast, _i=info, _a=ask;
+    toast=function(m){ if(_wdCap) _wdCap.msgs.push(_plain(m)); return _t.apply(this,arguments); };
+    info=function(t,m){ if(_wdCap) _wdCap.infos.push(_plain(t)+(m?' — '+_plain(m).slice(0,160):'')); return _i.apply(this,arguments); };
+    ask=async function(t){ const v=await _a.apply(this,arguments); if(_wdCap) _wdCap.asks.push({t:_plain(t),ok:!!v}); return v; }; }
+  function wdShow(b,k,m){
+    let d=document.getElementById('wdr_'+b.id);
+    if(!d){ d=document.createElement('div'); d.id='wdr_'+b.id; b.insertAdjacentElement('afterend',d); }
+    const col=k==='ok'?'var(--w-green,#15864f)':k==='bad'?'var(--w-red,#cf3e45)':'var(--w-amber,#b45309)';
+    d.style.cssText='margin-top:8px;padding:10px 12px;border-radius:10px;font-weight:600;font-size:15px;line-height:1.5;border:2px solid '+col+';color:'+col+';';
+    d.textContent=m+'  ('+localISO().slice(11,16)+' น.)';
+    d.dataset.k=k;
+  }
+  function wdWrap(id, arr, what){
+    const b=$(id); if(!b || !b.onclick || b._wdw) return;
+    const h=b.onclick; b._wdw=1;
+    b.onclick=async function(e){
+      const n0=(arr()||[]).length; const cap=_wdCap={msgs:[],infos:[],asks:[]};
+      let err=null; try{ await h.call(this,e); }catch(x){ err=x; console.error(what,x); }
+      if(_wdCap===cap) _wdCap=null;
+      const grew=(arr()||[]).length>n0, lastNo=cap.asks.filter(a=>!a.ok).pop();
+      if(err) wdShow(b,'bad','❌ '+what+'ไม่สำเร็จ — ระบบขัดข้อง ('+_plain(err.message||err).slice(0,80)+') · ลองกดใหม่ ถ้ายังไม่ได้ แจ้งออฟฟิศ');
+      else if(grew){
+        wdShow(b,'ok','✅ '+what+'สำเร็จ — '+(cap.msgs.slice(-1)[0]||'บันทึกแล้ว'));
+        /* บันทึกขึ้นระบบไม่ผ่าน (เน็ตหลุด) → เปลี่ยนป้ายให้รู้ */
+        setTimeout(()=>{ const c=$('saveState'); if(c && /bad/.test(c.className) && document.getElementById('wdr_'+b.id)) wdShow(b,'warn','⚠ '+what+'แล้ว แต่ยังบันทึกขึ้นระบบไม่สำเร็จ — แตะป้าย ⚠ ด้านบนเพื่อลองใหม่'); },3000);
+      }
+      else if(cap.infos.length) wdShow(b,'bad','❌ '+what+'ไม่ได้ — '+cap.infos.slice(-1)[0]);
+      else if(lastNo) wdShow(b,'warn','⏸ ยังไม่ได้'+what+' — กด "ยกเลิก/ไม่" ที่คำถาม: '+lastNo.t);
+      else if(cap.msgs.length) wdShow(b,'bad','❌ '+what+'ไม่ได้ — '+cap.msgs.slice(-1)[0]);
+      else wdShow(b,'warn','⏸ ยังไม่ได้'+what);
+    };
+  }
+  wdWrap('btnWd', ()=>S.wd, 'เบิกใย');
+  wdWrap('btnSheetWd', ()=>S.sheetWd, 'เบิกใยแผ่น');
+  wdWrap('btnFabWd', ()=>S.fabricWd, 'เบิกผ้า');
+  wdWrap('btnBagWd', ()=>S.bagWd, 'เบิกถุง');
   $('btnGapSet').onclick=()=>{ $('gsVal').value=S.settings.gapMin||20; $('gsWeigh').value=weighEvery(); openOv('ovGapSet'); };
   $('gsCancel').onclick=()=>closeOv('ovGapSet');
   $('gsSave').onclick=async()=>{ S.settings.gapMin=+$('gsVal').value||20; const _we=$('gsWeigh').value.trim(); S.settings.weighEvery=_we===''?5:Math.max(0,Math.round(+_we)||0); await saveSet(); closeOv('ovGapSet'); toast('บันทึกแล้ว'); };

@@ -6077,6 +6077,7 @@ window.WPDAUTH = {
   }
   /* ═══ 📜 ประวัติการผลิต — ทุกวันที่มีแพ็ค แยกตามออเดอร์ · เวลาทำ = แพ็คแรก (หรือกดเริ่มงาน) ถึงแพ็คสุดท้าย หักพัก (แบบเดียวกับสรุปตามออเดอร์) ═══ */
   let histQ='', histCat='', histN=20, histT=null;
+  let histAll=false;          /* กด "ทั้งหมด" = แสดงทุกวัน · ค่าเริ่ม = ซ่อน รอค้นหา */
   const histOpen=new Set();   /* วันที่กางอยู่ (ค่าเริ่ม = พับทุกวัน) */
   const HIST_CATS=[['','ทั้งหมด'],['หมอน','🛏️ หมอน'],['หมอนหนุน','หมอนหนุน'],['หมอนข้าง','หมอนข้าง'],['ใยแผ่น','🧵 ใยแผ่น'],['ใยปั่น','ใยปั่น/สาง'],['ปิกนิก','🧺 ปิกนิก']];
   const histUnit=c=>/หมอน/.test(c)?'ใบ':/ใยแผ่น|ปิกนิก/.test(c)?'แผ่น':'ชิ้น';
@@ -6089,8 +6090,15 @@ window.WPDAUTH = {
       $('histQ').oninput=()=>{ histQ=$('histQ').value.trim(); histN=20; clearTimeout(histT); histT=setTimeout(rHist,150); };
       $('histMore').onclick=()=>{ histN+=20; rHist(); };
     }
-    $('histCats').innerHTML=HIST_CATS.map(c=>'<button class="btn sm '+(histCat===c[0]?'':'sec')+'" data-hcat="'+c[0]+'" style="margin:0;">'+c[1]+'</button>').join('');
-    $('histCats').querySelectorAll('[data-hcat]').forEach(b=>b.onclick=()=>{ histCat=b.dataset.hcat; histN=20; rHist(); });
+    $('histCats').innerHTML=HIST_CATS.map(c=>'<button class="btn sm '+((c[0]?histCat===c[0]:histAll&&!histCat)?'':'sec')+'" data-hcat="'+c[0]+'" style="margin:0;">'+c[1]+'</button>').join('');
+    $('histCats').querySelectorAll('[data-hcat]').forEach(b=>b.onclick=()=>{ const c=b.dataset.hcat;
+      if(c){ histCat=histCat===c?'':c; histAll=false; } else { histAll=!(histAll&&!histCat); histCat=''; }
+      histN=20; rHist(); });
+    /* ยังไม่ค้น ไม่เลือกประเภท ไม่กดทั้งหมด = พับไว้ทั้งหมด */
+    if(!histQ && !histCat && !histAll){
+      $('histHead').innerHTML='<span style="color:var(--dim)">พิมพ์ชื่อลูกค้า รหัสงาน หรือวันที่ แล้วประวัติจะขึ้นมา · หรือกดประเภท / "ทั้งหมด" เพื่อดูทุกวัน</span>';
+      box.innerHTML=''; $('histMore').style.display='none'; return;
+    }
     const G={}, gap=+S.settings.gapMin||20;
     const get=(d,id)=>{ const k=d+'|'+id; return G[k]||(G[k]={d:d,id:id,ts:[],packs:0,pcs:0,act:0,std:0,feed:[],scrap:0,down:0,by:new Set()}); };
     S.line.forEach(l=>{ const d=dayOf(l.time); if(d==='_') return; const g=get(d,l.orderId);

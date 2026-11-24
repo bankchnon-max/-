@@ -1717,7 +1717,7 @@ window.WPDAUTH = {
         if((o.productType||'')!=='ใย') sew+=q*COST.sewRate(K, COST.caseSewSize(S, cu));
       }));
       /* หมอนที่ผลิตแต่ไม่มีบันทึกใช้ปลอก — ยังต้องจ่ายค่าเย็บ (หมอน 1 ใบ = ปลอก 1 ใบ) */
-      (P.orders||[]).filter(o=>(o.productType||'')==='หมอน' && inP({orderId:o.id})).forEach(o=>{
+      (P.orders||[]).filter(o=>(o.productType||'')==='หมอน' && !((o.spec||{}).custCases) && inP({orderId:o.id})).forEach(o=>{
         const ls=lines.filter(l=>l.orderId===o.id); if(!ls.length) return;
         const made=COST.madePieces(ls, (P.carry||[]).filter(c=>c.orderId===o.id && inR(c)));
         const got=COST.caseRowsFor(P,o.id,inR,tracked).reduce((a,c)=>a+(+c.pieces||0),0);
@@ -1898,7 +1898,9 @@ window.WPDAUTH = {
       });
 
       /* หมอนที่ผลิตแต่ไม่มีบันทึกใช้ปลอก (ไม่ได้เบิกปลอกมาไลน์) → ค่าผ้าประมาณ ใบละเท่าราคาปลอกไซซ์นี้ */
-      if(order && (order.productType||'')==='หมอน' && pieces>fabPieces){
+      if(order && (order.productType||'')==='หมอน' && (order.spec||{}).custCases && pieces>fabPieces)
+        groupRows.push({cat:'ผ้า', what:'🧵 ปลอกของลูกค้า (ลูกค้าส่งมาเอง — ไม่คิดค่าผ้า/เย็บ/ตัด)', n:pieces-fabPieces, u:'ใบ', unit:0, baht:0, src:'set'});
+      else if(order && (order.productType||'')==='หมอน' && pieces>fabPieces){
         const short=pieces-fabPieces, c=COST.caseEstPerPiece(PRICE, S, order);
         fabPieces+=short; fabBaht=r2(fabBaht+short*c.baht);
         if(!c.baht) miss.push('ผ้าปลอก "'+(c.type||'?')+'" ไซซ์ '+c.size+' ยังไม่มีราคา — ใส่ราคาปลอกตามไซซ์ในหน้าราคา');
@@ -1954,7 +1956,7 @@ window.WPDAUTH = {
         });
       }
       /* หมอน: ทุกใบที่ผลิตต้องเย็บปลอก — ใบที่ไม่มีบันทึกใช้ปลอก คิดค่าเย็บจากจำนวนหมอนที่ผลิต */
-      if(order && (order.productType||'')==='หมอน' && pieces>sewPieces){
+      if(order && (order.productType||'')==='หมอน' && !((order.spec||{}).custCases) && pieces>sewPieces){
         const short=pieces-sewPieces, sz=COST.pillowSize(order), rate=COST.sewRate(K, sz);
         sewPieces+=short; sewBaht=r2(sewBaht+short*rate);
         if(!rate) miss.push('ยังไม่ได้ตั้งค่าจ้างเย็บ (ไซซ์ '+sz+')');

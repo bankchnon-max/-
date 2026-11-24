@@ -794,6 +794,7 @@
           <div><label>ชั่งจริง — ต่อชิ้น (กก.)</label><input id="actPc" type="number" inputmode="decimal" step="0.001" placeholder="สุ่มชั่ง 1 ชิ้น"></div>
           <div><label>ชั่งจริง — ต่อแพ็ค (กก.)</label><input id="actW" type="number" inputmode="decimal" step="0.001" placeholder="ทั้งแพ็ครวมถุง"></div>
         </div>
+        <div class="rf" id="actNRow"><div><label>แพ็คเศษ — ชิ้นในแพ็คนี้ (ว่าง = เต็มแพ็ค)</label><input id="actN" type="number" inputmode="numeric" placeholder="เช่น 5 (ไม่ครบแพ็ค)"></div><div></div></div>
         <div class="sumline" id="actHint"></div>
         <label>หมายเหตุ</label>
         <input id="lineNote" placeholder="เช่น ใยแน่นเกิน">
@@ -827,6 +828,16 @@
         <div class="sumline" id="swPreview"></div>
         <button class="btn w" id="btnSheetWd">🧺 ยืนยันเบิกใยแผ่นที่ติ๊กไว้</button>
         <div class="scr" style="margin-top:11px;"><table id="tSheetWd"></table></div>
+      </div>
+      <div class="card" id="cardCustCase" style="display:none;">
+        <h3>🧵 ปลอกของลูกค้า (ลูกค้าส่งมาให้เป่า)</h3>
+        <div id="ccSum" class="sumline"></div>
+        <div class="rf" style="margin-top:8px;">
+          <div><label>รับปลอกจากลูกค้า (ใบ)</label><input id="ccQty" type="number" inputmode="numeric" placeholder="เช่น 200"></div>
+          <div><label>หมายเหตุ</label><input id="ccNote" placeholder="เช่น ปลอกลายดอก มากับรถลูกค้า"></div>
+        </div>
+        <button class="btn w" id="btnCustCase" style="margin-top:8px;">บันทึกรับปลอกจากลูกค้า</button>
+        <div class="scr" style="margin-top:10px;"><table id="tCustCase"></table></div>
       </div>
       <div class="card" id="cardFabWd">
         <h3>🧷 เบิกถุงบรรจุผ้า</h3>
@@ -2473,7 +2484,10 @@ window.WPDAUTH = {
   }
   /* คิว: บอกว่าตั้งสูตร/Standard ไว้แล้วหรือยัง — พร้อม = ถึงคิวกดเริ่มได้เลย */
   function preBadge(o){ const miss=[]; if(!(CALC.stdPerPack(o.spec)>0)) miss.push('Standard'); if(!isPicnic(o) && !(o.fibers||[]).length) miss.push('สูตร');
-    return (miss.length?' <span class="bdg warn">⚠ ยังไม่ตั้ง'+miss.join('/')+'</span>':' <span class="bdg ok">✅ ตั้งสูตร/Standard แล้ว</span>')+(o.productType==='หมอน'?' '+fwPreState(o).html:''); }
+    return (miss.length?' <span class="bdg warn">⚠ ยังไม่ตั้ง'+miss.join('/')+'</span>':' <span class="bdg ok">✅ ตั้งสูตร/Standard แล้ว</span>')+(isCust(o)?' '+ccBadge(o):o.productType==='หมอน'?' '+fwPreState(o).html:''); }
+  function ccBadge(o){ const c=ccState(o), need=Math.max(0,(+o.orderedPacks||0)*(+(o.spec||{}).piecesPerPack||1));
+    return c.recv?(need && c.left>=need?'<span class="bdg ok">🧵 ปลอกลูกค้าพร้อม '+c.left+' ใบ</span>':'<span class="bdg warn">🧵 ปลอกลูกค้าเหลือ '+c.left+' ใบ'+(need?' (ต้องใช้ '+need+')':'')+'</span>')
+      :'<span class="bdg warn">🧵 ปลอกลูกค้า — ยังไม่ได้ลงรับ</span>'; }
   function rQueue(){
     const el=$('queueBox'); if(!el) return;
     const cur=orderById(S.activeId), q=queueList();
@@ -3931,7 +3945,9 @@ window.WPDAUTH = {
     /* ใยปั่น/ใยสาง ก็ไม่ใช้แก๊ส */
     const _noGas = _caseJob || (!!o && prodCat(o)==='ใยปั่น/ใยสาง');
     if($('cardGas')) $('cardGas').style.display = _noGas ? 'none' : '';
-    if($('cardFabWd')) $('cardFabWd').style.display = _caseJob ? '' : 'none';
+    if($('cardFabWd')) $('cardFabWd').style.display = _caseJob && !isCust(o) ? '' : 'none';
+    if($('actNRow')) $('actNRow').style.display = o && !isPicnic(o) && (+(o.spec||{}).piecesPerPack||0)>1 ? '' : 'none';
+    if($('cardCustCase')){ $('cardCustCase').style.display = isCust(o) ? '' : 'none'; if(isCust(o)) rCustCase(); }
     if($('fwFabSel')) refreshFwSelects();
     if($('bwKindSel')){ refreshBwSelects(); refreshBwSackOptions(); }
     if($('gasAvailInfo')) refreshGasUI();
@@ -4050,7 +4066,7 @@ window.WPDAUTH = {
   function openPre(id){
     const o=orderById(id); if(!o) return;
     preId=id; formDirty=false; specOpen=null;
-    const rec=$('recSel').closest('.card'), sp=$('cardSpec'), fw=o.productType==='หมอน'?$('cardFabWd'):null;   /* เบิกผ้ารอไว้ เฉพาะออเดอร์หมอน */
+    const rec=$('recSel').closest('.card'), sp=$('cardSpec'), fw=o.productType==='หมอน'?(isCust(o)?$('cardCustCase'):$('cardFabWd')):null;   /* เบิกผ้ารอไว้ เฉพาะออเดอร์หมอน */
     preHome.length=0; [rec,sp,fw].filter(Boolean).forEach(c=>{ preHome.push([c,c.parentNode,c.nextSibling,c.classList.contains('folded'),c.style.display]); c.classList.remove('folded'); });
     $('preSlot').append(...[rec,sp,fw].filter(Boolean));
     rec.style.display=isPicnic(o)?'none':'';
@@ -4059,7 +4075,8 @@ window.WPDAUTH = {
     $('preSub').textContent=fw?'ตั้งสูตร Standard และเบิกผ้ารอไว้ได้เลย — ถึงคิวกดเริ่มแล้วใช้ได้ทันที':'ตั้งไว้ก่อนได้เลย — ถึงคิวกดเริ่มแล้วใช้ได้ทันที';
     $('specForm').dataset.init=''; buildSpecForm();
     if(!isPicnic(o)) fillRecSel(o);
-    if(fw){ $('fwQty').value=''; refreshFwSelects(); fwOrdPick(); }
+    if(fw && fw.id==='cardCustCase') rCustCase();
+    else if(fw){ $('fwQty').value=''; refreshFwSelects(); fwOrdPick(); }
     openOv('ovPre');
   }
   function closePre(){
@@ -4129,6 +4146,10 @@ window.WPDAUTH = {
   /* หมอน: ปลอกที่ไลน์ — ไม่พอ 1 แพ็ค = แดง (ลงแพ็คไม่ได้จนกว่าจะเบิก) */
   function caseLineStatus(o){
     const sp=o.spec||{}, need=+sp.piecesPerPack||0;
+    if(isCust(o)){ const c=ccState(o);
+      return c.left>=need ? '<div class="bagst ok">✓ ปลอกของลูกค้าเหลือ <b>'+c.left+' ใบ</b> · พอ ~'+Math.floor(c.left/(need||1))+' แพ็ค (รับมา '+c.recv+' · ใช้ไป '+c.used+')</div>'
+        : c.left>0 ? '<div class="bagst bad" style="border-color:var(--w-amber,#b45309);color:var(--w-amber,#b45309);background:rgba(217,119,6,.10);">⚠ ปลอกของลูกค้าเหลือ <b>'+c.left+' ใบ</b> ไม่ครบแพ็ค — ลงเป็นแพ็คเศษได้ (ใส่ "ชิ้นในแพ็คนี้" = '+c.left+') หรือลงรับปลอกเพิ่ม</div>'
+        : '<div class="bagst bad">⛔ ปลอกของลูกค้า'+(c.recv?'หมดแล้ว (รับมา '+c.recv+' ใช้ครบ)':' ยังไม่ได้ลงรับ')+' — ลงรับปลอกจากลูกค้าในการ์ด 🧵 ก่อน</div>'; }
     if(!sp.fabricType) return '<div class="bagst bad">⛔ ออเดอร์นี้ยังไม่ได้ตั้งชนิดผ้าปลอก — ลงแพ็คไม่ได้ (แจ้งออฟฟิศ)</div>';
     const have=caseAtLine(o);
     if(have>=need) return '<div class="bagst ok">✓ ปลอก <b>'+esc(sp.fabricType)+'</b> ที่ไลน์เหลือ <b>'+have+' ใบ</b> · พอ ~'+Math.floor(have/(need||1))+' แพ็ค</div>';
@@ -4270,6 +4291,7 @@ window.WPDAUTH = {
         '<datalist id="dlFabType">'+STOCKFABRIC.types.map(n=>'<option value="'+esc(n)+'">').join('')+'</datalist></div>'+
         '<div><label>ไซซ์ปลอก (ไซซ์สำเร็จหลังเย็บ)</label><input id="spFabSize" list="dlFabSize" value="'+esc(sp.fabricSize||'')+'" placeholder="เช่น 17.5x26">'+
         '<datalist id="dlFabSize">'+[...new Set(fabBatchesNow().filter(b=>!sp.fabricType||b.fabricType===sp.fabricType).map(b=>b.size))].map(n=>'<option value="'+esc(n)+'">').join('')+'</datalist></div></div>'+
+        '<label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:600;"><input type="checkbox" id="spCustCase" style="width:22px;height:22px;margin:0;"'+(sp.custCases?' checked':'')+'> 🧵 ลูกค้าส่งปลอกมาเอง — เป่าใส่ปลอกของลูกค้า (ไม่ใช้ผ้าเรา ไม่ต้องเบิกปลอก ไม่คิดค่าผ้า/เย็บ)</label>'+
         '<div class="sumline" style="margin-top:2px;">บันทึกแพ็คแล้ว ระบบหักปลอกออกจากถุงบรรจุผ้าที่เบิกมาไว้ที่ไลน์ให้เอง (ชิ้นต่อแพ็ค = ปลอกที่ใช้) — ต้องกด "เบิกถุงบรรจุผ้า" ด้านล่างก่อน</div>'
       ) : '') +
       (_isPicnic ? '<input id="spTol" type="hidden" value="'+(sp.tolPct||3)+'">' :
@@ -4577,6 +4599,7 @@ window.WPDAUTH = {
         packBagName2:_draft.packBagName2, packBagWeight2:_draft.packBagWeight2, packPerPack2:_draft.packPerPack2, packBagLotRef2:_draft.packBagLotRef2,
         fabricType: isPillow && $('spFabType') ? $('spFabType').value.trim() : '',
         fabricSize: isPillow && $('spFabSize') ? normSize($('spFabSize').value) : '',
+        custCases: !!(isPillow && $('spCustCase') && $('spCustCase').checked),
         tolPct:+$('spTol').value||3 };
       /* ระหว่างเปิดฟอร์มอยู่ ถ้าโหลดข้อมูลใหม่จากเครื่องอื่น ออเดอร์ในระบบเป็นตัวใหม่แล้ว — ต้องใส่ Standard ให้ตัวนั้นด้วย ไม่งั้นบันทึกค่าเดิมทับ */
       const _fresh=S.orders.find(x=>x.id===o.id); if(_fresh && _fresh!==o) _fresh.spec=o.spec;
@@ -4654,7 +4677,13 @@ window.WPDAUTH = {
   }
   setInterval(()=>{ if(typeof paintBreak==='function') paintBreak(); checkIdle(); if(current==='feed'||current==='line'||current==='pic') rOp(current==='pic'?'line':current); },15000);
 
-  function addPack(gapReason,gapMin,flagged,actual,actualPc){
+  function addPack(gapReason,gapMin,flagged,actual,actualPc,partNum){
+    const o=active();
+    if(partNum){ const _sp0=o.spec; o.spec=partSpec(_sp0,partNum);
+      try{ return addPack0(gapReason,gapMin,flagged,actual,actualPc,partNum); } finally { o.spec=_sp0; } }
+    return addPack0(gapReason,gapMin,flagged,actual,actualPc,null);
+  }
+  function addPack0(gapReason,gapMin,flagged,actual,actualPc,partNum){
     const o=active(); const std=CALC.stdPerPack(o.spec);
     const t=todayStr();
     /* เลขแพ็คนับต่อจากสินค้าตัวเดียวกันที่ทำวันนี้ (เปิดออเดอร์ใหม่ทำต่อ ไม่เริ่ม 1 ซ้ำ — ตอนเช็คขึ้นรถไม่สับสน) */
@@ -4667,6 +4696,7 @@ window.WPDAUTH = {
     const act = (actual==null||actual==='') ? null : r3(+actual);
     const pc  = (actualPc==null||actualPc==='') ? null : r3(+actualPc);
     let note=$('lineNote').value.trim();
+    if(partNum) note=(note?note+' | ':'')+'แพ็คเศษ '+partNum+' ชิ้น';
     if(gapReason) note=(note?note+' | ':'')+'ห่าง '+gapMin+' นาที: '+gapReason;
     const _lineId=uid();
     const _carry=carryJob(o)?takeCarry(o):null;
@@ -4689,7 +4719,7 @@ window.WPDAUTH = {
       /* แพ็คนี้มีแผ่นค้างจากงานก่อนรวมอยู่ — ชิ้นที่งานนี้ผลิตเอง = ชิ้นต่อแพ็ค − แผ่นค้าง */
       carryIn:_carry?_carry.pieces:0, carryFrom:_carry?_carry.from:[], carryKg:_carry?_carry.kg:0,
       /* งานปิกนิก: ใครแพ็ค (เหมา/พนักงาน) — แอพต้นทุนคิดค่าเหมา หรือค่าแรงพนักงาน ตามนี้ */
-      packedBy: isPicnic(o) ? (((o.picSel||{}).packedBy==='staff')?'staff':'contract') : undefined });
+      packedBy: isPicnic(o) ? (((o.picSel||{}).packedBy==='staff')?'staff':'contract') : undefined, partial: partNum ? true : undefined });
     const _cut=autoCutBags(o,_lineId);
     /* จดกระสอบ/ไซซ์ถุงที่หักจริงของแพ็คนี้ไว้ในรายการ (แทนช่องที่เคยให้กรอกเอง) */
     { const _row=S.line.find(l=>l.id===_lineId), _bu=(S.bagUse||[]).filter(u=>u.lineId===_lineId);
@@ -4702,7 +4732,7 @@ window.WPDAUTH = {
     const _case=autoCutCases(o,+o.spec.piecesPerPack||0,{lineId:_lineId});
     const _sheet=autoUseSheet(o,_lineId);
     if(_sheet){ saveFeed(); }
-    $('lineNote').value=''; $('actW').value=''; $('actPc').value=''; $('actHint').innerHTML='';
+    $('lineNote').value=''; $('actW').value=''; $('actPc').value=''; $('actHint').innerHTML=''; if($('actN')) $('actN').value='';
     if(!isPicnic(o)){ lastPackAt=localISO(); idleNotified=false; }   /* แพ็คปิกนิกไม่นับเป็นการเดินของไลน์ */
     if(_cut||_case){ saveFeed(); }
     saveLine().then(()=>{ if(current==='line'||current==='pic') rLine(); });
@@ -4713,7 +4743,7 @@ window.WPDAUTH = {
     if(_cut && _cut.shorts && _cut.shorts.length) _tail+=' ⚠ '+_cut.shorts.join(' · ');
     if(_case) _tail+=(_case.short?' ⚠ '+_case.short:' · '+_case.msg);
     if(_sheet) _tail+=(_sheet.short?' ⚠ '+_sheet.short:' · '+_sheet.msg);
-    toast('แพ็คที่ '+seq+' · '+(act==null?std+' กก. (ตาม Std)':act+' กก.'+
+    toast('แพ็คที่ '+seq+(partNum?' (เศษ '+partNum+' ชิ้น)':'')+' · '+(act==null?std+' กก. (ตาม Std)':act+' กก.'+
       (st==='ok'?' ✓ ตรงสเปค':st==='over'?' ▲ สูงไป '+r3(act-std)+' กก.':' ▼ ต่ำไป '+r3(std-act)+' กก.'))+_tail);
     if(st==='over'||st==='under') showWAlert(seq, act, std, st, +o.spec.tolPct||3);
   }
@@ -5188,6 +5218,16 @@ window.WPDAUTH = {
     return lots;
   }
   function caseAtLine(o){ return caseLots(o).reduce((s,l)=>s+l.remaining,0); }
+  /* ═══ ปลอกของลูกค้า — งานที่ลูกค้าส่งปลอกมาเอง ═══ */
+  function isCust(o){ return !!(o && o.productType==='หมอน' && (o.spec||{}).custCases); }
+  function ccRoot(o){ let r=o, g=0; while(r && r.contOf && orderById(r.contOf) && g++<50) r=orderById(r.contOf); return r; }
+  function ccChain(o){ const r=ccRoot(o); return S.orders.filter(x=>ccRoot(x)===r); }
+  function ccState(o){
+    const ch=ccChain(o), ids=new Set(ch.map(x=>x.id)), root=ccRoot(o);
+    const recv=(root.custCaseIn||[]).reduce((a,x)=>a+(+x.qty||0),0);
+    const used=S.line.filter(l=>ids.has(l.orderId)).reduce((a,l)=>a+(+l.piecesPerPack||0),0);
+    return { root, recv, used, left:recv-used, list:(root.custCaseIn||[]) };
+  }
   /* เบิกรอไว้ให้ออเดอร์อื่นที่ยังไม่จบ → กันไว้ ไม่ให้งาน o หยิบ (ออเดอร์นั้นจบ/ถูกลบ = ปล่อยให้ใช้ได้) */
   function fwHeldFor(w,o){ if(!w.pre || w.orderId===o.id) return false; const t=orderById(w.orderId); return !!t && t.status!=='done'; }
   /* ปลอกที่เบิกรอไว้ให้ออเดอร์นี้ (ยังไม่ได้ใช้) */
@@ -5233,7 +5273,7 @@ window.WPDAUTH = {
     renderFwList(); updateFwPreview();
   }
   function autoCutCases(o,pieces,ref){
-    if(!(o && (o.productType==='หมอน' || isPicnic(o)) && (o.spec||{}).fabricType) || !(pieces>0)) return null;
+    if(!(o && (o.productType==='หมอน' || isPicnic(o)) && (o.spec||{}).fabricType) || !(pieces>0) || isCust(o)) return null;
     S.caseUse=S.caseUse||[];
     let left=pieces;
     for(const l of caseLots(o)){
@@ -5400,16 +5440,33 @@ window.WPDAUTH = {
     sp.zipPerPack=n; sp.bagPerPiece=false; sp.hasBag2=false;
     return true;
   }
+  /* แพ็คเศษ: จำนวนชิ้นที่ใส่ (1 … ชิ้นต่อแพ็ค−1) · อื่นๆ = เต็มแพ็ค */
+  function partN(o){ const full=+((o||{}).spec||{}).piecesPerPack||0, n=Math.round(+($('actN')||{}).value||0); return (n>0 && full>1 && n<full) ? n : null; }
+  function partSpec(sp,n){ if(!n) return sp; const full=+sp.piecesPerPack||0;
+    return Object.assign({}, sp, { piecesPerPack:n, zipPerPack: CALC.zipPerPack(sp)===full ? n : CALC.zipPerPack(sp) }); }
   async function startPack(actual,actualPc){
     const o=active();
     if(!o){ toast('เลือกออเดอร์ก่อน'); return; }
     if(pillowZipFix(o)) saveOrders();
     const std=CALC.stdPerPack(o.spec);
     if(!std){ toast('ตั้งค่าน้ำหนัก Standard ก่อน'); return; }
+    if($('actN') && $('actN').value.trim() && !partN(o) && +$('actN').value!==+(o.spec||{}).piecesPerPack){ toast('ชิ้นในแพ็คเศษต้องน้อยกว่า '+(+(o.spec||{}).piecesPerPack||0)+' ชิ้น'); return; }
+    const _pn=partN(o);
     /* หมอน: ต้องเบิกปลอก (ถุงบรรจุผ้า) มาไลน์ก่อน ถึงจะลงแพ็คได้ — ไม่งั้นค่าผ้าไม่ถูกนับ
        (29 ต.ค. แพ็คไป 110 ใบก่อนเบิกปลอก · ต.ค. หมอน 5,890 ใบไม่มีบันทึกปลอก) */
-    if(o.productType==='หมอน'){
-      const _sp=o.spec||{}, _need=+_sp.piecesPerPack||0, _have=_sp.fabricType?caseAtLine(o):0;
+    if(isCust(o)){
+      const _need=_pn||+(o.spec||{}).piecesPerPack||0, _cs=ccState(o);
+      if(_cs.left<_need){
+        alarm();
+        await info('⛔ ปลอกของลูกค้าไม่พอ — ลงแพ็คไม่ได้', (_cs.recv?'รับปลอกจากลูกค้า '+_cs.recv+' ใบ ใช้ไปแล้ว '+_cs.used+' ใบ เหลือ '+_cs.left+' ใบ\nแพ็คนี้ใช้ '+_need+' ใบ':'ยังไม่ได้ลงรับปลอกจากลูกค้าเลย')+
+          (_cs.left>0?'\n→ ถ้าไม่ครบแพ็ค ใส่ช่อง "แพ็คเศษ — ชิ้นในแพ็คนี้" = '+_cs.left+' แล้วบันทึกใหม่':'')+
+          '\n→ หรือลงจำนวนปลอกที่ลูกค้าส่งมาเพิ่มในการ์ด "🧵 ปลอกของลูกค้า"');
+        const _c=$('cardCustCase'); if(_c){ _c.classList.remove('folded'); _c.scrollIntoView({block:'start',behavior:'smooth'}); _c.style.outline='3px solid var(--w-red,#cf3e45)'; setTimeout(()=>{ _c.style.outline=''; },4000); }
+        return;
+      }
+    }
+    else if(o.productType==='หมอน'){
+      const _sp=o.spec||{}, _need=_pn||+_sp.piecesPerPack||0, _have=_sp.fabricType?caseAtLine(o):0;
       if(!_sp.fabricType || _have<_need){
         alarm();
         await info('⛔ ยังไม่ได้เบิกปลอก — ลงแพ็คไม่ได้',
@@ -5436,12 +5493,12 @@ window.WPDAUTH = {
     const gap=prev?Math.max(0,minsBetween(now,prev.time)-breakOverlapMinutes(prev.time,now)):null;
     if(gap!==null && gap>(+S.settings.gapMin||20)){
       $('gapMin').textContent=gap; $('gpOther').value=''; openOv('ovGap');
-      const fin=r=>{ closeOv('ovGap'); addPack(r,gap,true,actual,actualPc); };
+      const fin=r=>{ closeOv('ovGap'); addPack(r,gap,true,actual,actualPc,_pn); };
       $('gpMachine').onclick=()=>fin('เครื่องเสีย');
       $('gpLine').onclick=()=>fin('เปลี่ยนไลน์ผลิต');
       $('gpOtherOk').onclick=()=>fin($('gpOther').value.trim()||'ไม่ระบุ');
       $('gpSkip').onclick=()=>fin(null);
-    } else addPack(null,gap,false,actual,actualPc);
+    } else addPack(null,gap,false,actual,actualPc,_pn);
   }
 
   // typing a piece weight previews (and can fill in) the pack weight
@@ -5468,14 +5525,14 @@ window.WPDAUTH = {
     if(!v&&!pc){ toast('กรอกน้ำหนักจริง (ต่อชิ้นหรือต่อแพ็ค) หรือกดปุ่ม "ตรงตาม Standard"'); return; }
     let packW=v?+v:null;
     if(packW==null && pc){       // only the piece was weighed -> derive the pack
-      const sp=active().spec||{};
+      const sp=partSpec(active().spec||{}, partN(active()));
       const bagTotal = sp.bagPerPiece ? (+sp.bagWeight||0)*(+sp.piecesPerPack||0) : (+sp.bagWeight||0);
       const bag2Total = sp.hasBag2 ? (sp.bagPerPiece ? (+sp.bagWeight2||0)*(+sp.piecesPerPack||0) : (+sp.bagWeight2||0)) : 0;
       packW=r3((+pc)*(+sp.piecesPerPack||0)+bagTotal+bag2Total);
     }
     if(!(packW>0)){ toast('น้ำหนักไม่ถูกต้อง'); return; }
     /* กันพิมพ์ผิด เช่น 10.5 แทน 1.05 — ห่างจาก Standard เกิน 30% ให้ถามก่อน */
-    const _std=CALC.stdPerPack((active()||{}).spec||{});
+    const _std=CALC.stdPerPack(partSpec((active()||{}).spec||{}, partN(active())));
     if(_std>0 && (packW>_std*1.3 || packW<_std*0.7)){
       const _pct=Math.round((packW/_std-1)*100);
       if(!await ask((packW<_std?'▼ น้ำหนักต่ำกว่า':'▲ น้ำหนักสูงกว่า')+' Standard มาก — พิมพ์ผิดหรือเปล่า?',
@@ -5853,6 +5910,31 @@ window.WPDAUTH = {
     let tail=0; for(let i=rows.length-1;i>=0 && rows[i].actualWeight==null;i--) tail++;
     return tail>=N-1;
   }
+  /* ═══ การ์ดปลอกของลูกค้า — งานที่ทำอยู่ หรือออเดอร์ที่เปิดหน้าต่าง ⚙️ ═══ */
+  function ccTarget(){ const p=preOrder(); return p&&isCust(p)?p:active(); }
+  function rCustCase(){
+    const o=ccTarget(); if(!o || !isCust(o) || !$('ccSum')) return;
+    const c=ccState(o), need=+(o.spec||{}).piecesPerPack||0;
+    const ordered=ccChain(o).reduce((m,x)=>Math.max(m,+x.orderedPacks||0),0);
+    $('ccSum').innerHTML='<b>'+esc(o.customer)+'</b> — '+esc(o.code)+'<br>รับมา <b>'+c.recv+'</b> ใบ · ใช้ไปแล้ว <b>'+c.used+'</b> ใบ · '+
+      (c.left>=0?'เหลือ <b style="color:var(--accent2)">'+c.left+' ใบ</b>'+(need?' (พอ ~'+Math.floor(c.left/need)+' แพ็ค)':''):'<b style="color:var(--w-red,#cf3e45)">ใช้เกินที่รับมา '+(-c.left)+' ใบ</b>')+
+      (c.left>0?'<br><span style="color:var(--dim)">ทำเสร็จแล้วปลอกที่เหลือ = คืนลูกค้า</span>':'');
+    $('tCustCase').innerHTML=c.list.length?'<tr><th>เวลา</th><th>จำนวน</th><th>ผู้ลง</th><th>หมายเหตุ</th><th></th></tr>'+c.list.slice().reverse().map(x=>
+      '<tr><td>'+thDate(x.time)+' '+String(x.time||'').slice(11,16)+'</td><td><b>'+x.qty+'</b> ใบ</td><td>'+esc(x.by||'—')+'</td><td style="white-space:normal">'+esc(x.note||'')+'</td><td><button class="x" data-ccdel="'+x.id+'">✕</button></td></tr>').join('')
+      :'<tr><td class="empty">ยังไม่ได้ลงรับปลอกจากลูกค้า</td></tr>';
+    $('tCustCase').querySelectorAll('[data-ccdel]').forEach(b=>b.onclick=async()=>{
+      if(!await ask('ลบรายการรับปลอกนี้?','จำนวนปลอกของลูกค้าจะลดลงตามรายการนี้')) return;
+      const r=ccState(ccTarget()).root; r.custCaseIn=(r.custCaseIn||[]).filter(x=>x.id!==b.dataset.ccdel); await saveOrders(); rCustCase(); rQueue(); toast('ลบแล้ว'); });
+  }
+  if($('btnCustCase')) $('btnCustCase').onclick=async()=>{
+    const o=ccTarget(); if(!o || !isCust(o)){ toast('งานนี้ไม่ได้ตั้งว่าลูกค้าส่งปลอกมาเอง'); return; }
+    const q=Math.round(+$('ccQty').value||0); if(!(q>0)){ toast('ใส่จำนวนปลอกที่รับมา'); return; }
+    const r=ccState(o).root; r.custCaseIn=r.custCaseIn||[];
+    r.custCaseIn.push({ id:uid(), time:localISO(), qty:q, by:opBy(), note:$('ccNote').value.trim() });
+    await saveOrders(); $('ccQty').value=''; $('ccNote').value='';
+    rCustCase(); rQueue(); if(current==='line') rLine(true);
+    toast('รับปลอกจากลูกค้าแล้ว '+q+' ใบ — เหลือใช้ '+ccState(o).left+' ใบ');
+  };
   /* ═══ ผลการเบิก — ค้างไว้ใต้ปุ่ม จนกว่าจะกดเบิกครั้งต่อไป ═══
      ระหว่างกดเบิก จดข้อความที่เด้ง (toast / กล่องแจ้ง / คำถามที่กดยกเลิก) แล้วดูว่ามีรายการเบิกเพิ่มจริงไหม */
   let _wdCap=null;
@@ -5893,6 +5975,7 @@ window.WPDAUTH = {
   wdWrap('btnSheetWd', ()=>S.sheetWd, 'เบิกใยแผ่น');
   wdWrap('btnFabWd', ()=>S.fabricWd, 'เบิกผ้า');
   wdWrap('btnBagWd', ()=>S.bagWd, 'เบิกถุง');
+  wdWrap('btnCustCase', ()=>{ const o=ccTarget(); return o&&isCust(o)?(ccState(o).root.custCaseIn||[]):[]; }, 'รับปลอกจากลูกค้า');
   $('btnGapSet').onclick=()=>{ $('gsVal').value=S.settings.gapMin||20; $('gsWeigh').value=weighEvery(); openOv('ovGapSet'); };
   $('gsCancel').onclick=()=>closeOv('ovGapSet');
   $('gsSave').onclick=async()=>{ S.settings.gapMin=+$('gsVal').value||20; const _we=$('gsWeigh').value.trim(); S.settings.weighEvery=_we===''?5:Math.max(0,Math.round(+_we)||0); await saveSet(); closeOv('ovGapSet'); toast('บันทึกแล้ว'); };
@@ -6200,7 +6283,8 @@ window.WPDAUTH = {
       ['น้ำหนัก Std รวม',r2(std)+' กก.'],['น้ำหนักจริงรวม',r2(act)+' กก. (ต่าง '+(act-std>0?'+':'')+r3(act-std)+' กก.)'],
       ['ใยป้อนเข้าไลน์',fib?r2(fib)+' กก. ('+FD.length+' รอบ)':'—'],['เศษ/ของเสีย',scKg?scKg+' กก.':'—'],
       ['เบิก',[wdKg?'ใย '+wdKg+' กก. ('+WD.length+' ก้อน)':'',fwPcs?'ผ้า/ปลอก '+fwPcs.toLocaleString()+' ใบ':'',bwKg?'ถุง '+bwKg+' กก.':'',swPcs?'ใยแผ่น '+swPcs+' แผ่น':''].filter(Boolean).join(' · ')||'—'],
-      ['ปลอกที่ใช้',cuPcs?cuPcs.toLocaleString()+' ใบ':'—'],
+      (o && isCust(o)) ? ['ปลอก','🧵 ปลอกของลูกค้า · ใช้วันนี้ '+pcs.toLocaleString()+' ใบ · รับมาทั้งหมด '+ccState(o).recv+' ใบ · เหลือ '+ccState(o).left+' ใบ']
+        : ['ปลอกที่ใช้',cuPcs?cuPcs.toLocaleString()+' ใบ':'—'],
       ['เวลาที่เสีย',down?minTxt(down)+' ('+downL.length+' ครั้ง)':'—'],['คนทำ',bys.length?bys.map(esc).join(', '):'—'],
       ['สถานะงาน',o?(o.finishedAt&&dayOf(o.finishedAt)===d?'🏁 จบงานวันนี้ '+tm(o.finishedAt):o.status==='done'?'เสร็จแล้ว ('+thDate(o.finishedAt)+')':'ยังทำต่อ'):'—']];
     let cA=0, cS=0;

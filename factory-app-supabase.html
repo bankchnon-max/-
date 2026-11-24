@@ -565,18 +565,100 @@
 
 <div id="fr">
   <div class="topbar">
-    <h1><img class="applogo" src="icons/factory-512.png" alt="WinDesign"> ระบบรายงานการผลิต</h1>
+    <h1><button type="button" class="menubtn" id="menuBtn" data-noguard="1" aria-label="เปิดเมนู">☰</button><img class="applogo" src="icons/windesign-logo.svg" alt="WinDesign"> <span class="apptitle">ระบบรายงานการผลิต</span><span class="savechip ok" id="saveState">บันทึกแล้ว ✓</span></h1>
     <div class="sub" id="clock">—</div>
     <div class="chip">
       <span>กำลังทำงาน: <b id="chipOrder">ยังไม่ได้เลือก</b></span>
       <span id="chipTime" style="color:var(--dim); font-size:11px;"></span>
     </div>
     <div class="banner" id="banner"></div>
-    <div class="savechip ok" id="saveState">บันทึกแล้ว ✓</div>
-    <div class="savechip" id="wakeChip" style="margin-left:6px; background:var(--w-chip,#eef1f5); color:var(--dim); cursor:pointer;">☀ กันจอดับ: ปิด</div>
-    <div class="savechip" id="roleChip" style="margin-left:6px; background:var(--w-chip,#eef1f5); color:var(--dim); cursor:pointer;">👤 พนักงาน</div>
-    <div class="savechip" id="fontChip" style="margin-left:6px; background:var(--w-chip,#eef1f5); color:var(--dim); cursor:pointer;">🔠 ตัวหนังสือ: ใหญ่</div>
   </div>
+  <!-- เมนูด้านข้าง: ปุ่มตั้งค่าเครื่อง (เดิมเป็นแถวชิปบนหัว) -->
+  <div class="sideback" id="sideBack"></div>
+  <aside class="sidemenu" id="sideMenu" aria-hidden="true">
+    <div class="smhead"><img class="applogo" src="icons/windesign-logo.svg" alt="WinDesign"><b>เมนู</b><button type="button" class="smclose" id="sideClose" data-noguard="1" aria-label="ปิดเมนู">✕</button></div>
+    <div class="smsec">หน้า</div>
+    <div class="smtabs" id="sideTabs">
+      <button class="nb on" data-p="order"><span class="ic">🧾</span>ออเดอร์</button>
+      <button class="nb" data-p="feed"><span class="ic">⚖️</span>ป้อนใย</button>
+      <button class="nb" data-p="line"><span class="ic">🏭</span>ท้ายไลน์</button>
+      <button class="nb" data-p="pic"><span class="ic">🧺</span>ปิกนิก</button>
+      <button class="nb" data-p="office"><span class="ic">🖥️</span>ออฟฟิศ</button>
+      <button class="nb" data-p="sum"><span class="ic">📊</span>สรุป</button>
+    </div>
+    <div class="smsec">ตั้งค่าเครื่องนี้</div>
+    <div class="smlist" id="sideList">
+      <div class="savechip" id="wakeChip" style="background:var(--w-chip,#eef1f5); color:var(--dim); cursor:pointer;">☀ กันจอดับ: ปิด</div>
+      <div class="savechip" id="roleChip" style="background:var(--w-chip,#eef1f5); color:var(--dim); cursor:pointer;">👤 พนักงาน</div>
+      <div class="savechip" id="fontChip" style="background:var(--w-chip,#eef1f5); color:var(--dim); cursor:pointer;">🔠 ตัวหนังสือ: ใหญ่</div>
+    </div>
+    <div class="smfoot">ตั้งค่าเครื่องนี้จำแยกแต่ละเครื่อง</div>
+  </aside>
+<style>
+  #fr .topbar h1 { flex-wrap:wrap; }
+  #fr .topbar h1 .apptitle { flex:1 1 auto; min-width:0; }
+  #fr .topbar h1 #saveState { margin:0 0 0 auto; flex:none; font-weight:500; }
+  #fr .menubtn { width:44px; height:44px; flex:none; padding:0; border-radius:12px; border:1px solid var(--w-border,var(--border));
+    background:var(--w-chip,var(--panel2)); color:var(--text); font:600 22px/1 'Kanit',sans-serif; cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center; }
+  #fr .menubtn:active { transform:scale(.96); }
+  #fr .sideback { position:fixed; inset:0; z-index:90; background:var(--w-overlay,rgba(8,11,15,.55)); opacity:0; pointer-events:none; transition:opacity .2s; }
+  #fr .sideback.show { opacity:1; pointer-events:auto; }
+  #fr .sidemenu { position:fixed; top:0; left:0; z-index:95; height:calc(100vh / var(--zf,1)); width:min(300px, calc(86vw / var(--zf,1)));
+    display:flex; flex-direction:column; overflow:auto; box-sizing:border-box;
+    background:var(--w-panel,var(--panel)); color:var(--text); border-right:1px solid var(--w-border,var(--border)); box-shadow:6px 0 28px rgba(0,0,0,.28);
+    transform:translateX(-105%); visibility:hidden; transition:transform .22s ease, visibility 0s linear .22s; }
+  #fr .sidemenu.open { transform:none; visibility:visible; transition:transform .22s ease; }
+  #fr .sidemenu .smhead { display:flex; align-items:center; gap:10px; padding:14px 14px 12px; border-bottom:1px solid var(--w-border,var(--border)); }
+  /* โลโก้บริษัท = เวกเตอร์ (คมทุกขนาดจอ) */
+  #fr .applogo { width:128px; height:48px; object-fit:contain; padding:4px 7px; box-sizing:border-box; background:#fff; }
+  #fr .sidemenu .smhead .applogo { width:104px; height:40px; padding:3px 6px; }
+  #fr .sidemenu .smhead b { font:600 18px 'Kanit',sans-serif; }
+  #fr .sidemenu .smclose { margin-left:auto; width:40px; height:40px; border-radius:10px; border:1px solid var(--w-border,var(--border));
+    background:var(--w-chip,var(--panel2)); color:var(--text); font-size:17px; cursor:pointer; }
+  #fr .sidemenu .smlist { padding:12px; display:flex; flex-direction:column; gap:9px; }
+  #fr .sidemenu .smlist .savechip { display:flex; align-items:center; width:100%; box-sizing:border-box; margin:0 !important;
+    padding:14px 15px; font:500 16px 'Kanit',sans-serif; border-radius:12px; border:1px solid var(--w-border,var(--border));
+    text-align:left; text-decoration:none; cursor:pointer; }
+  #fr .sidemenu .smfoot { margin-top:auto; padding:12px 16px 16px; font-size:12.5px; color:var(--dim); }
+  #fr .sidemenu .smsec { padding:14px 16px 2px; font:500 12.5px 'Sarabun',sans-serif; color:var(--dim); letter-spacing:.02em; }
+  #fr .sidemenu .smtabs { padding:6px 12px 4px; display:flex; flex-direction:column; gap:4px; }
+  #fr .sidemenu .smtabs .nb { flex:none; flex-direction:row; justify-content:flex-start; gap:12px; width:100%; box-sizing:border-box;
+    padding:10px 12px; border-radius:12px; font:500 16px 'Kanit',sans-serif; color:var(--text); text-align:left; white-space:nowrap; }
+  #fr .sidemenu .smtabs .nb .ic { font-size:22px; width:30px; text-align:center; filter:none; opacity:1; }
+  #fr .sidemenu .smtabs .nb:hover { background:var(--w-chip,var(--panel2)); }
+  #fr .sidemenu .smtabs .nb.on { background:rgba(232,120,40,.14); background:color-mix(in srgb, var(--accent) 16%, transparent); color:var(--accent2); font-weight:600; }
+  #fr .sidemenu .smtabs .nb.on::before { content:''; position:absolute; left:0; top:22%; bottom:22%; width:4px; right:auto; height:auto; border-radius:0 4px 4px 0; background:var(--accent); }
+  /* จอกว้าง (คอม / แท็บเล็ตแนวนอน): เมนูข้างเปิดค้าง แทนแถบล่าง */
+  @media (min-width:1000px){
+    #fr { padding-left:250px; padding-bottom:24px; }
+    #fr .nav { display:none; }
+    #fr .sidemenu { width:250px; z-index:25; transform:none; visibility:visible; transition:none; box-shadow:none; }
+    #fr .sideback, #fr .menubtn, #fr .sidemenu .smclose, #fr .topbar .applogo { display:none; }
+    #fr .toast { left:calc(50% + 125px); }
+    #fr .sidemenu .smtabs .nb { padding:8px 12px; }
+    #fr .sidemenu .smlist { gap:6px; }
+    #fr .sidemenu .smlist .savechip { padding:10px 13px; font-size:14.5px; }
+  }
+</style>
+<script>
+/* เมนูด้านข้าง: ☰ เปิด · ✕ / แตะพื้นหลัง / Esc ปิด · ปุ่มหน้ารวม + โหมดสว่าง/มืด (ธีมสร้างไว้ข้างชิปบันทึก) ย้ายมาไว้ในเมนู */
+(function(){
+  var m=document.getElementById('sideMenu'), bk=document.getElementById('sideBack');
+  function open(){ m.classList.add('open'); bk.classList.add('show'); m.setAttribute('aria-hidden','false'); }
+  function close(){ m.classList.remove('open'); bk.classList.remove('show'); m.setAttribute('aria-hidden','true'); }
+  window.sideMenuClose=close;
+  document.getElementById('menuBtn').onclick=open;
+  document.getElementById('sideClose').onclick=close; bk.onclick=close;
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape' && m.classList.contains('open')) close(); });
+  document.getElementById('roleChip').addEventListener('click', close);   /* หัวหน้า → หน้าต่างใส่รหัส */
+  document.querySelectorAll('#sideTabs .nb').forEach(function(b){ b.addEventListener('click', close); });
+  document.addEventListener('DOMContentLoaded',function(){
+    var L=document.getElementById('sideList');
+    ['wpdMode','wpdHub'].forEach(function(id){ var e=document.getElementById(id); if(e) L.insertBefore(e, L.firstChild); });
+  });
+})();
+</script>
 <script>
 /* ขนาดตัวหนังสือ (จำแยกแต่ละเครื่อง) — กดที่ชิปวน ปกติ → ใหญ่ → ใหญ่มาก · ค่าเริ่มต้น = ใหญ่ */
 (function(){

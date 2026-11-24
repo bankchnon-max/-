@@ -504,11 +504,91 @@
 
 <div id="sk">
   <div class="topbar">
-    <h1><span class="dotled"></span> ระบบสต๊อกสินค้า</h1>
+    <h1><button type="button" class="menubtn" id="menuBtn" data-noguard="1" aria-label="เปิดเมนู">☰</button><img class="applogo" src="icons/windesign-logo.svg" alt="WinDesign"> <span class="apptitle">ระบบสต๊อกสินค้า</span><span class="savechip ok" id="saveState">บันทึกแล้ว ✓</span></h1>
     <div class="sub" id="clock" style="color:var(--dim);">—</div>
-    <div class="savechip ok" id="saveState">บันทึกแล้ว ✓</div>
     <div class="sumline" style="margin-top:6px;">เชื่อมกับระบบผลิตอัตโนมัติ — เบิกใย/ผลิตแพ็ค/ท้ายไลน์ หักสต๊อกให้เองทุกจุด</div>
   </div>
+  <!-- เมนูด้านข้าง: แท็บ + ตั้งค่าเครื่องนี้ (จอกว้าง = เปิดค้างแทนแถบล่าง) -->
+  <div class="sideback" id="sideBack"></div>
+  <aside class="sidemenu" id="sideMenu" aria-hidden="true">
+    <div class="smhead"><img class="applogo" src="icons/windesign-logo.svg" alt="WinDesign"><b>เมนู</b><button type="button" class="smclose" id="sideClose" data-noguard="1" aria-label="ปิดเมนู">✕</button></div>
+    <div class="smsec">หน้า</div>
+    <div class="smtabs" id="sideTabs">
+      <button class="nb on" data-p="fiber"><span class="ic">🧵</span>ใย</button>
+      <button class="nb" data-p="fabric"><span class="ic">🧶</span>ผ้า</button>
+      <button class="nb" data-p="bag"><span class="ic">🛍️</span>ถุง</button>
+      <button class="nb" data-p="gas"><span class="ic">🔥</span>แก๊ส</button>
+      <button class="nb" data-p="fin"><span class="ic">📦</span>สินค้า</button>
+      <button class="nb" data-p="ship"><span class="ic">🚚</span>จัดส่ง</button>
+      <button class="nb" data-p="sum"><span class="ic">📊</span>สรุป</button>
+    </div>
+    <div class="smsec">ตั้งค่าเครื่องนี้</div>
+    <div class="smlist" id="sideList"></div>
+    <div class="smfoot">ตั้งค่าเครื่องนี้จำแยกแต่ละเครื่อง</div>
+  </aside>
+<style>
+  #sk .applogo { width:104px; height:48px; border-radius:10px; flex:none; object-fit:cover; object-position:50% 52%; background:#fff; border:1px solid var(--border); box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  #sk .topbar h1 { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  #sk .topbar h1 .apptitle { flex:1 1 auto; min-width:0; }
+  #sk .topbar h1 #saveState { margin:0 0 0 auto; flex:none; font-weight:500; }
+  #sk .menubtn { width:44px; height:44px; flex:none; padding:0; border-radius:12px; border:1px solid var(--w-border,var(--border));
+    background:var(--w-chip,var(--panel2)); color:var(--text); font:600 22px/1 'Kanit',sans-serif; cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center; }
+  #sk .menubtn:active { transform:scale(.96); }
+  #sk .sideback { position:fixed; inset:0; z-index:90; background:var(--w-overlay,rgba(8,11,15,.55)); opacity:0; pointer-events:none; transition:opacity .2s; }
+  #sk .sideback.show { opacity:1; pointer-events:auto; }
+  #sk .sidemenu { position:fixed; top:0; left:0; z-index:95; height:100vh; width:min(300px, 86vw);
+    display:flex; flex-direction:column; overflow:auto; box-sizing:border-box;
+    background:var(--w-panel,var(--panel)); color:var(--text); border-right:1px solid var(--w-border,var(--border)); box-shadow:6px 0 28px rgba(0,0,0,.28);
+    transform:translateX(-105%); visibility:hidden; transition:transform .22s ease, visibility 0s linear .22s; }
+  #sk .sidemenu.open { transform:none; visibility:visible; transition:transform .22s ease; }
+  #sk .sidemenu .smhead { display:flex; align-items:center; gap:10px; padding:14px 14px 12px; border-bottom:1px solid var(--w-border,var(--border)); }
+  /* โลโก้บริษัท = เวกเตอร์ (คมทุกขนาดจอ) */
+  #sk .applogo { width:128px; height:48px; object-fit:contain; padding:4px 7px; box-sizing:border-box; background:#fff; }
+  #sk .sidemenu .smhead .applogo { width:104px; height:40px; padding:3px 6px; }
+  #sk .sidemenu .smhead b { font:600 18px 'Kanit',sans-serif; }
+  #sk .sidemenu .smclose { margin-left:auto; width:40px; height:40px; border-radius:10px; border:1px solid var(--w-border,var(--border));
+    background:var(--w-chip,var(--panel2)); color:var(--text); font-size:17px; cursor:pointer; }
+  #sk .sidemenu .smsec { padding:14px 16px 2px; font:500 12.5px 'Sarabun',sans-serif; color:var(--dim); letter-spacing:.02em; }
+  #sk .sidemenu .smtabs { padding:6px 12px 4px; display:flex; flex-direction:column; gap:4px; }
+  #sk .sidemenu .smtabs .nb { flex:none; display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:12px; width:100%; box-sizing:border-box;
+    padding:10px 12px; border:none; background:none; border-radius:12px; font:500 16px 'Kanit',sans-serif; color:var(--text); text-align:left; white-space:nowrap; position:relative; cursor:pointer; }
+  #sk .sidemenu .smtabs .nb .ic { font-size:22px; width:30px; text-align:center; filter:none; opacity:1; }
+  #sk .sidemenu .smtabs .nb:hover { background:var(--w-chip,var(--panel2)); }
+  #sk .sidemenu .smtabs .nb.on { background:rgba(232,120,40,.14); background:color-mix(in srgb, var(--accent) 16%, transparent); color:var(--accent2); font-weight:600; }
+  #sk .sidemenu .smtabs .nb.on::before { content:''; position:absolute; left:0; top:22%; bottom:22%; width:4px; right:auto; height:auto; border-radius:0 4px 4px 0; background:var(--accent); }
+  #sk .sidemenu .smlist { padding:12px; display:flex; flex-direction:column; gap:9px; }
+  #sk .sidemenu .smlist .savechip { display:flex; align-items:center; width:100%; box-sizing:border-box; margin:0 !important;
+    padding:14px 15px; font:500 16px 'Kanit',sans-serif; border-radius:12px; border:1px solid var(--w-border,var(--border));
+    text-align:left; text-decoration:none; cursor:pointer; }
+  #sk .sidemenu .smfoot { margin-top:auto; padding:12px 16px 16px; font-size:12.5px; color:var(--dim); }
+  @media (min-width:1000px){
+    #sk { padding-left:250px; padding-bottom:24px; }
+    #sk .nav { display:none; }
+    #sk .sidemenu { width:250px; z-index:25; transform:none; visibility:visible; transition:none; box-shadow:none; }
+    #sk .sideback, #sk .menubtn, #sk .sidemenu .smclose, #sk .topbar .applogo { display:none; }
+    #sk .toast { left:calc(50% + 125px); }
+    #sk .sidemenu .smtabs .nb { padding:8px 12px; }
+    #sk .sidemenu .smlist { gap:6px; }
+    #sk .sidemenu .smlist .savechip { padding:10px 13px; font-size:14.5px; }
+  }
+</style>
+<script>
+/* เมนูด้านข้าง: ☰ เปิด · ✕ / แตะพื้นหลัง / Esc / แตะแท็บ = ปิด · ปุ่มหน้ารวม + โหมด (ธีมสร้างไว้ข้างชิปบันทึก) ย้ายมาไว้ในเมนู */
+(function(){
+  var m=document.getElementById('sideMenu'), bk=document.getElementById('sideBack');
+  function open(){ m.classList.add('open'); bk.classList.add('show'); m.setAttribute('aria-hidden','false'); }
+  function close(){ m.classList.remove('open'); bk.classList.remove('show'); m.setAttribute('aria-hidden','true'); }
+  document.getElementById('menuBtn').onclick=open;
+  document.getElementById('sideClose').onclick=close; bk.onclick=close;
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape' && m.classList.contains('open')) close(); });
+  document.querySelectorAll('#sideTabs .nb').forEach(function(b){ b.addEventListener('click', close); });
+  document.addEventListener('DOMContentLoaded',function(){
+    var L=document.getElementById('sideList');
+    ['wpdMode','wpdHub'].forEach(function(id){ var e=document.getElementById(id); if(e) L.insertBefore(e, L.firstChild); });
+  });
+})();
+</script>
 
   <div class="content">
 
